@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { BORDER_MODS, borderModById, voyageModById } from '../data/mods'
 import { rotateEdges } from '../logic/connectivity'
 import type { Board, Borders, ChartData, Placement } from '../types'
@@ -23,15 +24,35 @@ interface Props {
 function BorderSelect({
   value,
   onChange,
+  seg,
 }: {
   value: string | null
   onChange: (id: string | null) => void
+  seg: number
   vertical?: boolean
 }) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
   const mod = value ? borderModById.get(value) : null
   const eff = mod?.effects[0]
+  const filtered = BORDER_MODS.filter((m) => m.text.toLowerCase().includes(q.toLowerCase()))
+  // keep the popover on-screen: right-column segments align right, left-column align left
+  const align = seg >= 3 && seg <= 5 ? 'right' : seg >= 9 ? 'left' : 'center'
+
+  const pick = (id: string | null) => {
+    onChange(id)
+    setOpen(false)
+  }
+
   return (
-    <span className={`bslot ${mod ? 'filled' : ''}`} title={mod?.text ?? 'Border segment: click to set'}>
+    <span
+      className={`bslot ${mod ? 'filled' : ''}`}
+      title={mod?.text ?? 'Border segment: click to search'}
+      onClick={() => {
+        setQ('')
+        setOpen(true)
+      }}
+    >
       {mod ? (
         <span>
           {eff ? `+${eff.percent}% ${STAT_SHORT[eff.stat]}` : mod.magnitude ? `${mod.magnitude}% Magnitude` : '✦'}
@@ -39,19 +60,44 @@ function BorderSelect({
       ) : (
         <span className="bslot-empty">·</span>
       )}
-      <select
-        className="bslot-select"
-        value={value ?? ''}
-        onChange={(e) => onChange(e.target.value || null)}
-        aria-label="Border modifier"
-      >
-        <option value="">no border</option>
-        {BORDER_MODS.map((m) => (
-          <option key={m.id} value={m.id}>
-            {m.text}
-          </option>
-        ))}
-      </select>
+      {open && (
+        <>
+          <span
+            className="bpop-backdrop"
+            onClick={(e) => {
+              e.stopPropagation()
+              setOpen(false)
+            }}
+          />
+          <span className={`bpop bpop-${align}`} onClick={(e) => e.stopPropagation()}>
+            <input
+              autoFocus
+              placeholder="Search border mods…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setOpen(false)
+                if (e.key === 'Enter' && filtered.length > 0) pick(filtered[0].id)
+              }}
+            />
+            <span className="bpop-list">
+              <button className="bpop-item muted" onClick={() => pick(null)}>
+                No border
+              </button>
+              {filtered.map((m) => (
+                <button
+                  key={m.id}
+                  className={`bpop-item ${m.id === value ? 'active' : ''}`}
+                  onClick={() => pick(m.id)}
+                >
+                  {m.text}
+                </button>
+              ))}
+              {filtered.length === 0 && <span className="bpop-none">No matches</span>}
+            </span>
+          </span>
+        </>
+      )}
     </span>
   )
 }
@@ -221,6 +267,7 @@ export function BoardView(props: Props) {
     <BorderSelect
       key={`b${seg}`}
       value={borders[seg]}
+      seg={seg}
       vertical={vertical}
       onChange={(id) => props.onBorderChange(seg, id)}
     />

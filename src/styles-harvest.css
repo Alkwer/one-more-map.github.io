@@ -241,6 +241,25 @@ body.theme-harvest .bslot:hover {
   box-shadow: none;
   border-color: #d600d6;
 }
+body.theme-harvest .bpop {
+  background: #fff;
+  border: 2px solid #000;
+  border-radius: 0;
+  box-shadow: 4px 5px 0 rgba(0, 0, 0, 0.2);
+}
+body.theme-harvest .bpop-item {
+  color: #202124;
+  font-weight: 400;
+}
+body.theme-harvest .bpop-item:hover {
+  background: #e8eaed;
+  border-color: #000;
+  color: #000;
+}
+body.theme-harvest .bpop-item.active {
+  color: #0097a7;
+  font-weight: 700;
+}
 
 /* library grid squares = seed cells, filled in garden colours */
 body.theme-harvest .chart-sq {
