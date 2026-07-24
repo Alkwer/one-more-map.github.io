@@ -47,10 +47,15 @@ const PATHS: Record<Stat, JSX.Element> = {
   preserve: <path d="M8 1.8l5 1.9v4.2c0 3.4-2.1 5.4-5 6.5-2.9-1.1-5-3.1-5-6.5V3.7l5-1.9z" />,
 }
 
-// stats with real game inventory art (drop more into public/ and map here)
+// currency + scarabs are game inventory art; the rest are AI-generated in PoE style
 const IMAGE_ICONS: Partial<Record<Stat, string>> = {
   currency: '/icon-currency.png',
   scarabs: '/icon-scarabs.png',
+  rares: '/icon-rares.png',
+  sulphur: '/icon-sulphur.png',
+  packsize: '/icon-packsize.png',
+  quantity: '/icon-quantity.png',
+  preserve: '/icon-preserve.png',
 }
 
 export function StatIcon({ stat, size = 13 }: { stat: Stat; size?: number }) {
