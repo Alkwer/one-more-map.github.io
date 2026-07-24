@@ -18,6 +18,7 @@ export type Stat =
   | 'quantity'
   | 'rarity'
   | 'uniques' // unique ring/amulet/belt conversion
+  | 'treasure' // lootable-object spawns: strongboxes, anchors, lockers, barrels, messages, fish, lanterns, altars
   | 'exp' // experience gain
   | 'preserve' // chance charts aren't consumed
 
@@ -36,6 +37,7 @@ export const ALL_STATS: Stat[] = [
   'quantity',
   'rarity',
   'uniques',
+  'treasure',
   'exp',
   'preserve',
 ]
@@ -56,6 +58,7 @@ export const STAT_SHORT: Record<Stat, string> = {
   quantity: 'Quantity',
   rarity: 'Rarity',
   uniques: 'Uniques',
+  treasure: 'Treasure',
   exp: 'XP',
   preserve: 'Preserve',
 }
@@ -75,6 +78,7 @@ export const STAT_LABELS: Record<Stat, string> = {
   quantity: 'Item Quantity',
   rarity: 'Item Rarity',
   uniques: 'Unique Items',
+  treasure: 'Treasure',
   exp: 'Experience',
   preserve: 'Chart Preservation',
 }
@@ -95,6 +99,8 @@ export const STAT_DESC: Record<Stat, string> = {
   quantity: 'Item Quantity - increased quantity of items dropped',
   rarity: 'Item Rarity - increased rarity of items dropped',
   uniques: 'Unique Items - ring/amulet/belt drop-as-unique chances',
+  treasure:
+    "Treasure - extra lootable objects that spawn in the area: Strongboxes, Treasure Anchors, Pirate's Lockers, Barrels, Messages in Bottles, exotic Fish, Golden Lanterns, Altars, and treasure minibosses",
   exp: 'Experience - increased experience gain from XP borders',
   preserve: 'Chart Preservation - chance not to consume adjacent charts when starting a Voyage',
 }
@@ -186,6 +192,7 @@ export const DEFAULT_WEIGHTS: Weights = {
   quantity: 5,
   rarity: 1,
   uniques: 3,
+  treasure: 4,
   exp: 2,
   preserve: 3,
 }

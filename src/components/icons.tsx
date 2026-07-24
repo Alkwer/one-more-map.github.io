@@ -99,6 +99,13 @@ const PATHS: Record<Stat, JSX.Element> = {
       <path d="M6.5 3.4 8 1.6l1.5 1.8-1.5 1.4-1.5-1.4z" />
     </>
   ),
+  // anchor (treasure)
+  treasure: (
+    <>
+      <circle cx="8" cy="3.4" r="1.6" />
+      <path d="M8 5v8M4 8h8M3.2 10.4C3.8 12.6 5.6 14 8 14s4.2-1.4 4.8-3.6" />
+    </>
+  ),
   // rising arrow (experience)
   exp: <path d="M8 13.6V3.2M4.4 6.8 8 3.2l3.6 3.6" />,
 }
