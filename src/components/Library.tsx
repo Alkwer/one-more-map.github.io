@@ -218,11 +218,13 @@ export function Library(props: Props) {
       {view === 'grid' && (
         <div className="chart-grid">
           {visible.map((c) => {
-            const mod = c.modIds[0] ? voyageModById.get(c.modIds[0]) : null
+            const mods = c.modIds.map((id) => voyageModById.get(id)).filter(Boolean)
+            // lead with the implicit (adjacent/voyage) — it's the strategic mod
+            const mod = mods.find((m) => m!.scope !== 'self') ?? mods[0] ?? null
             const val = displayValue(c, props.weights)
             const lines = [
               { text: `Area Level: ${c.level}`, cls: 'muted' },
-              ...(mod ? [{ text: mod.text, cls: `scope-${mod.scope}` }] : []),
+              ...mods.map((m) => ({ text: m!.text, cls: `scope-${m!.scope}` })),
               { text: `Weighted value: ${val}`, cls: 'val' },
               ...(onBoard.has(c.uid) ? [{ text: 'Currently on the board', cls: 'muted' }] : []),
             ]
@@ -266,7 +268,8 @@ export function Library(props: Props) {
       {view === 'list' && (
       <div className="chart-list">
         {visible.map((c) => {
-          const mod = c.modIds[0] ? voyageModById.get(c.modIds[0]) : null
+          const allMods = c.modIds.map((id) => voyageModById.get(id)).filter(Boolean)
+          const mod = allMods.find((m) => m!.scope !== 'self') ?? allMods[0] ?? null
           return (
             <div
               key={c.uid}
@@ -305,11 +308,15 @@ export function Library(props: Props) {
                     title: c.name,
                     lines: [
                       { text: `Area Level: ${c.level}`, cls: 'muted' },
-                      { text: mod.text, cls: `scope-${mod.scope}` },
+                      ...allMods.map((m) => ({ text: m!.text, cls: `scope-${m!.scope}` })),
                     ],
                   })}
                 >
-                  {mod.text}
+                  {allMods.map((m) => (
+                    <div key={m!.id} className={`scope-${m!.scope}`}>
+                      {m!.text}
+                    </div>
+                  ))}
                 </div>
               )}
               {editing === c.uid && <ChartEditor chart={c} onUpdate={props.onUpdate} />}
