@@ -3,6 +3,7 @@ import { rotateEdges } from '../logic/connectivity'
 import type { Board, Borders, ChartData, Placement } from '../types'
 import { ALL_STATS, STAT_LABELS } from '../types'
 import { StatIcon } from './icons'
+import { tooltipProps } from './Tooltip'
 
 interface Props {
   board: Board
@@ -72,8 +73,17 @@ function Tile({
   }
   const edges = rotateEdges(chart.edges, placement.rotation)
   const mods = chart.modIds.map((id) => voyageModById.get(id)).filter(Boolean)
+  const scopeLabel = { self: 'this Area', adjacent: 'adjacent Areas', global: 'the whole Voyage' }
+  const tt = tooltipProps({
+    title: chart.name,
+    lines: [
+      { text: `Area Level: ${chart.level}`, cls: 'muted' },
+      ...mods.map((m) => ({ text: m!.text, cls: `scope-${m!.scope}` })),
+      ...mods.map((m) => ({ text: `(affects ${scopeLabel[m!.scope]})`, cls: 'muted' })),
+    ],
+  })
   return (
-    <div className={`tile ${selected ? 'selected' : ''}`} onClick={onClick}>
+    <div className={`tile ${selected ? 'selected' : ''}`} onClick={onClick} {...tt}>
       {(['n', 'e', 's', 'w'] as const).map((d, i) =>
         edges[i] ? <span key={d} className={`conn conn-${d}`} /> : null,
       )}
@@ -101,7 +111,7 @@ function Tile({
       <div className="tile-level">lvl {chart.level}</div>
       <div className="tile-mods">
         {mods.map((m) => (
-          <span key={m!.id} className={`mod-chip scope-${m!.scope}`} title={`[${m!.scope}] ${m!.text}`}>
+          <span key={m!.id} className={`mod-chip scope-${m!.scope}`}>
             {m!.effects[0] && <StatIcon stat={m!.effects[0].stat} />}
             <span>+{m!.effects[0]?.percent ?? '?'}%</span>
           </span>

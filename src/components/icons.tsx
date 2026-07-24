@@ -47,7 +47,17 @@ const PATHS: Record<Stat, JSX.Element> = {
   preserve: <path d="M8 1.8l5 1.9v4.2c0 3.4-2.1 5.4-5 6.5-2.9-1.1-5-3.1-5-6.5V3.7l5-1.9z" />,
 }
 
+// stats with real game inventory art (drop more into public/ and map here)
+const IMAGE_ICONS: Partial<Record<Stat, string>> = {
+  currency: '/icon-currency.png',
+  scarabs: '/icon-scarabs.png',
+}
+
 export function StatIcon({ stat, size = 13 }: { stat: Stat; size?: number }) {
+  const img = IMAGE_ICONS[stat]
+  if (img) {
+    return <img className="stat-icon-img" src={img} width={size} height={size} alt="" aria-hidden />
+  }
   return (
     <svg
       viewBox="0 0 16 16"

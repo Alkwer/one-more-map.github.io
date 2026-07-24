@@ -3,6 +3,7 @@ import { VOYAGE_MODS, voyageModById } from '../data/mods'
 import { newUid } from '../logic/parser'
 import type { Board, ChartData, Edges } from '../types'
 import { StatIcon } from './icons'
+import { tooltipProps } from './Tooltip'
 
 interface Props {
   pool: ChartData[]
@@ -133,7 +134,16 @@ export function Library(props: Props) {
                 </button>
               </div>
               {mod && (
-                <div className={`chart-mod scope-${mod.scope}`} title={`[${mod.scope}] ${mod.text}`}>
+                <div
+                  className={`chart-mod scope-${mod.scope}`}
+                  {...tooltipProps({
+                    title: c.name,
+                    lines: [
+                      { text: `Area Level: ${c.level}`, cls: 'muted' },
+                      { text: mod.text, cls: `scope-${mod.scope}` },
+                    ],
+                  })}
+                >
                   {mod.effects[0] && <StatIcon stat={mod.effects[0].stat} />} {mod.text}
                 </div>
               )}

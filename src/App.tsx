@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BoardView } from './components/Board'
+import { TooltipLayer } from './components/Tooltip'
 import { ImportPanel } from './components/ImportPanel'
 import { Library } from './components/Library'
 import { SolverPanel } from './components/SolverPanel'
@@ -102,6 +103,7 @@ export default function App() {
 
   return (
     <div className="app">
+      <TooltipLayer />
       <header>
         <h1>
           Allflame <span className="accent">Voyage Solver</span>

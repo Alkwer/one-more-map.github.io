@@ -678,3 +678,68 @@ textarea {
 .result.invalid {
   opacity: 0.55;
 }
+
+/* ------- PoE item tooltip (game header assets) ------- */
+.poe-tooltip {
+  position: fixed;
+  z-index: 999;
+  pointer-events: none;
+  filter: drop-shadow(0 8px 22px rgba(0, 0, 0, 0.85));
+}
+.poe-tt-header {
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: url('/header-double-ascendancy-middle.png') repeat-x center / auto 54px;
+  position: relative;
+}
+.poe-tt-header::before,
+.poe-tt-header::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 44px;
+  height: 54px;
+}
+.poe-tt-header::before {
+  left: 0;
+  background: url('/header-double-ascendancy-left.png') no-repeat center / 44px 54px;
+}
+.poe-tt-header::after {
+  right: 0;
+  background: url('/header-double-ascendancy-right.png') no-repeat center / 44px 54px;
+}
+.poe-tt-title {
+  font-family: var(--serif);
+  font-size: 17px;
+  color: #e7d7ab;
+  padding: 0 48px;
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  line-height: 1.1;
+}
+.poe-tt-body {
+  background: rgba(0, 0, 0, 0.87);
+  padding: 8px 14px 10px;
+  text-align: center;
+}
+.poe-tt-line {
+  font-family: var(--serif);
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--self); /* magic blue, like in-game mod lines */
+}
+.poe-tt-line.muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* image-based stat icons (game inventory art) */
+.stat-icon-img {
+  width: 15px;
+  height: 15px;
+  object-fit: contain;
+  vertical-align: -2px;
+}
