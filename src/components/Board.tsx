@@ -45,12 +45,15 @@ function BorderSelect({
   )
 }
 
+type EdgeStatus = 'none' | 'connected' | 'open' | 'mismatch'
+
 function Tile({
   placement,
   chart,
   score,
   selected,
   placing,
+  edgeStatus,
   onClick,
   onRemove,
   onRotate,
@@ -60,6 +63,7 @@ function Tile({
   score: number
   selected: boolean
   placing: boolean
+  edgeStatus: EdgeStatus[]
   onClick: () => void
   onRemove: () => void
   onRotate: () => void
@@ -82,11 +86,13 @@ function Tile({
       ...mods.map((m) => ({ text: `(affects ${scopeLabel[m!.scope]})`, cls: 'muted' })),
     ],
   })
+  const hasLines = edges.some(Boolean)
   return (
     <div className={`tile ${selected ? 'selected' : ''}`} onClick={onClick} {...tt}>
       {(['n', 'e', 's', 'w'] as const).map((d, i) =>
-        edges[i] ? <span key={d} className={`conn conn-${d}`} /> : null,
+        edges[i] ? <span key={d} className={`path-bar ${d} ${edgeStatus[i]}`} /> : null,
       )}
+      {hasLines && <span className="path-node" />}
       <div className="tile-actions">
         <button
           title="Rotate"
@@ -122,8 +128,38 @@ function Tile({
   )
 }
 
+const DIRS = [
+  { dr: -1, dc: 0, opp: 2 }, // N
+  { dr: 0, dc: 1, opp: 3 }, // E
+  { dr: 1, dc: 0, opp: 0 }, // S
+  { dr: 0, dc: -1, opp: 1 }, // W
+]
+
 export function BoardView(props: Props) {
   const { board, borders, charts } = props
+
+  const edgesAt = (i: number) => {
+    const p = board[i]
+    if (!p) return null
+    const c = charts.get(p.chartUid)
+    return c ? rotateEdges(c.edges, p.rotation) : null
+  }
+
+  const edgeStatusFor = (i: number): EdgeStatus[] => {
+    const e = edgesAt(i)
+    if (!e) return ['none', 'none', 'none', 'none']
+    const r = Math.floor(i / 3)
+    const c = i % 3
+    return DIRS.map((d, k) => {
+      if (!e[k]) return 'none' as EdgeStatus
+      const nr = r + d.dr
+      const nc = c + d.dc
+      if (nr < 0 || nr > 2 || nc < 0 || nc > 2) return 'open' as EdgeStatus
+      const ne = edgesAt(nr * 3 + nc)
+      if (!ne) return 'open' as EdgeStatus
+      return ne[d.opp] ? ('connected' as EdgeStatus) : ('mismatch' as EdgeStatus)
+    })
+  }
 
   const tile = (i: number) => {
     const p = board[i]
@@ -135,6 +171,7 @@ export function BoardView(props: Props) {
         score={props.perTile[i]}
         selected={props.selectedCell === i}
         placing={!!props.placingChart && !p}
+        edgeStatus={edgeStatusFor(i)}
         onClick={() => props.onCellClick(i)}
         onRemove={() => props.onRemove(i)}
         onRotate={() => props.onRotate(i)}

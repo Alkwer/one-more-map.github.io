@@ -532,40 +532,68 @@ textarea {
   font-size: 11px;
 }
 
-/* connector pips — glowing allflame */
-.conn {
+/* connector paths — ink-style lines through the tile, like the in-game board */
+.path-bar {
   position: absolute;
-  background: linear-gradient(180deg, #9fd4f2, #4b87ad);
-  box-shadow: 0 0 6px rgba(120, 190, 235, 0.8);
-  border-radius: 2px;
+  pointer-events: none;
+  background: #3f8f7c;
+  z-index: 0;
 }
-.conn-n {
-  top: -2px;
+.path-bar.n,
+.path-bar.s {
   left: 50%;
   transform: translateX(-50%);
-  width: 18px;
-  height: 4px;
+  width: 6px;
+  height: 50%;
 }
-.conn-s {
-  bottom: -2px;
+.path-bar.n {
+  top: 0;
+}
+.path-bar.s {
+  bottom: 0;
+}
+.path-bar.e,
+.path-bar.w {
+  top: 50%;
+  transform: translateY(-50%);
+  height: 6px;
+  width: 50%;
+}
+.path-bar.e {
+  right: 0;
+}
+.path-bar.w {
+  left: 0;
+}
+.path-bar.connected {
+  background: linear-gradient(90deg, #49c9a6, #35b593);
+  box-shadow: 0 0 10px rgba(65, 200, 165, 0.6);
+}
+.path-bar.open {
+  background: #2d5a4e;
+  opacity: 0.7;
+}
+.path-bar.mismatch {
+  background: var(--bad);
+  box-shadow: 0 0 8px rgba(201, 90, 73, 0.6);
+}
+.path-node {
+  position: absolute;
   left: 50%;
-  transform: translateX(-50%);
-  width: 18px;
-  height: 4px;
-}
-.conn-e {
-  right: -2px;
   top: 50%;
-  transform: translateY(-50%);
-  width: 4px;
-  height: 18px;
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #49c9a6 0%, #2d6f5e 70%);
+  box-shadow: 0 0 10px rgba(65, 200, 165, 0.55);
+  pointer-events: none;
+  z-index: 0;
 }
-.conn-w {
-  left: -2px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 4px;
-  height: 18px;
+/* tile content sits above the path lines */
+.tile > *:not(.path-bar):not(.path-node):not(.tile-actions) {
+  position: relative;
+  z-index: 1;
 }
 
 .board-hint {
