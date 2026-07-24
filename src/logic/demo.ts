@@ -1,4 +1,4 @@
-// Random demo chart generator — for playing with the tool at realistic pool sizes
+// Random demo chart generator - for playing with the tool at realistic pool sizes
 // before real chart data is available.
 
 import { VOYAGE_MODS } from '../data/mods'

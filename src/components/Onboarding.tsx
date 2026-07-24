@@ -6,7 +6,7 @@ interface Props {
 const STEPS: { title: string; body: string }[] = [
   {
     title: '1 · Collect Charts',
-    body: 'Lost Charts drop from Deepwater encounters while mapping. Run them with Valerie aboard the Sovereign to chart them — this reveals their implicit modifier.',
+    body: 'Lost Charts drop from Deepwater encounters while mapping. Run them with Valerie aboard the Sovereign to chart them. This reveals their implicit modifier.',
   },
   {
     title: '2 · Add them here',
@@ -14,11 +14,11 @@ const STEPS: { title: string; body: string }[] = [
   },
   {
     title: '3 · Set the board',
-    body: 'The Voyage is a 3×3 grid starting at the bottom-left ⚓ square. The 12 border segments ("Corruption Currents") buff the squares they touch — corners get two, the centre none. Enter your current rolls or 🎲 randomise. In game they reroll with Dead Man\'s Sulphur.',
+    body: 'The Voyage is a 3×3 grid starting at the bottom-left ⚓ square. The 12 border segments ("Corruption Currents") buff the squares they touch. Corners get two, the centre none. Enter your current rolls or 🎲 randomise. In game they reroll with Dead Man\'s Sulphur.',
   },
   {
     title: '4 · Weigh your loot',
-    body: 'Tell the solver what you value — currency, scarabs, div cards, sulphur… The weights drive everything: chart values in the library, the board score, and the best-charts regex.',
+    body: 'Tell the solver what you value: currency, scarabs, div cards, sulphur… The weights drive everything: chart values in the library, the board score, and the best-charts regex.',
   },
   {
     title: '5 · Solve',
@@ -32,7 +32,7 @@ export function Onboarding({ onClose, onDemo }: Props) {
       <div className="onboard" onClick={(e) => e.stopPropagation()}>
         <div className="panel-title">Plan your Voyage</div>
         <p className="onboard-intro">
-          Build the most valuable 3×3 Voyage from your charted Charts — solved automatically
+          Build the most valuable 3×3 Voyage from your charted Charts, solved automatically
           around connector shapes, adjacency, and border rolls.
         </p>
         {STEPS.map((s) => (

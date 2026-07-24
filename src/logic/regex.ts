@@ -3,14 +3,14 @@
 // uses. Uses shortest-unique-substring per chart name (poe.re style) so the
 // string stays short.
 // LAUNCH-DAY TODO: confirm what fields the in-game search matches (name, mod
-// text, level?) and whether it supports regex alternation `|` — adjust here.
+// text, level?) and whether it supports regex alternation `|` - adjust here.
 
 import { VOYAGE_MODS } from '../data/mods'
 import type { VoyageModDef, Weights } from '../types'
 
 /**
  * Build a paste-into-game regex that highlights the BEST charts given the
- * user's reward weights — no import needed. Mods are ranked by weighted value
+ * user's reward weights - no import needed. Mods are ranked by weighted value
  * times scope reach (a global mod touches 9 areas, adjacent ~3, self 1), then
  * greedily added as shortest-unique text fragments until the length cap.
  * Fragments use letters/spaces only so rolled numeric values don't break them.

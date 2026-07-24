@@ -1,5 +1,5 @@
 // Core data model for the Voyage Board solver.
-// NOTE: built pre-launch from reveal coverage — field shapes are designed to be
+// NOTE: built pre-launch from reveal coverage - field shapes are designed to be
 // easy to adjust once real in-game data is available (see RESEARCH.md).
 
 /** Reward dimensions a modifier can affect (from the datamined 3.29 mod pools). */
@@ -146,7 +146,7 @@ export type Board = (Placement | null)[]
  */
 export type Borders = (string | null)[]
 
-/** Connectivity rule — the real rule is unconfirmed pre-launch, so it's a setting. */
+/** Connectivity rule - the real rule is unconfirmed pre-launch, so it's a setting. */
 export type ConnectivityMode = 'any' | 'connected' | 'strict'
 
 export type Weights = Record<Stat, number>

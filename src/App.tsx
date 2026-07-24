@@ -149,7 +149,7 @@ export default function App() {
           Allflame <span className="accent">Voyage Solver</span>
         </h1>
         <div className="header-right">
-          <span className="tag">PoE 3.29 — Curse of the Allflame</span>
+          <span className="tag">PoE 3.29: Curse of the Allflame</span>
           <button title="How it works" onClick={() => setShowOnboarding(true)}>
             ?
           </button>
@@ -159,7 +159,7 @@ export default function App() {
             title={
               document.body.classList.contains('theme-harvest')
                 ? 'Back to the Allflame theme'
-                : 'Harvest Edition — like the old garden planner sheets'
+                : 'Harvest Edition, like the old garden planner sheets'
             }
           >
             {document.body.classList.contains('theme-harvest') ? '🔥' : '🌱'}

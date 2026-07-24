@@ -31,13 +31,13 @@ function BorderSelect({
   const mod = value ? borderModById.get(value) : null
   const eff = mod?.effects[0]
   return (
-    <span className={`bslot ${mod ? 'filled' : ''}`} title={mod?.text ?? 'Border segment — click to set'}>
+    <span className={`bslot ${mod ? 'filled' : ''}`} title={mod?.text ?? 'Border segment: click to set'}>
       {mod ? (
         <span>
           {eff ? `+${eff.percent}% ${STAT_SHORT[eff.stat]}` : mod.magnitude ? `${mod.magnitude}% Magnitude` : '✦'}
         </span>
       ) : (
-        <span className="bslot-empty">—</span>
+        <span className="bslot-empty">·</span>
       )}
       <select
         className="bslot-select"
@@ -45,7 +45,7 @@ function BorderSelect({
         onChange={(e) => onChange(e.target.value || null)}
         aria-label="Border modifier"
       >
-        <option value="">— none —</option>
+        <option value="">no border</option>
         {BORDER_MODS.map((m) => (
           <option key={m.id} value={m.id}>
             {m.text}
@@ -107,7 +107,7 @@ function Tile({
       ...mods.map((m) => ({ text: `(affects ${scopeLabel[m!.scope]})`, cls: 'muted' })),
     ],
   })
-  // show the implicit (adjacent/voyage) on the tile — it's the strategic mod
+  // show the implicit (adjacent/voyage) on the tile - it's the strategic mod
   const primary = mods.find((m) => m!.scope !== 'self') ?? mods[0]
   return (
     <div

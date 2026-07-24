@@ -57,7 +57,7 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
           onChange={(e) => onPatch({ mode: e.target.value as ConnectivityMode })}
         >
           <option value="connected">All charts must connect</option>
-          <option value="strict">Strict — every connector must match</option>
+          <option value="strict">Strict: every connector must match</option>
           <option value="any">Ignore connectors</option>
         </select>
       </div>

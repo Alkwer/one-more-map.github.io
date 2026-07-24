@@ -23,7 +23,7 @@ function normalise(s: string): string {
 
 /**
  * Match a mod line against the known pool, ignoring numeric values.
- * Tier families share normalised text — disambiguate by the closest first number.
+ * Tier families share normalised text - disambiguate by the closest first number.
  */
 function matchMod(line: string): string | null {
   const cleaned = line.replace(/\s*\((implicit|enchant)\)\s*$/i, '')
@@ -92,7 +92,7 @@ export function parseChartText(text: string): ParseResult {
       }
     }
 
-    // Connector shape is (probably) not in item text — default to all edges
+    // Connector shape is (probably) not in item text - default to all edges
     // open; the user can toggle edges in the library. Revisit on launch day.
     const edges: Edges = [true, true, true, true]
 

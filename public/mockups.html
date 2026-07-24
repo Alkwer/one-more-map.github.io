@@ -92,7 +92,7 @@
   .h .score { position: absolute; right: 8px; bottom: 5px; font-size: 14px; z-index: 2; }
   .h .lvl { position: absolute; left: 8px; bottom: 5px; color: var(--muted); font-size: 11px; z-index: 2; }
 
-  /* I: E-refined — icon + % cluster, no name */
+  /* I: E-refined - icon + % cluster, no name */
   .i .duo { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); display: flex; align-items: center; gap: 10px; z-index: 2; filter: drop-shadow(0 3px 8px #000); }
   .i .duo img { width: 44px; height: 44px; object-fit: contain; }
   .i .duo .pct { font-family: var(--sc); font-size: 25px; text-shadow: 0 2px 8px #000; }
@@ -109,11 +109,11 @@
 </head>
 <body>
 <h1>Board tile mockups</h1>
-<p class="sub">Three directions for a cleaner Voyage Board — same 2×2 sample: two connected charts, one chart below, one empty cell.</p>
+<p class="sub">Board tile design explorations, same 2×2 sample each.</p>
 
 <div class="mock">
-  <h2>A — Path-first minimal</h2>
-  <p class="desc">Names gone (hover tooltip has them). The reward chip sits ON the path node — the board reads as a map of rewards. Score bottom-right, level bottom-left, tiny. Border mods become compact icon pills.</p>
+  <h2>A - Path-first minimal</h2>
+  <p class="desc">Names gone (hover tooltip has them). The reward chip sits ON the path node - the board reads as a map of rewards. Score bottom-right, level bottom-left, tiny. Border mods become compact icon pills.</p>
   <div class="boardwrap"><div class="grid a">
     <span></span><span class="bslot"><span class="coin"></span>+50%</span><span class="bslot">☠ +100%</span><span></span>
     <span class="bslot vslot">◈ +25%</span>
@@ -129,7 +129,7 @@
 </div>
 
 <div class="mock">
-  <h2>B — Header strip</h2>
+  <h2>B - Header strip</h2>
   <p class="desc">Keeps the name, but disciplined: one slim header line (name + level), path and chip in the body, score in a footer bar. Most information, still tidy.</p>
   <div class="boardwrap"><div class="grid b">
     <span></span><span class="bslot"><span class="coin"></span>+50%</span><span class="bslot">☠ +100%</span><span></span>
@@ -146,7 +146,7 @@
 </div>
 
 <div class="mock">
-  <h2>I — Icon + value cluster (no name)</h2>
+  <h2>I - Icon + value cluster (no name)</h2>
   <p class="desc">No chart name on the tile at all (it lives in the hover tooltip). Icon and value sit together as one cluster on the path node.</p>
   <div class="boardwrap"><div class="grid i">
     <span></span><span class="bslot"><span class="coin"></span>+50%</span><span class="bslot">☠ +100%</span><span></span>
@@ -163,7 +163,7 @@
 </div>
 
 <div class="mock">
-  <h2>E — Corner emblem</h2>
+  <h2>E - Corner emblem</h2>
   <p class="desc">Small icon badge top-left, value huge in the centre of the open tile. Cleanest tile face; the path map stays the hero.</p>
   <div class="boardwrap"><div class="grid e">
     <span></span><span class="bslot"><span class="coin"></span>+50%</span><span class="bslot">☠ +100%</span><span></span>
@@ -180,7 +180,7 @@
 </div>
 
 <div class="mock">
-  <h2>F — Plaque banner</h2>
+  <h2>F - Plaque banner</h2>
   <p class="desc">A horizontal gold-edged plaque across the tile centre holds icon + value, like a nameplate. Paths pass behind it; very structured.</p>
   <div class="boardwrap"><div class="grid f">
     <span></span><span class="bslot"><span class="coin"></span>+50%</span><span class="bslot">☠ +100%</span><span></span>
@@ -197,8 +197,8 @@
 </div>
 
 <div class="mock">
-  <h2>G — Watermark art (D-lite)</h2>
-  <p class="desc">Same big art as D but at 20% opacity, sepia-muted — a ghost of the reward behind a compact value chip. Subtle, atmospheric.</p>
+  <h2>G - Watermark art (D-lite)</h2>
+  <p class="desc">Same big art as D but at 20% opacity, sepia-muted - a ghost of the reward behind a compact value chip. Subtle, atmospheric.</p>
   <div class="boardwrap"><div class="grid g">
     <span></span><span class="bslot"><span class="coin"></span>+50%</span><span class="bslot">☠ +100%</span><span></span>
     <span class="bslot vslot">◈ +25%</span>
@@ -214,8 +214,8 @@
 </div>
 
 <div class="mock">
-  <h2>H — Framed emblem medallion</h2>
-  <p class="desc">The icon sits inside a gold-ringed medallion at the path node — framed and contained, value beneath. Middle ground between C and D.</p>
+  <h2>H - Framed emblem medallion</h2>
+  <p class="desc">The icon sits inside a gold-ringed medallion at the path node - framed and contained, value beneath. Middle ground between C and D.</p>
   <div class="boardwrap"><div class="grid h">
     <span></span><span class="bslot"><span class="coin"></span>+50%</span><span class="bslot">☠ +100%</span><span></span>
     <span class="bslot vslot">◈ +25%</span>
@@ -231,8 +231,8 @@
 </div>
 
 <div class="mock">
-  <h2>D — Icon as background art</h2>
-  <p class="desc">The reward's inventory art fills the tile behind everything — instantly readable from across the room. Big value at the bottom, vignette keeps text legible, paths run beneath the art.</p>
+  <h2>D - Icon as background art</h2>
+  <p class="desc">The reward's inventory art fills the tile behind everything - instantly readable from across the room. Big value at the bottom, vignette keeps text legible, paths run beneath the art.</p>
   <div class="boardwrap"><div class="grid d">
     <span></span><span class="bslot"><span class="coin"></span>+50%</span><span class="bslot">☠ +100%</span><span></span>
     <span class="bslot vslot">◈ +25%</span>
@@ -248,7 +248,7 @@
 </div>
 
 <div class="mock">
-  <h2>C — Node medallion</h2>
+  <h2>C - Node medallion</h2>
   <p class="desc">Most game-like: a glowing circular node at each chart's centre holds the reward icon, value and score; paths radiate outward. Name is a faint caption. Reads like the in-game map at a glance.</p>
   <div class="boardwrap"><div class="grid c">
     <span></span><span class="bslot"><span class="coin"></span>+50%</span><span class="bslot">☠ +100%</span><span></span>

@@ -18,7 +18,7 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
   const doParse = () => {
     const { charts, unmatched } = parseChartText(text)
     if (charts.length === 0) {
-      setMsg('No items recognised — is this Ctrl+C item text?')
+      setMsg('No items recognised. Is this Ctrl+C item text?')
       return
     }
     onImport(charts)

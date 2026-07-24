@@ -1,5 +1,5 @@
 // ============================================================================
-// 3.29 mod pools — from datamined mod lists (launch day, 2026-07-24).
+// 3.29 mod pools - from datamined mod lists (launch day, 2026-07-24).
 // Reward stat mappings + heuristic values for count-based mods are ours;
 // mod texts and numbers are the game's. Ranges use representative mid values.
 // ============================================================================
@@ -33,7 +33,7 @@ const chartMapMods: VoyageModDef[] = [
 ]
 
 // ---------------------------------------------------------------------------
-// Chart implicits — Adjacent pool (revealed on charting)
+// Chart implicits - Adjacent pool (revealed on charting)
 // ---------------------------------------------------------------------------
 const adjacentImplicits: VoyageModDef[] = [
   { id: 'adj-ess-1', text: 'Adjacent Areas contain 1-2 additional Imprisoned Monsters', scope: 'adjacent', effects: [{ stat: 'essences', percent: 75 }] },
@@ -81,7 +81,7 @@ const adjacentImplicits: VoyageModDef[] = [
 ]
 
 // ---------------------------------------------------------------------------
-// Chart implicits — Voyage (global) pool
+// Chart implicits - Voyage (global) pool
 // ---------------------------------------------------------------------------
 const voyageImplicits: VoyageModDef[] = [
   { id: 'voy-soul', text: 'Players in Area have Soul Eater', scope: 'global', effects: [] },
@@ -91,7 +91,7 @@ const voyageImplicits: VoyageModDef[] = [
   { id: 'voy-quant-2', text: '10% increased Quantity of Items found in this Area', scope: 'global', effects: [{ stat: 'quantity', percent: 10 }] },
   { id: 'voy-rarity-1', text: '7% increased Rarity of Items found in this Area', scope: 'global', effects: [{ stat: 'rarity', percent: 7 }] },
   { id: 'voy-rarity-2', text: '9% increased Rarity of Items found in this Area', scope: 'global', effects: [{ stat: 'rarity', percent: 9 }] },
-  { id: 'voy-jelly', text: 'Area contains Friendly Jellyfish — all Voyage Areas contain Friendly Jellyfish', scope: 'global', effects: [] },
+  { id: 'voy-jelly', text: 'Area contains Friendly Jellyfish', scope: 'global', effects: [] },
   { id: 'voy-sulph-1', text: "15% increased Dead Man's Sulphur found in this Area", scope: 'global', effects: [{ stat: 'sulphur', percent: 15 }] },
   { id: 'voy-sulph-2', text: "20% increased Dead Man's Sulphur found in this Area", scope: 'global', effects: [{ stat: 'sulphur', percent: 20 }] },
   { id: 'voy-sulph-3', text: "25% increased Dead Man's Sulphur found in this Area", scope: 'global', effects: [{ stat: 'sulphur', percent: 25 }] },
@@ -108,7 +108,7 @@ const voyageImplicits: VoyageModDef[] = [
 export const VOYAGE_MODS: VoyageModDef[] = [...chartMapMods, ...adjacentImplicits, ...voyageImplicits]
 
 // ---------------------------------------------------------------------------
-// Border pool ("Corruption Currents") — applies to the touched Area
+// Border pool ("Corruption Currents") - applies to the touched Area
 // ---------------------------------------------------------------------------
 export const BORDER_MODS: BorderModDef[] = [
   { id: 'b-pack-1', text: '16% increased Pack size', effects: [{ stat: 'packsize', percent: 16 }] },

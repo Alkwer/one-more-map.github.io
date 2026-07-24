@@ -4,7 +4,7 @@
    colours (magic blue / rare yellow / unique orange), beveled dark buttons.
    ========================================================================== */
 
-/* Fontin — PoE's font (free, by exljbris); same webfonts pathofexile.com serves */
+/* Fontin - PoE's font (free, by exljbris); same webfonts pathofexile.com serves */
 @font-face {
   font-family: FontinRegular;
   font-weight: 400;
@@ -91,7 +91,7 @@ header::after {
   background: linear-gradient(90deg, transparent, var(--border-hi) 15%, var(--gold-dim) 50%, var(--border-hi) 85%, transparent);
 }
 h1 {
-  /* FontinSmallCaps already renders small caps — no text-transform */
+  /* FontinSmallCaps already renders small caps - no text-transform */
   font-family: var(--display);
   font-size: 27px;
   font-weight: 400;
@@ -742,7 +742,7 @@ textarea {
   font-size: 11px;
 }
 
-/* connector paths — ink-style lines through the tile, like the in-game board */
+/* connector paths - ink-style lines through the tile, like the in-game board */
 .path-bar {
   position: absolute;
   pointer-events: none;

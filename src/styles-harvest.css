@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Harvest Edition — Google Sheets garden-planner tribute.
+   Harvest Edition - Google Sheets garden-planner tribute.
    White spreadsheet grid, Arial, black cell borders, and the classic
    Wild/Vivid/Primal magenta/gold/cyan mapped to self/adjacent/global scopes.
    Scoped entirely under body.theme-harvest.
@@ -75,7 +75,7 @@ body.theme-harvest .score-panel {
   padding: 10px;
 }
 
-/* panel titles like the "Legend" header bar — in the garden colours */
+/* panel titles like the "Legend" header bar - in the garden colours */
 body.theme-harvest .panel-title,
 body.theme-harvest .board-title {
   background: #666;

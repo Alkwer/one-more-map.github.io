@@ -26,7 +26,7 @@ export interface ScoreBreakdown {
  * every effect reaching that tile (own self-mods, neighbours' adjacent-mods,
  * all global mods, border segments touching it). Tile score is the weighted
  * sum of (multiplier − 1); board score is the sum over tiles.
- * Deliberately simple — tune once real numbers are known.
+ * Deliberately simple - tune once real numbers are known.
  */
 export function scoreBoard(
   board: Board,

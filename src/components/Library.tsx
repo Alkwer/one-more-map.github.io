@@ -82,7 +82,7 @@ function ChartEditor({ chart, onUpdate }: { chart: ChartData; onUpdate: (c: Char
                   commit(next[0], next[1], implicitId)
                 }}
               >
-                <option value="">— area mod {slot + 1} —</option>
+                <option value="">area mod {slot + 1}: none</option>
                 {selfPool.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.text}
@@ -94,7 +94,7 @@ function ChartEditor({ chart, onUpdate }: { chart: ChartData; onUpdate: (c: Char
               value={implicitId}
               onChange={(e) => commit(selfIds[0] ?? '', selfIds[1] ?? '', e.target.value)}
             >
-              <option value="">— implicit (adjacent / voyage) —</option>
+              <option value="">implicit: none</option>
               <optgroup label="Adjacent">
                 {VOYAGE_MODS.filter((m) => m.scope === 'adjacent').map((m) => (
                   <option key={m.id} value={m.id}>
@@ -212,14 +212,14 @@ export function Library(props: Props) {
       )}
       {props.pool.length === 0 && (
         <div className="muted pad">
-          No charts yet — add manually or paste from the game below.
+          No charts yet. Add manually or paste from the game below.
         </div>
       )}
       {view === 'grid' && (
         <div className="chart-grid">
           {visible.map((c) => {
             const mods = c.modIds.map((id) => voyageModById.get(id)).filter(Boolean)
-            // lead with the implicit (adjacent/voyage) — it's the strategic mod
+            // lead with the implicit (adjacent/voyage) - it's the strategic mod
             const mod = mods.find((m) => m!.scope !== 'self') ?? mods[0] ?? null
             const val = displayValue(c, props.weights)
             const lines = [
