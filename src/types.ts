@@ -75,6 +75,8 @@ export interface BorderModDef {
   id: string
   text: string
   effects: ModEffect[]
+  /** meta-mod: % increased magnitude of the touched chart's own modifiers */
+  magnitude?: number
 }
 
 /** Edge connectors, clockwise from North: [N, E, S, W]. */

@@ -34,6 +34,8 @@ export const VOYAGE_MODS: VoyageModDef[] = [
 // Border segments ("Corruption Currents", rerolled each Voyage). The wiki says
 // they draw from the adjacent-modifier pool; reveal-stream examples kept too.
 export const BORDER_MODS: BorderModDef[] = [
+  // meta-mod seen in ZiggyD's hands-on: multiplies the touched chart's own mods
+  { id: 'b-magnitude', text: 'Adjacent Areas have 60% increased explicit Modifier magnitude', effects: [], magnitude: 60 },
   { id: 'b-gold', text: '40% of Equipment dropped by monsters in adjacent Areas is converted to Gold', effects: [{ stat: 'gold', percent: 40 }] },
   { id: 'b-wisps', text: 'Monsters have a chance to be Empowered by Wildwood Wisps', effects: [{ stat: 'wisps', percent: 100 }] },
   { id: 'b-essences', text: 'Adjacent Areas contain 3 additional Imprisoned Monsters', effects: [{ stat: 'essences', percent: 150 }] },

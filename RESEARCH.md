@@ -15,6 +15,28 @@
 - Dead Man's Sulphur: from lanterns near green-coral corpses; non-tradeable currency.
 - Wiki 3.29 item icons NOT uploaded yet (red links) — AI-generated icons remain until then.
 
+## From ZiggyD's early hands-on video (youtu.be/BUhy78_RgF0 @ ~21:00, 2026-07-24)
+
+- **Chart item tooltip anatomy** (seen on "Armoured Coral Forest Chart of Power" —
+  magic-rarity naming): Area Level 47 · Item Quantity: +20% · **Gold Found: +70%** ·
+  Requires Level 36 · an explicit "**Adjacent Modifier:**" section ("Adjacent Areas
+  contains 5 additional Giant Starfish") · area mods incl. downsides ("+6% Monster
+  Physical Damage Reduction", "Monsters gain a Power Charge on Hit") · footer "Take
+  this item to Valerie aboard the Sovereign to chart this area". → Parser must read
+  quantity/gold quality-stats + the Adjacent Modifier section + area mod lines.
+- **Charted charts auto-transfer to a dedicated chart stash**; a placeable hideout
+  stash with **affinities** exists. Inventory shows shape glyph + "L:47" level and
+  has a **keyword search box** (regex feature target).
+- **Chart shapes**: straight / L-corner / T / cross glyphs — matches our N/E/S/W edges.
+- **Border mods can be REROLLED by spending Dead Man's Sulphur** → borders are a
+  crafting sub-game; solver could later compute reroll EV ("is this roll worth keeping?").
+- **Meta border mods exist that multiply chart modifier effects** (observed banner:
+  "Adjacent Areas have 60% increased explicit modifier magnitude") → modelled as
+  `magnitude` on BorderModDef, scales the touched chart's own mods in scoring.
+- Scale: a voyage ≈ hundreds of treasure locations, huge zone; ZiggyD ran ~1/act in campaign.
+- On-screen note: GGG has been **buffing adjacency and border modifiers** since the
+  preview build — expect live numbers to be higher than preview footage.
+
 League: **Path of Exile 3.29 — Curse of the Allflame** (launches July 24, 2026).
 
 ## The mechanic (solver-relevant parts)

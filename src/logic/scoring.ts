@@ -33,6 +33,14 @@ export function scoreBoard(
   charts: Map<string, ChartData>,
   weights: Weights,
 ): ScoreBreakdown {
+  // border meta-mods: % increased magnitude of the touched chart's own mods
+  const tileMagnitude: number[] = Array(9).fill(0)
+  borders.forEach((id, seg) => {
+    if (!id) return
+    const mod = borderModById.get(id)
+    if (mod?.magnitude) tileMagnitude[borderTouches(seg)] += mod.magnitude
+  })
+
   // collect effects per tile
   const tileEffects: ModEffect[][] = Array.from({ length: 9 }, () => [])
   const globalEffects: ModEffect[] = []
@@ -41,12 +49,16 @@ export function scoreBoard(
     if (!p) return
     const chart = charts.get(p.chartUid)
     if (!chart) return
+    const mag = 1 + tileMagnitude[i] / 100
     for (const modId of chart.modIds) {
       const mod = voyageModById.get(modId)
       if (!mod) continue
-      if (mod.scope === 'self') tileEffects[i].push(...mod.effects)
-      else if (mod.scope === 'global') globalEffects.push(...mod.effects)
-      else for (const n of NEIGHBOURS[i]) if (board[n]) tileEffects[n].push(...mod.effects)
+      // magnitude scales the chart's own mods (approximation of the in-game meta-mod)
+      const effects =
+        mag !== 1 ? mod.effects.map((e) => ({ ...e, percent: e.percent * mag })) : mod.effects
+      if (mod.scope === 'self') tileEffects[i].push(...effects)
+      else if (mod.scope === 'global') globalEffects.push(...effects)
+      else for (const n of NEIGHBOURS[i]) if (board[n]) tileEffects[n].push(...effects)
     }
   })
 
