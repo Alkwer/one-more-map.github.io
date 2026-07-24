@@ -55,7 +55,8 @@ function BorderSelect({
     >
       {mod ? (
         <span>
-          {eff ? `+${eff.percent}% ${STAT_SHORT[eff.stat]}` : mod.magnitude ? `${mod.magnitude}% Magnitude` : '✦'}
+          {mod.short ??
+            (eff ? `+${eff.percent}% ${STAT_SHORT[eff.stat]}` : mod.magnitude ? `${mod.magnitude}% Magnitude` : '✦')}
         </span>
       ) : (
         <span className="bslot-empty">·</span>
@@ -90,7 +91,8 @@ function BorderSelect({
                   className={`bpop-item ${m.id === value ? 'active' : ''}`}
                   onClick={() => pick(m.id)}
                 >
-                  {m.text}
+                  {m.short && <span className="bpop-short">{m.short}</span>}
+                  <span className="bpop-full">{m.text}</span>
                 </button>
               ))}
               {filtered.length === 0 && <span className="bpop-none">No matches</span>}

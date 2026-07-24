@@ -635,6 +635,23 @@ textarea {
 .bpop-item.muted {
   color: var(--muted);
 }
+.bpop-short {
+  display: block;
+  font-family: var(--sc);
+  font-size: 12.5px;
+  color: var(--gold-dim);
+}
+.bpop-item:hover .bpop-short {
+  color: var(--gold-bright);
+}
+.bpop-item.active .bpop-short {
+  color: var(--accent2);
+}
+.bpop-full {
+  display: block;
+  font-size: 11.5px;
+  color: var(--muted);
+}
 .bpop-none {
   font-size: 12px;
   color: var(--muted);

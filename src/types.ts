@@ -106,6 +106,8 @@ export interface VoyageModDef {
 export interface BorderModDef {
   id: string
   text: string
+  /** compact display label for the border pill */
+  short?: string
   effects: ModEffect[]
   /** meta-mod: % increased magnitude of the touched chart's own modifiers */
   magnitude?: number
