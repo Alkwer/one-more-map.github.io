@@ -12,6 +12,8 @@ interface Props {
   perTile: number[]
   selectedCell: number | null
   highlightUid: string | null
+  /** only flag connector mismatches as errors under the strict rule */
+  strictMode: boolean
   placingChart: ChartData | null
   onCellClick: (i: number) => void
   onRemove: (i: number) => void
@@ -178,7 +180,8 @@ export function BoardView(props: Props) {
       if (nr < 0 || nr > 2 || nc < 0 || nc > 2) return 'open' as EdgeStatus
       const ne = edgesAt(nr * 3 + nc)
       if (!ne) return 'open' as EdgeStatus
-      return ne[d.opp] ? ('connected' as EdgeStatus) : ('mismatch' as EdgeStatus)
+      if (ne[d.opp]) return 'connected' as EdgeStatus
+      return (props.strictMode ? 'mismatch' : 'open') as EdgeStatus
     })
   }
 

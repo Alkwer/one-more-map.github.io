@@ -162,6 +162,7 @@ export default function App() {
                 ? selectedChart
                 : null
             }
+            strictMode={state.mode === 'strict'}
             placingChart={selectedChart ? chartMap.get(selectedChart) ?? null : null}
             onCellClick={onCellClick}
             onRemove={(i) =>

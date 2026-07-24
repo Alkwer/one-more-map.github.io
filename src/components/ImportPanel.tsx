@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { generateDemoCharts } from '../logic/demo'
 import { parseChartText } from '../logic/parser'
 import type { AppState } from '../logic/storage'
 import { defaultState } from '../logic/storage'
@@ -64,6 +65,15 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
       <div className="row">
         <button onClick={doParse} disabled={!text.trim()}>
           Parse & add
+        </button>
+        <button
+          title="Generate random charts to try out the tool"
+          onClick={() => {
+            onImport(generateDemoCharts(25))
+            setMsg('Added 25 random demo charts')
+          }}
+        >
+          🎲 Demo ×25
         </button>
         <span className="spacer" />
         <button onClick={exportJson}>Export JSON</button>
