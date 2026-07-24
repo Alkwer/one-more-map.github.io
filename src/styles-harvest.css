@@ -218,7 +218,7 @@ body.theme-harvest .path-bar {
   border-radius: 0;
 }
 body.theme-harvest .path-bar.connected {
-  background: #d81b60;
+  background: #d600d6;
   box-shadow: none;
 }
 body.theme-harvest .path-bar.open {
