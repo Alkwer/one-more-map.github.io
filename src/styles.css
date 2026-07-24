@@ -727,6 +727,29 @@ textarea {
   font-family: var(--italic);
   margin-top: 6px;
 }
+.regex-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.regex-row input {
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  color: var(--accent2);
+}
+.regex-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  margin-top: 4px;
+}
+.regex-meta select {
+  width: auto;
+  padding: 1px 4px;
+  font-size: 11px;
+}
+
 .results {
   display: flex;
   flex-direction: column;

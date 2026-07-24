@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { buildBestModRegex } from '../logic/regex'
 import { solve, type SolverResult } from '../logic/solver'
 import type { AppState } from '../logic/storage'
 import type { Board, ConnectivityMode } from '../types'
@@ -14,6 +15,19 @@ interface Props {
 
 export function SolverPanel({ state, onPatch, results, onResults, onApply }: Props) {
   const [busy, setBusy] = useState(false)
+  const [regexCap, setRegexCap] = useState(50)
+  const [copied, setCopied] = useState(false)
+  const bestRegex = useMemo(() => buildBestModRegex(state.weights, regexCap), [state.weights, regexCap])
+
+  const copyRegex = async () => {
+    try {
+      await navigator.clipboard.writeText(bestRegex.regex)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      /* user can select the text manually */
+    }
+  }
 
   const run = () => {
     setBusy(true)
@@ -85,6 +99,29 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
       ) : (
         <div className="muted small-note">Pool ≤ 9 charts → exhaustive search (optimal)</div>
       )}
+
+      <div className="panel-title small">Best-Charts Regex</div>
+      <div className="muted small-note" style={{ marginTop: 0 }}>
+        Paste into the in-game chart search to highlight charts worth taking, based on your
+        weights above. No import needed.
+      </div>
+      <div className="regex-row">
+        <input readOnly value={bestRegex.regex} onFocus={(e) => e.target.select()} />
+        <button onClick={copyRegex}>{copied ? '✓' : 'Copy'}</button>
+      </div>
+      <div className="regex-meta">
+        <span className="muted">
+          {bestRegex.included.length} mods · {bestRegex.regex.length} chars
+        </span>
+        <span className="spacer" />
+        <label className="muted">
+          max{' '}
+          <select value={regexCap} onChange={(e) => setRegexCap(parseInt(e.target.value, 10))}>
+            <option value={50}>50</option>
+            <option value={250}>250</option>
+          </select>
+        </label>
+      </div>
 
       {results.length > 0 && (
         <>
