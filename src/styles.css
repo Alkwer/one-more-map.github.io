@@ -484,53 +484,41 @@ textarea {
 .tile.empty.placing::after {
   color: rgba(200, 170, 110, 0.3);
 }
-/* D layout: reward art fills the tile */
-.tile-art {
+/* icon + value cluster on the path node; chart name lives in the tooltip */
+.tile-duo {
   position: absolute;
   left: 50%;
-  top: 46%;
+  top: 50%;
   transform: translate(-50%, -50%);
-  z-index: 1;
-  opacity: 0.5;
-  filter: drop-shadow(0 0 18px rgba(0, 0, 0, 0.9));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 3;
   color: var(--gold-dim);
+  filter: drop-shadow(0 3px 8px #000);
   pointer-events: none;
 }
-.tile-art .stat-icon-img {
-  width: 118px;
-  height: 118px;
+.tile-duo .stat-icon-img {
+  width: 44px;
+  height: 44px;
 }
-.tile-shade {
+.tile-duo-pct {
+  font-family: var(--sc);
+  font-size: 25px;
+  text-shadow: 0 2px 8px #000;
+}
+.tile-duo-text {
   position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 50% 46%, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, 0.55) 100%);
-  z-index: 2;
+  left: 6px;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: center;
+  font-family: var(--sc);
+  font-size: 13px;
+  text-shadow: 0 2px 6px #000;
+  z-index: 3;
   pointer-events: none;
-}
-.tile-caption {
-  position: absolute;
-  top: 6px;
-  left: 8px;
-  right: 44px;
-  text-align: center;
-  font-family: var(--sc);
-  font-size: 12px;
-  color: rgba(163, 141, 109, 0.85);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  z-index: 3;
-}
-.tile-pct {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 24px;
-  text-align: center;
-  font-family: var(--sc);
-  font-size: 24px;
-  text-shadow: 0 2px 6px #000, 0 0 14px rgba(0, 0, 0, 0.9);
-  z-index: 3;
 }
 .tile-lvl {
   position: absolute;

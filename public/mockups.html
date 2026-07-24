@@ -62,6 +62,43 @@
   .d .lvl { position: absolute; left: 8px; bottom: 5px; color: var(--muted); font-size: 11px; z-index: 2; }
   .d .bar { z-index: 0; }
 
+  /* E: corner emblem */
+  .e .emb { position: absolute; top: 8px; left: 8px; width: 42px; height: 42px; object-fit: contain; filter: drop-shadow(0 2px 6px #000); z-index: 2; }
+  .e .pct { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); text-align: center; font-family: var(--sc); font-size: 26px; text-shadow: 0 2px 8px #000; z-index: 2; }
+  .e .nm { position: absolute; top: 10px; left: 56px; right: 44px; font-family: var(--sc); font-size: 11px; color: rgba(163,141,109,.75); z-index: 2; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .e .score { position: absolute; right: 8px; bottom: 5px; font-size: 14px; z-index: 2; }
+  .e .lvl { position: absolute; left: 8px; bottom: 5px; color: var(--muted); font-size: 11px; z-index: 2; }
+
+  /* F: plaque banner */
+  .f .plaque { position: absolute; left: 6px; right: 6px; top: 50%; transform: translateY(-50%); height: 46px; display: flex; align-items: center; justify-content: center; gap: 10px; background: linear-gradient(180deg, rgba(24,20,14,.96), rgba(8,7,5,.96)); border-top: 1px solid #6a5a33; border-bottom: 1px solid #6a5a33; box-shadow: 0 3px 12px rgba(0,0,0,.7); z-index: 2; }
+  .f .plaque img { width: 30px; height: 30px; object-fit: contain; }
+  .f .plaque .pct { font-family: var(--sc); font-size: 21px; }
+  .f .nm { position: absolute; top: 7px; left: 0; right: 0; text-align: center; font-family: var(--sc); font-size: 11.5px; color: rgba(163,141,109,.8); z-index: 2; }
+  .f .score { position: absolute; right: 8px; bottom: 5px; font-size: 14px; z-index: 2; }
+  .f .lvl { position: absolute; left: 8px; bottom: 5px; color: var(--muted); font-size: 11px; z-index: 2; }
+
+  /* G: watermark art (D-lite) */
+  .g .bigicon { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 120px; height: 120px; object-fit: contain; opacity: .2; filter: sepia(.6) saturate(.5); z-index: 1; }
+  .g .chip { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 2; }
+  .g .nm { position: absolute; top: 6px; left: 0; right: 0; text-align: center; font-family: var(--sc); font-size: 11.5px; color: rgba(163,141,109,.75); z-index: 2; }
+  .g .score { position: absolute; right: 8px; bottom: 5px; font-size: 14px; z-index: 2; }
+  .g .lvl { position: absolute; left: 8px; bottom: 5px; color: var(--muted); font-size: 11px; z-index: 2; }
+
+  /* H: framed emblem medallion */
+  .h .ring { position: absolute; left: 50%; top: 44%; transform: translate(-50%,-50%); width: 72px; height: 72px; border-radius: 50%; border: 2px solid #8a7442; background: radial-gradient(circle, rgba(12,10,7,.95) 60%, rgba(30,25,16,.9)); box-shadow: 0 0 14px rgba(0,0,0,.8), inset 0 0 10px rgba(0,0,0,.8); display: flex; align-items: center; justify-content: center; z-index: 2; }
+  .h .ring img { width: 46px; height: 46px; object-fit: contain; }
+  .h .pct { position: absolute; left: 0; right: 0; bottom: 28px; text-align: center; font-family: var(--sc); font-size: 19px; text-shadow: 0 2px 6px #000; z-index: 2; }
+  .h .nm { position: absolute; top: 6px; left: 0; right: 0; text-align: center; font-family: var(--sc); font-size: 11.5px; color: rgba(163,141,109,.75); z-index: 2; }
+  .h .score { position: absolute; right: 8px; bottom: 5px; font-size: 14px; z-index: 2; }
+  .h .lvl { position: absolute; left: 8px; bottom: 5px; color: var(--muted); font-size: 11px; z-index: 2; }
+
+  /* I: E-refined — icon + % cluster, no name */
+  .i .duo { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); display: flex; align-items: center; gap: 10px; z-index: 2; filter: drop-shadow(0 3px 8px #000); }
+  .i .duo img { width: 44px; height: 44px; object-fit: contain; }
+  .i .duo .pct { font-family: var(--sc); font-size: 25px; text-shadow: 0 2px 8px #000; }
+  .i .score { position: absolute; right: 8px; bottom: 5px; font-size: 14px; z-index: 2; }
+  .i .lvl { position: absolute; left: 8px; bottom: 5px; color: var(--muted); font-size: 11px; z-index: 2; }
+
   /* C: node medallion */
   .c .med { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 84px; height: 84px; border-radius: 50%; background: radial-gradient(circle, rgba(10,14,13,.95) 55%, rgba(20,30,27,.9)); border: 2px solid #35b593; box-shadow: 0 0 16px rgba(65,200,165,.45), inset 0 0 12px rgba(0,0,0,.8); z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
   .c .med .coin { width: 24px; height: 24px }
@@ -102,6 +139,91 @@
     <span class="bslot vslot">☠ +100%</span>
     <span class="bslot vslot"><span class="coin"></span>+30%</span>
     <div class="tile"><div class="head"><span class="nm">Chart 1</span><span class="lv">80</span></div><span class="bar v n lit"></span><span class="chip c-org">▣ +30%</span><div class="foot"><span class="score">5.7</span></div></div>
+    <div class="tile empty"></div>
+    <span class="bslot vslot">◈ +40%</span>
+    <span></span><span class="bslot">☠ +100%</span><span class="bslot"><span class="coin"></span>+50%</span><span></span>
+  </div></div>
+</div>
+
+<div class="mock">
+  <h2>I — Icon + value cluster (no name)</h2>
+  <p class="desc">No chart name on the tile at all (it lives in the hover tooltip). Icon and value sit together as one cluster on the path node.</p>
+  <div class="boardwrap"><div class="grid i">
+    <span></span><span class="bslot"><span class="coin"></span>+50%</span><span class="bslot">☠ +100%</span><span></span>
+    <span class="bslot vslot">◈ +25%</span>
+    <div class="tile"><span class="bar v s lit"></span><span class="bar h e lit"></span><div class="duo"><img src="/icon-currency.png"><span class="pct c-blue">+10%</span></div><span class="lvl">80</span><span class="score">7.8</span></div>
+    <div class="tile"><span class="bar h w lit"></span><span class="bar v s"></span><div class="duo"><img src="/icon-scarabs.png"><span class="pct c-yel">+25%</span></div><span class="lvl">80</span><span class="score">5.8</span></div>
+    <span class="bslot vslot">☠ +100%</span>
+    <span class="bslot vslot"><span class="coin"></span>+30%</span>
+    <div class="tile"><span class="bar v n lit"></span><div class="duo"><img src="/icon-rares.png"><span class="pct c-org">+30%</span></div><span class="lvl">80</span><span class="score">5.7</span></div>
+    <div class="tile empty"></div>
+    <span class="bslot vslot">◈ +40%</span>
+    <span></span><span class="bslot">☠ +100%</span><span class="bslot"><span class="coin"></span>+50%</span><span></span>
+  </div></div>
+</div>
+
+<div class="mock">
+  <h2>E — Corner emblem</h2>
+  <p class="desc">Small icon badge top-left, value huge in the centre of the open tile. Cleanest tile face; the path map stays the hero.</p>
+  <div class="boardwrap"><div class="grid e">
+    <span></span><span class="bslot"><span class="coin"></span>+50%</span><span class="bslot">☠ +100%</span><span></span>
+    <span class="bslot vslot">◈ +25%</span>
+    <div class="tile"><img class="emb" src="/icon-currency.png"><span class="nm">Chart 4</span><span class="bar v s lit"></span><span class="bar h e lit"></span><span class="pct c-blue">+10%</span><span class="lvl">80</span><span class="score">7.8</span></div>
+    <div class="tile"><img class="emb" src="/icon-scarabs.png"><span class="nm">Chart 2</span><span class="bar h w lit"></span><span class="bar v s"></span><span class="pct c-yel">+25%</span><span class="lvl">80</span><span class="score">5.8</span></div>
+    <span class="bslot vslot">☠ +100%</span>
+    <span class="bslot vslot"><span class="coin"></span>+30%</span>
+    <div class="tile"><img class="emb" src="/icon-rares.png"><span class="nm">Chart 1</span><span class="bar v n lit"></span><span class="pct c-org">+30%</span><span class="lvl">80</span><span class="score">5.7</span></div>
+    <div class="tile empty"></div>
+    <span class="bslot vslot">◈ +40%</span>
+    <span></span><span class="bslot">☠ +100%</span><span class="bslot"><span class="coin"></span>+50%</span><span></span>
+  </div></div>
+</div>
+
+<div class="mock">
+  <h2>F — Plaque banner</h2>
+  <p class="desc">A horizontal gold-edged plaque across the tile centre holds icon + value, like a nameplate. Paths pass behind it; very structured.</p>
+  <div class="boardwrap"><div class="grid f">
+    <span></span><span class="bslot"><span class="coin"></span>+50%</span><span class="bslot">☠ +100%</span><span></span>
+    <span class="bslot vslot">◈ +25%</span>
+    <div class="tile"><span class="nm">Chart 4</span><span class="bar v s lit"></span><span class="bar h e lit"></span><div class="plaque"><img src="/icon-currency.png"><span class="pct c-blue">+10%</span></div><span class="lvl">80</span><span class="score">7.8</span></div>
+    <div class="tile"><span class="nm">Chart 2</span><span class="bar h w lit"></span><span class="bar v s"></span><div class="plaque"><img src="/icon-scarabs.png"><span class="pct c-yel">+25%</span></div><span class="lvl">80</span><span class="score">5.8</span></div>
+    <span class="bslot vslot">☠ +100%</span>
+    <span class="bslot vslot"><span class="coin"></span>+30%</span>
+    <div class="tile"><span class="nm">Chart 1</span><span class="bar v n lit"></span><div class="plaque"><img src="/icon-rares.png"><span class="pct c-org">+30%</span></div><span class="lvl">80</span><span class="score">5.7</span></div>
+    <div class="tile empty"></div>
+    <span class="bslot vslot">◈ +40%</span>
+    <span></span><span class="bslot">☠ +100%</span><span class="bslot"><span class="coin"></span>+50%</span><span></span>
+  </div></div>
+</div>
+
+<div class="mock">
+  <h2>G — Watermark art (D-lite)</h2>
+  <p class="desc">Same big art as D but at 20% opacity, sepia-muted — a ghost of the reward behind a compact value chip. Subtle, atmospheric.</p>
+  <div class="boardwrap"><div class="grid g">
+    <span></span><span class="bslot"><span class="coin"></span>+50%</span><span class="bslot">☠ +100%</span><span></span>
+    <span class="bslot vslot">◈ +25%</span>
+    <div class="tile"><span class="nm">Chart 4</span><span class="bar v s lit"></span><span class="bar h e lit"></span><img class="bigicon" src="/icon-currency.png"><span class="chip c-blue"><span class="coin"></span>+10%</span><span class="lvl">80</span><span class="score">7.8</span></div>
+    <div class="tile"><span class="nm">Chart 2</span><span class="bar h w lit"></span><span class="bar v s"></span><img class="bigicon" src="/icon-scarabs.png"><span class="chip c-yel">◈ +25%</span><span class="lvl">80</span><span class="score">5.8</span></div>
+    <span class="bslot vslot">☠ +100%</span>
+    <span class="bslot vslot"><span class="coin"></span>+30%</span>
+    <div class="tile"><span class="nm">Chart 1</span><span class="bar v n lit"></span><img class="bigicon" src="/icon-rares.png"><span class="chip c-org">▣ +30%</span><span class="lvl">80</span><span class="score">5.7</span></div>
+    <div class="tile empty"></div>
+    <span class="bslot vslot">◈ +40%</span>
+    <span></span><span class="bslot">☠ +100%</span><span class="bslot"><span class="coin"></span>+50%</span><span></span>
+  </div></div>
+</div>
+
+<div class="mock">
+  <h2>H — Framed emblem medallion</h2>
+  <p class="desc">The icon sits inside a gold-ringed medallion at the path node — framed and contained, value beneath. Middle ground between C and D.</p>
+  <div class="boardwrap"><div class="grid h">
+    <span></span><span class="bslot"><span class="coin"></span>+50%</span><span class="bslot">☠ +100%</span><span></span>
+    <span class="bslot vslot">◈ +25%</span>
+    <div class="tile"><span class="nm">Chart 4</span><span class="bar v s lit"></span><span class="bar h e lit"></span><div class="ring"><img src="/icon-currency.png"></div><span class="pct c-blue">+10%</span><span class="lvl">80</span><span class="score">7.8</span></div>
+    <div class="tile"><span class="nm">Chart 2</span><span class="bar h w lit"></span><span class="bar v s"></span><div class="ring"><img src="/icon-scarabs.png"></div><span class="pct c-yel">+25%</span><span class="lvl">80</span><span class="score">5.8</span></div>
+    <span class="bslot vslot">☠ +100%</span>
+    <span class="bslot vslot"><span class="coin"></span>+30%</span>
+    <div class="tile"><span class="nm">Chart 1</span><span class="bar v n lit"></span><div class="ring"><img src="/icon-rares.png"></div><span class="pct c-org">+30%</span><span class="lvl">80</span><span class="score">5.7</span></div>
     <div class="tile empty"></div>
     <span class="bslot vslot">◈ +40%</span>
     <span></span><span class="bslot">☠ +100%</span><span class="bslot"><span class="coin"></span>+50%</span><span></span>

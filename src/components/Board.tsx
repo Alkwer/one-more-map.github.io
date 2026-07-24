@@ -97,26 +97,21 @@ function Tile({
     ],
   })
   const primary = mods[0]
-  const primaryStat = primary?.effects[0]?.stat
   return (
     <div className={`tile ${selected ? 'selected' : ''}`} onClick={onClick} {...tt}>
       {(['n', 'e', 's', 'w'] as const).map((d, i) =>
         edges[i] ? <span key={d} className={`path-bar ${d} ${edgeStatus[i]}`} /> : null,
       )}
-      {primaryStat && (
-        <span className="tile-art">
-          <StatIcon stat={primaryStat} size={110} />
-        </span>
-      )}
-      <span className="tile-shade" />
-      <span className="tile-caption">{chart.name}</span>
       {primary &&
         (primary.effects[0] ? (
-          <div className={`tile-pct scope-${primary.scope}`}>+{primary.effects[0].percent}%</div>
-        ) : (
-          <div className={`tile-pct scope-${primary.scope}`} style={{ fontSize: 14 }}>
-            {primary.text}
+          <div className="tile-duo">
+            <StatIcon stat={primary.effects[0].stat} size={44} />
+            <span className={`tile-duo-pct scope-${primary.scope}`}>
+              +{primary.effects[0].percent}%
+            </span>
           </div>
+        ) : (
+          <div className={`tile-duo-text scope-${primary.scope}`}>{primary.text}</div>
         ))}
       <div className="tile-actions">
         <button
