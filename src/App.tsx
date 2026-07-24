@@ -298,6 +298,10 @@ export default function App() {
                 {searchMsg || '⌕ Copy in-game search'}
               </button>
             </div>
+            <div className="muted small-note" style={{ marginTop: 0 }}>
+              A relative score for comparing your layouts, based on your weights and estimated mod
+              values. Not exact loot value. See the actual contents below.
+            </div>
             <div className="reward-grid">
               {ALL_STATS.filter((s) => score.perStat[s] > 0)
                 .sort((a, b) => score.perStat[b] - score.perStat[a])

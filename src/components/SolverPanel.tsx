@@ -164,7 +164,9 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
               </button>
             ))}
           </div>
-          <div className="muted small-note">Click a result to load it onto the board.</div>
+          <div className="muted small-note">
+            Ranked by your weights and estimated mod values. Click a result to load it.
+          </div>
         </>
       )}
     </div>
