@@ -7,12 +7,16 @@ import { buildChartSearch } from './logic/regex'
 import { ImportPanel } from './components/ImportPanel'
 import { Library } from './components/Library'
 import { SolverPanel } from './components/SolverPanel'
+import { borderModById, voyageModById } from './data/mods'
 import { scoreBoard } from './logic/scoring'
 import { checkConnectivity } from './logic/connectivity'
 import type { SolverResult } from './logic/solver'
 import { decodeShare, defaultState, encodeShare, loadLocal, saveLocal, type AppState } from './logic/storage'
 import type { ChartData } from './types'
-import { ALL_STATS, STAT_LABELS } from './types'
+import { ALL_STATS, STAT_LABELS, borderTouches } from './types'
+
+/** discrete/guaranteed effects (drops, spawns, conversions) rather than plain % scalars */
+const isNotable = (text: string) => !/^\d+% (increased|more|reduced) /i.test(text)
 
 function initialState(): AppState {
   const hash = window.location.hash.replace(/^#/, '')
@@ -74,6 +78,31 @@ export default function App() {
     () => checkConnectivity(state.board, chartMap, state.mode),
     [state.board, chartMap, state.mode],
   )
+
+  // guaranteed/notable effects active on this board, with counts
+  const notables = useMemo(() => {
+    const counts = new Map<string, { label: string; full: string; count: number }>()
+    const add = (key: string, label: string, full: string) => {
+      const cur = counts.get(key)
+      if (cur) cur.count++
+      else counts.set(key, { label, full, count: 1 })
+    }
+    state.borders.forEach((id, seg) => {
+      if (!id || !state.board[borderTouches(seg)]) return
+      const mod = borderModById.get(id)
+      if (mod && isNotable(mod.text)) add(mod.id, mod.short ?? mod.text, mod.text)
+    })
+    state.board.forEach((p) => {
+      if (!p) return
+      const chart = chartMap.get(p.chartUid)
+      if (!chart) return
+      for (const modId of chart.modIds) {
+        const mod = voyageModById.get(modId)
+        if (mod && isNotable(mod.text)) add(mod.id, mod.text, mod.text)
+      }
+    })
+    return [...counts.values()]
+  }, [state.borders, state.board, chartMap])
 
   const patch = (p: Partial<AppState>) => setState((s) => ({ ...s, ...p }))
 
@@ -273,6 +302,19 @@ export default function App() {
             </div>
             {ALL_STATS.some((s) => score.perStat[s] > 0) && (
               <div className="muted small-note">Average bonus per area across the Voyage.</div>
+            )}
+            {notables.length > 0 && (
+              <>
+                <div className="panel-title small">Guaranteed & Notable</div>
+                <div className="notable-list">
+                  {notables.map((n) => (
+                    <span key={n.label} className="notable-item" title={n.full}>
+                      {n.label}
+                      {n.count > 1 ? ` ×${n.count}` : ''}
+                    </span>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         </section>
