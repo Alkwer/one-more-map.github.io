@@ -338,16 +338,20 @@ textarea {
   background: var(--accent2);
   box-shadow: 0 0 5px rgba(107, 163, 200, 0.8);
 }
-.sq-stat {
+.sq-reward {
+  line-height: 0;
+  filter: drop-shadow(0 2px 4px #000);
+}
+.sq-reward .stat-icon-img {
+  width: 28px;
+  height: 28px;
+}
+.sq-shape {
   position: absolute;
   top: 2px;
-  left: 3px;
+  left: 2px;
   line-height: 0;
-  filter: drop-shadow(0 1px 2px #000);
-}
-.sq-stat .stat-icon-img {
-  width: 14px;
-  height: 14px;
+  opacity: 0.85;
 }
 .chart-sq.on-board::after {
   display: none; /* stat icon replaces the corner dot */
