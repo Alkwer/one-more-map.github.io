@@ -37,6 +37,15 @@
 - On-screen note: GGG has been **buffing adjacency and border modifiers** since the
   preview build — expect live numbers to be higher than preview footage.
 
+## Open questions on reward math (verify in game)
+
+- **Stacking rules are undocumented.** Model now assumes additive stacking within
+  an area ("increased" convention); the rewards panel reports average bonus per area.
+- **Start square is bottom-left** (per Zac's observation); connectivity is now rooted
+  there and the board must occupy it. Unconfirmed whether the start ever moves.
+- Zac has heard of a **bonus for longer chains** — not seen in footage or wiki yet;
+  if real, chain length needs to enter the scoring model.
+
 League: **Path of Exile 3.29 — Curse of the Allflame** (launches July 24, 2026).
 
 ## The mechanic (solver-relevant parts)

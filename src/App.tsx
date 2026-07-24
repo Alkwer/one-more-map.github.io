@@ -221,6 +221,9 @@ export default function App() {
                 <div className="muted">Place charts to see bonuses</div>
               )}
             </div>
+            {ALL_STATS.some((s) => score.perStat[s] > 0) && (
+              <div className="muted small-note">Average bonus per area across the Voyage.</div>
+            )}
           </div>
         </section>
 

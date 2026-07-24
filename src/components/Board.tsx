@@ -1,7 +1,7 @@
 import { BORDER_MODS, borderModById, voyageModById } from '../data/mods'
 import { rotateEdges } from '../logic/connectivity'
 import type { Board, Borders, ChartData, Placement } from '../types'
-import { STAT_SHORT } from '../types'
+import { START_CELL, STAT_SHORT } from '../types'
 import { tooltipProps } from './Tooltip'
 
 interface Props {
@@ -65,6 +65,7 @@ function Tile({
   selected,
   highlighted,
   placing,
+  isStart,
   edgeStatus,
   onClick,
   onRemove,
@@ -76,14 +77,21 @@ function Tile({
   selected: boolean
   highlighted: boolean
   placing: boolean
+  isStart: boolean
   edgeStatus: EdgeStatus[]
   onClick: () => void
   onRemove: () => void
   onRotate: () => void
 }) {
+  const startBadge = isStart ? (
+    <span className="tile-start" title="The Voyage begins here">
+      ⚓ Start
+    </span>
+  ) : null
   if (!placement || !chart) {
     return (
       <div className={`tile empty ${placing ? 'placing' : ''}`} onClick={onClick}>
+        {startBadge}
         {placing ? 'place here' : ''}
       </div>
     )
@@ -148,6 +156,7 @@ function Tile({
           ✕
         </button>
       </div>
+      {startBadge}
       <span className="tile-lvl">lvl {chart.level}</span>
       <div className="tile-score">{score.toFixed(1)}</div>
     </div>
@@ -199,6 +208,7 @@ export function BoardView(props: Props) {
         selected={props.selectedCell === i}
         highlighted={!!p && p.chartUid === props.highlightUid}
         placing={!!props.placingChart && !p}
+        isStart={i === START_CELL}
         edgeStatus={edgeStatusFor(i)}
         onClick={() => props.onCellClick(i)}
         onRemove={() => props.onRemove(i)}

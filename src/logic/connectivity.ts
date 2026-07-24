@@ -1,4 +1,5 @@
 import type { Board, ChartData, ConnectivityMode, Edges } from '../types'
+import { START_CELL } from '../types'
 
 /** Rotate edges r × 90° clockwise. */
 export function rotateEdges(edges: Edges, r: number): Edges {
@@ -36,7 +37,7 @@ export function checkConnectivity(
   if (mode === 'any') return { valid: true, violations: 0 }
 
   const placedIdx = board.map((p, i) => (p ? i : -1)).filter((i) => i >= 0)
-  if (placedIdx.length <= 1) return { valid: true, violations: 0 }
+  if (placedIdx.length === 0) return { valid: true, violations: 0 }
 
   const edgesAt = (i: number): Edges | null => {
     const p = board[i]
@@ -69,9 +70,10 @@ export function checkConnectivity(
   }
   mismatches /= 2 // each mismatched pair is seen from both tiles
 
-  // flood fill over matched connections
+  // flood fill over matched connections, rooted at the start square (bottom-left)
+  const startOccupied = !!board[START_CELL]
   const seen = new Set<number>()
-  const stack = [placedIdx[0]]
+  const stack = [startOccupied ? START_CELL : placedIdx[0]]
   while (stack.length) {
     const i = stack.pop()!
     if (seen.has(i)) continue
@@ -81,6 +83,7 @@ export function checkConnectivity(
   const disconnected = placedIdx.length - seen.size
 
   let violations = disconnected
+  if (!startOccupied) violations += 1 // the Voyage begins bottom-left; it must hold a chart
   if (mode === 'strict') violations += mismatches
   return { valid: violations === 0, violations }
 }

@@ -152,6 +152,9 @@ export const DEFAULT_WEIGHTS: Weights = {
   preserve: 3,
 }
 
+/** the Voyage starts at the bottom-left square (row 2, col 0) */
+export const START_CELL = 6
+
 export const emptyBoard = (): Board => Array(9).fill(null)
 export const emptyBorders = (): Borders => Array(12).fill(null)
 

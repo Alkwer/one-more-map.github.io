@@ -70,19 +70,23 @@ export function scoreBoard(
     if (board[tile]) tileEffects[tile].push(...mod.effects)
   })
 
+  // Additive stacking within an area (PoE "increased" convention). The game's
+  // exact stacking rules are undocumented; this stays deliberately conservative.
   const perStat = Object.fromEntries(ALL_STATS.map((s) => [s, 0])) as Record<Stat, number>
   const perTile: number[] = Array(9).fill(0)
   let total = 0
+  let placedCount = 0
 
   board.forEach((p, i) => {
     if (!p) return
+    placedCount++
     let tileScore = 0
     for (const stat of ALL_STATS) {
-      let mult = 1
-      for (const e of tileEffects[i]) if (e.stat === stat) mult *= 1 + e.percent / 100
-      for (const e of globalEffects) if (e.stat === stat) mult *= 1 + e.percent / 100
-      const bonus = mult - 1
-      if (bonus !== 0) {
+      let pct = 0
+      for (const e of tileEffects[i]) if (e.stat === stat) pct += e.percent
+      for (const e of globalEffects) if (e.stat === stat) pct += e.percent
+      if (pct !== 0) {
+        const bonus = pct / 100
         perStat[stat] += bonus
         tileScore += (weights[stat] ?? 0) * bonus
       }
@@ -90,6 +94,9 @@ export function scoreBoard(
     perTile[i] = tileScore
     total += tileScore
   })
+
+  // report per-stat bonuses as the average per placed area, not a 9x sum
+  if (placedCount > 0) for (const s of ALL_STATS) perStat[s] /= placedCount
 
   return { total, perTile, perStat }
 }
