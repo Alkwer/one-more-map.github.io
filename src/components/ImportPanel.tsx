@@ -62,9 +62,9 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
         value={text}
         onChange={(e) => setText(e.target.value)}
       />
-      <div className="row">
+      <div className="import-actions">
         <button onClick={doParse} disabled={!text.trim()}>
-          Parse & add
+          Parse & Add
         </button>
         <button
           title="Generate random charts to try out the tool"
@@ -75,17 +75,20 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
         >
           🎲 Demo ×25
         </button>
-        <span className="spacer" />
-        <button onClick={exportJson}>Export JSON</button>
-        <label className="file-btn">
-          Load JSON
+        <button onClick={exportJson} title="Save your charts to a JSON file">
+          Export
+        </button>
+        <label className="file-btn" title="Load charts from a JSON file">
+          Load
           <input
             type="file"
             accept=".json"
             onChange={(e) => e.target.files?.[0] && importJson(e.target.files[0])}
           />
         </label>
-        <button onClick={clearAll}>Reset</button>
+        <button onClick={clearAll} title="Clear all charts, board and borders">
+          Reset
+        </button>
       </div>
       {msg && <div className="muted pad">{msg}</div>}
     </div>

@@ -237,13 +237,26 @@ button.primary:hover {
 .file-btn {
   position: relative;
   overflow: hidden;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .file-btn input {
   position: absolute;
   inset: 0;
   opacity: 0;
   cursor: pointer;
+}
+.import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.import-actions button,
+.import-actions .file-btn {
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 input,
