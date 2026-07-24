@@ -1,0 +1,106 @@
+import { useState } from 'react'
+import { solve, type SolverResult } from '../logic/solver'
+import type { AppState } from '../logic/storage'
+import type { Board, ConnectivityMode } from '../types'
+import { ALL_STATS, STAT_LABELS } from '../types'
+
+interface Props {
+  state: AppState
+  onPatch: (p: Partial<AppState>) => void
+  results: SolverResult[]
+  onResults: (r: SolverResult[]) => void
+  onApply: (board: Board) => void
+}
+
+export function SolverPanel({ state, onPatch, results, onResults, onApply }: Props) {
+  const [busy, setBusy] = useState(false)
+
+  const run = () => {
+    setBusy(true)
+    // let the UI paint the busy state before the (synchronous) solve
+    window.setTimeout(() => {
+      try {
+        const res = solve(state.pool, state.borders, state.weights, {
+          mode: state.mode,
+          allowRotation: state.allowRotation,
+          topK: 5,
+        })
+        onResults(res)
+      } finally {
+        setBusy(false)
+      }
+    }, 30)
+  }
+
+  return (
+    <div className="solver">
+      <div className="panel-title">Solver</div>
+
+      <div className="field">
+        <label>Connector rule (real rule TBC at launch)</label>
+        <select
+          value={state.mode}
+          onChange={(e) => onPatch({ mode: e.target.value as ConnectivityMode })}
+        >
+          <option value="connected">All charts must connect (default guess)</option>
+          <option value="strict">Strict — every connector must match</option>
+          <option value="any">Ignore connectors</option>
+        </select>
+      </div>
+
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={state.allowRotation}
+          onChange={(e) => onPatch({ allowRotation: e.target.checked })}
+        />
+        Charts can be rotated (TBC at launch)
+      </label>
+
+      <div className="panel-title small">Reward weights</div>
+      <div className="weights">
+        {ALL_STATS.map((s) => (
+          <div key={s} className="weight-row">
+            <span>{STAT_LABELS[s]}</span>
+            <input
+              type="range"
+              min={0}
+              max={10}
+              step={1}
+              value={state.weights[s]}
+              onChange={(e) =>
+                onPatch({ weights: { ...state.weights, [s]: parseInt(e.target.value, 10) } })
+              }
+            />
+            <span className="weight-val">{state.weights[s]}</span>
+          </div>
+        ))}
+      </div>
+
+      <button className="primary" onClick={run} disabled={busy || state.pool.length === 0}>
+        {busy ? 'Solving…' : `Solve (${state.pool.length} charts)`}
+      </button>
+      {state.pool.length > 9 || state.allowRotation ? (
+        <div className="muted small-note">Large pool / rotation → heuristic search (near-optimal)</div>
+      ) : (
+        <div className="muted small-note">Pool ≤ 9 charts → exhaustive search (optimal)</div>
+      )}
+
+      {results.length > 0 && (
+        <>
+          <div className="panel-title small">Results</div>
+          <div className="results">
+            {results.map((r, i) => (
+              <button key={i} className={`result ${r.valid ? '' : 'invalid'}`} onClick={() => onApply(r.board)}>
+                <span>#{i + 1}</span>
+                <span>{r.score.toFixed(1)} pts</span>
+                {!r.valid && <span className="badge bad">connectors invalid</span>}
+              </button>
+            ))}
+          </div>
+          <div className="muted small-note">Click a result to load it onto the board.</div>
+        </>
+      )}
+    </div>
+  )
+}
