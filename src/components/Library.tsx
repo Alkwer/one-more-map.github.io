@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { VOYAGE_MODS, voyageModById } from '../data/mods'
 import { newUid } from '../logic/parser'
 import type { Board, ChartData, Edges } from '../types'
+import { StatIcon } from './icons'
 
 interface Props {
   pool: ChartData[]
@@ -131,7 +132,11 @@ export function Library(props: Props) {
                   ✕
                 </button>
               </div>
-              {mod && <div className={`chart-mod scope-${mod.scope}`}>{mod.text}</div>}
+              {mod && (
+                <div className={`chart-mod scope-${mod.scope}`} title={`[${mod.scope}] ${mod.text}`}>
+                  {mod.effects[0] && <StatIcon stat={mod.effects[0].stat} />} {mod.text}
+                </div>
+              )}
               {editing === c.uid && <ChartEditor chart={c} onUpdate={props.onUpdate} />}
             </div>
           )

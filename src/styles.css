@@ -4,6 +4,32 @@
    colours (magic blue / rare yellow / unique orange), beveled dark buttons.
    ========================================================================== */
 
+/* Fontin — PoE's font (free, by exljbris); same webfonts pathofexile.com serves */
+@font-face {
+  font-family: FontinRegular;
+  font-weight: 400;
+  font-style: normal;
+  src: url('/font/fontin-regular-webfont.woff') format('woff');
+}
+@font-face {
+  font-family: FontinSmallCaps;
+  font-weight: 400;
+  font-style: normal;
+  src: url('/font/fontin-smallcaps-webfont.woff') format('woff');
+}
+@font-face {
+  font-family: FontinItalic;
+  font-weight: 400;
+  font-style: normal;
+  src: url('/font/fontin-italic-webfont.woff') format('woff');
+}
+@font-face {
+  font-family: FontinBold;
+  font-weight: 400;
+  font-style: normal;
+  src: url('/font/fontin-bold-webfont.woff') format('woff');
+}
+
 :root {
   --bg: #0a0908;
   --bg-deep: #050607;
@@ -24,9 +50,11 @@
   --self: #8888ff; /* magic blue */
   --adjacent: #d9c956; /* rare yellow */
   --global: #af6025; /* unique orange */
-  --serif: 'Alegreya', 'Palatino Linotype', Georgia, serif;
-  --sc: 'Alegreya SC', 'Palatino Linotype', Georgia, serif;
-  --display: 'Cinzel', 'Palatino Linotype', Georgia, serif;
+  --serif: FontinRegular, Verdana, Arial, Helvetica, sans-serif;
+  --sc: FontinSmallCaps, 'Palatino Linotype', Georgia, serif;
+  --display: FontinSmallCaps, 'Palatino Linotype', Georgia, serif;
+  --italic: FontinItalic, Georgia, serif;
+  --bold: FontinBold, Verdana, Arial, sans-serif;
 }
 
 * {
@@ -63,12 +91,12 @@ header::after {
   background: linear-gradient(90deg, transparent, var(--border-hi) 15%, var(--gold-dim) 50%, var(--border-hi) 85%, transparent);
 }
 h1 {
+  /* FontinSmallCaps already renders small caps — no text-transform */
   font-family: var(--display);
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 27px;
+  font-weight: 400;
   margin: 0;
-  letter-spacing: 2px;
-  text-transform: uppercase;
+  letter-spacing: 1.5px;
   color: var(--gold-bright);
   text-shadow: 0 0 18px rgba(200, 170, 110, 0.35), 0 2px 3px #000;
 }
@@ -301,7 +329,7 @@ textarea {
 .chart-mod {
   font-size: 13px;
   margin-top: 4px;
-  font-style: italic;
+  font-family: var(--italic);
 }
 .scope-self {
   color: var(--self);
@@ -440,7 +468,46 @@ textarea {
   font-size: 12px;
   line-height: 1.3;
   margin-bottom: 2px;
-  font-style: italic;
+  font-family: var(--italic);
+}
+.mod-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--sc);
+  font-size: 12px;
+  padding: 2px 7px;
+  margin: 2px 4px 2px 0;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.5);
+  cursor: help;
+}
+.mod-chip svg {
+  flex-shrink: 0;
+}
+.chart-mod svg {
+  vertical-align: -2px;
+  margin-right: 2px;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
+}
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.legend-sep {
+  flex-basis: 100%;
+  height: 0;
 }
 .tile-score {
   font-size: 11px;
@@ -499,7 +566,7 @@ textarea {
 .board-hint {
   margin-top: 10px;
   font-size: 13px;
-  font-style: italic;
+  font-family: var(--italic);
   color: var(--muted);
 }
 
@@ -593,7 +660,7 @@ textarea {
 }
 .small-note {
   font-size: 12px;
-  font-style: italic;
+  font-family: var(--italic);
   margin-top: 6px;
 }
 .results {

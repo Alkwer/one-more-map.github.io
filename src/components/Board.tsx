@@ -1,6 +1,8 @@
 import { BORDER_MODS, borderModById, voyageModById } from '../data/mods'
 import { rotateEdges } from '../logic/connectivity'
 import type { Board, Borders, ChartData, Placement } from '../types'
+import { ALL_STATS, STAT_LABELS } from '../types'
+import { StatIcon } from './icons'
 
 interface Props {
   board: Board
@@ -99,9 +101,10 @@ function Tile({
       <div className="tile-level">lvl {chart.level}</div>
       <div className="tile-mods">
         {mods.map((m) => (
-          <div key={m!.id} className={`tile-mod scope-${m!.scope}`} title={m!.text}>
-            {m!.text}
-          </div>
+          <span key={m!.id} className={`mod-chip scope-${m!.scope}`} title={`[${m!.scope}] ${m!.text}`}>
+            {m!.effects[0] && <StatIcon stat={m!.effects[0].stat} />}
+            <span>+{m!.effects[0]?.percent ?? '?'}%</span>
+          </span>
         ))}
       </div>
       <div className="tile-score">{score.toFixed(1)}</div>
@@ -191,6 +194,18 @@ export function BoardView(props: Props) {
       <div className="board-hint">
         Corners get 2 border mods, edges 1, center 0. Click a library chart then a cell to
         place; click two placed cells to swap.
+      </div>
+      <div className="legend">
+        {ALL_STATS.map((s) => (
+          <span key={s} className="legend-item" title={STAT_LABELS[s]}>
+            <StatIcon stat={s} />
+            <span>{STAT_LABELS[s]}</span>
+          </span>
+        ))}
+        <span className="legend-sep" />
+        <span className="legend-item scope-self">■ this area</span>
+        <span className="legend-item scope-adjacent">■ adjacent</span>
+        <span className="legend-item scope-global">■ whole voyage</span>
       </div>
     </div>
   )
