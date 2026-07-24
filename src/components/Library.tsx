@@ -30,6 +30,12 @@ function chartValue(chart: ChartData, weights: Weights): number {
 }
 
 type SortMode = 'value' | 'level' | 'name'
+type ViewMode = 'grid' | 'list'
+
+/** compact display value: weighted worth scaled to a friendly 0–99ish number */
+export function displayValue(chart: ChartData, weights: Weights): number {
+  return Math.round(chartValue(chart, weights) / 100)
+}
 
 const EDGE_LABELS = ['N', 'E', 'S', 'W'] as const
 
@@ -92,6 +98,17 @@ export function Library(props: Props) {
   const [editing, setEditing] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<SortMode>('value')
+  const [view, setView] = useState<ViewMode>(
+    () => (localStorage.getItem('library-view') as ViewMode) || 'grid',
+  )
+  const setViewPersist = (v: ViewMode) => {
+    setView(v)
+    try {
+      localStorage.setItem('library-view', v)
+    } catch {
+      /* ignore */
+    }
+  }
   const onBoard = new Set(props.board.filter(Boolean).map((p) => p!.chartUid))
 
   const addBlank = () => {
@@ -133,7 +150,7 @@ export function Library(props: Props) {
         <span className="spacer" />
         <button onClick={addBlank}>+ Add chart</button>
       </div>
-      {props.pool.length > 5 && (
+      {props.pool.length > 0 && (
         <div className="library-tools">
           <input
             placeholder="Filter by name or mod…"
@@ -145,6 +162,12 @@ export function Library(props: Props) {
             <option value="level">Highest level</option>
             <option value="name">Name</option>
           </select>
+          <button
+            title={view === 'grid' ? 'List view (edit charts)' : 'Grid view'}
+            onClick={() => setViewPersist(view === 'grid' ? 'list' : 'grid')}
+          >
+            {view === 'grid' ? '☰' : '⊞'}
+          </button>
         </div>
       )}
       {props.pool.length === 0 && (
@@ -152,6 +175,43 @@ export function Library(props: Props) {
           No charts yet — add manually or paste from the game below.
         </div>
       )}
+      {view === 'grid' && (
+        <div className="chart-grid">
+          {visible.map((c) => {
+            const mod = c.modIds[0] ? voyageModById.get(c.modIds[0]) : null
+            const val = displayValue(c, props.weights)
+            const lines = [
+              { text: `Area Level: ${c.level}`, cls: 'muted' },
+              ...(mod ? [{ text: mod.text, cls: `scope-${mod.scope}` }] : []),
+              { text: `Weighted value: ${val}`, cls: 'val' },
+              ...(onBoard.has(c.uid) ? [{ text: 'Currently on the board', cls: 'muted' }] : []),
+            ]
+            return (
+              <div
+                key={c.uid}
+                className={`chart-sq ${props.selected === c.uid ? 'selected' : ''} ${onBoard.has(c.uid) ? 'on-board' : ''}`}
+                onClick={() => props.onSelect(c.uid)}
+                {...tooltipProps({ title: c.name, lines })}
+              >
+                <EdgeGlyph edges={c.edges} size={26} />
+                <span className="sq-val">{val}</span>
+                <span className="sq-lvl">L:{c.level}</span>
+                <button
+                  className="sq-del"
+                  title="Delete"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    props.onRemove(c.uid)
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+      {view === 'list' && (
       <div className="chart-list">
         {visible.map((c) => {
           const mod = c.modIds[0] ? voyageModById.get(c.modIds[0]) : null
@@ -205,6 +265,7 @@ export function Library(props: Props) {
           )
         })}
       </div>
+      )}
     </div>
   )
 }

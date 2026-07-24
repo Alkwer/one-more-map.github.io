@@ -293,6 +293,82 @@ textarea {
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
+/* in-game style chart stash grid */
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 6px;
+  max-height: 46vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  padding: 2px;
+}
+.chart-sq {
+  position: relative;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--border);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6);
+  border-radius: 2px;
+  cursor: pointer;
+}
+.chart-sq:hover {
+  border-color: var(--accent2);
+  box-shadow: 0 0 8px rgba(107, 163, 200, 0.3);
+}
+.chart-sq.selected {
+  border-color: var(--gold);
+  box-shadow: 0 0 10px rgba(200, 170, 110, 0.4), inset 0 0 0 1px rgba(200, 170, 110, 0.25);
+}
+.chart-sq.on-board {
+  opacity: 0.5;
+}
+.chart-sq.on-board::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent2);
+  box-shadow: 0 0 5px rgba(107, 163, 200, 0.8);
+}
+.sq-val {
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  font-family: var(--sc);
+  font-size: 11px;
+  color: var(--gold);
+  text-shadow: 0 1px 2px #000;
+}
+.sq-lvl {
+  position: absolute;
+  bottom: 1px;
+  left: 3px;
+  font-size: 9px;
+  font-family: var(--sc);
+  color: var(--muted);
+}
+.sq-del {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  display: none;
+  padding: 0 4px;
+  font-size: 10px;
+  border: none;
+  background: rgba(0, 0, 0, 0.7);
+  color: var(--bad);
+}
+.chart-sq:hover .sq-del {
+  display: block;
+}
 .chart-card {
   background: rgba(0, 0, 0, 0.55);
   border: 1px solid var(--border);
@@ -893,6 +969,9 @@ textarea {
 .poe-tt-line.muted {
   color: var(--muted);
   font-size: 13px;
+}
+.poe-tt-line.val {
+  color: var(--gold);
 }
 
 /* image-based stat icons (game inventory art) */
