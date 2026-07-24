@@ -103,7 +103,8 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
       <div className="panel-title small">Best-Charts Regex</div>
       <div className="muted small-note" style={{ marginTop: 0 }}>
         Paste into the in-game chart search to highlight charts worth taking, based on your
-        weights above. No import needed.
+        weights above. No import needed. Experimental: the in-game search may or may not
+        support this syntax, we'll see once live.
       </div>
       <div className="regex-row">
         <input readOnly value={bestRegex.regex} onFocus={(e) => e.target.select()} />

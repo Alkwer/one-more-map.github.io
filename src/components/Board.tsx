@@ -129,6 +129,7 @@ function Tile({
   onRemove: () => void
   onRotate: () => void
 }) {
+  const [copied, setCopied] = useState(false)
   const startBadge = isStart ? (
     <span className="tile-start" title="The Voyage begins here">
       ⚓ Start
@@ -184,6 +185,17 @@ function Tile({
           <div className={`tile-duo-text scope-${primary.scope}`}>{primary.text}</div>
         ))}
       <div className="tile-actions">
+        <button
+          title="Copy chart name to find it in the in-game search"
+          onClick={(e) => {
+            e.stopPropagation()
+            navigator.clipboard.writeText(chart.name).catch(() => {})
+            setCopied(true)
+            window.setTimeout(() => setCopied(false), 1200)
+          }}
+        >
+          {copied ? '✓' : '⧉'}
+        </button>
         <button
           title="Rotate"
           onClick={(e) => {
