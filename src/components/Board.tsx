@@ -21,27 +21,37 @@ interface Props {
 function BorderSelect({
   value,
   onChange,
-  vertical,
 }: {
   value: string | null
   onChange: (id: string | null) => void
   vertical?: boolean
 }) {
   const mod = value ? borderModById.get(value) : null
+  const eff = mod?.effects[0]
   return (
-    <select
-      className={`border-slot ${vertical ? 'vertical' : ''} ${mod ? 'filled' : ''}`}
-      value={value ?? ''}
-      title={mod?.text ?? 'Empty border segment'}
-      onChange={(e) => onChange(e.target.value || null)}
-    >
-      <option value="">— border —</option>
-      {BORDER_MODS.map((m) => (
-        <option key={m.id} value={m.id}>
-          {m.text}
-        </option>
-      ))}
-    </select>
+    <span className={`bslot ${mod ? 'filled' : ''}`} title={mod?.text ?? 'Border segment — click to set'}>
+      {eff ? (
+        <>
+          <StatIcon stat={eff.stat} size={14} />
+          <span>+{eff.percent}%</span>
+        </>
+      ) : (
+        <span className="bslot-empty">—</span>
+      )}
+      <select
+        className="bslot-select"
+        value={value ?? ''}
+        onChange={(e) => onChange(e.target.value || null)}
+        aria-label="Border modifier"
+      >
+        <option value="">— none —</option>
+        {BORDER_MODS.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.text}
+          </option>
+        ))}
+      </select>
+    </span>
   )
 }
 
@@ -86,13 +96,25 @@ function Tile({
       ...mods.map((m) => ({ text: `(affects ${scopeLabel[m!.scope]})`, cls: 'muted' })),
     ],
   })
-  const hasLines = edges.some(Boolean)
+  const primary = mods[0]
+  const primaryStat = primary?.effects[0]?.stat
   return (
     <div className={`tile ${selected ? 'selected' : ''}`} onClick={onClick} {...tt}>
       {(['n', 'e', 's', 'w'] as const).map((d, i) =>
         edges[i] ? <span key={d} className={`path-bar ${d} ${edgeStatus[i]}`} /> : null,
       )}
-      {hasLines && <span className="path-node" />}
+      {primaryStat && (
+        <span className="tile-art">
+          <StatIcon stat={primaryStat} size={110} />
+        </span>
+      )}
+      <span className="tile-shade" />
+      <span className="tile-caption">{chart.name}</span>
+      {primary && (
+        <div className={`tile-pct scope-${primary.scope}`}>
+          +{primary.effects[0]?.percent ?? '?'}%
+        </div>
+      )}
       <div className="tile-actions">
         <button
           title="Rotate"
@@ -113,16 +135,7 @@ function Tile({
           ✕
         </button>
       </div>
-      <div className="tile-name">{chart.name}</div>
-      <div className="tile-level">lvl {chart.level}</div>
-      <div className="tile-mods">
-        {mods.map((m) => (
-          <span key={m!.id} className={`mod-chip scope-${m!.scope}`}>
-            {m!.effects[0] && <StatIcon stat={m!.effects[0].stat} size={20} />}
-            <span>+{m!.effects[0]?.percent ?? '?'}%</span>
-          </span>
-        ))}
-      </div>
+      <span className="tile-lvl">lvl {chart.level}</span>
       <div className="tile-score">{score.toFixed(1)}</div>
     </div>
   )
