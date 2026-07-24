@@ -1,19 +1,35 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { VOYAGE_MODS, voyageModById } from '../data/mods'
 import { newUid } from '../logic/parser'
-import type { Board, ChartData, Edges } from '../types'
-import { StatIcon } from './icons'
+import type { Board, ChartData, Edges, Weights } from '../types'
+import { EdgeGlyph, StatIcon } from './icons'
 import { tooltipProps } from './Tooltip'
 
 interface Props {
   pool: ChartData[]
   board: Board
+  weights: Weights
   selected: string | null
   onSelect: (uid: string) => void
   onAdd: (charts: ChartData[]) => void
   onRemove: (uid: string) => void
   onUpdate: (chart: ChartData) => void
 }
+
+const SCOPE_REACH = { self: 1, adjacent: 3, global: 9 } as const
+
+/** heuristic worth of a chart under the current weights, for sorting */
+function chartValue(chart: ChartData, weights: Weights): number {
+  let v = 0
+  for (const id of chart.modIds) {
+    const mod = voyageModById.get(id)
+    if (!mod) continue
+    for (const e of mod.effects) v += (weights[e.stat] ?? 0) * e.percent * SCOPE_REACH[mod.scope]
+  }
+  return v
+}
+
+type SortMode = 'value' | 'level' | 'name'
 
 const EDGE_LABELS = ['N', 'E', 'S', 'W'] as const
 
@@ -74,6 +90,8 @@ function ChartEditor({ chart, onUpdate }: { chart: ChartData; onUpdate: (c: Char
 
 export function Library(props: Props) {
   const [editing, setEditing] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+  const [sort, setSort] = useState<SortMode>('value')
   const onBoard = new Set(props.board.filter(Boolean).map((p) => p!.chartUid))
 
   const addBlank = () => {
@@ -88,20 +106,54 @@ export function Library(props: Props) {
     setEditing(chart.uid)
   }
 
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    let list = props.pool
+    if (q) {
+      list = list.filter((c) => {
+        if (c.name.toLowerCase().includes(q)) return true
+        return c.modIds.some((id) => voyageModById.get(id)?.text.toLowerCase().includes(q))
+      })
+    }
+    return [...list].sort((a, b) => {
+      if (sort === 'level') return b.level - a.level
+      if (sort === 'name') return a.name.localeCompare(b.name)
+      return chartValue(b, props.weights) - chartValue(a, props.weights)
+    })
+  }, [props.pool, props.weights, query, sort])
+
   return (
     <div className="library">
       <div className="panel-title">
-        Chart Library <span className="muted">({props.pool.length})</span>
+        Chart Library{' '}
+        <span className="muted">
+          ({query ? `${visible.length}/` : ''}
+          {props.pool.length})
+        </span>
         <span className="spacer" />
         <button onClick={addBlank}>+ Add chart</button>
       </div>
+      {props.pool.length > 5 && (
+        <div className="library-tools">
+          <input
+            placeholder="Filter by name or mod…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <select value={sort} onChange={(e) => setSort(e.target.value as SortMode)}>
+            <option value="value">Best value</option>
+            <option value="level">Highest level</option>
+            <option value="name">Name</option>
+          </select>
+        </div>
+      )}
       {props.pool.length === 0 && (
         <div className="muted pad">
           No charts yet — add manually or paste from the game below.
         </div>
       )}
       <div className="chart-list">
-        {props.pool.map((c) => {
+        {visible.map((c) => {
           const mod = c.modIds[0] ? voyageModById.get(c.modIds[0]) : null
           return (
             <div
@@ -110,6 +162,7 @@ export function Library(props: Props) {
               onClick={() => props.onSelect(c.uid)}
             >
               <div className="chart-card-head">
+                <EdgeGlyph edges={c.edges} />
                 <span className="chart-name">{c.name}</span>
                 <span className="chart-level">lvl {c.level}</span>
                 {onBoard.has(c.uid) && <span className="badge">on board</span>}

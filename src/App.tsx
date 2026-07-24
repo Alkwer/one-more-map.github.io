@@ -137,6 +137,7 @@ export default function App() {
           <Library
             pool={state.pool}
             board={state.board}
+            weights={state.weights}
             selected={selectedChart}
             onSelect={(uid) => {
               setSelectedChart((cur) => (cur === uid ? null : uid))
@@ -156,6 +157,11 @@ export default function App() {
             charts={chartMap}
             perTile={score.perTile}
             selectedCell={selectedCell}
+            highlightUid={
+              selectedChart && state.board.some((p) => p?.chartUid === selectedChart)
+                ? selectedChart
+                : null
+            }
             placingChart={selectedChart ? chartMap.get(selectedChart) ?? null : null}
             onCellClick={onCellClick}
             onRemove={(i) =>

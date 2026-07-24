@@ -11,6 +11,7 @@ interface Props {
   charts: Map<string, ChartData>
   perTile: number[]
   selectedCell: number | null
+  highlightUid: string | null
   placingChart: ChartData | null
   onCellClick: (i: number) => void
   onRemove: (i: number) => void
@@ -62,6 +63,7 @@ function Tile({
   chart,
   score,
   selected,
+  highlighted,
   placing,
   edgeStatus,
   onClick,
@@ -72,6 +74,7 @@ function Tile({
   chart: ChartData | null
   score: number
   selected: boolean
+  highlighted: boolean
   placing: boolean
   edgeStatus: EdgeStatus[]
   onClick: () => void
@@ -98,7 +101,11 @@ function Tile({
   })
   const primary = mods[0]
   return (
-    <div className={`tile ${selected ? 'selected' : ''}`} onClick={onClick} {...tt}>
+    <div
+      className={`tile ${selected ? 'selected' : ''} ${highlighted ? 'highlighted' : ''}`}
+      onClick={onClick}
+      {...tt}
+    >
       {(['n', 'e', 's', 'w'] as const).map((d, i) =>
         edges[i] ? <span key={d} className={`path-bar ${d} ${edgeStatus[i]}`} /> : null,
       )}
@@ -184,6 +191,7 @@ export function BoardView(props: Props) {
         chart={p ? charts.get(p.chartUid) ?? null : null}
         score={props.perTile[i]}
         selected={props.selectedCell === i}
+        highlighted={!!p && p.chartUid === props.highlightUid}
         placing={!!props.placingChart && !p}
         edgeStatus={edgeStatusFor(i)}
         onClick={() => props.onCellClick(i)}

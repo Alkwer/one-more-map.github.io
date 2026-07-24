@@ -105,6 +105,25 @@ const IMAGE_ICONS: Partial<Record<Stat, string>> = {
   preserve: '/icon-preserve.png',
 }
 
+/** Mini connector-shape glyph, like the line marks on in-game chart items. */
+export function EdgeGlyph({
+  edges,
+  size = 18,
+}: {
+  edges: [boolean, boolean, boolean, boolean]
+  size?: number
+}) {
+  return (
+    <svg viewBox="0 0 16 16" width={size} height={size} className="edge-glyph" aria-hidden>
+      <circle cx="8" cy="8" r="2.1" fill="currentColor" />
+      {edges[0] && <rect x="7" y="0.5" width="2" height="6.5" rx="1" fill="currentColor" />}
+      {edges[1] && <rect x="9" y="7" width="6.5" height="2" rx="1" fill="currentColor" />}
+      {edges[2] && <rect x="7" y="9" width="2" height="6.5" rx="1" fill="currentColor" />}
+      {edges[3] && <rect x="0.5" y="7" width="6.5" height="2" rx="1" fill="currentColor" />}
+    </svg>
+  )
+}
+
 export function StatIcon({ stat, size = 13 }: { stat: Stat; size?: number }) {
   const img = IMAGE_ICONS[stat]
   if (img) {
