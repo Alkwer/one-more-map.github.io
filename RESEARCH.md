@@ -1,5 +1,20 @@
 # Allflame Voyage Solver — Scoping Notes (2026-07-24, pre-launch)
 
+## LAUNCH-DAY CONFIRMATIONS (from poewiki.net/wiki/Voyage, 2026-07-24)
+
+- Board is **3×3** ✓. Border has **12 segments (2 per corner, 1 per middle edge)**
+  called **Corruption Currents**, rerolled each Voyage ✓ (corner tiles get 2, center 0 ✓).
+- Charts **rotate with RMB** ✓; tiles are "specifically shaped" and must interlink.
+- Chart **implicits are adjacent-scope or voyage(global)-scope**; charts also carry
+  their own **self-scope area mods** (sulphur/quantity/rarity/magic monsters/jellyfish).
+- Real adjacent-mod pool so far: equipment→Gold conversion, Wildwood Wisp empowerment,
+  +Imprisoned Monsters, +Diviner's Strongboxes, +Operative's Strongboxes, +Tormented
+  Spirit cages. (Now in src/data/mods.ts.)
+- **One portal, one attempt** per Voyage. Loot is "Dredge" (unusable until sent to
+  surface via Allflame Capsule, 60 slots, one send each).
+- Dead Man's Sulphur: from lanterns near green-coral corpses; non-tradeable currency.
+- Wiki 3.29 item icons NOT uploaded yet (red links) — AI-generated icons remain until then.
+
 League: **Path of Exile 3.29 — Curse of the Allflame** (launches July 24, 2026).
 
 ## The mechanic (solver-relevant parts)

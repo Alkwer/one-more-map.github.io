@@ -110,11 +110,14 @@ function Tile({
       )}
       <span className="tile-shade" />
       <span className="tile-caption">{chart.name}</span>
-      {primary && (
-        <div className={`tile-pct scope-${primary.scope}`}>
-          +{primary.effects[0]?.percent ?? '?'}%
-        </div>
-      )}
+      {primary &&
+        (primary.effects[0] ? (
+          <div className={`tile-pct scope-${primary.scope}`}>+{primary.effects[0].percent}%</div>
+        ) : (
+          <div className={`tile-pct scope-${primary.scope}`} style={{ fontSize: 14 }}>
+            {primary.text}
+          </div>
+        ))}
       <div className="tile-actions">
         <button
           title="Rotate"

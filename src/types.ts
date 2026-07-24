@@ -2,33 +2,54 @@
 // NOTE: built pre-launch from reveal coverage — field shapes are designed to be
 // easy to adjust once real in-game data is available (see RESEARCH.md).
 
-/** Reward dimensions a modifier can affect. Extend as real mods are datamined. */
+/** Reward dimensions a modifier can affect (wiki-confirmed axes + reveal examples). */
 export type Stat =
   | 'currency'
+  | 'gold'
   | 'scarabs'
+  | 'divcards'
+  | 'essences' // Imprisoned Monsters
+  | 'spirits' // Tormented Spirits
+  | 'wisps' // Wildwood Wisp empowerment
   | 'rares'
+  | 'magicmonsters'
   | 'sulphur'
   | 'packsize'
   | 'quantity'
+  | 'rarity'
   | 'preserve' // chance charts aren't consumed
 
 export const ALL_STATS: Stat[] = [
   'currency',
+  'gold',
   'scarabs',
+  'divcards',
+  'essences',
+  'spirits',
+  'wisps',
   'rares',
+  'magicmonsters',
   'sulphur',
   'packsize',
   'quantity',
+  'rarity',
   'preserve',
 ]
 
 export const STAT_LABELS: Record<Stat, string> = {
   currency: 'Currency',
+  gold: 'Gold',
   scarabs: 'Scarabs',
+  divcards: 'Divination Cards',
+  essences: 'Imprisoned Monsters',
+  spirits: 'Tormented Spirits',
+  wisps: 'Wildwood Wisps',
   rares: 'Rare Monsters',
+  magicmonsters: 'Magic Monsters',
   sulphur: "Dead Man's Sulphur",
   packsize: 'Pack Size',
   quantity: 'Item Quantity',
+  rarity: 'Item Rarity',
   preserve: 'Chart Preservation',
 }
 
@@ -96,11 +117,18 @@ export type Weights = Record<Stat, number>
 
 export const DEFAULT_WEIGHTS: Weights = {
   currency: 10,
+  gold: 3,
   scarabs: 6,
+  divcards: 6,
+  essences: 4,
+  spirits: 3,
+  wisps: 5,
   rares: 4,
+  magicmonsters: 2,
   sulphur: 4,
   packsize: 3,
   quantity: 5,
+  rarity: 1,
   preserve: 3,
 }
 

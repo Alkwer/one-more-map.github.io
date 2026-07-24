@@ -45,6 +45,53 @@ const PATHS: Record<Stat, JSX.Element> = {
   ),
   // shield (chart preservation)
   preserve: <path d="M8 1.8l5 1.9v4.2c0 3.4-2.1 5.4-5 6.5-2.9-1.1-5-3.1-5-6.5V3.7l5-1.9z" />,
+  // coin pile
+  gold: (
+    <>
+      <circle cx="5.4" cy="10.6" r="2.6" />
+      <circle cx="10.6" cy="10.6" r="2.6" />
+      <circle cx="8" cy="5.8" r="2.6" />
+    </>
+  ),
+  // divination card
+  divcards: (
+    <>
+      <rect x="4" y="2.2" width="8" height="11.6" rx="1" />
+      <path d="M5.8 5h4.4M5.8 7.4h4.4" />
+    </>
+  ),
+  // crystal cage (imprisoned monsters)
+  essences: (
+    <>
+      <path d="M8 1.6 12.6 5.4 11 13H5L3.4 5.4 8 1.6z" />
+      <path d="M8 1.6v11.4M3.4 5.4h9.2" />
+    </>
+  ),
+  // ghost (tormented spirits)
+  spirits: (
+    <>
+      <path d="M3.6 13.4V7a4.4 4.4 0 0 1 8.8 0v6.4l-2.2-1.6-2.2 1.6-2.2-1.6-2.2 1.6z" />
+      <circle cx="6.4" cy="6.6" r="0.8" fill="currentColor" stroke="none" />
+      <circle cx="9.6" cy="6.6" r="0.8" fill="currentColor" stroke="none" />
+    </>
+  ),
+  // sparkles (wildwood wisps)
+  wisps: (
+    <>
+      <path d="M5 2.6v4M3 4.6h4" />
+      <path d="M11.4 5.4v3.2M9.8 7h3.2" />
+      <path d="M6.6 9.8v3.6M4.8 11.6h3.6" />
+    </>
+  ),
+  // twin orbs (magic monsters)
+  magicmonsters: (
+    <>
+      <circle cx="5.4" cy="8" r="3" />
+      <circle cx="11" cy="8" r="2.2" />
+    </>
+  ),
+  // four-point star (item rarity)
+  rarity: <path d="M8 1.6 9.6 6.4 14.4 8 9.6 9.6 8 14.4 6.4 9.6 1.6 8 6.4 6.4 8 1.6z" />,
 }
 
 // currency + scarabs are game inventory art; the rest are AI-generated in PoE style
