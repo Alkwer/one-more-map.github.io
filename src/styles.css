@@ -35,10 +35,7 @@
 
 body {
   margin: 0;
-  background:
-    radial-gradient(1100px 500px at 50% -8%, rgba(28, 46, 58, 0.55) 0%, rgba(0, 0, 0, 0) 60%),
-    radial-gradient(900px 700px at 85% 110%, rgba(43, 28, 12, 0.5) 0%, rgba(0, 0, 0, 0) 55%),
-    var(--bg);
+  background: #030506 url('/bg.webp') center top / cover no-repeat fixed;
   color: var(--text);
   font: 15px/1.45 var(--serif);
 }
@@ -111,21 +108,20 @@ main {
   gap: 14px;
 }
 
-/* ------- panels: dark bevel with faint gold edge ------- */
+/* ------- panels: official Allflame 9-slice frame (same asset + slice values
+   as pathofexile.com/allflame's .poe2-announcement-panel__frame) ------- */
 .library,
 .import-panel,
 .solver,
 .board-wrap,
 .score-panel {
-  background: linear-gradient(180deg, rgba(38, 32, 22, 0.35) 0%, rgba(0, 0, 0, 0) 90px), var(--panel);
-  border: 1px solid var(--border);
-  outline: 1px solid rgba(0, 0, 0, 0.8);
-  box-shadow:
-    inset 0 0 0 1px rgba(92, 80, 48, 0.25),
-    inset 0 14px 24px rgba(0, 0, 0, 0.45),
-    0 4px 14px rgba(0, 0, 0, 0.55);
-  border-radius: 3px;
-  padding: 12px;
+  background: rgba(3, 7, 8, 0.82);
+  background-clip: padding-box;
+  border: solid transparent;
+  border-width: 24px 30px;
+  border-image: url('/panel-frame.webp') 24 30 fill stretch;
+  box-shadow: 5px 5px 40px 5px rgba(0, 0, 0, 0.9);
+  padding: 4px 2px;
 }
 
 .panel-title {
