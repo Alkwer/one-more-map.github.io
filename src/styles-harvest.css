@@ -75,7 +75,7 @@ body.theme-harvest .score-panel {
   padding: 10px;
 }
 
-/* panel titles like the "Legend" header bar */
+/* panel titles like the "Legend" header bar — in the garden colours */
 body.theme-harvest .panel-title,
 body.theme-harvest .board-title {
   background: #666;
@@ -88,8 +88,25 @@ body.theme-harvest .board-title {
   border-image: none;
   text-shadow: none;
 }
+body.theme-harvest .library > .panel-title {
+  background: #e619e6; /* Wild */
+}
+body.theme-harvest .board-title {
+  background: #f4b400; /* Vivid */
+  color: #202124;
+}
+body.theme-harvest .solver > .panel-title:first-child {
+  background: #00acc1; /* Primal */
+}
+body.theme-harvest .solver .panel-title.small {
+  background: #e8eaed;
+  color: #202124;
+}
+body.theme-harvest .import-panel > .panel-title {
+  background: #188038;
+}
 body.theme-harvest .panel-title .muted {
-  color: #ddd;
+  color: #f6d3f6;
 }
 body.theme-harvest .panel-title button {
   color: #202124;
@@ -207,7 +224,7 @@ body.theme-harvest .path-bar.mismatch {
   box-shadow: none;
 }
 
-/* border pills = little labelled cells */
+/* border pills = little labelled cells (Primal flow colour when filled) */
 body.theme-harvest .bslot {
   background: #fff;
   border: 1px solid #000;
@@ -216,17 +233,44 @@ body.theme-harvest .bslot {
   font-weight: 700;
   box-shadow: none;
 }
+body.theme-harvest .bslot.filled {
+  background: #7ff3ef;
+  color: #202124;
+}
 body.theme-harvest .bslot:hover {
   box-shadow: none;
   border-color: #d600d6;
 }
 
-/* library grid squares = seed cells */
+/* library grid squares = seed cells, filled in garden colours */
 body.theme-harvest .chart-sq {
   background: #fff;
   border: 1px solid #000;
   border-radius: 0;
   box-shadow: none;
+}
+body.theme-harvest .chart-sq.sscope-self {
+  background: #ff9bf5;
+}
+body.theme-harvest .chart-sq.sscope-adjacent {
+  background: #ffd966;
+}
+body.theme-harvest .chart-sq.sscope-global {
+  background: #7ff3ef;
+}
+body.theme-harvest .chart-sq .sq-reward-text,
+body.theme-harvest .chart-sq .sq-pct,
+body.theme-harvest .chart-sq .sq-statname {
+  color: #202124;
+}
+body.theme-harvest .chart-sq .sq-val {
+  color: #0b5e26;
+}
+body.theme-harvest .chart-sq .sq-lvl {
+  color: #333;
+}
+body.theme-harvest .chart-sq .edge-glyph {
+  color: #005a63;
 }
 body.theme-harvest .chart-sq:hover {
   border-color: #d600d6;
@@ -290,15 +334,27 @@ body.theme-harvest .poe-tt-line.val {
   font-weight: 700;
 }
 
-/* reward cards = legend cells */
+/* reward cards = legend cells cycling the garden palette */
 body.theme-harvest .reward-card {
   background: #fff;
   border: 1px solid #000;
   border-radius: 0;
   box-shadow: none;
 }
+body.theme-harvest .reward-card:nth-child(3n + 1) {
+  background: #ff9bf5;
+}
+body.theme-harvest .reward-card:nth-child(3n + 2) {
+  background: #ffd966;
+}
+body.theme-harvest .reward-card:nth-child(3n) {
+  background: #7ff3ef;
+}
+body.theme-harvest .reward-card .reward-label {
+  color: #333;
+}
 body.theme-harvest .reward-card.best {
-  border: 2px solid #d600d6;
+  border: 3px solid #000;
   box-shadow: none;
 }
 body.theme-harvest .reward-value {
@@ -324,4 +380,40 @@ body.theme-harvest .regex-row input {
 }
 body.theme-harvest .theme-link {
   text-decoration: none;
+}
+body.theme-harvest .weight-row input,
+body.theme-harvest .check input {
+  accent-color: #d600d6;
+}
+body.theme-harvest .weight-val {
+  color: #d600d6;
+  font-weight: 700;
+}
+body.theme-harvest .legend-item.scope-self {
+  color: #d600d6;
+}
+body.theme-harvest .legend-item.scope-adjacent {
+  color: #b8860b;
+}
+body.theme-harvest .legend-item.scope-global {
+  color: #0097a7;
+}
+body.theme-harvest .conn-status.ok {
+  background: #c8f0d2;
+  color: #0b5e26;
+  font-weight: 700;
+}
+body.theme-harvest .conn-status.bad {
+  background: #fad2cf;
+  font-weight: 700;
+}
+body.theme-harvest .results .result {
+  border: 1px solid #000;
+}
+body.theme-harvest .chart-card.selected {
+  border: 2px solid #d600d6;
+}
+body.theme-harvest header .tag {
+  border: 2px solid #f4b400;
+  font-weight: 700;
 }

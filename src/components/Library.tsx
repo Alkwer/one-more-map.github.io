@@ -190,7 +190,7 @@ export function Library(props: Props) {
             return (
               <div
                 key={c.uid}
-                className={`chart-sq ${props.selected === c.uid ? 'selected' : ''} ${onBoard.has(c.uid) ? 'on-board' : ''}`}
+                className={`chart-sq ${props.selected === c.uid ? 'selected' : ''} ${onBoard.has(c.uid) ? 'on-board' : ''} ${mod ? `sscope-${mod.scope}` : ''}`}
                 onClick={() => props.onSelect(c.uid)}
                 {...tooltipProps({ title: c.name, lines })}
               >
