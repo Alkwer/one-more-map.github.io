@@ -18,7 +18,10 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
   const [busy, setBusy] = useState(false)
   const [regexCap, setRegexCap] = useState(50)
   const [copied, setCopied] = useState(false)
-  const bestRegex = useMemo(() => buildBestModRegex(state.weights, regexCap), [state.weights, regexCap])
+  const bestRegex = useMemo(
+    () => buildBestModRegex(state.weights, regexCap, new Set(state.disabledMods)),
+    [state.weights, regexCap, state.disabledMods],
+  )
 
   const copyRegex = async () => {
     try {
@@ -40,6 +43,7 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
           allowRotation: state.allowRotation,
           adjacencyMode: state.adjacencyMode,
           adjacentAffectsSelf: state.adjacentAffectsSelf,
+          disabledMods: new Set(state.disabledMods),
           topK: 5,
         })
         onResults(res)

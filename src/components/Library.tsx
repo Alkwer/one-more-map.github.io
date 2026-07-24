@@ -10,6 +10,7 @@ interface Props {
   pool: ChartData[]
   board: Board
   weights: Weights
+  disabledMods: Set<string>
   selected: string | null
   onSelect: (uid: string) => void
   onAdd: (charts: ChartData[]) => void
@@ -20,9 +21,10 @@ interface Props {
 const SCOPE_REACH = { self: 1, adjacent: 3, global: 9 } as const
 
 /** heuristic worth of a chart under the current weights, for sorting */
-function chartValue(chart: ChartData, weights: Weights): number {
+function chartValue(chart: ChartData, weights: Weights, disabled: Set<string>): number {
   let v = 0
   for (const id of chart.modIds) {
+    if (disabled.has(id)) continue
     const mod = voyageModById.get(id)
     if (!mod) continue
     for (const e of mod.effects) v += (weights[e.stat] ?? 0) * e.percent * SCOPE_REACH[mod.scope]
@@ -34,8 +36,8 @@ type SortMode = 'value' | 'level' | 'name'
 type ViewMode = 'grid' | 'list'
 
 /** compact display value: weighted worth scaled to a friendly 0–99ish number */
-export function displayValue(chart: ChartData, weights: Weights): number {
-  return Math.round(chartValue(chart, weights) / 100)
+export function displayValue(chart: ChartData, weights: Weights, disabled: Set<string>): number {
+  return Math.round(chartValue(chart, weights, disabled) / 100)
 }
 
 const EDGE_LABELS = ['N', 'E', 'S', 'W'] as const
@@ -175,9 +177,12 @@ export function Library(props: Props) {
     return [...list].sort((a, b) => {
       if (sort === 'level') return b.level - a.level
       if (sort === 'name') return a.name.localeCompare(b.name)
-      return chartValue(b, props.weights) - chartValue(a, props.weights)
+      return (
+        chartValue(b, props.weights, props.disabledMods) -
+        chartValue(a, props.weights, props.disabledMods)
+      )
     })
-  }, [props.pool, props.weights, query, sort])
+  }, [props.pool, props.weights, props.disabledMods, query, sort])
 
   return (
     <div className="library">
@@ -221,7 +226,7 @@ export function Library(props: Props) {
             const mods = c.modIds.map((id) => voyageModById.get(id)).filter(Boolean)
             // lead with the implicit (adjacent/voyage) - it's the strategic mod
             const mod = mods.find((m) => m!.scope !== 'self') ?? mods[0] ?? null
-            const val = displayValue(c, props.weights)
+            const val = displayValue(c, props.weights, props.disabledMods)
             const lines = [
               { text: `Area Level: ${c.level}`, cls: 'muted' },
               ...mods.map((m) => ({ text: m!.text, cls: `scope-${m!.scope}` })),

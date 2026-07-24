@@ -18,6 +18,7 @@ import type { VoyageModDef, Weights } from '../types'
 export function buildBestModRegex(
   weights: Weights,
   cap = 50,
+  disabledMods?: Set<string>,
 ): { regex: string; included: VoyageModDef[] } {
   const reach = { self: 1, adjacent: 3, global: 9 } as const
   const lettersOnly = (s: string) =>
@@ -27,6 +28,7 @@ export function buildBestModRegex(
   // a family's value is its best tier's value
   const families = new Map<string, { m: VoyageModDef; v: number }>()
   for (const m of VOYAGE_MODS) {
+    if (disabledMods?.has(m.id)) continue
     const v = m.effects.reduce((s, e) => s + (weights[e.stat] ?? 0) * e.percent, 0) * reach[m.scope]
     if (v <= 0) continue
     const key = lettersOnly(m.text)

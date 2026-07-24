@@ -11,6 +11,8 @@ export interface AppState {
   allowRotation: boolean
   adjacencyMode: AdjacencyMode
   adjacentAffectsSelf: boolean
+  /** mod ids the user has switched off; they contribute nothing to any scoring */
+  disabledMods: string[]
 }
 
 export const defaultState = (): AppState => ({
@@ -22,10 +24,11 @@ export const defaultState = (): AppState => ({
   allowRotation: true, // rotation confirmed in game
   adjacencyMode: 'physical',
   adjacentAffectsSelf: false,
+  disabledMods: [],
 })
 
 const LS_KEY = 'allflame-voyage-solver'
-/** bump when the mod data model changes incompatibly - stale saves are discarded */
+/** bump only when chart/board data (mod ids) changes incompatibly */
 const STATE_VERSION = 3 // v3: full datamined mod pools
 
 export function saveLocal(state: AppState) {
@@ -41,8 +44,13 @@ export function loadLocal(): AppState | null {
     const raw = localStorage.getItem(LS_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw)
-    if (parsed?.v !== STATE_VERSION) return null // stale save from an older data model
-    return revive(parsed)
+    const revived = revive(parsed)
+    if (parsed?.v !== STATE_VERSION) {
+      // mod data model changed: keep the user's preferences (weights, disabled
+      // mods, settings) but reset the transient board that references mod ids.
+      return { ...revived, pool: [], board: emptyBoard(), borders: emptyBorders() }
+    }
+    return revived
   } catch {
     return null
   }
@@ -76,5 +84,8 @@ function revive(obj: unknown): AppState {
     allowRotation: !!o.allowRotation,
     adjacencyMode: o.adjacencyMode === 'connected' ? 'connected' : 'physical',
     adjacentAffectsSelf: !!o.adjacentAffectsSelf,
+    disabledMods: Array.isArray(o.disabledMods)
+      ? o.disabledMods.filter((x): x is string => typeof x === 'string')
+      : d.disabledMods,
   }
 }

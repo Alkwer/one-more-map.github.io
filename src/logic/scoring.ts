@@ -35,6 +35,8 @@ export interface ScoreOptions {
   adjacencyMode: AdjacencyMode
   /** whether a chart's Adjacent modifier also applies to its own area */
   adjacentAffectsSelf: boolean
+  /** mod ids the user switched off; excluded from scoring entirely */
+  disabledMods?: Set<string>
 }
 
 const DEFAULT_SCORE_OPTS: ScoreOptions = { adjacencyMode: 'physical', adjacentAffectsSelf: false }
@@ -49,7 +51,7 @@ export function scoreBoard(
   // border meta-mods: % increased magnitude of the touched chart's own mods
   const tileMagnitude: number[] = Array(9).fill(0)
   borders.forEach((id, seg) => {
-    if (!id) return
+    if (!id || opts.disabledMods?.has(id)) return
     const mod = borderModById.get(id)
     if (mod?.magnitude) tileMagnitude[borderTouches(seg)] += mod.magnitude
   })
@@ -104,6 +106,7 @@ export function scoreBoard(
     if (!chart) return
     const mag = 1 + tileMagnitude[i] / 100
     for (const modId of chart.modIds) {
+      if (opts.disabledMods?.has(modId)) continue
       const mod = voyageModById.get(modId)
       if (!mod) continue
       // magnitude + connection scaling apply to the chart's own mods
@@ -119,7 +122,7 @@ export function scoreBoard(
   })
 
   borders.forEach((id, seg) => {
-    if (!id) return
+    if (!id || opts.disabledMods?.has(id)) return
     const mod = borderModById.get(id)
     if (!mod) return
     const tile = borderTouches(seg)

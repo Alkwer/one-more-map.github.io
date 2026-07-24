@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BoardView } from './components/Board'
+import { ModBrowser } from './components/ModBrowser'
 import { Onboarding } from './components/Onboarding'
 import { TooltipLayer } from './components/Tooltip'
 import { generateDemoCharts } from './logic/demo'
@@ -44,6 +45,7 @@ export default function App() {
       /* ignore */
     }
   }
+  const [showMods, setShowMods] = useState(false)
   const [harvestTheme, setHarvestTheme] = useState(() =>
     document.body.classList.contains('theme-harvest'),
   )
@@ -70,11 +72,13 @@ export default function App() {
   }, [state])
 
   const chartMap = useMemo(() => new Map(state.pool.map((c) => [c.uid, c])), [state.pool])
+  const disabledSet = useMemo(() => new Set(state.disabledMods), [state.disabledMods])
   const score = useMemo(
     () =>
       scoreBoard(state.board, state.borders, chartMap, state.weights, {
         adjacencyMode: state.adjacencyMode,
         adjacentAffectsSelf: state.adjacentAffectsSelf,
+        disabledMods: disabledSet,
       }),
     [
       state.board,
@@ -83,6 +87,7 @@ export default function App() {
       state.weights,
       state.adjacencyMode,
       state.adjacentAffectsSelf,
+      disabledSet,
     ],
   )
   const conn = useMemo(
@@ -116,6 +121,20 @@ export default function App() {
   }, [state.borders, state.board, chartMap])
 
   const patch = (p: Partial<AppState>) => setState((s) => ({ ...s, ...p }))
+
+  const toggleMod = (id: string, off: boolean) =>
+    setState((s) => {
+      const set = new Set(s.disabledMods)
+      if (off) set.add(id)
+      else set.delete(id)
+      return { ...s, disabledMods: [...set] }
+    })
+  const bulkMods = (ids: string[], off: boolean) =>
+    setState((s) => {
+      const set = new Set(s.disabledMods)
+      for (const id of ids) (off ? set.add(id) : set.delete(id))
+      return { ...s, disabledMods: [...set] }
+    })
 
   const addCharts = (charts: ChartData[]) => patch({ pool: [...state.pool, ...charts] })
 
@@ -197,6 +216,14 @@ export default function App() {
           onDemo={() => addCharts(generateDemoCharts(25))}
         />
       )}
+      {showMods && (
+        <ModBrowser
+          disabled={disabledSet}
+          onToggle={toggleMod}
+          onBulk={bulkMods}
+          onClose={() => setShowMods(false)}
+        />
+      )}
       <header>
         <h1>
           Allflame <span className="accent">Voyage Solver</span>
@@ -205,6 +232,9 @@ export default function App() {
           <span className="tag">PoE 3.29: Curse of the Allflame</span>
           <button title="How it works" onClick={() => setShowOnboarding(true)}>
             ?
+          </button>
+          <button title="Browse all modifiers and switch off ones you don't want" onClick={() => setShowMods(true)}>
+            Mods{state.disabledMods.length > 0 ? ` (${state.disabledMods.length} off)` : ''}
           </button>
           <button
             className="theme-link"
@@ -227,6 +257,7 @@ export default function App() {
             pool={state.pool}
             board={state.board}
             weights={state.weights}
+            disabledMods={disabledSet}
             selected={selectedChart}
             onSelect={(uid) => {
               setSelectedChart((cur) => (cur === uid ? null : uid))
