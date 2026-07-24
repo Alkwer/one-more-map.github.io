@@ -20,35 +20,44 @@ export function buildBestModRegex(
   cap = 50,
 ): { regex: string; included: VoyageModDef[] } {
   const reach = { self: 1, adjacent: 3, global: 9 } as const
-  const scored = VOYAGE_MODS.map((m) => ({
-    m,
-    v: m.effects.reduce((s, e) => s + (weights[e.stat] ?? 0) * e.percent, 0) * reach[m.scope],
-  }))
-    .filter((x) => x.v > 0)
+  const lettersOnly = (s: string) =>
+    s.toLowerCase().replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim()
+
+  // group tier variants into families (identical text once numbers are stripped);
+  // a family's value is its best tier's value
+  const families = new Map<string, { m: VoyageModDef; v: number }>()
+  for (const m of VOYAGE_MODS) {
+    const v = m.effects.reduce((s, e) => s + (weights[e.stat] ?? 0) * e.percent, 0) * reach[m.scope]
+    if (v <= 0) continue
+    const key = lettersOnly(m.text)
+    const existing = families.get(key)
+    if (!existing || v > existing.v) families.set(key, { m, v })
+  }
+  const scored = [...families.entries()]
+    .map(([key, { m, v }]) => ({ key, m, v }))
     .sort((a, b) => b.v - a.v)
 
-  const lettersOnly = (s: string) => s.toLowerCase().replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim()
-
-  const token = (mod: VoyageModDef, others: VoyageModDef[]): string => {
-    const text = lettersOnly(mod.text)
-    const otherTexts = others.map((o) => lettersOnly(o.text))
-    for (let len = 3; len <= text.length; len++) {
-      for (let i = 0; i + len <= text.length; i++) {
-        const sub = text.slice(i, i + len)
+  const token = (key: string, otherKeys: string[]): string => {
+    for (let len = 3; len <= key.length; len++) {
+      for (let i = 0; i + len <= key.length; i++) {
+        const sub = key.slice(i, i + len)
         if (sub !== sub.trim()) continue
-        if (!otherTexts.some((t) => t.includes(sub))) return sub
+        if (!otherKeys.some((t) => t.includes(sub))) return sub
       }
     }
-    return text
+    return key
   }
 
   const included: VoyageModDef[] = []
   const tokens: string[] = []
-  for (const { m } of scored) {
-    const others = VOYAGE_MODS.filter((o) => o !== m && !included.includes(o))
-    const t = token(m, others)
+  for (const { key, m } of scored) {
+    const otherKeys = [...families.keys()].filter((k) => k !== key)
+    const t = token(key, otherKeys)
     const candidate = [...tokens, t].join('|')
-    if (candidate.length > cap) break
+    if (candidate.length > cap) {
+      if (tokens.length === 0) continue // skip an oversized top family, try the next
+      break
+    }
     tokens.push(t)
     included.push(m)
   }

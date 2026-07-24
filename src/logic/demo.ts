@@ -21,6 +21,8 @@ function randomEdges(): Edges {
 }
 
 export function generateDemoCharts(count: number): ChartData[] {
+  const selfMods = VOYAGE_MODS.filter((m) => m.scope === 'self')
+  const implicits = VOYAGE_MODS.filter((m) => m.scope !== 'self')
   const charts: ChartData[] = []
   const usedNames = new Set<string>()
   for (let i = 0; i < count; i++) {
@@ -29,12 +31,19 @@ export function generateDemoCharts(count: number): ChartData[] {
       name = `Charted ${pick(PREFIXES)} ${pick(BASES)}${pick(SUFFIXES)}`
     } while (usedNames.has(name))
     usedNames.add(name)
+    // 1-2 area mods (magic prefix/suffix) + 1 revealed implicit
+    const modIds = [pick(selfMods).id]
+    if (Math.random() < 0.6) {
+      const second = pick(selfMods).id
+      if (second !== modIds[0]) modIds.push(second)
+    }
+    modIds.push(pick(implicits).id)
     charts.push({
       uid: newUid(),
       name,
       level: 68 + Math.floor(Math.random() * 16),
       edges: randomEdges(),
-      modIds: [pick(VOYAGE_MODS).id],
+      modIds,
     })
   }
   return charts

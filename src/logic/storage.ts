@@ -21,7 +21,7 @@ export const defaultState = (): AppState => ({
 
 const LS_KEY = 'allflame-voyage-solver'
 /** bump when the mod data model changes incompatibly — stale saves are discarded */
-const STATE_VERSION = 2
+const STATE_VERSION = 3 // v3: full datamined mod pools
 
 export function saveLocal(state: AppState) {
   try {

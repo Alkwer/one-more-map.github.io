@@ -99,7 +99,14 @@ export function scoreBoard(
     const mod = borderModById.get(id)
     if (!mod) return
     const tile = borderTouches(seg)
-    if (board[tile]) tileEffects[tile].push(...mod.effects)
+    if (!board[tile]) return
+    tileEffects[tile].push(...mod.effects)
+    // per-connection border effects (e.g. "+50% rares per Chart connection")
+    if (mod.perConnEffects && connCount[tile] > 0) {
+      tileEffects[tile].push(
+        ...mod.perConnEffects.map((e) => ({ ...e, percent: e.percent * connCount[tile] })),
+      )
+    }
   })
 
   // Additive stacking within an area (PoE "increased" convention). The game's

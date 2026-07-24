@@ -2,7 +2,7 @@
 // NOTE: built pre-launch from reveal coverage — field shapes are designed to be
 // easy to adjust once real in-game data is available (see RESEARCH.md).
 
-/** Reward dimensions a modifier can affect (wiki-confirmed axes + reveal examples). */
+/** Reward dimensions a modifier can affect (from the datamined 3.29 mod pools). */
 export type Stat =
   | 'currency'
   | 'gold'
@@ -17,6 +17,9 @@ export type Stat =
   | 'packsize'
   | 'quantity'
   | 'rarity'
+  | 'uniques' // unique ring/amulet/belt conversion
+  | 'treasure' // anchors, lockers, barrels, messages, fish, altars…
+  | 'exp' // experience gain
   | 'preserve' // chance charts aren't consumed
 
 export const ALL_STATS: Stat[] = [
@@ -33,6 +36,9 @@ export const ALL_STATS: Stat[] = [
   'packsize',
   'quantity',
   'rarity',
+  'uniques',
+  'treasure',
+  'exp',
   'preserve',
 ]
 
@@ -51,6 +57,9 @@ export const STAT_SHORT: Record<Stat, string> = {
   packsize: 'Pack Size',
   quantity: 'Quantity',
   rarity: 'Rarity',
+  uniques: 'Uniques',
+  treasure: 'Treasure',
+  exp: 'XP',
   preserve: 'Preserve',
 }
 
@@ -68,6 +77,9 @@ export const STAT_LABELS: Record<Stat, string> = {
   packsize: 'Pack Size',
   quantity: 'Item Quantity',
   rarity: 'Item Rarity',
+  uniques: 'Unique Items',
+  treasure: 'Treasure',
+  exp: 'Experience',
   preserve: 'Chart Preservation',
 }
 
@@ -97,6 +109,8 @@ export interface BorderModDef {
   effects: ModEffect[]
   /** meta-mod: % increased magnitude of the touched chart's own modifiers */
   magnitude?: number
+  /** effects applied per matched connection the touched chart has (can be negative) */
+  perConnEffects?: ModEffect[]
 }
 
 /** Edge connectors, clockwise from North: [N, E, S, W]. */
@@ -151,6 +165,9 @@ export const DEFAULT_WEIGHTS: Weights = {
   packsize: 3,
   quantity: 5,
   rarity: 1,
+  uniques: 3,
+  treasure: 4,
+  exp: 2,
   preserve: 3,
 }
 

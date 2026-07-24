@@ -63,17 +63,56 @@ function ChartEditor({ chart, onUpdate }: { chart: ChartData; onUpdate: (c: Char
           onChange={(e) => onUpdate({ ...chart, level: parseInt(e.target.value || '1', 10) })}
         />
       </div>
-      <select
-        value={chart.modIds[0] ?? ''}
-        onChange={(e) => onUpdate({ ...chart, modIds: e.target.value ? [e.target.value] : [] })}
-      >
-        <option value="">— voyage modifier —</option>
-        {VOYAGE_MODS.map((m) => (
-          <option key={m.id} value={m.id}>
-            [{m.scope}] {m.text}
-          </option>
-        ))}
-      </select>
+      {(() => {
+        const isSelf = (id: string) => voyageModById.get(id)?.scope === 'self'
+        const selfIds = chart.modIds.filter(isSelf)
+        const implicitId = chart.modIds.find((id) => !isSelf(id)) ?? ''
+        const commit = (s0: string, s1: string, imp: string) =>
+          onUpdate({ ...chart, modIds: [s0, s1, imp].filter(Boolean) })
+        const selfPool = VOYAGE_MODS.filter((m) => m.scope === 'self')
+        return (
+          <>
+            {[0, 1].map((slot) => (
+              <select
+                key={slot}
+                value={selfIds[slot] ?? ''}
+                onChange={(e) => {
+                  const next = [selfIds[0] ?? '', selfIds[1] ?? '']
+                  next[slot] = e.target.value
+                  commit(next[0], next[1], implicitId)
+                }}
+              >
+                <option value="">— area mod {slot + 1} —</option>
+                {selfPool.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.text}
+                  </option>
+                ))}
+              </select>
+            ))}
+            <select
+              value={implicitId}
+              onChange={(e) => commit(selfIds[0] ?? '', selfIds[1] ?? '', e.target.value)}
+            >
+              <option value="">— implicit (adjacent / voyage) —</option>
+              <optgroup label="Adjacent">
+                {VOYAGE_MODS.filter((m) => m.scope === 'adjacent').map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.text}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Voyage-wide">
+                {VOYAGE_MODS.filter((m) => m.scope === 'global').map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.text}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+          </>
+        )
+      })()}
       <div className="row edges-row">
         <span className="muted">Connectors:</span>
         {EDGE_LABELS.map((l, i) => (

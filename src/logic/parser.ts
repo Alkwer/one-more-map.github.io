@@ -21,13 +21,29 @@ function normalise(s: string): string {
   return s.toLowerCase().replace(/[0-9]+/g, '#').replace(/\s+/g, ' ').trim()
 }
 
-/** Match a mod line against the known pool, ignoring numeric values. */
+/**
+ * Match a mod line against the known pool, ignoring numeric values.
+ * Tier families share normalised text — disambiguate by the closest first number.
+ */
 function matchMod(line: string): string | null {
-  const n = normalise(line.replace(/\s*\((implicit|enchant)\)\s*$/i, ''))
-  for (const mod of VOYAGE_MODS) {
-    if (normalise(mod.text) === n) return mod.id
+  const cleaned = line.replace(/\s*\((implicit|enchant)\)\s*$/i, '')
+  const n = normalise(cleaned)
+  const candidates = VOYAGE_MODS.filter((mod) => normalise(mod.text) === n)
+  if (candidates.length === 0) return null
+  if (candidates.length === 1) return candidates[0].id
+  const lineNum = parseFloat(cleaned.match(/\d+(\.\d+)?/)?.[0] ?? '')
+  if (isNaN(lineNum)) return candidates[0].id
+  let best = candidates[0]
+  let bestDist = Infinity
+  for (const c of candidates) {
+    const cNum = parseFloat(c.text.match(/\d+(\.\d+)?/)?.[0] ?? '')
+    const dist = isNaN(cNum) ? Infinity : Math.abs(cNum - lineNum)
+    if (dist < bestDist) {
+      bestDist = dist
+      best = c
+    }
   }
-  return null
+  return best.id
 }
 
 export interface ParseResult {

@@ -107,7 +107,8 @@ function Tile({
       ...mods.map((m) => ({ text: `(affects ${scopeLabel[m!.scope]})`, cls: 'muted' })),
     ],
   })
-  const primary = mods[0]
+  // show the implicit (adjacent/voyage) on the tile — it's the strategic mod
+  const primary = mods.find((m) => m!.scope !== 'self') ?? mods[0]
   return (
     <div
       className={`tile ${selected ? 'selected' : ''} ${highlighted ? 'highlighted' : ''} ${primary ? `tscope-${primary.scope}` : ''}`}
