@@ -112,13 +112,13 @@ const PATHS: Record<Stat, JSX.Element> = {
 
 // currency + scarabs are game inventory art; the rest are AI-generated in PoE style
 const IMAGE_ICONS: Partial<Record<Stat, string>> = {
-  currency: '/icon-currency.png',
-  scarabs: '/icon-scarabs.png',
-  rares: '/icon-rares.png',
-  sulphur: '/icon-sulphur.png',
-  packsize: '/icon-packsize.png',
-  quantity: '/icon-quantity.png',
-  preserve: '/icon-preserve.png',
+  currency: './icon-currency.png',
+  scarabs: './icon-scarabs.png',
+  rares: './icon-rares.png',
+  sulphur: './icon-sulphur.png',
+  packsize: './icon-packsize.png',
+  quantity: './icon-quantity.png',
+  preserve: './icon-preserve.png',
 }
 
 /** Mini connector-shape glyph, like the line marks on in-game chart items. */
