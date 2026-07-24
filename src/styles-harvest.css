@@ -1,0 +1,327 @@
+/* ==========================================================================
+   Harvest Edition — Google Sheets garden-planner tribute.
+   White spreadsheet grid, Arial, black cell borders, and the classic
+   Wild/Vivid/Primal magenta/gold/cyan mapped to self/adjacent/global scopes.
+   Scoped entirely under body.theme-harvest.
+   ========================================================================== */
+
+body.theme-harvest {
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --panel2: #f3f3f3;
+  --panel3: #eeeeee;
+  --border: #000000;
+  --border-hi: #000000;
+  --gold: #202124;
+  --gold-dim: #202124;
+  --gold-bright: #202124;
+  --text: #202124;
+  --muted: #5f6368;
+  --accent2: #00acc1;
+  --good: #188038;
+  --bad: #d93025;
+  --self: #d600d6; /* Wild magenta */
+  --adjacent: #b8860b; /* Vivid gold (dark enough on white) */
+  --global: #0097a7; /* Primal cyan */
+  --serif: Arial, Helvetica, sans-serif;
+  --sc: Arial, Helvetica, sans-serif;
+  --display: Arial, Helvetica, sans-serif;
+  --italic: Arial, Helvetica, sans-serif;
+  --bold: Arial, Helvetica, sans-serif;
+
+  background:
+    linear-gradient(to right, #e2e2e2 1px, transparent 1px),
+    linear-gradient(to bottom, #e2e2e2 1px, transparent 1px),
+    #ffffff;
+  background-size: 21px 21px;
+  color: var(--text);
+  font: 13px/1.4 Arial, Helvetica, sans-serif;
+}
+
+body.theme-harvest h1 {
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #202124;
+  text-shadow: none;
+}
+body.theme-harvest .accent {
+  color: #d600d6;
+}
+body.theme-harvest header::after {
+  background: #000;
+  height: 2px;
+}
+body.theme-harvest .tag {
+  background: #fff;
+  border: 1px solid #000;
+  border-radius: 0;
+  color: #202124;
+}
+
+/* panels become bordered sheet tables */
+body.theme-harvest .library,
+body.theme-harvest .import-panel,
+body.theme-harvest .solver,
+body.theme-harvest .board-wrap,
+body.theme-harvest .score-panel {
+  background: #fff;
+  border: 2px solid #000;
+  border-image: none;
+  outline: none;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 10px;
+}
+
+/* panel titles like the "Legend" header bar */
+body.theme-harvest .panel-title,
+body.theme-harvest .board-title {
+  background: #666;
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0;
+  padding: 3px 8px;
+  border: none;
+  border-image: none;
+  text-shadow: none;
+}
+body.theme-harvest .panel-title .muted {
+  color: #ddd;
+}
+body.theme-harvest .panel-title button {
+  color: #202124;
+}
+
+body.theme-harvest button,
+body.theme-harvest .file-btn {
+  background: #f1f3f4;
+  color: #202124;
+  border: 1px solid #999;
+  border-radius: 0;
+  box-shadow: none;
+  text-shadow: none;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+body.theme-harvest button:hover,
+body.theme-harvest .file-btn:hover {
+  background: #e8eaed;
+  border-color: #000;
+  box-shadow: none;
+  color: #000;
+}
+body.theme-harvest button.primary {
+  background: #d600d6;
+  color: #fff;
+  border-color: #000;
+  font-weight: 700;
+}
+
+body.theme-harvest input,
+body.theme-harvest select,
+body.theme-harvest textarea {
+  background: #fff;
+  color: #202124;
+  border: 1px solid #999;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* board grid = spreadsheet */
+body.theme-harvest .board-grid {
+  background: #fff;
+  border: 2px solid #000;
+  box-shadow: none;
+  border-radius: 0;
+}
+body.theme-harvest .tile {
+  background: #fff;
+  border: 1px solid #000;
+  border-radius: 0;
+  box-shadow: none;
+}
+body.theme-harvest .tile.empty {
+  background: #fafafa;
+  border-style: dashed;
+  border-color: #bbb;
+}
+body.theme-harvest .tile.empty::after {
+  color: #ddd;
+}
+/* garden-coloured cells by scope */
+body.theme-harvest .tile.tscope-self {
+  background: #ff9bf5;
+}
+body.theme-harvest .tile.tscope-adjacent {
+  background: #ffd966;
+}
+body.theme-harvest .tile.tscope-global {
+  background: #7ff3ef;
+}
+body.theme-harvest .tile.tscope-self .tile-duo-pct,
+body.theme-harvest .tile.tscope-adjacent .tile-duo-pct,
+body.theme-harvest .tile.tscope-global .tile-duo-pct {
+  color: #202124;
+  text-shadow: none;
+  font-weight: 700;
+}
+body.theme-harvest .tile-duo-label,
+body.theme-harvest .tile-lvl {
+  color: #444;
+  text-shadow: none;
+}
+body.theme-harvest .tile-score {
+  color: #188038;
+  text-shadow: none;
+  font-weight: 700;
+}
+body.theme-harvest .tile.selected,
+body.theme-harvest .tile.highlighted {
+  border: 2px solid #d600d6;
+  box-shadow: none;
+  animation: none;
+}
+body.theme-harvest .tile-start {
+  color: #0097a7;
+  text-shadow: none;
+  font-weight: 700;
+}
+
+/* flows */
+body.theme-harvest .path-bar {
+  border-radius: 0;
+}
+body.theme-harvest .path-bar.connected {
+  background: #00e0e0;
+  box-shadow: none;
+}
+body.theme-harvest .path-bar.open {
+  background: #e0e0e0;
+  opacity: 1;
+}
+body.theme-harvest .path-bar.mismatch {
+  background: #d93025;
+  box-shadow: none;
+}
+
+/* border pills = little labelled cells */
+body.theme-harvest .bslot {
+  background: #fff;
+  border: 1px solid #000;
+  border-radius: 0;
+  color: #202124;
+  font-weight: 700;
+  box-shadow: none;
+}
+body.theme-harvest .bslot:hover {
+  box-shadow: none;
+  border-color: #d600d6;
+}
+
+/* library grid squares = seed cells */
+body.theme-harvest .chart-sq {
+  background: #fff;
+  border: 1px solid #000;
+  border-radius: 0;
+  box-shadow: none;
+}
+body.theme-harvest .chart-sq:hover {
+  border-color: #d600d6;
+  box-shadow: none;
+}
+body.theme-harvest .chart-sq.selected {
+  border: 2px solid #d600d6;
+  box-shadow: none;
+}
+body.theme-harvest .sq-val {
+  color: #188038;
+  text-shadow: none;
+  font-weight: 700;
+}
+body.theme-harvest .sq-lvl {
+  color: #5f6368;
+}
+body.theme-harvest .edge-glyph {
+  color: #00acc1;
+  filter: none;
+}
+body.theme-harvest .sq-reward-text {
+  text-shadow: none;
+  font-weight: 700;
+}
+body.theme-harvest .chart-card {
+  background: #fff;
+  border: 1px solid #000;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* tooltip = plain sheet note */
+body.theme-harvest .poe-tooltip {
+  filter: drop-shadow(2px 3px 6px rgba(0, 0, 0, 0.3));
+}
+body.theme-harvest .poe-tt-header {
+  background: #666;
+  height: 30px;
+}
+body.theme-harvest .poe-tt-header::before,
+body.theme-harvest .poe-tt-header::after {
+  display: none;
+}
+body.theme-harvest .poe-tt-title {
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 0 12px;
+}
+body.theme-harvest .poe-tt-body {
+  background: #fff;
+  border: 1px solid #000;
+  border-top: none;
+}
+body.theme-harvest .poe-tt-line {
+  font-size: 12.5px;
+}
+body.theme-harvest .poe-tt-line.val {
+  color: #188038;
+  font-weight: 700;
+}
+
+/* reward cards = legend cells */
+body.theme-harvest .reward-card {
+  background: #fff;
+  border: 1px solid #000;
+  border-radius: 0;
+  box-shadow: none;
+}
+body.theme-harvest .reward-card.best {
+  border: 2px solid #d600d6;
+  box-shadow: none;
+}
+body.theme-harvest .reward-value {
+  color: #202124;
+  text-shadow: none;
+  font-weight: 700;
+}
+body.theme-harvest .score-total {
+  color: #202124;
+}
+body.theme-harvest .score-total strong {
+  color: #188038;
+  text-shadow: none;
+}
+
+body.theme-harvest .conn-status {
+  background: #fff;
+  border: 1px solid #000;
+  border-radius: 0;
+}
+body.theme-harvest .regex-row input {
+  color: #0097a7;
+}
+body.theme-harvest .theme-link {
+  text-decoration: none;
+}

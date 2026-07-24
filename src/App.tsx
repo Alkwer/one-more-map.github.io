@@ -127,6 +127,17 @@ export default function App() {
         </h1>
         <div className="header-right">
           <span className="tag">PoE 3.29 — Curse of the Allflame</span>
+          <a
+            className="theme-link"
+            href={document.body.classList.contains('theme-harvest') ? './' : './harvest.html'}
+            title={
+              document.body.classList.contains('theme-harvest')
+                ? 'Back to the Allflame theme'
+                : 'Harvest Edition — like the old garden planner sheets'
+            }
+          >
+            {document.body.classList.contains('theme-harvest') ? '🔥' : '🌱'}
+          </a>
           <button onClick={share}>{shareMsg || 'Share layout'}</button>
         </div>
       </header>

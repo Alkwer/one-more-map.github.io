@@ -110,7 +110,7 @@ function Tile({
   const primary = mods[0]
   return (
     <div
-      className={`tile ${selected ? 'selected' : ''} ${highlighted ? 'highlighted' : ''}`}
+      className={`tile ${selected ? 'selected' : ''} ${highlighted ? 'highlighted' : ''} ${primary ? `tscope-${primary.scope}` : ''}`}
       onClick={onClick}
       {...tt}
     >

@@ -1,6 +1,7 @@
 import { borderModById, voyageModById } from '../data/mods'
 import type { Board, Borders, ChartData, ModEffect, Stat, Weights } from '../types'
 import { ALL_STATS, borderTouches } from '../types'
+import { rotateEdges } from './connectivity'
 
 const NEIGHBOURS: number[][] = Array.from({ length: 9 }, (_, i) => {
   const r = Math.floor(i / 3)
@@ -41,6 +42,34 @@ export function scoreBoard(
     if (mod?.magnitude) tileMagnitude[borderTouches(seg)] += mod.magnitude
   })
 
+  // matched-connection count per tile (for mods that scale with connections)
+  const edgesAt = (i: number): [boolean, boolean, boolean, boolean] | null => {
+    const p = board[i]
+    if (!p) return null
+    const c = charts.get(p.chartUid)
+    return c ? rotateEdges(c.edges, p.rotation) : null
+  }
+  const connCount: number[] = Array(9).fill(0)
+  board.forEach((_, i) => {
+    const e = edgesAt(i)
+    if (!e) return
+    const r = Math.floor(i / 3)
+    const col = i % 3
+    const dirs = [
+      { dr: -1, dc: 0, edge: 0, opp: 2 },
+      { dr: 0, dc: 1, edge: 1, opp: 3 },
+      { dr: 1, dc: 0, edge: 2, opp: 0 },
+      { dr: 0, dc: -1, edge: 3, opp: 1 },
+    ]
+    for (const d of dirs) {
+      const nr = r + d.dr
+      const nc = col + d.dc
+      if (nr < 0 || nr > 2 || nc < 0 || nc > 2) continue
+      const ne = edgesAt(nr * 3 + nc)
+      if (e[d.edge] && ne?.[d.opp]) connCount[i]++
+    }
+  })
+
   // collect effects per tile
   const tileEffects: ModEffect[][] = Array.from({ length: 9 }, () => [])
   const globalEffects: ModEffect[] = []
@@ -53,9 +82,12 @@ export function scoreBoard(
     for (const modId of chart.modIds) {
       const mod = voyageModById.get(modId)
       if (!mod) continue
-      // magnitude scales the chart's own mods (approximation of the in-game meta-mod)
+      // magnitude + connection scaling apply to the chart's own mods
+      let scale = mag
+      if (mod.scaling === 'connections') scale *= connCount[i]
+      else if (mod.scaling === 'inverse-connections') scale *= 4 - connCount[i]
       const effects =
-        mag !== 1 ? mod.effects.map((e) => ({ ...e, percent: e.percent * mag })) : mod.effects
+        scale !== 1 ? mod.effects.map((e) => ({ ...e, percent: e.percent * scale })) : mod.effects
       if (mod.scope === 'self') tileEffects[i].push(...effects)
       else if (mod.scope === 'global') globalEffects.push(...effects)
       else for (const n of NEIGHBOURS[i]) if (board[n]) tileEffects[n].push(...effects)

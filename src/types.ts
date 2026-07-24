@@ -86,6 +86,8 @@ export interface VoyageModDef {
   text: string
   scope: Scope
   effects: ModEffect[]
+  /** some mods scale per connection the chart has (or reward fewer connections) */
+  scaling?: 'connections' | 'inverse-connections'
 }
 
 /** A border modifier definition (rolled on the 12 board edge segments). */

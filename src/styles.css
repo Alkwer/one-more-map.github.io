@@ -108,6 +108,11 @@ h1 {
   align-items: center;
   gap: 10px;
 }
+.theme-link {
+  font-size: 17px;
+  text-decoration: none;
+  line-height: 1;
+}
 .tag {
   font-family: var(--sc);
   font-size: 12px;

@@ -43,8 +43,11 @@
   an area ("increased" convention); the rewards panel reports average bonus per area.
 - **Start square is bottom-left** (per Zac's observation); connectivity is now rooted
   there and the board must occupy it. Unconfirmed whether the start ever moves.
-- Zac has heard of a **bonus for longer chains** — not seen in footage or wiki yet;
-  if real, chain length needs to enter the scoring model.
+- **CONFIRMED (ZiggyD video): some mods scale with the number of connections a
+  chart has** — stacking bonuses per connection, and others that reward FEWER
+  connections. Modelled via `scaling: 'connections' | 'inverse-connections'` on
+  VoyageModDef (effect × connection count, or × (4 − connections)). No real mod
+  texts known yet — wire them in as they're found.
 
 League: **Path of Exile 3.29 — Curse of the Allflame** (launches July 24, 2026).
 
