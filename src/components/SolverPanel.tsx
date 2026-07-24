@@ -4,7 +4,7 @@ import { solve, type SolverResult } from '../logic/solver'
 import type { AppState } from '../logic/storage'
 import type { AdjacencyMode } from '../logic/scoring'
 import type { Board, ConnectivityMode } from '../types'
-import { ALL_STATS, STAT_LABELS } from '../types'
+import { ALL_STATS, STAT_DESC, STAT_LABELS } from '../types'
 
 interface Props {
   state: AppState
@@ -95,10 +95,15 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
       </label>
 
       <div className="panel-title small">Reward weights</div>
+      <div className="muted small-note" style={{ marginTop: 0 }}>
+        Your personal priorities - slide up what you value. Hover a label for what it covers.
+      </div>
       <div className="weights">
         {ALL_STATS.map((s) => (
           <div key={s} className="weight-row">
-            <span>{STAT_LABELS[s]}</span>
+            <span className="weight-label" title={STAT_DESC[s]}>
+              {STAT_LABELS[s]}
+            </span>
             <input
               type="range"
               min={0}

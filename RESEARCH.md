@@ -1,4 +1,4 @@
-# Allflame Voyage Solver — Scoping Notes (2026-07-24, pre-launch)
+# Allflame Voyage Solver - Scoping Notes (2026-07-24, pre-launch)
 
 ## LAUNCH-DAY CONFIRMATIONS (from poewiki.net/wiki/Voyage, 2026-07-24)
 
@@ -13,11 +13,11 @@
 - **One portal, one attempt** per Voyage. Loot is "Dredge" (unusable until sent to
   surface via Allflame Capsule, 60 slots, one send each).
 - Dead Man's Sulphur: from lanterns near green-coral corpses; non-tradeable currency.
-- Wiki 3.29 item icons NOT uploaded yet (red links) — AI-generated icons remain until then.
+- Wiki 3.29 item icons NOT uploaded yet (red links) - AI-generated icons remain until then.
 
 ## From ZiggyD's early hands-on video (youtu.be/BUhy78_RgF0 @ ~21:00, 2026-07-24)
 
-- **Chart item tooltip anatomy** (seen on "Armoured Coral Forest Chart of Power" —
+- **Chart item tooltip anatomy** (seen on "Armoured Coral Forest Chart of Power" -
   magic-rarity naming): Area Level 47 · Item Quantity: +20% · **Gold Found: +70%** ·
   Requires Level 36 · an explicit "**Adjacent Modifier:**" section ("Adjacent Areas
   contains 5 additional Giant Starfish") · area mods incl. downsides ("+6% Monster
@@ -27,7 +27,7 @@
 - **Charted charts auto-transfer to a dedicated chart stash**; a placeable hideout
   stash with **affinities** exists. Inventory shows shape glyph + "L:47" level and
   has a **keyword search box** (regex feature target).
-- **Chart shapes**: straight / L-corner / T / cross glyphs — matches our N/E/S/W edges.
+- **Chart shapes**: straight / L-corner / T / cross glyphs - matches our N/E/S/W edges.
 - **Border mods can be REROLLED by spending Dead Man's Sulphur** → borders are a
   crafting sub-game; solver could later compute reroll EV ("is this roll worth keeping?").
 - **Meta border mods exist that multiply chart modifier effects** (observed banner:
@@ -35,7 +35,7 @@
   `magnitude` on BorderModDef, scales the touched chart's own mods in scoring.
 - Scale: a voyage ≈ hundreds of treasure locations, huge zone; ZiggyD ran ~1/act in campaign.
 - On-screen note: GGG has been **buffing adjacency and border modifiers** since the
-  preview build — expect live numbers to be higher than preview footage.
+  preview build - expect live numbers to be higher than preview footage.
 
 ## Open questions on reward math (verify in game)
 
@@ -44,12 +44,12 @@
 - **Start square is bottom-left** (per Zac's observation); connectivity is now rooted
   there and the board must occupy it. Unconfirmed whether the start ever moves.
 - **CONFIRMED (ZiggyD video): some mods scale with the number of connections a
-  chart has** — stacking bonuses per connection, and others that reward FEWER
+  chart has** - stacking bonuses per connection, and others that reward FEWER
   connections. Modelled via `scaling: 'connections' | 'inverse-connections'` on
   VoyageModDef (effect × connection count, or × (4 − connections)). No real mod
-  texts known yet — wire them in as they're found.
+  texts known yet - wire them in as they're found.
 
-League: **Path of Exile 3.29 — Curse of the Allflame** (launches July 24, 2026).
+League: **Path of Exile 3.29 - Curse of the Allflame** (launches July 24, 2026).
 
 ## The mechanic (solver-relevant parts)
 
@@ -59,7 +59,7 @@ League: **Path of Exile 3.29 — Curse of the Allflame** (launches July 24, 2026
 - **Voyage Board**: a **3×3 grid**. Place 9 Charted Charts to assemble one big
   seafloor Voyage.
 - **Connectivity constraint**: each Chart's icon has lines/connectors on it; connectors
-  must line up with adjacent placed charts (exact rules unconfirmed pre-launch —
+  must line up with adjacent placed charts (exact rules unconfirmed pre-launch -
   unknown whether charts can rotate).
 - **Voyage Modifiers** come in three scopes:
   - affects **own region** only
@@ -92,7 +92,7 @@ Search space is tiny by solver standards: 9! = 362,880 arrangements per chosen s
 even with chart selection from a pool of ~30 it's brute-forceable with basic pruning
 (connectivity check first, then score). A simple scoring model (user-weighted: currency
 vs scarabs vs sulphur vs rares) + exhaustive/branch-and-bound search will be instant in
-the browser. No fancy algorithm needed — the hard part is **data model + import UX**.
+the browser. No fancy algorithm needed - the hard part is **data model + import UX**.
 
 Key strategic insight from reveal coverage: put strong global/self-mod charts in the
 **center** (it gets no border mods), and put charts you want border-amplified in
@@ -108,7 +108,7 @@ Key strategic insight from reveal coverage: put strong global/self-mod charts in
      temple layout as text → maybe the Voyage Board supports the same. **Check
      Ctrl+C over the Voyage Board UI day one.**
    - If not: manual entry from a dropdown of known border mods (only 12 slots,
-     modest mod pool — fine UX), or OCR later.
+     modest mod pool - fine UX), or OCR later.
 3. No official API for league UI state; Client.txt logs won't have this.
 
 ## Prior art
@@ -117,12 +117,12 @@ Key strategic insight from reveal coverage: put strong global/self-mod charts in
   drag-and-drop planner, live "active bonuses" panel, saved layouts, shareable
   URL state, Ctrl+C share. React SPA on gh-pages (source repo is build output only;
   `exef86/poo2temple` is a Vue rebuild with readable source). It is a **planner, not
-  a solver** — our edge is auto-solve + import.
-- Tetriszocker.github.io/atziri-temple-editor — another manual planner.
+  a solver** - our edge is auto-solve + import.
+- Tetriszocker.github.io/atziri-temple-editor - another manual planner.
 
 ## Proposed build
 
-Static SPA (React or Svelte + TypeScript, gh-pages/Netlify deployable — no backend):
+Static SPA (React or Svelte + TypeScript, gh-pages/Netlify deployable - no backend):
 
 1. **Data layer**: chart + border-mod definitions (JSON), filled in from launch-day
    data; community will datamine mod lists quickly (poedb/poewiki).

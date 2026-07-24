@@ -1054,6 +1054,11 @@ textarea {
   color: var(--gold);
   font-family: var(--sc);
 }
+.weight-label {
+  cursor: help;
+  text-decoration: underline dotted rgba(163, 141, 109, 0.4);
+  text-underline-offset: 2px;
+}
 .small-note {
   font-size: 12px;
   font-family: var(--italic);

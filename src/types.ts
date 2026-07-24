@@ -18,7 +18,6 @@ export type Stat =
   | 'quantity'
   | 'rarity'
   | 'uniques' // unique ring/amulet/belt conversion
-  | 'treasure' // anchors, lockers, barrels, messages, fish, altars…
   | 'exp' // experience gain
   | 'preserve' // chance charts aren't consumed
 
@@ -37,7 +36,6 @@ export const ALL_STATS: Stat[] = [
   'quantity',
   'rarity',
   'uniques',
-  'treasure',
   'exp',
   'preserve',
 ]
@@ -58,7 +56,6 @@ export const STAT_SHORT: Record<Stat, string> = {
   quantity: 'Quantity',
   rarity: 'Rarity',
   uniques: 'Uniques',
-  treasure: 'Treasure',
   exp: 'XP',
   preserve: 'Preserve',
 }
@@ -78,9 +75,28 @@ export const STAT_LABELS: Record<Stat, string> = {
   quantity: 'Item Quantity',
   rarity: 'Item Rarity',
   uniques: 'Unique Items',
-  treasure: 'Treasure',
   exp: 'Experience',
   preserve: 'Chart Preservation',
+}
+
+/** What each reward axis covers, shown as a hover tooltip on the weight sliders. */
+export const STAT_DESC: Record<Stat, string> = {
+  currency: 'Currency orbs - from Arcanist Strongboxes and border orb-drop rolls (Divine, Exalted, Chaos…)',
+  gold: 'Gold - from equipment-to-Gold conversion mods and ground-effect charts',
+  scarabs: 'Scarabs - from Operative Strongboxes and scarab border rolls',
+  divcards: 'Divination Cards - from Diviner Strongboxes and Stacked Deck borders',
+  essences: 'Imprisoned Monsters (Essences) - extra essence-caged monsters in adjacent areas',
+  spirits: 'Tormented Spirits - extra spirit cages in adjacent areas',
+  wisps: 'Wildwood Wisps - monster empowerment (more juice, harder fights)',
+  rares: 'Rare Monsters - increased rare count, packs, and rare-drop borders',
+  magicmonsters: 'Magic Monsters - increased magic monster count',
+  sulphur: "Dead Man's Sulphur - the league's crafting currency",
+  packsize: 'Pack Size - more monsters per area (crabs, octopi, sea beasts, drowned)',
+  quantity: 'Item Quantity - increased quantity of items dropped',
+  rarity: 'Item Rarity - increased rarity of items dropped',
+  uniques: 'Unique Items - ring/amulet/belt drop-as-unique chances',
+  exp: 'Experience - increased experience gain from XP borders',
+  preserve: 'Chart Preservation - chance not to consume adjacent charts when starting a Voyage',
 }
 
 /** Who a voyage modifier applies to. */
@@ -170,7 +186,6 @@ export const DEFAULT_WEIGHTS: Weights = {
   quantity: 5,
   rarity: 1,
   uniques: 3,
-  treasure: 4,
   exp: 2,
   preserve: 3,
 }
