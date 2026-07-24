@@ -40,6 +40,19 @@ export default function App() {
       /* ignore */
     }
   }
+  const [harvestTheme, setHarvestTheme] = useState(() =>
+    document.body.classList.contains('theme-harvest'),
+  )
+  const toggleTheme = () => {
+    const next = !harvestTheme
+    setHarvestTheme(next)
+    document.body.classList.toggle('theme-harvest', next)
+    try {
+      localStorage.setItem('theme', next ? 'harvest' : 'allflame')
+    } catch {
+      /* ignore */
+    }
+  }
   const [selectedChart, setSelectedChart] = useState<string | null>(null)
   const [selectedCell, setSelectedCell] = useState<number | null>(null)
   const [results, setResults] = useState<SolverResult[]>([])
@@ -153,17 +166,17 @@ export default function App() {
           <button title="How it works" onClick={() => setShowOnboarding(true)}>
             ?
           </button>
-          <a
+          <button
             className="theme-link"
-            href={document.body.classList.contains('theme-harvest') ? './' : './harvest.html'}
             title={
-              document.body.classList.contains('theme-harvest')
+              harvestTheme
                 ? 'Back to the Allflame theme'
                 : 'Harvest Edition, like the old garden planner sheets'
             }
+            onClick={toggleTheme}
           >
-            {document.body.classList.contains('theme-harvest') ? '🔥' : '🌱'}
-          </a>
+            {harvestTheme ? '🔥' : '🌱'}
+          </button>
           <button onClick={share}>{shareMsg || 'Share layout'}</button>
         </div>
       </header>
