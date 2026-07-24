@@ -105,9 +105,12 @@ function Tile({
       {primary &&
         (primary.effects[0] ? (
           <div className="tile-duo">
-            <StatIcon stat={primary.effects[0].stat} size={44} />
-            <span className={`tile-duo-pct scope-${primary.scope}`}>
-              +{primary.effects[0].percent}%
+            <StatIcon stat={primary.effects[0].stat} size={32} />
+            <span className="tile-duo-col">
+              <span className={`tile-duo-pct scope-${primary.scope}`}>
+                +{primary.effects[0].percent}%
+              </span>
+              <span className="tile-duo-label">{STAT_LABELS[primary.effects[0].stat]}</span>
             </span>
           </div>
         ) : (

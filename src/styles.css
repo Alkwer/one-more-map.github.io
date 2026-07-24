@@ -484,38 +484,46 @@ textarea {
 .tile.empty.placing::after {
   color: rgba(200, 170, 110, 0.3);
 }
-/* icon + value cluster on the path node; chart name lives in the tooltip */
+/* icon + value cluster, top-left corner; chart name lives in the tooltip */
 .tile-duo {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  top: 6px;
+  left: 8px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 7px;
   z-index: 3;
   color: var(--gold-dim);
   filter: drop-shadow(0 3px 8px #000);
   pointer-events: none;
 }
 .tile-duo .stat-icon-img {
-  width: 44px;
-  height: 44px;
+  width: 32px;
+  height: 32px;
+}
+.tile-duo-col {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
 }
 .tile-duo-pct {
   font-family: var(--sc);
-  font-size: 25px;
+  font-size: 20px;
   text-shadow: 0 2px 8px #000;
+}
+.tile-duo-label {
+  font-family: var(--sc);
+  font-size: 11px;
+  color: var(--muted);
 }
 .tile-duo-text {
   position: absolute;
-  left: 6px;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-  text-align: center;
+  top: 8px;
+  left: 8px;
+  right: 44px;
+  text-align: left;
   font-family: var(--sc);
-  font-size: 13px;
+  font-size: 12px;
   text-shadow: 0 2px 6px #000;
   z-index: 3;
   pointer-events: none;
