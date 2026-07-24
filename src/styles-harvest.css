@@ -195,6 +195,12 @@ body.theme-harvest .tile-score {
   text-shadow: none;
   font-weight: 700;
 }
+body.theme-harvest .tile-actions {
+  background: #fff;
+  border: 1px solid #000;
+  border-radius: 0;
+  box-shadow: none;
+}
 body.theme-harvest .tile.selected,
 body.theme-harvest .tile.highlighted {
   border: 2px solid #d600d6;
@@ -212,7 +218,7 @@ body.theme-harvest .path-bar {
   border-radius: 0;
 }
 body.theme-harvest .path-bar.connected {
-  background: #00e0e0;
+  background: #d81b60;
   box-shadow: none;
 }
 body.theme-harvest .path-bar.open {

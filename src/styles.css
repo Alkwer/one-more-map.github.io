@@ -825,15 +825,27 @@ textarea {
 }
 .tile-actions {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: 3px;
+  right: 3px;
   display: flex;
-  gap: 2px;
+  gap: 3px;
   z-index: 4;
+  padding: 3px;
+  border-radius: 3px;
+  background: rgba(6, 8, 10, 0.9);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s ease;
+}
+.tile:hover .tile-actions,
+.tile-actions:focus-within {
+  opacity: 1;
+  pointer-events: auto;
 }
 .tile-actions button {
-  padding: 1px 6px;
-  font-size: 11px;
+  padding: 2px 7px;
+  font-size: 12px;
 }
 
 /* connector paths - ink-style lines through the tile, like the in-game board */
