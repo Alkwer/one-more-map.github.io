@@ -1,8 +1,7 @@
 import { BORDER_MODS, borderModById, voyageModById } from '../data/mods'
 import { rotateEdges } from '../logic/connectivity'
 import type { Board, Borders, ChartData, Placement } from '../types'
-import { ALL_STATS, STAT_LABELS } from '../types'
-import { StatIcon } from './icons'
+import { STAT_SHORT } from '../types'
 import { tooltipProps } from './Tooltip'
 
 interface Props {
@@ -33,11 +32,10 @@ function BorderSelect({
   const eff = mod?.effects[0]
   return (
     <span className={`bslot ${mod ? 'filled' : ''}`} title={mod?.text ?? 'Border segment — click to set'}>
-      {eff ? (
-        <>
-          <StatIcon stat={eff.stat} size={14} />
-          <span>+{eff.percent}%</span>
-        </>
+      {mod ? (
+        <span>
+          {eff ? `+${eff.percent}% ${STAT_SHORT[eff.stat]}` : mod.magnitude ? `${mod.magnitude}% Magnitude` : '✦'}
+        </span>
       ) : (
         <span className="bslot-empty">—</span>
       )}
@@ -114,12 +112,17 @@ function Tile({
       {primary &&
         (primary.effects[0] ? (
           <div className="tile-duo">
-            <StatIcon stat={primary.effects[0].stat} size={32} />
             <span className="tile-duo-col">
               <span className={`tile-duo-pct scope-${primary.scope}`}>
-                +{primary.effects[0].percent}%
+                +{primary.effects[0].percent}% {STAT_SHORT[primary.effects[0].stat]}
               </span>
-              <span className="tile-duo-label">{STAT_LABELS[primary.effects[0].stat]}</span>
+              <span className="tile-duo-label">
+                {primary.scope === 'self'
+                  ? 'this area'
+                  : primary.scope === 'adjacent'
+                    ? 'adjacent areas'
+                    : 'whole voyage'}
+              </span>
             </span>
           </div>
         ) : (
@@ -268,13 +271,6 @@ export function BoardView(props: Props) {
         place; click two placed cells to swap.
       </div>
       <div className="legend">
-        {ALL_STATS.map((s) => (
-          <span key={s} className="legend-item" title={STAT_LABELS[s]}>
-            <StatIcon stat={s} />
-            <span>{STAT_LABELS[s]}</span>
-          </span>
-        ))}
-        <span className="legend-sep" />
         <span className="legend-item scope-self">■ this area</span>
         <span className="legend-item scope-adjacent">■ adjacent</span>
         <span className="legend-item scope-global">■ whole voyage</span>

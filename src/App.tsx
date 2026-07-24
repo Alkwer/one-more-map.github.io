@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BoardView } from './components/Board'
 import { TooltipLayer } from './components/Tooltip'
-import { StatIcon } from './components/icons'
 import { buildChartSearch } from './logic/regex'
 import { ImportPanel } from './components/ImportPanel'
 import { Library } from './components/Library'
@@ -127,7 +126,7 @@ export default function App() {
           Allflame <span className="accent">Voyage Solver</span>
         </h1>
         <div className="header-right">
-          <span className="tag">PoE 3.29 — pre-launch data, numbers are placeholders</span>
+          <span className="tag">PoE 3.29 — Curse of the Allflame</span>
           <button onClick={share}>{shareMsg || 'Share layout'}</button>
         </div>
       </header>
@@ -214,9 +213,6 @@ export default function App() {
                 .sort((a, b) => score.perStat[b] - score.perStat[a])
                 .map((s, i) => (
                   <div key={s} className={`reward-card ${i === 0 ? 'best' : ''}`}>
-                    <div className="reward-icon">
-                      <StatIcon stat={s} size={30} />
-                    </div>
                     <div className="reward-value">+{Math.round(score.perStat[s] * 100)}%</div>
                     <div className="reward-label">{STAT_LABELS[s]}</div>
                   </div>

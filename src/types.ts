@@ -36,6 +36,24 @@ export const ALL_STATS: Stat[] = [
   'preserve',
 ]
 
+/** compact labels for tight UI spots (tiles, pills, grid squares) */
+export const STAT_SHORT: Record<Stat, string> = {
+  currency: 'Currency',
+  gold: 'Gold',
+  scarabs: 'Scarabs',
+  divcards: 'Div Cards',
+  essences: 'Essences',
+  spirits: 'Spirits',
+  wisps: 'Wisps',
+  rares: 'Rares',
+  magicmonsters: 'Magic',
+  sulphur: 'Sulphur',
+  packsize: 'Pack Size',
+  quantity: 'Quantity',
+  rarity: 'Rarity',
+  preserve: 'Preserve',
+}
+
 export const STAT_LABELS: Record<Stat, string> = {
   currency: 'Currency',
   gold: 'Gold',

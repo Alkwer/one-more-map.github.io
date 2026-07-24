@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { VOYAGE_MODS, voyageModById } from '../data/mods'
 import { newUid } from '../logic/parser'
 import type { Board, ChartData, Edges, Weights } from '../types'
-import { EdgeGlyph, StatIcon } from './icons'
+import { STAT_SHORT } from '../types'
+import { EdgeGlyph } from './icons'
 import { tooltipProps } from './Tooltip'
 
 interface Props {
@@ -194,8 +195,9 @@ export function Library(props: Props) {
                 {...tooltipProps({ title: c.name, lines })}
               >
                 {mod?.effects[0] ? (
-                  <span className={`sq-reward scope-${mod.scope}`}>
-                    <StatIcon stat={mod.effects[0].stat} size={28} />
+                  <span className={`sq-reward-text scope-${mod.scope}`}>
+                    <span className="sq-pct">+{mod.effects[0].percent}%</span>
+                    <span className="sq-statname">{STAT_SHORT[mod.effects[0].stat]}</span>
                   </span>
                 ) : (
                   <EdgeGlyph edges={c.edges} size={26} />
@@ -268,7 +270,7 @@ export function Library(props: Props) {
                     ],
                   })}
                 >
-                  {mod.effects[0] && <StatIcon stat={mod.effects[0].stat} />} {mod.text}
+                  {mod.text}
                 </div>
               )}
               {editing === c.uid && <ChartEditor chart={c} onUpdate={props.onUpdate} />}

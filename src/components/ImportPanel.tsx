@@ -58,7 +58,7 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
       <div className="panel-title">Import</div>
       <textarea
         rows={5}
-        placeholder={'Paste chart item text from the game (Ctrl+C on a chart).\nFormat is a launch-day guess — see RESEARCH.md.'}
+        placeholder={'Paste chart item text from the game (Ctrl+C on a chart).'}
         value={text}
         onChange={(e) => setText(e.target.value)}
       />

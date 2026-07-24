@@ -51,12 +51,12 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
       <div className="panel-title">Solver</div>
 
       <div className="field">
-        <label>Connector rule (real rule TBC at launch)</label>
+        <label>Connector rule</label>
         <select
           value={state.mode}
           onChange={(e) => onPatch({ mode: e.target.value as ConnectivityMode })}
         >
-          <option value="connected">All charts must connect (default guess)</option>
+          <option value="connected">All charts must connect</option>
           <option value="strict">Strict — every connector must match</option>
           <option value="any">Ignore connectors</option>
         </select>
