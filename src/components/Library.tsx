@@ -194,6 +194,11 @@ export function Library(props: Props) {
                 {...tooltipProps({ title: c.name, lines })}
               >
                 <EdgeGlyph edges={c.edges} size={26} />
+                {mod?.effects[0] && (
+                  <span className={`sq-stat scope-${mod.scope}`}>
+                    <StatIcon stat={mod.effects[0].stat} size={14} />
+                  </span>
+                )}
                 <span className="sq-val">{val}</span>
                 <span className="sq-lvl">L:{c.level}</span>
                 <button
