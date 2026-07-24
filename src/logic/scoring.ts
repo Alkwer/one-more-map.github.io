@@ -28,11 +28,23 @@ export interface ScoreBreakdown {
  * sum of (multiplier − 1); board score is the sum over tiles.
  * Deliberately simple - tune once real numbers are known.
  */
+export type AdjacencyMode = 'physical' | 'connected'
+
+export interface ScoreOptions {
+  /** 'physical' = any grid neighbour; 'connected' = only neighbours linked by matching connectors */
+  adjacencyMode: AdjacencyMode
+  /** whether a chart's Adjacent modifier also applies to its own area */
+  adjacentAffectsSelf: boolean
+}
+
+const DEFAULT_SCORE_OPTS: ScoreOptions = { adjacencyMode: 'physical', adjacentAffectsSelf: false }
+
 export function scoreBoard(
   board: Board,
   borders: Borders,
   charts: Map<string, ChartData>,
   weights: Weights,
+  opts: ScoreOptions = DEFAULT_SCORE_OPTS,
 ): ScoreBreakdown {
   // border meta-mods: % increased magnitude of the touched chart's own mods
   const tileMagnitude: number[] = Array(9).fill(0)
@@ -50,6 +62,7 @@ export function scoreBoard(
     return c ? rotateEdges(c.edges, p.rotation) : null
   }
   const connCount: number[] = Array(9).fill(0)
+  const connectedNeighbours: number[][] = Array.from({ length: 9 }, () => [])
   board.forEach((_, i) => {
     const e = edgesAt(i)
     if (!e) return
@@ -65,10 +78,21 @@ export function scoreBoard(
       const nr = r + d.dr
       const nc = col + d.dc
       if (nr < 0 || nr > 2 || nc < 0 || nc > 2) continue
-      const ne = edgesAt(nr * 3 + nc)
-      if (e[d.edge] && ne?.[d.opp]) connCount[i]++
+      const j = nr * 3 + nc
+      const ne = edgesAt(j)
+      if (e[d.edge] && ne?.[d.opp]) {
+        connCount[i]++
+        connectedNeighbours[i].push(j)
+      }
     }
   })
+
+  // which neighbours does an Adjacent mod on tile i reach?
+  const adjacentTargets = (i: number): number[] => {
+    const base =
+      opts.adjacencyMode === 'connected' ? connectedNeighbours[i] : NEIGHBOURS[i].filter((n) => board[n])
+    return opts.adjacentAffectsSelf ? [...base, i] : base
+  }
 
   // collect effects per tile
   const tileEffects: ModEffect[][] = Array.from({ length: 9 }, () => [])
@@ -90,7 +114,7 @@ export function scoreBoard(
         scale !== 1 ? mod.effects.map((e) => ({ ...e, percent: e.percent * scale })) : mod.effects
       if (mod.scope === 'self') tileEffects[i].push(...effects)
       else if (mod.scope === 'global') globalEffects.push(...effects)
-      else for (const n of NEIGHBOURS[i]) if (board[n]) tileEffects[n].push(...effects)
+      else for (const n of adjacentTargets(i)) tileEffects[n].push(...effects)
     }
   })
 

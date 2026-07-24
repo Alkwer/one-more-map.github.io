@@ -1,3 +1,4 @@
+import type { AdjacencyMode } from './scoring'
 import type { Board, Borders, ChartData, ConnectivityMode, Weights } from '../types'
 import { DEFAULT_WEIGHTS, emptyBoard, emptyBorders } from '../types'
 
@@ -8,6 +9,8 @@ export interface AppState {
   weights: Weights
   mode: ConnectivityMode
   allowRotation: boolean
+  adjacencyMode: AdjacencyMode
+  adjacentAffectsSelf: boolean
 }
 
 export const defaultState = (): AppState => ({
@@ -17,6 +20,8 @@ export const defaultState = (): AppState => ({
   weights: { ...DEFAULT_WEIGHTS },
   mode: 'connected',
   allowRotation: true, // rotation confirmed in game
+  adjacencyMode: 'physical',
+  adjacentAffectsSelf: false,
 })
 
 const LS_KEY = 'allflame-voyage-solver'
@@ -69,5 +74,7 @@ function revive(obj: unknown): AppState {
     weights: { ...d.weights, ...(o.weights ?? {}) },
     mode: o.mode === 'any' || o.mode === 'strict' ? o.mode : 'connected',
     allowRotation: !!o.allowRotation,
+    adjacencyMode: o.adjacencyMode === 'connected' ? 'connected' : 'physical',
+    adjacentAffectsSelf: !!o.adjacentAffectsSelf,
   }
 }

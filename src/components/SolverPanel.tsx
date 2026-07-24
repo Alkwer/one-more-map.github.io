@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { buildBestModRegex } from '../logic/regex'
 import { solve, type SolverResult } from '../logic/solver'
 import type { AppState } from '../logic/storage'
+import type { AdjacencyMode } from '../logic/scoring'
 import type { Board, ConnectivityMode } from '../types'
 import { ALL_STATS, STAT_LABELS } from '../types'
 
@@ -37,6 +38,8 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
         const res = solve(state.pool, state.borders, state.weights, {
           mode: state.mode,
           allowRotation: state.allowRotation,
+          adjacencyMode: state.adjacencyMode,
+          adjacentAffectsSelf: state.adjacentAffectsSelf,
           topK: 5,
         })
         onResults(res)
@@ -69,6 +72,26 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
           onChange={(e) => onPatch({ allowRotation: e.target.checked })}
         />
         Charts can be rotated
+      </label>
+
+      <div className="field">
+        <label>Adjacent modifiers reach</label>
+        <select
+          value={state.adjacencyMode}
+          onChange={(e) => onPatch({ adjacencyMode: e.target.value as AdjacencyMode })}
+        >
+          <option value="physical">Any neighbouring area</option>
+          <option value="connected">Only connected neighbours</option>
+        </select>
+      </div>
+
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={state.adjacentAffectsSelf}
+          onChange={(e) => onPatch({ adjacentAffectsSelf: e.target.checked })}
+        />
+        Adjacent modifiers also affect their own area
       </label>
 
       <div className="panel-title small">Reward weights</div>

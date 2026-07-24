@@ -71,8 +71,19 @@ export default function App() {
 
   const chartMap = useMemo(() => new Map(state.pool.map((c) => [c.uid, c])), [state.pool])
   const score = useMemo(
-    () => scoreBoard(state.board, state.borders, chartMap, state.weights),
-    [state.board, state.borders, chartMap, state.weights],
+    () =>
+      scoreBoard(state.board, state.borders, chartMap, state.weights, {
+        adjacencyMode: state.adjacencyMode,
+        adjacentAffectsSelf: state.adjacentAffectsSelf,
+      }),
+    [
+      state.board,
+      state.borders,
+      chartMap,
+      state.weights,
+      state.adjacencyMode,
+      state.adjacentAffectsSelf,
+    ],
   )
   const conn = useMemo(
     () => checkConnectivity(state.board, chartMap, state.mode),

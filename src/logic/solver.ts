@@ -1,8 +1,8 @@
 import type { Board, Borders, ChartData, ConnectivityMode, Placement, Weights } from '../types'
 import { checkConnectivity } from './connectivity'
-import { scoreBoard } from './scoring'
+import { scoreBoard, type ScoreOptions } from './scoring'
 
-export interface SolverOptions {
+export interface SolverOptions extends ScoreOptions {
   mode: ConnectivityMode
   allowRotation: boolean
   /** how many top results to return */
@@ -22,10 +22,10 @@ function evaluate(
   borders: Borders,
   charts: Map<string, ChartData>,
   weights: Weights,
-  mode: ConnectivityMode,
+  opts: SolverOptions,
 ): { score: number; valid: boolean } {
-  const conn = checkConnectivity(board, charts, mode)
-  const s = scoreBoard(board, borders, charts, weights)
+  const conn = checkConnectivity(board, charts, opts.mode)
+  const s = scoreBoard(board, borders, charts, weights, opts)
   return { score: s.total - conn.violations * VIOLATION_PENALTY, valid: conn.valid }
 }
 
@@ -51,7 +51,7 @@ export function solve(
   let top: SolverResult[] = []
   const seen = new Set<string>()
   const record = (board: Board) => {
-    const { score, valid } = evaluate(board, borders, charts, weights, opts.mode)
+    const { score, valid } = evaluate(board, borders, charts, weights, opts)
     if (top.length >= CAP && score <= top[top.length - 1].score) return
     const key = boardKey(board)
     if (seen.has(key)) return
@@ -108,7 +108,7 @@ function hillClimb(
   const ITERS = 4000
   const rotMax = opts.allowRotation ? 4 : 1
 
-  const evalScore = (b: Board) => evaluate(b, borders, charts, weights, opts.mode).score
+  const evalScore = (b: Board) => evaluate(b, borders, charts, weights, opts).score
 
   for (let r = 0; r < RESTARTS; r++) {
     // random initial: shuffle pool, take up to 9
