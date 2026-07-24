@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BoardView } from './components/Board'
 import { TooltipLayer } from './components/Tooltip'
+import { StatIcon } from './components/icons'
+import { buildChartSearch } from './logic/regex'
 import { ImportPanel } from './components/ImportPanel'
 import { Library } from './components/Library'
 import { SolverPanel } from './components/SolverPanel'
@@ -89,6 +91,22 @@ export default function App() {
     setSelectedCell(null)
   }
 
+  const [searchMsg, setSearchMsg] = useState('')
+  const copySearch = async () => {
+    const placed = state.board.filter(Boolean).map((p) => chartMap.get(p!.chartUid)?.name ?? '')
+    const others = state.pool
+      .filter((c) => !state.board.some((p) => p?.chartUid === c.uid))
+      .map((c) => c.name)
+    const str = buildChartSearch(placed.filter(Boolean), others)
+    try {
+      await navigator.clipboard.writeText(str)
+      setSearchMsg('Copied!')
+    } catch {
+      setSearchMsg(str)
+    }
+    window.setTimeout(() => setSearchMsg(''), 2500)
+  }
+
   const share = async () => {
     const url = `${location.origin}${location.pathname}#${encodeShare(state)}`
     try {
@@ -174,15 +192,28 @@ export default function App() {
 
           <div className="score-panel">
             <div className="score-total">
-              Score: <strong>{score.total.toFixed(1)}</strong>
+              Voyage Rewards <strong>{score.total.toFixed(1)}</strong>
+              <span className="spacer" />
+              <button
+                onClick={copySearch}
+                disabled={state.board.every((p) => !p)}
+                title="Copy a search string for the in-game chart inventory that highlights exactly the charts on this board"
+              >
+                {searchMsg || '⌕ Copy in-game search'}
+              </button>
             </div>
-            <div className="score-stats">
-              {ALL_STATS.filter((s) => score.perStat[s] > 0).map((s) => (
-                <div key={s} className="score-stat">
-                  <span>{STAT_LABELS[s]}</span>
-                  <span>+{Math.round(score.perStat[s] * 100)}%</span>
-                </div>
-              ))}
+            <div className="reward-grid">
+              {ALL_STATS.filter((s) => score.perStat[s] > 0)
+                .sort((a, b) => score.perStat[b] - score.perStat[a])
+                .map((s, i) => (
+                  <div key={s} className={`reward-card ${i === 0 ? 'best' : ''}`}>
+                    <div className="reward-icon">
+                      <StatIcon stat={s} size={30} />
+                    </div>
+                    <div className="reward-value">+{Math.round(score.perStat[s] * 100)}%</div>
+                    <div className="reward-label">{STAT_LABELS[s]}</div>
+                  </div>
+                ))}
               {ALL_STATS.every((s) => score.perStat[s] === 0) && (
                 <div className="muted">Place charts to see bonuses</div>
               )}

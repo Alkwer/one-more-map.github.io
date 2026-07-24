@@ -54,7 +54,7 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
           checked={state.allowRotation}
           onChange={(e) => onPatch({ allowRotation: e.target.checked })}
         />
-        Charts can be rotated (TBC at launch)
+        Charts can be rotated
       </label>
 
       <div className="panel-title small">Reward weights</div>

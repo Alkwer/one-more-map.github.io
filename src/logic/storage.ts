@@ -16,7 +16,7 @@ export const defaultState = (): AppState => ({
   borders: emptyBorders(),
   weights: { ...DEFAULT_WEIGHTS },
   mode: 'connected',
-  allowRotation: false,
+  allowRotation: true, // rotation confirmed in game
 })
 
 const LS_KEY = 'allflame-voyage-solver'
