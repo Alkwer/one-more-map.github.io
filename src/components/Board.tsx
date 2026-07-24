@@ -112,7 +112,7 @@ function Tile({
       <div className="tile-mods">
         {mods.map((m) => (
           <span key={m!.id} className={`mod-chip scope-${m!.scope}`}>
-            {m!.effects[0] && <StatIcon stat={m!.effects[0].stat} />}
+            {m!.effects[0] && <StatIcon stat={m!.effects[0].stat} size={20} />}
             <span>+{m!.effects[0]?.percent ?? '?'}%</span>
           </span>
         ))}
