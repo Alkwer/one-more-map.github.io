@@ -372,6 +372,14 @@ textarea {
   font-size: 9.5px;
   opacity: 0.85;
 }
+.sq-shortname {
+  font-family: var(--sc);
+  font-size: 10px;
+  line-height: 1.15;
+  text-align: center;
+  padding: 0 3px;
+  word-break: break-word;
+}
 .sq-shape {
   position: absolute;
   top: 2px;

@@ -235,7 +235,11 @@ export function Library(props: Props) {
                 onClick={() => props.onSelect(c.uid)}
                 {...tooltipProps({ title: c.name, lines })}
               >
-                {mod?.effects[0] ? (
+                {mod?.short ? (
+                  <span className={`sq-reward-text scope-${mod.scope}`}>
+                    <span className="sq-shortname">{mod.short}</span>
+                  </span>
+                ) : mod?.effects[0] ? (
                   <span className={`sq-reward-text scope-${mod.scope}`}>
                     <span className="sq-pct">+{mod.effects[0].percent}%</span>
                     <span className="sq-statname">{STAT_SHORT[mod.effects[0].stat]}</span>
@@ -243,7 +247,7 @@ export function Library(props: Props) {
                 ) : (
                   <EdgeGlyph edges={c.edges} size={26} />
                 )}
-                {mod?.effects[0] && (
+                {mod && (
                   <span className="sq-shape">
                     <EdgeGlyph edges={c.edges} size={15} />
                   </span>

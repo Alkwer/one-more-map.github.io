@@ -168,7 +168,20 @@ function Tile({
         edges[i] ? <span key={d} className={`path-bar ${d} ${edgeStatus[i]}`} /> : null,
       )}
       {primary &&
-        (primary.effects[0] ? (
+        (primary.short ? (
+          <div className="tile-duo">
+            <span className="tile-duo-col">
+              <span className={`tile-duo-pct scope-${primary.scope}`}>{primary.short}</span>
+              <span className="tile-duo-label">
+                {primary.scope === 'self'
+                  ? 'this area'
+                  : primary.scope === 'adjacent'
+                    ? 'adjacent areas'
+                    : 'whole voyage'}
+              </span>
+            </span>
+          </div>
+        ) : primary.effects[0] ? (
           <div className="tile-duo">
             <span className="tile-duo-col">
               <span className={`tile-duo-pct scope-${primary.scope}`}>

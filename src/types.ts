@@ -96,6 +96,8 @@ export interface ModEffect {
 export interface VoyageModDef {
   id: string
   text: string
+  /** compact label for count-based mods where the scored percent is only a heuristic */
+  short?: string
   scope: Scope
   effects: ModEffect[]
   /** some mods scale per connection the chart has (or reward fewer connections) */
