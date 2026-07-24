@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BoardView } from './components/Board'
+import { Onboarding } from './components/Onboarding'
 import { TooltipLayer } from './components/Tooltip'
+import { generateDemoCharts } from './logic/demo'
 import { buildChartSearch } from './logic/regex'
 import { ImportPanel } from './components/ImportPanel'
 import { Library } from './components/Library'
@@ -23,6 +25,21 @@ function initialState(): AppState {
 
 export default function App() {
   const [state, setState] = useState<AppState>(initialState)
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(() => {
+    try {
+      return !localStorage.getItem('onboarding-seen')
+    } catch {
+      return false
+    }
+  })
+  const closeOnboarding = () => {
+    setShowOnboarding(false)
+    try {
+      localStorage.setItem('onboarding-seen', '1')
+    } catch {
+      /* ignore */
+    }
+  }
   const [selectedChart, setSelectedChart] = useState<string | null>(null)
   const [selectedCell, setSelectedCell] = useState<number | null>(null)
   const [results, setResults] = useState<SolverResult[]>([])
@@ -121,12 +138,21 @@ export default function App() {
   return (
     <div className="app">
       <TooltipLayer />
+      {showOnboarding && (
+        <Onboarding
+          onClose={closeOnboarding}
+          onDemo={() => addCharts(generateDemoCharts(25))}
+        />
+      )}
       <header>
         <h1>
           Allflame <span className="accent">Voyage Solver</span>
         </h1>
         <div className="header-right">
           <span className="tag">PoE 3.29 — Curse of the Allflame</span>
+          <button title="How it works" onClick={() => setShowOnboarding(true)}>
+            ?
+          </button>
           <a
             className="theme-link"
             href={document.body.classList.contains('theme-harvest') ? './' : './harvest.html'}
