@@ -20,10 +20,12 @@ export const defaultState = (): AppState => ({
 })
 
 const LS_KEY = 'allflame-voyage-solver'
+/** bump when the mod data model changes incompatibly — stale saves are discarded */
+const STATE_VERSION = 2
 
 export function saveLocal(state: AppState) {
   try {
-    localStorage.setItem(LS_KEY, JSON.stringify(state))
+    localStorage.setItem(LS_KEY, JSON.stringify({ ...state, v: STATE_VERSION }))
   } catch {
     /* storage full / unavailable — ignore */
   }
@@ -33,7 +35,9 @@ export function loadLocal(): AppState | null {
   try {
     const raw = localStorage.getItem(LS_KEY)
     if (!raw) return null
-    return revive(JSON.parse(raw))
+    const parsed = JSON.parse(raw)
+    if (parsed?.v !== STATE_VERSION) return null // stale save from an older data model
+    return revive(parsed)
   } catch {
     return null
   }
