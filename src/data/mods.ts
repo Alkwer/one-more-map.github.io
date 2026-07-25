@@ -84,25 +84,25 @@ const adjacentImplicits: VoyageModDef[] = [
 // Chart implicits - Voyage (global) pool
 // ---------------------------------------------------------------------------
 const voyageImplicits: VoyageModDef[] = [
-  { id: 'voy-soul', text: 'Players in Area have Soul Eater', scope: 'global', effects: [] },
+  { id: 'voy-soul', short: 'Soul Eater', text: 'Players in Area have Soul Eater', scope: 'global', effects: [] },
   { id: 'voy-pack-1', text: '5% increased Pack size', scope: 'global', effects: [{ stat: 'packsize', percent: 5 }] },
   { id: 'voy-pack-2', text: '7% increased Pack size', scope: 'global', effects: [{ stat: 'packsize', percent: 7 }] },
   { id: 'voy-quant-1', text: '8% increased Quantity of Items found in this Area', scope: 'global', effects: [{ stat: 'quantity', percent: 8 }] },
   { id: 'voy-quant-2', text: '10% increased Quantity of Items found in this Area', scope: 'global', effects: [{ stat: 'quantity', percent: 10 }] },
   { id: 'voy-rarity-1', text: '7% increased Rarity of Items found in this Area', scope: 'global', effects: [{ stat: 'rarity', percent: 7 }] },
   { id: 'voy-rarity-2', text: '9% increased Rarity of Items found in this Area', scope: 'global', effects: [{ stat: 'rarity', percent: 9 }] },
-  { id: 'voy-jelly', text: 'Area contains Friendly Jellyfish', scope: 'global', effects: [] },
+  { id: 'voy-jelly', short: 'Friendly Jellyfish', text: 'All Voyage Areas contain Friendly Jellyfish', scope: 'global', effects: [] },
   { id: 'voy-sulph-1', text: "15% increased Dead Man's Sulphur found in this Area", scope: 'global', effects: [{ stat: 'sulphur', percent: 15 }] },
   { id: 'voy-sulph-2', text: "20% increased Dead Man's Sulphur found in this Area", scope: 'global', effects: [{ stat: 'sulphur', percent: 20 }] },
   { id: 'voy-sulph-3', text: "25% increased Dead Man's Sulphur found in this Area", scope: 'global', effects: [{ stat: 'sulphur', percent: 25 }] },
   { id: 'voy-rare', text: '25% increased number of Rare Monsters', scope: 'global', effects: [{ stat: 'rares', percent: 25 }] },
   { id: 'voy-magic', text: '25% increased Magic Monsters', scope: 'global', effects: [{ stat: 'magicmonsters', percent: 25 }] },
-  { id: 'voy-noequip', text: 'Monsters in all Voyage Areas cannot drop Equipment, Flasks or Tinctures', scope: 'global', effects: [] },
+  { id: 'voy-noequip', short: 'No Equipment Drops', text: 'Monsters in all Voyage Areas cannot drop Equipment, Flasks or Tinctures', scope: 'global', effects: [] },
   { id: 'voy-minmagic', short: 'All at least Magic', text: 'Monsters in Area are at least Magic', scope: 'global', effects: [{ stat: 'magicmonsters', percent: 30 }] },
   { id: 'voy-possess', short: 'Rares Possessed', text: '100% chance for Rare Monsters in Area to be Possessed', scope: 'global', effects: [{ stat: 'spirits', percent: 100 }] },
   { id: 'voy-essence', short: 'Rares Essenced', text: 'Rare monsters that are natural inhabitants are imprisoned by Essences', scope: 'global', effects: [{ stat: 'essences', percent: 40 }] },
   { id: 'voy-fracture', short: '50% Rare Fracture', text: '50% chance for Rare Monsters to Fracture on death', scope: 'global', effects: [{ stat: 'rares', percent: 50 }] },
-  { id: 'voy-flask', text: 'Flasks found in all Voyage Areas have 100% chance to have 20% Quality', scope: 'global', effects: [] },
+  { id: 'voy-flask', short: '20% Flask Quality', text: 'Flasks found in all Voyage Areas have 100% chance to have 20% Quality', scope: 'global', effects: [] },
 ]
 
 export const VOYAGE_MODS: VoyageModDef[] = [...chartMapMods, ...adjacentImplicits, ...voyageImplicits]

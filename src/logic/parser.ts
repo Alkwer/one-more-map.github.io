@@ -155,11 +155,15 @@ export function parseChartText(text: string): ParseResult {
 
     // revealed implicit: the line under "{ Implicit Modifier }"
     const modIds: string[] = []
+    let implicitText: string | undefined
     const implicitIdx = lines.findIndex((l) => /\{\s*Implicit Modifier\s*\}/i.test(l))
     if (implicitIdx >= 0) {
       const implicitLine = lines[implicitIdx + 1] ?? ''
-      const id = matchImplicit(implicitLine)
-      if (id) modIds.push(id)
+      if (implicitLine && !/^-{3,}$/.test(implicitLine)) {
+        implicitText = implicitLine
+        const id = matchImplicit(implicitLine)
+        if (id) modIds.push(id)
+      }
     }
 
     // keep explicit downside lines as raw text (their reward part is already in
@@ -187,6 +191,7 @@ export function parseChartText(text: string): ParseResult {
       level,
       edges,
       modIds,
+      implicitText,
       rewards: rewards.length ? rewards : undefined,
       shape: shapeName || undefined,
       rawText: rawLines.length ? rawLines.join('\n') : undefined,

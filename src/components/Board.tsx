@@ -205,12 +205,24 @@ function Tile({
         ) : (
           <div className={`tile-duo-text scope-${primary.scope}`}>{primary.text}</div>
         ))}
+      {!primary && chart.implicitText && (
+        <div className="tile-duo-text scope-global">{chart.implicitText}</div>
+      )}
       <div className="tile-actions">
         <button
-          title="Copy chart name to find it in the in-game search"
+          title="Copy this chart's details (name, modifier, level, shape) to identify it in game"
           onClick={(e) => {
             e.stopPropagation()
-            navigator.clipboard.writeText(chart.name).catch(() => {})
+            const implicitTxt =
+              mods.find((m) => m!.scope !== 'self')?.text ?? chart.implicitText ?? ''
+            const details = [
+              chart.name,
+              implicitTxt,
+              `Level ${chart.level}${chart.shape ? `, ${chart.shape}` : ''}`,
+            ]
+              .filter(Boolean)
+              .join('\n')
+            navigator.clipboard.writeText(details).catch(() => {})
             setCopied(true)
             window.setTimeout(() => setCopied(false), 1200)
           }}

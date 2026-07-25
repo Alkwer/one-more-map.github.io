@@ -150,6 +150,8 @@ export interface ChartData {
   edges: Edges
   /** ids into VOYAGE_MODS; the revealed implicit (adjacent/voyage) mod */
   modIds: string[]
+  /** the revealed implicit line verbatim, shown even if it matched no known mod */
+  implicitText?: string
   /** the chart's own area reward stats, read from the item header (self-scope) */
   rewards?: ModEffect[]
   /** chart connector shape name from the item text (Straight/Corner/Junction/End) */
