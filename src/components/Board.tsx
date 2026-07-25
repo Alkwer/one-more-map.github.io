@@ -231,19 +231,16 @@ function Tile({
           {chart.preserved ? '🔒' : '🔓'}
         </button>
         <button
-          title="Copy this chart's details (name, modifier, level, shape) to identify it in game"
+          title="Copy an in-game search string (name + modifier) to find this exact chart"
           onClick={(e) => {
             e.stopPropagation()
             const implicitTxt =
               mods.find((m) => m!.scope !== 'self')?.text ?? chart.implicitText ?? ''
-            const details = [
-              chart.name,
-              implicitTxt,
-              `Level ${chart.level}${chart.shape ? `, ${chart.shape}` : ''}`,
-            ]
+            const search = [chart.name, implicitTxt]
               .filter(Boolean)
-              .join('\n')
-            navigator.clipboard.writeText(details).catch(() => {})
+              .map((s) => `"${s}"`)
+              .join(' ')
+            navigator.clipboard.writeText(search).catch(() => {})
             setCopied(true)
             window.setTimeout(() => setCopied(false), 1200)
           }}

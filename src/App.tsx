@@ -205,19 +205,19 @@ export default function App() {
   }
 
   const FILL_ORDER = [6, 7, 8, 3, 4, 5, 0, 1, 2]
-  const copyChartDetails = (chart: ChartData) => {
-    const implicit =
-      chart.modIds.map((id) => voyageModById.get(id)).find((m) => m && m.scope !== 'self')?.text ??
-      chart.implicitText ??
-      ''
-    const details = [
-      chart.name,
-      implicit,
-      `Level ${chart.level}${chart.shape ? `, ${chart.shape}` : ''}`,
-    ]
+  const chartImplicit = (chart: ChartData): string =>
+    chart.modIds.map((id) => voyageModById.get(id)).find((m) => m && m.scope !== 'self')?.text ??
+    chart.implicitText ??
+    ''
+  // a PoE stash-search string: name + implicit as quoted phrases (ANDed), so
+  // pasting it into the in-game chart search filters to exactly this chart.
+  const chartSearch = (chart: ChartData): string =>
+    [chart.name, chartImplicit(chart)]
       .filter(Boolean)
-      .join('\n')
-    navigator.clipboard.writeText(details).catch(() => {})
+      .map((s) => `"${s}"`)
+      .join(' ')
+  const copyChartDetails = (chart: ChartData) => {
+    navigator.clipboard.writeText(chartSearch(chart)).catch(() => {})
   }
   const startCopySeq = () => {
     const order = FILL_ORDER.filter((i) => state.board[i])
@@ -413,13 +413,23 @@ export default function App() {
           {copySeq && (
             <div className="preserve-confirm copyseq">
               <div className="pc-head">
-                Place into game in this order (its square is glowing). In game, Ctrl+Left-click each
-                chart in turn, they fill bottom-left first. Step {copySeq.step + 1} of{' '}
-                {copySeq.order.length}.
+                Place into game in this order (its square is glowing). Copy pastes an in-game search
+                string; Ctrl+Left-click the chart it finds. They fill bottom-left first. Step{' '}
+                {copySeq.step + 1} of {copySeq.order.length}.
               </div>
-              <div className="pc-name">
-                {chartMap.get(state.board[copySeq.order[copySeq.step]]!.chartUid)?.name}
-              </div>
+              {(() => {
+                const c = chartMap.get(state.board[copySeq.order[copySeq.step]]!.chartUid)
+                if (!c) return null
+                return (
+                  <>
+                    <div className="pc-name">{c.name}</div>
+                    <div className="pc-sub">
+                      {chartImplicit(c)}
+                      {c.shape ? ` · Shape: ${c.shape}` : ''}
+                    </div>
+                  </>
+                )
+              })()}
               <div className="pc-actions">
                 <button className="pc-kept" onClick={copyCurrentAndAdvance}>
                   {copySeq.step + 1 >= copySeq.order.length
