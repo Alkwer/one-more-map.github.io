@@ -119,12 +119,9 @@ export function scoreBoard(
       else if (mod.scope === 'global') globalEffects.push(...effects)
       else for (const n of adjacentTargets(i)) tileEffects[n].push(...effects)
     }
-    // the chart's own header reward stats (self-scope), also magnitude-scaled
-    if (chart.rewards) {
-      for (const e of chart.rewards) {
-        tileEffects[i].push(mag !== 1 ? { ...e, percent: e.percent * mag } : e)
-      }
-    }
+    // Note: the chart's own header reward stats (chart.rewards) are shown in
+    // tooltips but deliberately NOT scored - a chart is valued by its
+    // adjacent/voyage implicit, not its local sub-stats.
   })
 
   borders.forEach((id, seg) => {

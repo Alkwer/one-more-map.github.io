@@ -29,8 +29,7 @@ function chartValue(chart: ChartData, weights: Weights, disabled: Set<string>): 
     if (!mod) continue
     for (const e of mod.effects) v += (weights[e.stat] ?? 0) * e.percent * SCOPE_REACH[mod.scope]
   }
-  // the chart's own header reward stats (self-scope, reach 1)
-  for (const e of chart.rewards ?? []) v += (weights[e.stat] ?? 0) * e.percent
+  // header reward sub-stats are shown but not scored; a chart's worth is its implicit
   return v
 }
 
