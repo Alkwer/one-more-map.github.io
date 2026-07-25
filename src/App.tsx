@@ -14,7 +14,7 @@ import { checkConnectivity } from './logic/connectivity'
 import type { SolverResult } from './logic/solver'
 import { decodeShare, defaultState, encodeShare, loadLocal, saveLocal, type AppState } from './logic/storage'
 import type { ChartData } from './types'
-import { ALL_STATS, STAT_LABELS, borderTouches } from './types'
+import { ALL_STATS, STAT_LABELS, borderTouches, emptyBoard } from './types'
 
 /** discrete/guaranteed effects (drops, spawns, conversions) rather than plain % scalars */
 const isNotable = (text: string) => !/^\d+% (increased|more|reduced) /i.test(text)
@@ -46,6 +46,7 @@ export default function App() {
     }
   }
   const [showMods, setShowMods] = useState(false)
+  const [voyageMsg, setVoyageMsg] = useState('')
   const [harvestTheme, setHarvestTheme] = useState(() =>
     document.body.classList.contains('theme-harvest'),
   )
@@ -148,6 +149,35 @@ export default function App() {
 
   const updateChart = (chart: ChartData) =>
     setState((s) => ({ ...s, pool: s.pool.map((c) => (c.uid === chart.uid ? chart : c)) }))
+
+  const togglePreserve = (uid: string) =>
+    setState((s) => ({
+      ...s,
+      pool: s.pool.map((c) => (c.uid === uid ? { ...c, preserved: !c.preserved } : c)),
+    }))
+
+  const finishVoyage = () => {
+    setState((s) => {
+      const onBoard = new Set(s.board.filter(Boolean).map((p) => p!.chartUid))
+      let consumed = 0
+      let kept = 0
+      const pool = s.pool.filter((c) => {
+        if (!onBoard.has(c.uid)) return true // not run this voyage
+        if (c.preserved) {
+          kept++
+          return true
+        }
+        consumed++
+        return false
+      })
+      setVoyageMsg(
+        `Voyage finished: consumed ${consumed} chart${consumed === 1 ? '' : 's'}` +
+          (kept ? `, preserved ${kept}` : ''),
+      )
+      window.setTimeout(() => setVoyageMsg(''), 4000)
+      return { ...s, pool, board: emptyBoard() }
+    })
+  }
 
   const onCellClick = (i: number) => {
     if (selectedChart) {
@@ -308,6 +338,9 @@ export default function App() {
                 return { ...s, borders }
               })
             }
+            onTogglePreserve={togglePreserve}
+            onFinishVoyage={finishVoyage}
+            voyageMsg={voyageMsg}
           />
 
           <div className={`conn-status ${conn.valid ? 'ok' : 'bad'}`}>

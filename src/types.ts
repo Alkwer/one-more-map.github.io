@@ -158,6 +158,8 @@ export interface ChartData {
   shape?: string
   /** unparsed mod lines kept from import so nothing is silently lost */
   rawText?: string
+  /** marked to survive "Finish Voyage" (won't be consumed) */
+  preserved?: boolean
 }
 
 /** A chart placed on the board. */

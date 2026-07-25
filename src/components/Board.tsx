@@ -19,6 +19,9 @@ interface Props {
   onRemove: (i: number) => void
   onRotate: (i: number) => void
   onBorderChange: (segment: number, id: string | null) => void
+  onTogglePreserve: (uid: string) => void
+  onFinishVoyage: () => void
+  voyageMsg: string
 }
 
 function BorderSelect({
@@ -118,6 +121,7 @@ function Tile({
   onClick,
   onRemove,
   onRotate,
+  onTogglePreserve,
 }: {
   placement: Placement | null
   chart: ChartData | null
@@ -130,6 +134,7 @@ function Tile({
   onClick: () => void
   onRemove: () => void
   onRotate: () => void
+  onTogglePreserve: () => void
 }) {
   const [copied, setCopied] = useState(false)
   const startBadge = isStart ? (
@@ -166,7 +171,7 @@ function Tile({
   const primary = mods.find((m) => m!.scope !== 'self') ?? mods[0]
   return (
     <div
-      className={`tile ${selected ? 'selected' : ''} ${highlighted ? 'highlighted' : ''} ${primary ? `tscope-${primary.scope}` : ''}`}
+      className={`tile ${selected ? 'selected' : ''} ${highlighted ? 'highlighted' : ''} ${chart.preserved ? 'preserved' : ''} ${primary ? `tscope-${primary.scope}` : ''}`}
       onClick={onClick}
       {...tt}
     >
@@ -208,7 +213,22 @@ function Tile({
       {!primary && chart.implicitText && (
         <div className="tile-duo-text scope-global">{chart.implicitText}</div>
       )}
+      {chart.preserved && (
+        <span className="tile-preserved-badge" title="Preserved: kept when you Finish Voyage">
+          🔒 Kept
+        </span>
+      )}
       <div className="tile-actions">
+        <button
+          className={chart.preserved ? 'active' : ''}
+          title={chart.preserved ? 'Preserved: unmark to allow consuming' : 'Preserve: keep this chart when you Finish Voyage'}
+          onClick={(e) => {
+            e.stopPropagation()
+            onTogglePreserve()
+          }}
+        >
+          {chart.preserved ? '🔒' : '🔓'}
+        </button>
         <button
           title="Copy this chart's details (name, modifier, level, shape) to identify it in game"
           onClick={(e) => {
@@ -305,6 +325,7 @@ export function BoardView(props: Props) {
         onClick={() => props.onCellClick(i)}
         onRemove={() => props.onRemove(i)}
         onRotate={() => props.onRotate(i)}
+        onTogglePreserve={() => p && props.onTogglePreserve(p.chartUid)}
       />
     )
   }
@@ -377,6 +398,17 @@ export function BoardView(props: Props) {
         <span className="legend-item scope-self">■ this area</span>
         <span className="legend-item scope-adjacent">■ adjacent</span>
         <span className="legend-item scope-global">■ whole voyage</span>
+      </div>
+      <div className="voyage-finish">
+        <button
+          className="finish-voyage"
+          disabled={board.every((p) => !p)}
+          onClick={props.onFinishVoyage}
+          title="Consume the charts on the board (they're used up), keeping any you've marked Preserved (🔒). Clears the board for the next voyage."
+        >
+          🌊 Finish Voyage
+        </button>
+        {props.voyageMsg && <span className="voyage-msg">{props.voyageMsg}</span>}
       </div>
     </div>
   )

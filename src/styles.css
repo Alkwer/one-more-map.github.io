@@ -687,6 +687,49 @@ textarea {
   border-color: var(--gold);
   animation: tile-pulse 1.1s ease-in-out infinite;
 }
+.tile.preserved {
+  border-color: var(--accent2);
+  box-shadow: 0 0 0 1px var(--accent2), inset 0 0 0 1px rgba(107, 163, 200, 0.3);
+}
+.tile-preserved-badge {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  z-index: 3;
+  font-family: var(--sc);
+  font-size: 10px;
+  color: var(--accent2);
+  background: rgba(4, 8, 10, 0.9);
+  border: 1px solid rgba(107, 163, 200, 0.5);
+  border-radius: 2px;
+  padding: 1px 5px;
+}
+.tile-actions button.active {
+  color: var(--accent2);
+  border-color: var(--accent2);
+}
+.voyage-finish {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.finish-voyage {
+  background: linear-gradient(180deg, #2a4a58 0%, #16303c 55%, #0e222c 100%);
+  color: #cfe8f5;
+  border-color: #3f6f86;
+  font-weight: 700;
+  padding: 7px 14px;
+}
+.finish-voyage:hover:not(:disabled) {
+  filter: brightness(1.2);
+  border-color: var(--accent2);
+}
+.voyage-msg {
+  font-family: var(--sc);
+  font-size: 13px;
+  color: var(--good);
+}
 @keyframes tile-pulse {
   0%,
   100% {
