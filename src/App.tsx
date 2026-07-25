@@ -52,6 +52,9 @@ export default function App() {
     index: number
     kept: string[]
   } | null>(null)
+  // guided "copy into game": walk the board in the in-game Ctrl+click fill order
+  // (bottom-left, then right, then up a row): board cells 6,7,8, 3,4,5, 0,1,2
+  const [copySeq, setCopySeq] = useState<{ order: number[]; step: number } | null>(null)
   const [harvestTheme, setHarvestTheme] = useState(() =>
     document.body.classList.contains('theme-harvest'),
   )
@@ -201,6 +204,34 @@ export default function App() {
     else setPreserveConfirm({ charts: preserved, index: 0, kept: [] })
   }
 
+  const FILL_ORDER = [6, 7, 8, 3, 4, 5, 0, 1, 2]
+  const copyChartDetails = (chart: ChartData) => {
+    const implicit =
+      chart.modIds.map((id) => voyageModById.get(id)).find((m) => m && m.scope !== 'self')?.text ??
+      chart.implicitText ??
+      ''
+    const details = [
+      chart.name,
+      implicit,
+      `Level ${chart.level}${chart.shape ? `, ${chart.shape}` : ''}`,
+    ]
+      .filter(Boolean)
+      .join('\n')
+    navigator.clipboard.writeText(details).catch(() => {})
+  }
+  const startCopySeq = () => {
+    const order = FILL_ORDER.filter((i) => state.board[i])
+    if (order.length) setCopySeq({ order, step: 0 })
+  }
+  // copy the current square's chart, then advance to the next fill position
+  const copyCurrentAndAdvance = () => {
+    if (!copySeq) return
+    const chart = chartMap.get(state.board[copySeq.order[copySeq.step]]!.chartUid)
+    if (chart) copyChartDetails(chart)
+    if (copySeq.step + 1 >= copySeq.order.length) setCopySeq(null)
+    else setCopySeq({ ...copySeq, step: copySeq.step + 1 })
+  }
+
   // step through each preserved chart, one at a time, its board tile highlighted
   const decidePreserve = (survived: boolean) => {
     if (!preserveConfirm) return
@@ -340,11 +371,13 @@ export default function App() {
             perTile={score.perTile}
             selectedCell={selectedCell}
             highlightUid={
-              preserveConfirm
-                ? preserveConfirm.charts[preserveConfirm.index].uid
-                : selectedChart && state.board.some((p) => p?.chartUid === selectedChart)
-                  ? selectedChart
-                  : null
+              copySeq
+                ? (state.board[copySeq.order[copySeq.step]]?.chartUid ?? null)
+                : preserveConfirm
+                  ? preserveConfirm.charts[preserveConfirm.index].uid
+                  : selectedChart && state.board.some((p) => p?.chartUid === selectedChart)
+                    ? selectedChart
+                    : null
             }
             strictMode={state.mode === 'strict'}
             placingChart={selectedChart ? chartMap.get(selectedChart) ?? null : null}
@@ -373,8 +406,32 @@ export default function App() {
             }
             onTogglePreserve={togglePreserve}
             onFinishVoyage={finishVoyage}
+            onCopySequence={startCopySeq}
             voyageMsg={voyageMsg}
           />
+
+          {copySeq && (
+            <div className="preserve-confirm copyseq">
+              <div className="pc-head">
+                Place into game in this order (its square is glowing). In game, Ctrl+Left-click each
+                chart in turn, they fill bottom-left first. Step {copySeq.step + 1} of{' '}
+                {copySeq.order.length}.
+              </div>
+              <div className="pc-name">
+                {chartMap.get(state.board[copySeq.order[copySeq.step]]!.chartUid)?.name}
+              </div>
+              <div className="pc-actions">
+                <button className="pc-kept" onClick={copyCurrentAndAdvance}>
+                  {copySeq.step + 1 >= copySeq.order.length
+                    ? '📋 Copy last & finish'
+                    : '📋 Copy & next'}
+                </button>
+                <button className="pc-lost" onClick={() => setCopySeq(null)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
 
           {preserveConfirm && (
             <div className="preserve-confirm">

@@ -21,6 +21,7 @@ interface Props {
   onBorderChange: (segment: number, id: string | null) => void
   onTogglePreserve: (uid: string) => void
   onFinishVoyage: () => void
+  onCopySequence: () => void
   voyageMsg: string
 }
 
@@ -400,6 +401,14 @@ export function BoardView(props: Props) {
         <span className="legend-item scope-global">■ whole voyage</span>
       </div>
       <div className="voyage-finish">
+        <button
+          className="copy-into-game"
+          disabled={board.every((p) => !p)}
+          onClick={props.onCopySequence}
+          title="Step through each square in the in-game placement order (bottom-left first), copying its chart so you can Ctrl+Left-click them in the right order."
+        >
+          📋 Copy into game
+        </button>
         <button
           className="finish-voyage"
           disabled={board.every((p) => !p)}

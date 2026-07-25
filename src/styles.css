@@ -714,12 +714,21 @@ textarea {
   gap: 10px;
   margin-top: 10px;
 }
-.finish-voyage {
+.finish-voyage,
+.copy-into-game {
   background: linear-gradient(180deg, #2a4a58 0%, #16303c 55%, #0e222c 100%);
   color: #cfe8f5;
   border-color: #3f6f86;
   font-weight: 700;
   padding: 7px 14px;
+}
+.copy-into-game:hover:not(:disabled) {
+  filter: brightness(1.2);
+  border-color: var(--accent2);
+}
+.preserve-confirm.copyseq {
+  border-color: var(--gold-dim);
+  box-shadow: 0 0 14px rgba(200, 170, 110, 0.25);
 }
 .finish-voyage:hover:not(:disabled) {
   filter: brightness(1.2);
