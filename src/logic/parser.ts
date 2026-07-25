@@ -41,8 +41,9 @@ const SHAPE_EDGES: Record<string, Edges> = {
   corner: [true, true, false, false], // 2 adjacent (L)
   straight: [true, false, true, false], // 2 opposite (line)
   junction: [true, true, true, false], // 3 connectors (T)
-  crossroads: [true, true, true, true], // 4 connectors (+)
-  cross: [true, true, true, true],
+  crossing: [true, true, true, true], // 4 connectors (+)
+  crossroads: [true, true, true, true], // alias
+  cross: [true, true, true, true], // alias
 }
 
 /** header "quality" reward stats -> our Stat, matched by their labels */
