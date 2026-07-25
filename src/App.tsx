@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BoardView } from './components/Board'
+import { FinishVoyage } from './components/FinishVoyage'
 import { ModBrowser } from './components/ModBrowser'
 import { Onboarding } from './components/Onboarding'
 import { TooltipLayer } from './components/Tooltip'
@@ -47,6 +48,7 @@ export default function App() {
   }
   const [showMods, setShowMods] = useState(false)
   const [voyageMsg, setVoyageMsg] = useState('')
+  const [finishAsk, setFinishAsk] = useState<ChartData[] | null>(null)
   const [harvestTheme, setHarvestTheme] = useState(() =>
     document.body.classList.contains('theme-harvest'),
   )
@@ -156,14 +158,16 @@ export default function App() {
       pool: s.pool.map((c) => (c.uid === uid ? { ...c, preserved: !c.preserved } : c)),
     }))
 
-  const finishVoyage = () => {
+  // apply the voyage result: keep charts whose uid is in keptUids, consume the
+  // rest of the board; charts not on the board are untouched.
+  const commitFinish = (keptUids: Set<string>) => {
     setState((s) => {
       const onBoard = new Set(s.board.filter(Boolean).map((p) => p!.chartUid))
       let consumed = 0
       let kept = 0
       const pool = s.pool.filter((c) => {
         if (!onBoard.has(c.uid)) return true // not run this voyage
-        if (c.preserved) {
+        if (keptUids.has(c.uid)) {
           kept++
           return true
         }
@@ -172,11 +176,26 @@ export default function App() {
       })
       setVoyageMsg(
         `Voyage finished: consumed ${consumed} chart${consumed === 1 ? '' : 's'}` +
-          (kept ? `, preserved ${kept}` : ''),
+          (kept ? `, kept ${kept}` : ''),
       )
       window.setTimeout(() => setVoyageMsg(''), 4000)
-      return { ...s, pool, board: emptyBoard() }
+      return {
+        ...s,
+        pool: pool.map((c) => (keptUids.has(c.uid) ? { ...c, preserved: false } : c)),
+        board: emptyBoard(),
+      }
     })
+    setFinishAsk(null)
+  }
+
+  const finishVoyage = () => {
+    const preserved = state.board
+      .filter(Boolean)
+      .map((p) => chartMap.get(p!.chartUid))
+      .filter((c): c is ChartData => !!c && !!c.preserved)
+    // no charts marked to keep -> consume everything on the board outright
+    if (preserved.length === 0) commitFinish(new Set())
+    else setFinishAsk(preserved) // ask which of the marked ones actually survived
   }
 
   const onCellClick = (i: number) => {
@@ -254,6 +273,9 @@ export default function App() {
           onBulk={bulkMods}
           onClose={() => setShowMods(false)}
         />
+      )}
+      {finishAsk && (
+        <FinishVoyage charts={finishAsk} onConfirm={commitFinish} onCancel={() => setFinishAsk(null)} />
       )}
       <header>
         <h1>

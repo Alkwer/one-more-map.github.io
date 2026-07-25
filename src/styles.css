@@ -730,6 +730,47 @@ textarea {
   font-size: 13px;
   color: var(--good);
 }
+.fv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 4px;
+}
+.fv-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  font-size: 13.5px;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.fv-row:hover {
+  background: rgba(200, 170, 110, 0.06);
+}
+.fv-row input {
+  width: auto;
+  accent-color: var(--accent2);
+}
+.fv-name {
+  flex: 1;
+}
+.fv-status {
+  font-family: var(--sc);
+  font-size: 12px;
+}
+.fv-row.kept .fv-status {
+  color: var(--good);
+}
+.fv-row.lost {
+  opacity: 0.6;
+}
+.fv-row.lost .fv-name {
+  text-decoration: line-through;
+}
+.fv-row.lost .fv-status {
+  color: var(--bad);
+}
 @keyframes tile-pulse {
   0%,
   100% {
