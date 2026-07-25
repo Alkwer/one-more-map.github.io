@@ -380,6 +380,17 @@ textarea {
   padding: 0 3px;
   word-break: break-word;
 }
+/* raw implicit fallback: an unmatched voyage line is a full sentence, so clamp
+   it small and cap the lines rather than overflow the square */
+.sq-rawimplicit {
+  font-size: 8px;
+  line-height: 1.1;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .sq-shape {
   position: absolute;
   top: 2px;

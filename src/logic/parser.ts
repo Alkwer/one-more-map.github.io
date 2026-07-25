@@ -69,6 +69,36 @@ const STOP = new Set(
 )
 const stem = (w: string): string => w.replace(/(es|s)$/, '')
 
+/** Levenshtein distance, capped early - used to tolerate the game's own typos
+ *  (e.g. the "Qauntity of Items" voyage mod is misspelled in-game). */
+function editDistance(a: string, b: string): number {
+  const m = a.length
+  const n = b.length
+  if (Math.abs(m - n) > 2) return 99
+  let prev = Array.from({ length: n + 1 }, (_, j) => j)
+  for (let i = 1; i <= m; i++) {
+    const cur = [i]
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      cur[j] = Math.min(cur[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost)
+    }
+    prev = cur
+  }
+  return prev[n]
+}
+
+/** does the line contain this mod keyword, allowing a near-miss for long words
+ *  (covers in-game typos and minor plural/tense drift not caught by stemming)? */
+function fuzzyHas(lineWords: Set<string>, w: string): boolean {
+  if (lineWords.has(w)) return true
+  if (w.length < 5) return false
+  for (const lw of lineWords) {
+    if (Math.abs(lw.length - w.length) > 2) continue
+    if (editDistance(lw, w) <= 2) return true
+  }
+  return false
+}
+
 /** distinctive keywords of a mod line (lowercase, stemmed, filler removed) */
 function sigWords(s: string): string[] {
   const out = new Set<string>()
@@ -91,7 +121,7 @@ function matchImplicit(line: string): string | null {
   const scored = VOYAGE_MODS.filter((m) => m.scope !== 'self')
     .map((m) => {
       const mw = sigWords(m.text)
-      const covered = mw.filter((w) => lineWords.has(w)).length
+      const covered = mw.filter((w) => fuzzyHas(lineWords, w)).length
       return { m, mwLen: mw.length, ratio: mw.length ? covered / mw.length : 0 }
     })
     .filter((x) => x.ratio >= 0.6)
@@ -127,7 +157,18 @@ export function parseChartText(text: string): ParseResult {
   for (const item of items) {
     const lines = item.split('\n').map((l) => l.trim())
     const nameIdx = lines.findIndex((l) => /^Rarity:/i.test(l))
-    const name = nameIdx >= 0 ? (lines[nameIdx + 1] ?? 'Unknown Chart') : 'Unknown Chart'
+    // The item name spans every line between the Rarity line and the first
+    // separator - Rare charts copy as two lines (rare name + base type), e.g.
+    // "Aquatic Trek" / "Coral Forest Chart"; Magic/Normal are a single line.
+    const nameLineIdxs: number[] = []
+    if (nameIdx >= 0) {
+      for (let i = nameIdx + 1; i < lines.length && !/^-{3,}$/.test(lines[i]); i++) {
+        if (lines[i]) nameLineIdxs.push(i)
+      }
+    }
+    const name = nameLineIdxs.length
+      ? nameLineIdxs.map((i) => lines[i]).join(' ')
+      : 'Unknown Chart'
 
     if (!/Item Class:\s*Chart/i.test(item)) {
       rejected.push({ name, reason: 'not a Chart item' })
@@ -172,10 +213,11 @@ export function parseChartText(text: string): ParseResult {
     // parenthetical note, header reward stat, or a "found in this Area" reward.
     const structural =
       /^(-{3,}|Item Class:|Rarity:|Area Level:|Item Level:|Requires|Chart Shape:|Take this item|Seafloor|Abyssal|Undersea|Anchorfield|Kishara)/i
+    const nameLineSet = new Set(nameLineIdxs)
     const rawLines = lines.filter(
       (l, idx) =>
         l &&
-        idx !== nameIdx + 1 && // not the name line
+        !nameLineSet.has(idx) && // not any name line (rare charts span two)
         idx !== implicitIdx + 1 && // not the implicit line (already parsed)
         !structural.test(l) &&
         !/^\{.*\}$/.test(l) && // not a { modifier } header

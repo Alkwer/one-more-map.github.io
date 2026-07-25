@@ -254,6 +254,10 @@ export function Library(props: Props) {
                     <span className="sq-pct">+{mod.effects[0].percent}%</span>
                     <span className="sq-statname">{STAT_SHORT[mod.effects[0].stat]}</span>
                   </span>
+                ) : c.implicitText ? (
+                  <span className="sq-reward-text scope-global">
+                    <span className="sq-shortname sq-rawimplicit">{c.implicitText}</span>
+                  </span>
                 ) : (
                   <EdgeGlyph edges={c.edges} size={26} />
                 )}
