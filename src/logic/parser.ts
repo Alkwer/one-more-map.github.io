@@ -57,24 +57,56 @@ const HEADER_STATS: { re: RegExp; stat: Stat }[] = [
   { re: /Currency Found:\s*\+?(\d+)%/i, stat: 'currency' },
 ]
 
-function normalise(s: string): string {
-  return s.toLowerCase().replace(/[0-9]+/g, '#').replace(/\s+/g, ' ').trim()
+// Common filler words dropped when matching, so wording/pluralisation/number
+// differences between the game text and our stored text don't block a match.
+const STOP = new Set(
+  (
+    'a an the of in on to be by and or per this that all are is it as at with for ' +
+    'additional adjacent area areas contain contains contained chance found more less ' +
+    'increased reduced number numbers dropped drop drops gain gains will would have has ' +
+    'natural inhabitants monster monsters players player instead'
+  ).split(/\s+/),
+)
+const stem = (w: string): string => w.replace(/(es|s)$/, '')
+
+/** distinctive keywords of a mod line (lowercase, stemmed, filler removed) */
+function sigWords(s: string): string[] {
+  const out = new Set<string>()
+  for (const w of s
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, ' ') // drop "(8-10)" value ranges
+    .replace(/[^a-z ]+/g, ' ')
+    .split(/\s+/)) {
+    if (w.length >= 3 && !STOP.has(w)) out.add(stem(w))
+  }
+  return [...out]
 }
 
-/** Match a revealed implicit line against the adjacent/voyage mod pool. */
+/** Match a revealed implicit line against the adjacent/voyage mod pool by
+ *  keyword overlap, tie-broken by specificity then closest tier value. */
 function matchImplicit(line: string): string | null {
-  const n = normalise(line)
-  const pool = VOYAGE_MODS.filter((m) => m.scope !== 'self')
-  const cands = pool.filter((m) => normalise(m.text) === n)
-  if (cands.length === 0) return null
-  if (cands.length === 1) return cands[0].id
-  const num = parseFloat(line.match(/\d+/)?.[0] ?? '')
-  if (isNaN(num)) return cands[0].id
-  return cands.reduce((best, c) => {
-    const cn = parseFloat(c.text.match(/\d+/)?.[0] ?? '')
-    const bn = parseFloat(best.text.match(/\d+/)?.[0] ?? '')
-    return Math.abs(cn - num) < Math.abs(bn - num) ? c : best
-  }).id
+  const lineWords = new Set(sigWords(line))
+  if (lineWords.size === 0) return null
+  const lineNum = parseFloat(line.replace(/\([^)]*\)/g, ' ').match(/\d+/)?.[0] ?? '')
+  const scored = VOYAGE_MODS.filter((m) => m.scope !== 'self')
+    .map((m) => {
+      const mw = sigWords(m.text)
+      const covered = mw.filter((w) => lineWords.has(w)).length
+      return { m, mwLen: mw.length, ratio: mw.length ? covered / mw.length : 0 }
+    })
+    .filter((x) => x.ratio >= 0.6)
+  if (scored.length === 0) return null
+  scored.sort((a, b) => {
+    if (b.ratio !== a.ratio) return b.ratio - a.ratio
+    if (b.mwLen !== a.mwLen) return b.mwLen - a.mwLen // prefer the more specific mod
+    if (!isNaN(lineNum)) {
+      const an = parseFloat(a.m.text.match(/\d+/)?.[0] ?? 'NaN')
+      const bn = parseFloat(b.m.text.match(/\d+/)?.[0] ?? 'NaN')
+      return (isNaN(an) ? 1e9 : Math.abs(an - lineNum)) - (isNaN(bn) ? 1e9 : Math.abs(bn - lineNum))
+    }
+    return 0
+  })
+  return scored[0].m.id
 }
 
 export interface ParseResult {

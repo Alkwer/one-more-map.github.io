@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { generateDemoCharts } from '../logic/demo'
 import { parseChartText } from '../logic/parser'
 import type { AppState } from '../logic/storage'
@@ -15,8 +15,9 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
   const [text, setText] = useState('')
   const [msg, setMsg] = useState('')
 
-  const doParse = () => {
-    const { charts, rejected } = parseChartText(text)
+  const doParse = (raw?: string) => {
+    const source = raw ?? text
+    const { charts, rejected } = parseChartText(source)
     const notCharted = rejected.filter((r) => r.reason.startsWith('not charted'))
     if (charts.length === 0 && rejected.length === 0) {
       setMsg('No items recognised. Is this Ctrl+C item text?')
@@ -36,6 +37,21 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
     if (otherRejects > 0) parts.push(`skipped ${otherRejects} unrecognised`)
     setMsg(parts.join('; ') || 'Nothing imported')
   }
+
+  // Ctrl+V anywhere on the page: if the clipboard holds chart item text, import
+  // it straight away (no need to focus the box). Normal pastes into fields are
+  // untouched because only chart-shaped text is intercepted.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const clip = e.clipboardData?.getData('text') ?? ''
+      if (!/Item Class:\s*Chart/i.test(clip)) return
+      e.preventDefault()
+      doParse(clip)
+    }
+    document.addEventListener('paste', onPaste)
+    return () => document.removeEventListener('paste', onPaste)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text])
 
   const exportJson = () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })
@@ -66,12 +82,14 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
       <div className="panel-title">Import</div>
       <textarea
         rows={5}
-        placeholder={'Paste chart item text from the game (Ctrl+C on a chart).'}
+        placeholder={
+          'Copy a chart in game (Ctrl+C), then press Ctrl+V anywhere on this page to import it. Or paste here and hit Parse & Add.'
+        }
         value={text}
         onChange={(e) => setText(e.target.value)}
       />
       <div className="import-actions">
-        <button onClick={doParse} disabled={!text.trim()}>
+        <button onClick={() => doParse()} disabled={!text.trim()}>
           Parse & Add
         </button>
         <button
