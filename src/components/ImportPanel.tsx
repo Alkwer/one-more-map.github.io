@@ -16,17 +16,25 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
   const [msg, setMsg] = useState('')
 
   const doParse = () => {
-    const { charts, unmatched } = parseChartText(text)
-    if (charts.length === 0) {
+    const { charts, rejected } = parseChartText(text)
+    const notCharted = rejected.filter((r) => r.reason.startsWith('not charted'))
+    if (charts.length === 0 && rejected.length === 0) {
       setMsg('No items recognised. Is this Ctrl+C item text?')
       return
     }
-    onImport(charts)
-    setText('')
-    setMsg(
-      `Imported ${charts.length} chart${charts.length === 1 ? '' : 's'}` +
-        (unmatched.length ? ` (${unmatched.length} unrecognised mod line${unmatched.length === 1 ? '' : 's'} kept as raw text)` : ''),
-    )
+    if (charts.length > 0) {
+      onImport(charts)
+      setText('')
+    }
+    const parts: string[] = []
+    if (charts.length) parts.push(`Imported ${charts.length} chart${charts.length === 1 ? '' : 's'}`)
+    if (notCharted.length)
+      parts.push(
+        `skipped ${notCharted.length} uncharted (run them first to reveal their modifier)`,
+      )
+    const otherRejects = rejected.length - notCharted.length
+    if (otherRejects > 0) parts.push(`skipped ${otherRejects} unrecognised`)
+    setMsg(parts.join('; ') || 'Nothing imported')
   }
 
   const exportJson = () => {

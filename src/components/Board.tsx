@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { BORDER_MODS, borderModById, voyageModById } from '../data/mods'
 import { rotateEdges } from '../logic/connectivity'
 import type { Board, Borders, ChartData, Placement } from '../types'
-import { START_CELL, STAT_SHORT } from '../types'
+import { START_CELL, STAT_LABELS, STAT_SHORT } from '../types'
 import { tooltipProps } from './Tooltip'
 
 interface Props {
@@ -151,9 +151,15 @@ function Tile({
   const tt = tooltipProps({
     title: chart.name,
     lines: [
-      { text: `Area Level: ${chart.level}`, cls: 'muted' },
-      ...mods.map((m) => ({ text: m!.text, cls: `scope-${m!.scope}` })),
-      ...mods.map((m) => ({ text: `(affects ${scopeLabel[m!.scope]})`, cls: 'muted' })),
+      { text: `Area Level: ${chart.level}${chart.shape ? ` · ${chart.shape}` : ''}`, cls: 'muted' },
+      ...(chart.rewards ?? []).map((e) => ({
+        text: `+${e.percent}% ${STAT_LABELS[e.stat]}`,
+        cls: 'scope-self',
+      })),
+      ...mods.map((m) => ({
+        text: `${m!.text}  (${scopeLabel[m!.scope]})`,
+        cls: `scope-${m!.scope}`,
+      })),
     ],
   })
   // show the implicit (adjacent/voyage) on the tile - it's the strategic mod

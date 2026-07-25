@@ -148,8 +148,12 @@ export interface ChartData {
   name: string
   level: number
   edges: Edges
-  /** ids into VOYAGE_MODS; usually one per chart */
+  /** ids into VOYAGE_MODS; the revealed implicit (adjacent/voyage) mod */
   modIds: string[]
+  /** the chart's own area reward stats, read from the item header (self-scope) */
+  rewards?: ModEffect[]
+  /** chart connector shape name from the item text (Straight/Corner/Junction/End) */
+  shape?: string
   /** unparsed mod lines kept from import so nothing is silently lost */
   rawText?: string
 }

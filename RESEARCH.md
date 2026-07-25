@@ -37,6 +37,25 @@
 - On-screen note: GGG has been **buffing adjacency and border modifiers** since the
   preview build - expect live numbers to be higher than preview footage.
 
+## CONFIRMED real chart item format (from pasted charts, 2026-07-25)
+
+- `Item Class: Chart` (not "Lost Charts"). Rarity: Magic. Name on line after Rarity.
+- Header block after `Area Level:` lists aggregated reward "quality" stats:
+  `Item Quantity: +N%`, `Gold Found: +N%`, `Dead Man's Sulphur: +N%` (also Item
+  Rarity / Pack Size likely). These are SUMS across the chart's mods (e.g. Fecund
+  +20% and of Insulation +20% show as "Item Quantity: +40%"). Parser reads these
+  directly into ChartData.rewards (self-scope), NOT snapped to mod tiers.
+- `Chart Shape:` gives the connector shape: End(1), Corner(2 adjacent L),
+  Straight(2 opposite), Junction(3 T), presumably Crossroads(4). Mapped to edges.
+- Implicit (adjacent/voyage modifier) is HIDDEN until charted: uncharted charts show
+  "Voyage Modifier will be revealed once Charted". Uncharted charts are REJECTED on
+  import (must be run first). Charted charts show the real implicit line, matched to
+  the adjacent/voyage mod pool.
+- Prefix/suffix explicit mods are mostly monster downsides; their reward part is
+  already in the header aggregate, so they're kept as rawText only (not re-scored).
+- Deepwater area type ("Seafloor Ridges", "Abyssal Plain", "Undersea Groves") appears
+  in the header but isn't scored.
+
 ## Open questions on reward math (verify in game)
 
 - **Stacking rules are undocumented.** Model now assumes additive stacking within

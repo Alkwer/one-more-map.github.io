@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { VOYAGE_MODS, voyageModById } from '../data/mods'
 import { newUid } from '../logic/parser'
 import type { Board, ChartData, Edges, Weights } from '../types'
-import { STAT_SHORT } from '../types'
+import { STAT_LABELS, STAT_SHORT } from '../types'
 import { EdgeGlyph } from './icons'
 import { tooltipProps } from './Tooltip'
 
@@ -29,6 +29,8 @@ function chartValue(chart: ChartData, weights: Weights, disabled: Set<string>): 
     if (!mod) continue
     for (const e of mod.effects) v += (weights[e.stat] ?? 0) * e.percent * SCOPE_REACH[mod.scope]
   }
+  // the chart's own header reward stats (self-scope, reach 1)
+  for (const e of chart.rewards ?? []) v += (weights[e.stat] ?? 0) * e.percent
   return v
 }
 
@@ -228,7 +230,11 @@ export function Library(props: Props) {
             const mod = mods.find((m) => m!.scope !== 'self') ?? mods[0] ?? null
             const val = displayValue(c, props.weights, props.disabledMods)
             const lines = [
-              { text: `Area Level: ${c.level}`, cls: 'muted' },
+              { text: `Area Level: ${c.level}${c.shape ? ` · ${c.shape}` : ''}`, cls: 'muted' },
+              ...(c.rewards ?? []).map((e) => ({
+                text: `+${e.percent}% ${STAT_LABELS[e.stat]}`,
+                cls: 'scope-self',
+              })),
               ...mods.map((m) => ({ text: m!.text, cls: `scope-${m!.scope}` })),
               { text: `Weighted value: ${val}`, cls: 'val' },
               ...(onBoard.has(c.uid) ? [{ text: 'Currently on the board', cls: 'muted' }] : []),
