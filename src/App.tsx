@@ -136,7 +136,8 @@ export default function App() {
       return { ...s, disabledMods: [...set] }
     })
 
-  const addCharts = (charts: ChartData[]) => patch({ pool: [...state.pool, ...charts] })
+  const addCharts = (charts: ChartData[]) =>
+    setState((s) => ({ ...s, pool: [...s.pool, ...charts] }))
 
   const removeChart = (uid: string) =>
     setState((s) => ({
