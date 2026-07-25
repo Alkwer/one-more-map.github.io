@@ -209,13 +209,10 @@ export default function App() {
     chart.modIds.map((id) => voyageModById.get(id)).find((m) => m && m.scope !== 'self')?.text ??
     chart.implicitText ??
     ''
-  // a PoE stash-search string: name + implicit as quoted phrases (ANDed), so
-  // pasting it into the in-game chart search filters to exactly this chart.
+  // a PoE stash-search string: name + implicit + level, space-separated. The
+  // in-game search ANDs each word, so this filters to exactly this chart.
   const chartSearch = (chart: ChartData): string =>
-    [chart.name, chartImplicit(chart)]
-      .filter(Boolean)
-      .map((s) => `"${s}"`)
-      .join(' ')
+    [chart.name, chartImplicit(chart), `Level ${chart.level}`].filter(Boolean).join(' ')
   const copyChartDetails = (chart: ChartData) => {
     navigator.clipboard.writeText(chartSearch(chart)).catch(() => {})
   }

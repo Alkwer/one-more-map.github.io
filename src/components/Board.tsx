@@ -236,9 +236,8 @@ function Tile({
             e.stopPropagation()
             const implicitTxt =
               mods.find((m) => m!.scope !== 'self')?.text ?? chart.implicitText ?? ''
-            const search = [chart.name, implicitTxt]
+            const search = [chart.name, implicitTxt, `Level ${chart.level}`]
               .filter(Boolean)
-              .map((s) => `"${s}"`)
               .join(' ')
             navigator.clipboard.writeText(search).catch(() => {})
             setCopied(true)
