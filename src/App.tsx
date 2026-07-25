@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BoardView } from './components/Board'
-import { FinishVoyage } from './components/FinishVoyage'
 import { ModBrowser } from './components/ModBrowser'
 import { Onboarding } from './components/Onboarding'
 import { TooltipLayer } from './components/Tooltip'
@@ -48,7 +47,11 @@ export default function App() {
   }
   const [showMods, setShowMods] = useState(false)
   const [voyageMsg, setVoyageMsg] = useState('')
-  const [finishAsk, setFinishAsk] = useState<ChartData[] | null>(null)
+  const [preserveConfirm, setPreserveConfirm] = useState<{
+    charts: ChartData[]
+    index: number
+    kept: string[]
+  } | null>(null)
   const [harvestTheme, setHarvestTheme] = useState(() =>
     document.body.classList.contains('theme-harvest'),
   )
@@ -185,7 +188,7 @@ export default function App() {
         board: emptyBoard(),
       }
     })
-    setFinishAsk(null)
+    setPreserveConfirm(null)
   }
 
   const finishVoyage = () => {
@@ -195,7 +198,16 @@ export default function App() {
       .filter((c): c is ChartData => !!c && !!c.preserved)
     // no charts marked to keep -> consume everything on the board outright
     if (preserved.length === 0) commitFinish(new Set())
-    else setFinishAsk(preserved) // ask which of the marked ones actually survived
+    else setPreserveConfirm({ charts: preserved, index: 0, kept: [] })
+  }
+
+  // step through each preserved chart, one at a time, its board tile highlighted
+  const decidePreserve = (survived: boolean) => {
+    if (!preserveConfirm) return
+    const { charts, index, kept } = preserveConfirm
+    const nextKept = survived ? [...kept, charts[index].uid] : kept
+    if (index + 1 >= charts.length) commitFinish(new Set(nextKept))
+    else setPreserveConfirm({ charts, index: index + 1, kept: nextKept })
   }
 
   const onCellClick = (i: number) => {
@@ -274,9 +286,6 @@ export default function App() {
           onClose={() => setShowMods(false)}
         />
       )}
-      {finishAsk && (
-        <FinishVoyage charts={finishAsk} onConfirm={commitFinish} onCancel={() => setFinishAsk(null)} />
-      )}
       <header>
         <h1>
           Allflame <span className="accent">Voyage Solver</span>
@@ -331,9 +340,11 @@ export default function App() {
             perTile={score.perTile}
             selectedCell={selectedCell}
             highlightUid={
-              selectedChart && state.board.some((p) => p?.chartUid === selectedChart)
-                ? selectedChart
-                : null
+              preserveConfirm
+                ? preserveConfirm.charts[preserveConfirm.index].uid
+                : selectedChart && state.board.some((p) => p?.chartUid === selectedChart)
+                  ? selectedChart
+                  : null
             }
             strictMode={state.mode === 'strict'}
             placingChart={selectedChart ? chartMap.get(selectedChart) ?? null : null}
@@ -364,6 +375,24 @@ export default function App() {
             onFinishVoyage={finishVoyage}
             voyageMsg={voyageMsg}
           />
+
+          {preserveConfirm && (
+            <div className="preserve-confirm">
+              <div className="pc-head">
+                Preserved chart {preserveConfirm.index + 1} of {preserveConfirm.charts.length} (its
+                square is glowing). Did it actually survive the Voyage?
+              </div>
+              <div className="pc-name">{preserveConfirm.charts[preserveConfirm.index].name}</div>
+              <div className="pc-actions">
+                <button className="pc-kept" onClick={() => decidePreserve(true)}>
+                  ✓ Kept it
+                </button>
+                <button className="pc-lost" onClick={() => decidePreserve(false)}>
+                  ✕ Was consumed
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className={`conn-status ${conn.valid ? 'ok' : 'bad'}`}>
             {state.mode === 'any'
