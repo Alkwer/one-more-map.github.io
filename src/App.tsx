@@ -376,7 +376,7 @@ export default function App() {
                     ? selectedChart
                     : null
             }
-            strictMode={state.mode === 'strict'}
+            strictMode={state.mode !== 'any'}
             placingChart={selectedChart ? chartMap.get(selectedChart) ?? null : null}
             onCellClick={onCellClick}
             onRemove={(i) =>
@@ -463,7 +463,16 @@ export default function App() {
               ? 'Connector rules ignored'
               : conn.valid
                 ? '✓ Connector layout valid'
-                : `✗ ${conn.violations} connector issue${conn.violations === 1 ? '' : 's'}`}
+                : [
+                    conn.mismatches > 0
+                      ? `✗ ${conn.mismatches} connector mismatch${conn.mismatches === 1 ? '' : 'es'}`
+                      : null,
+                    conn.unfilled > 0
+                      ? `${conn.unfilled} empty square${conn.unfilled === 1 ? '' : 's'} (all 9 must be filled)`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
           </div>
 
           <div className="score-panel">

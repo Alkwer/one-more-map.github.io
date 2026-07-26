@@ -20,7 +20,7 @@ export const defaultState = (): AppState => ({
   board: emptyBoard(),
   borders: emptyBorders(),
   weights: { ...DEFAULT_WEIGHTS },
-  mode: 'connected',
+  mode: 'strict', // confirmed rule: adjacent connectors must match, all 9 filled
   allowRotation: true, // rotation confirmed in game
   adjacencyMode: 'physical',
   adjacentAffectsSelf: false,
@@ -80,7 +80,9 @@ function revive(obj: unknown): AppState {
     board: Array.isArray(o.board) && o.board.length === 9 ? o.board : d.board,
     borders: Array.isArray(o.borders) && o.borders.length === 12 ? o.borders : d.borders,
     weights: { ...d.weights, ...(o.weights ?? {}) },
-    mode: o.mode === 'any' || o.mode === 'strict' ? o.mode : 'connected',
+    // 'connected' was the old pre-launch guess (reachability); the confirmed
+    // rule is connector-matching, so anything that isn't 'any' maps to 'strict'
+    mode: o.mode === 'any' ? 'any' : 'strict',
     allowRotation: !!o.allowRotation,
     adjacencyMode: o.adjacencyMode === 'connected' ? 'connected' : 'physical',
     adjacentAffectsSelf: !!o.adjacentAffectsSelf,

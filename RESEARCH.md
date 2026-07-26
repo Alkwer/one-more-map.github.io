@@ -77,9 +77,12 @@ League: **Path of Exile 3.29 - Curse of the Allflame** (launches July 24, 2026).
   reveals its **Voyage Modifier** implicit.
 - **Voyage Board**: a **3×3 grid**. Place 9 Charted Charts to assemble one big
   seafloor Voyage.
-- **Connectivity constraint**: each Chart's icon has lines/connectors on it; connectors
-  must line up with adjacent placed charts (exact rules unconfirmed pre-launch -
-  unknown whether charts can rotate).
+- **Connectivity constraint (CONFIRMED, live board)**: each Chart has connector lines;
+  where two placed charts share an edge, either both have a connector there or neither
+  does - a connector meeting a blank neighbour edge is broken (drawn red in game).
+  Connectors pointing off the outer board rim are fine. A voyage always fills all 9
+  squares. Boards may branch (T/Cross), so there is NO single-path/reachability rule.
+  Charts can rotate. Modelled as the 'strict' mode in `connectivity.ts` (default).
 - **Voyage Modifiers** come in three scopes:
   - affects **own region** only
   - affects **adjacent charts**
