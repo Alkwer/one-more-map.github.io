@@ -117,6 +117,47 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
         </button>
       </div>
       {msg && <div className="muted pad">{msg}</div>}
+
+      <details className="ahk-help">
+        <summary>🖱️ Bulk-import every chart from PoE (Windows)</summary>
+        <p className="muted">
+          A tiny AutoHotkey script hovers each chart in your Voyage panel, copies it, and pastes
+          the whole lot in here in one go - so you don't Ctrl+C / Ctrl+V them one by one.
+        </p>
+        <a className="ahk-dl" href={`${import.meta.env.BASE_URL}voyage-import.ahk`} download>
+          ⬇ Download voyage-import.ahk
+        </a>
+        <ol className="ahk-steps">
+          <li>
+            Install{' '}
+            <a href="https://www.autohotkey.com/" target="_blank" rel="noopener noreferrer">
+              AutoHotkey v2
+            </a>{' '}
+            (Windows only).
+          </li>
+          <li>
+            In PoE (Windowed or Windowed Fullscreen), open the Voyage board so your chart panel is
+            fully visible and not scrolled.
+          </li>
+          <li>
+            Keep this tab open - the script finds it by its title, <em>Allflame Voyage Solver</em>.
+            Click once on this page first so it has focus.
+          </li>
+          <li>
+            Double-click the script, then calibrate once: hover the <strong>top-left</strong> chart
+            and press <kbd>F7</kbd>, hover the <strong>bottom-right</strong> cell of the grid and
+            press <kbd>F8</kbd>. (Edit GridCols/GridRows in the file if your panel isn't 6×10.)
+          </li>
+          <li>
+            <kbd>F4</kbd> tests one copy · <kbd>F5</kbd> dry-runs the aim · <kbd>F6</kbd> runs the
+            import · <kbd>F9</kbd> aborts.
+          </li>
+        </ol>
+        <p className="muted small">
+          If PoE runs as administrator, run the script as administrator too, or its keypresses
+          won't reach the game. Don't touch the mouse or keyboard while it's running.
+        </p>
+      </details>
     </div>
   )
 }
