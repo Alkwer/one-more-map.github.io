@@ -5,6 +5,10 @@ import type { AppState } from '../logic/storage'
 import type { AdjacencyMode } from '../logic/scoring'
 import type { Board, ConnectivityMode } from '../types'
 import { ALL_STATS, STAT_DESC, STAT_LABELS } from '../types'
+import { displayValue } from './Library'
+
+/** how many of your best charts to hold back from a filler voyage (one full board) */
+const KEEP_BEST = 9
 
 interface Props {
   state: AppState
@@ -18,6 +22,7 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
   const [busy, setBusy] = useState(false)
   const [regexCap, setRegexCap] = useState(50)
   const [copied, setCopied] = useState(false)
+  const [solveNote, setSolveNote] = useState('')
   const bestRegex = useMemo(
     () => buildBestModRegex(state.weights, regexCap, new Set(state.disabledMods)),
     [state.weights, regexCap, state.disabledMods],
@@ -35,6 +40,7 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
 
   const run = () => {
     setBusy(true)
+    setSolveNote('')
     // let the UI paint the busy state before the (synchronous) solve
     window.setTimeout(() => {
       try {
@@ -47,6 +53,51 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
           topK: 5,
         })
         onResults(res)
+        if (res.length && !res[0].valid)
+          setSolveNote('No fully runnable layout from these charts - best partial shown.')
+      } finally {
+        setBusy(false)
+      }
+    }, 30)
+  }
+
+  // build a throwaway "filler" voyage from your lowest-value spare charts, holding
+  // back your best KEEP_BEST charts and anything you've locked (🔒) so they survive
+  const runFiller = () => {
+    setBusy(true)
+    setSolveNote('')
+    window.setTimeout(() => {
+      try {
+        const disabled = new Set(state.disabledMods)
+        const keep = new Set<string>()
+        state.pool.forEach((c) => c.preserved && keep.add(c.uid))
+        ;[...state.pool]
+          .sort((a, b) => displayValue(b, state.weights, disabled) - displayValue(a, state.weights, disabled))
+          .slice(0, KEEP_BEST)
+          .forEach((c) => keep.add(c.uid))
+        const fillerPool = state.pool.filter((c) => !keep.has(c.uid))
+        if (fillerPool.length < 9) {
+          onResults([])
+          setSolveNote(
+            `Only ${fillerPool.length} spare chart${fillerPool.length === 1 ? '' : 's'} - need 9 outside your best ${KEEP_BEST} and locked charts to build a filler voyage.`,
+          )
+          return
+        }
+        const res = solve(fillerPool, state.borders, state.weights, {
+          mode: state.mode,
+          allowRotation: state.allowRotation,
+          adjacencyMode: state.adjacencyMode,
+          adjacentAffectsSelf: state.adjacentAffectsSelf,
+          disabledMods: disabled,
+          topK: 5,
+          minimizeReward: true,
+        })
+        onResults(res)
+        setSolveNote(
+          res[0]?.valid
+            ? 'Filler voyage: lowest-value runnable board from your spare charts (your best & locked charts untouched).'
+            : 'No runnable filler layout from your spare charts.',
+        )
       } finally {
         setBusy(false)
       }
@@ -125,6 +176,15 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
       <button className="primary" onClick={run} disabled={busy || state.pool.length === 0}>
         {busy ? 'Solving…' : `Solve (${state.pool.length} charts)`}
       </button>
+      <button
+        className="filler-btn"
+        onClick={runFiller}
+        disabled={busy || state.pool.length < 10}
+        title="Build a throwaway voyage from your lowest-value spare charts, keeping your best and locked charts for a real run"
+      >
+        🗑 Filler voyage (spare charts)
+      </button>
+      {solveNote && <div className="muted small-note">{solveNote}</div>}
       {state.pool.length > 9 || state.allowRotation ? (
         <div className="muted small-note">Large pool / rotation → heuristic search (near-optimal)</div>
       ) : (
@@ -162,8 +222,8 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
             {results.map((r, i) => (
               <button key={i} className={`result ${r.valid ? '' : 'invalid'}`} onClick={() => onApply(r.board)}>
                 <span>#{i + 1}</span>
-                <span>{r.score.toFixed(1)} pts</span>
-                {!r.valid && <span className="badge bad">connectors invalid</span>}
+                <span>{r.reward.toFixed(1)} pts</span>
+                {!r.valid && <span className="badge bad">not runnable</span>}
               </button>
             ))}
           </div>

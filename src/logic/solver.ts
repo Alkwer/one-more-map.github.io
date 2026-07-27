@@ -7,11 +7,16 @@ export interface SolverOptions extends ScoreOptions {
   allowRotation: boolean
   /** how many top results to return */
   topK: number
+  /** build the LOWEST-value runnable board (for a throwaway "filler" voyage) */
+  minimizeReward?: boolean
 }
 
 export interface SolverResult {
   board: Board
+  /** internal ranking objective (reward ± connection bonus − penalties) */
   score: number
+  /** the actual reward value of the board, for display */
+  reward: number
   valid: boolean
 }
 
@@ -27,12 +32,15 @@ function evaluate(
   charts: Map<string, ChartData>,
   weights: Weights,
   opts: SolverOptions,
-): { score: number; valid: boolean } {
+): { score: number; valid: boolean; reward: number } {
   const conn = checkConnectivity(board, charts, opts.mode)
   const s = scoreBoard(board, borders, charts, weights, opts)
+  // filler mode wants the least valuable runnable board, so flip the reward term
+  // while keeping the runnable requirements (connections good, violations bad)
+  const rewardTerm = opts.minimizeReward ? -s.total : s.total
   const objective =
-    s.total + conn.connections * CONNECTION_BONUS - conn.violations * VIOLATION_PENALTY
-  return { score: objective, valid: conn.valid }
+    rewardTerm + conn.connections * CONNECTION_BONUS - conn.violations * VIOLATION_PENALTY
+  return { score: objective, valid: conn.valid, reward: s.total }
 }
 
 function boardKey(board: Board): string {
@@ -57,12 +65,12 @@ export function solve(
   let top: SolverResult[] = []
   const seen = new Set<string>()
   const record = (board: Board) => {
-    const { score, valid } = evaluate(board, borders, charts, weights, opts)
+    const { score, valid, reward } = evaluate(board, borders, charts, weights, opts)
     if (top.length >= CAP && score <= top[top.length - 1].score) return
     const key = boardKey(board)
     if (seen.has(key)) return
     seen.add(key)
-    top.push({ board: board.map((p) => (p ? { ...p } : null)), score, valid })
+    top.push({ board: board.map((p) => (p ? { ...p } : null)), score, reward, valid })
     top.sort((a, b) => b.score - a.score)
     if (top.length > CAP) top = top.slice(0, CAP)
   }

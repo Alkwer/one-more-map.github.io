@@ -104,6 +104,26 @@ export default function App() {
     [state.board, chartMap, state.mode],
   )
 
+  // breakdown of the implicit mods currently on the board, by scope
+  const modCount = useMemo(() => {
+    let self = 0
+    let adjacent = 0
+    let global = 0
+    for (const p of state.board) {
+      if (!p) continue
+      const chart = chartMap.get(p.chartUid)
+      if (!chart) continue
+      for (const id of chart.modIds) {
+        const mod = voyageModById.get(id)
+        if (!mod) continue
+        if (mod.scope === 'adjacent') adjacent++
+        else if (mod.scope === 'global') global++
+        else self++
+      }
+    }
+    return { self, adjacent, global, total: self + adjacent + global }
+  }, [state.board, chartMap])
+
   // guaranteed/notable effects active on this board, with counts
   const notables = useMemo(() => {
     const counts = new Map<string, { label: string; full: string; count: number }>()
@@ -477,6 +497,16 @@ export default function App() {
                     .filter(Boolean)
                     .join(' · ')}
           </div>
+
+          {modCount.total > 0 && (
+            <div className="modcount">
+              <span className="modcount-title">Voyage Mod Count</span>
+              <span className="modcount-item scope-self">This area {modCount.self}</span>
+              <span className="modcount-item scope-adjacent">Adjacent {modCount.adjacent}</span>
+              <span className="modcount-item scope-global">Whole voyage {modCount.global}</span>
+              <span className="modcount-item modcount-conn">🔗 {conn.connections} connections</span>
+            </div>
+          )}
 
           <div className="score-panel">
             <div className="score-total">

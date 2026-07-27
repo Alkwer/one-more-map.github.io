@@ -234,6 +234,12 @@ button.primary {
 button.primary:hover {
   filter: brightness(1.15);
 }
+.filler-btn {
+  width: 100%;
+  margin-top: 6px;
+  font-family: var(--sc);
+  letter-spacing: 0.5px;
+}
 .file-btn {
   position: relative;
   overflow: hidden;
@@ -257,6 +263,33 @@ button.primary:hover {
 .import-actions .file-btn {
   white-space: nowrap;
   flex: 0 0 auto;
+}
+
+/* voyage mod-count breakdown */
+.modcount {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 6px 10px;
+  margin: 6px 0;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.25);
+  font-size: 12px;
+}
+.modcount-title {
+  font-family: var(--sc);
+  color: var(--gold-bright);
+  letter-spacing: 0.5px;
+  margin-right: 2px;
+}
+.modcount-item {
+  white-space: nowrap;
+}
+.modcount-conn {
+  color: var(--voyage-line, #5fe3c0);
+  margin-left: auto;
 }
 
 /* auto-import (AutoHotkey) help disclosure */
