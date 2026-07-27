@@ -17,6 +17,7 @@ interface Props {
   onAdd: (charts: ChartData[]) => void
   onRemove: (uid: string) => void
   onUpdate: (chart: ChartData) => void
+  onClearCharts: () => void
 }
 
 const SCOPE_REACH = { self: 1, adjacent: 3, global: 9 } as const
@@ -197,6 +198,15 @@ export function Library(props: Props) {
         </span>
         <span className="spacer" />
         <button onClick={addBlank}>+ Add chart</button>
+        {props.pool.length > 0 && (
+          <button
+            className="clear-charts"
+            onClick={props.onClearCharts}
+            title="Remove every chart from the library and clear the board (borders and weights are kept)"
+          >
+            Clear all
+          </button>
+        )}
       </div>
       {props.pool.length > 0 && (
         <div className="library-tools">

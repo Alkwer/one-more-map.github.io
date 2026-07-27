@@ -175,6 +175,13 @@ export default function App() {
       board: s.board.map((p) => (p?.chartUid === uid ? null : p)),
     }))
 
+  const clearCharts = () => {
+    if (!window.confirm('Remove all charts from the library and clear the board? (Borders and weights are kept.)'))
+      return
+    setState((s) => ({ ...s, pool: [], board: emptyBoard() }))
+    setSelectedChart(null)
+  }
+
   const updateChart = (chart: ChartData) =>
     setState((s) => ({ ...s, pool: s.pool.map((c) => (c.uid === chart.uid ? chart : c)) }))
 
@@ -392,6 +399,7 @@ export default function App() {
             onAdd={addCharts}
             onRemove={removeChart}
             onUpdate={updateChart}
+            onClearCharts={clearCharts}
           />
           <ImportPanel onImport={addCharts} state={state} onLoadState={setState} />
         </section>

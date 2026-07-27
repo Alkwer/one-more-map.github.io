@@ -303,6 +303,16 @@ button.primary:hover {
   flex: 0 0 auto;
 }
 
+.clear-charts {
+  margin-left: 6px;
+  font-size: 12px;
+  color: #c98b8b;
+}
+.clear-charts:hover {
+  color: #e8a0a0;
+  border-color: #7a4a4a;
+}
+
 /* collapsible reward-weights panel */
 .weights-panel {
   margin: 4px 0;
