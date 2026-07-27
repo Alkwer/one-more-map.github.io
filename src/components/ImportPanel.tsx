@@ -149,8 +149,7 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
             press <kbd>F8</kbd>. (Edit GridCols/GridRows in the file if your panel isn't 6×10.)
           </li>
           <li>
-            <kbd>F4</kbd> tests one copy · <kbd>F5</kbd> dry-runs the aim · <kbd>F6</kbd> runs the
-            import · <kbd>F9</kbd> aborts.
+            <kbd>F9</kbd> runs the import · <kbd>F10</kbd> aborts.
           </li>
         </ol>
         <p className="muted small">

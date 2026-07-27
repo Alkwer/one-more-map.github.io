@@ -32,10 +32,8 @@ CoordMode "Mouse", "Screen"  ; all coords are absolute screen pixels
 ;   - Set GridCols / GridRows below to match your panel.
 ;
 ;  RUN
-;   F4 = test one copy (hover top-left, shows what PoE copied)
-;   F5 = dry run (mouse walks every cell, no copy/paste) to check aim
-;   F6 = do the real import sweep
-;   F9 = abort at any time
+;   F9  = do the real import sweep
+;   F10 = abort at any time
 ;
 ;  If PoE is running as administrator, run this script as admin too,
 ;  or its keypresses won't reach the game. Don't touch the mouse or
@@ -53,7 +51,6 @@ ActivateDelay := 60    ; ms after focusing a window (paid only ~twice total now)
 HoverDelay    := 28    ; ms for PoE to register the cursor before Ctrl+C
 PasteDelay    := 90    ; ms after the single big paste
 ClipTimeout   := 0.2   ; seconds to wait for Ctrl+C (only empty cells wait the full time)
-StepDelay     := 40    ; ms between cells in the F5 dry run
 ; If it ever MISSES a chart, raise HoverDelay ~10ms at a time (the cursor
 ; isn't settling before Ctrl+C). If the final paste drops some, raise PasteDelay.
 ; ----------------------------------------
@@ -97,61 +94,15 @@ F8:: {
     Flash "Bottom-right set: " BRx ", " BRy
 }
 
-; ---- F4: single-copy test ----
-F4:: {
-    global
-    if !Calibrated() {
-        MsgBox "Calibrate first (F7 top-left, F8 bottom-right)."
-        return
-    }
-    if !WinExist(PoeWinTitle) {
-        MsgBox "Can't find the PoE window."
-        return
-    }
-    WinActivate PoeWinTitle
-    WinWaitActive PoeWinTitle, , 2
-    Sleep ActivateDelay
-    A_Clipboard := ""
-    p := CellPos(0, 0)
-    MouseMove p[1], p[2], 0
-    Sleep HoverDelay
-    Send "^c"
-    if !ClipWait(ClipTimeout) {
-        Flash "Nothing copied - check aim / that Ctrl+C copies items in PoE.", 3000
-        return
-    }
-    first := StrSplit(A_Clipboard, "`n")
-    Flash "Copied: " (first.Length ? first[1] : "?"), 3500
-}
-
-; ---- F5: dry run (no copy/paste) ----
-F5:: {
-    global
-    if !Calibrated() {
-        MsgBox "Calibrate first (F7 top-left, F8 bottom-right)."
-        return
-    }
-    Loop GridRows {
-        r := A_Index - 1
-        Loop GridCols {
-            c := A_Index - 1
-            p := CellPos(r, c)
-            MouseMove p[1], p[2], 2
-            Sleep StepDelay
-        }
-    }
-    Flash "Dry run done."
-}
-
-; ---- F9: abort ----
-F9:: {
+; ---- F10: abort ----
+F10:: {
     global Running
     Running := false
     Flash "Aborting..."
 }
 
-; ---- F6: the real import sweep ----
-F6:: {
+; ---- F9: the real import sweep ----
+F9:: {
     global
     if !Calibrated() {
         MsgBox "Calibrate first (F7 top-left, F8 bottom-right)."
@@ -205,7 +156,7 @@ F6:: {
             copied++
             ToolTip "Copying... row " (r+1) " col " (c+1)
                 . "`ncharts " copied "   skipped " skipped
-                . "`n(F9 to abort)"
+                . "`n(F10 to abort)"
         }
     }
 
