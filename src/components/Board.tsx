@@ -23,6 +23,8 @@ interface Props {
   onFinishVoyage: () => void
   onCopySequence: () => void
   voyageMsg: string
+  /** a copy/preserve step-through is active - hide the action buttons to avoid confusion */
+  sequenceActive?: boolean
 }
 
 function BorderSelect({
@@ -396,25 +398,27 @@ export function BoardView(props: Props) {
         <span className="legend-item scope-adjacent">■ adjacent</span>
         <span className="legend-item scope-global">■ whole voyage</span>
       </div>
-      <div className="voyage-finish">
-        <button
-          className="copy-into-game"
-          disabled={board.every((p) => !p)}
-          onClick={props.onCopySequence}
-          title="Step through each square in the in-game placement order (bottom-left first), copying its chart so you can Ctrl+Left-click them in the right order."
-        >
-          📋 Copy into game
-        </button>
-        <button
-          className="finish-voyage"
-          disabled={board.every((p) => !p)}
-          onClick={props.onFinishVoyage}
-          title="Consume the charts on the board (they're used up), keeping any you've marked Preserved (🔒). Clears the board for the next voyage."
-        >
-          🌊 Finish Voyage
-        </button>
-        {props.voyageMsg && <span className="voyage-msg">{props.voyageMsg}</span>}
-      </div>
+      {!props.sequenceActive && (
+        <div className="voyage-finish">
+          <button
+            className="copy-into-game"
+            disabled={board.every((p) => !p)}
+            onClick={props.onCopySequence}
+            title="Step through each square in the in-game placement order (bottom-left first), copying its chart so you can Ctrl+Left-click them in the right order."
+          >
+            📋 Copy into game
+          </button>
+          <button
+            className="finish-voyage"
+            disabled={board.every((p) => !p)}
+            onClick={props.onFinishVoyage}
+            title="Consume the charts on the board (they're used up), keeping any you've marked Preserved (🔒). Clears the board for the next voyage."
+          >
+            🌊 Finish Voyage
+          </button>
+          {props.voyageMsg && <span className="voyage-msg">{props.voyageMsg}</span>}
+        </div>
+      )}
     </div>
   )
 }

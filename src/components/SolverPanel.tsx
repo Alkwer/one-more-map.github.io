@@ -148,12 +148,13 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
         Adjacent modifiers also affect their own area
       </label>
 
-      <div className="panel-title small">Reward weights</div>
-      <div className="muted small-note" style={{ marginTop: 0 }}>
-        Your personal priorities - slide up what you value. Each reward is weighted on its own.
-      </div>
-      <div className="weights">
-        {GROUP_ORDER.map((group) => {
+      <details className="weights-panel">
+        <summary className="panel-title small weights-summary">Reward weights</summary>
+        <div className="muted small-note" style={{ marginTop: 0 }}>
+          Your personal priorities - slide up what you value. Each reward is weighted on its own.
+        </div>
+        <div className="weights">
+          {GROUP_ORDER.map((group) => {
           const rows = REWARD_TYPES.filter((r) => r.group === group)
           if (rows.length === 0) return null
           return (
@@ -178,7 +179,8 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
             </div>
           )
         })}
-      </div>
+        </div>
+      </details>
 
       <button className="primary" onClick={run} disabled={busy || state.pool.length === 0}>
         {busy ? 'Solving…' : `Solve (${state.pool.length} charts)`}

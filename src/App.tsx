@@ -249,6 +249,22 @@ export default function App() {
     else setCopySeq({ ...copySeq, step: copySeq.step + 1 })
   }
 
+  // while stepping, Ctrl+C copies the current square and advances; Esc cancels
+  useEffect(() => {
+    if (!copySeq) return
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault()
+        copyCurrentAndAdvance()
+      } else if (e.key === 'Escape') {
+        setCopySeq(null)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [copySeq])
+
   // step through each preserved chart, one at a time, its board tile highlighted
   const decidePreserve = (survived: boolean) => {
     if (!preserveConfirm) return
@@ -425,6 +441,7 @@ export default function App() {
             onFinishVoyage={finishVoyage}
             onCopySequence={startCopySeq}
             voyageMsg={voyageMsg}
+            sequenceActive={!!copySeq || !!preserveConfirm}
           />
 
           {copySeq && (
@@ -447,11 +464,12 @@ export default function App() {
                   </>
                 )
               })()}
-              <div className="pc-actions">
-                <button className="pc-kept" onClick={copyCurrentAndAdvance}>
+              <div className="copyseq-actions">
+                <button className="copyseq-go" onClick={copyCurrentAndAdvance}>
                   {copySeq.step + 1 >= copySeq.order.length
                     ? '📋 Copy last & finish'
                     : '📋 Copy & next'}
+                  <span className="copyseq-hint">or press Ctrl+C</span>
                 </button>
                 <button className="pc-lost" onClick={() => setCopySeq(null)}>
                   Cancel

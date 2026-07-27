@@ -265,6 +265,72 @@ button.primary:hover {
   flex: 0 0 auto;
 }
 
+/* copy-into-game step: make the copy action dominant */
+.copyseq-actions {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  margin-top: 8px;
+}
+.copyseq-go {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-family: var(--sc);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 18px 12px;
+  color: var(--gold-bright);
+  background: linear-gradient(180deg, #6d5426 0%, #4c3a17 55%, #382a0f 100%);
+  border: 1px solid #8a713d;
+  text-shadow: 0 1px 2px #000;
+}
+.copyseq-go:hover {
+  filter: brightness(1.15);
+}
+.copyseq-hint {
+  font-family: var(--serif);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.3px;
+  opacity: 0.8;
+}
+.copyseq-actions .pc-lost {
+  flex: 0 0 auto;
+}
+
+/* collapsible reward-weights panel */
+.weights-panel {
+  margin: 4px 0;
+}
+.weights-summary {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.weights-summary::-webkit-details-marker {
+  display: none;
+}
+.weights-summary::before {
+  content: '▸';
+  font-size: 11px;
+  color: var(--gold-dim);
+  transition: transform 0.12s ease;
+}
+.weights-panel[open] .weights-summary::before {
+  transform: rotate(90deg);
+}
+.weights-summary:hover {
+  color: var(--gold-bright);
+}
+
 /* reward-weight groups (by scope) */
 .weight-group {
   margin-bottom: 8px;
