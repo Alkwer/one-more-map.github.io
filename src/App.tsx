@@ -467,6 +467,9 @@ export default function App() {
                     conn.mismatches > 0
                       ? `✗ ${conn.mismatches} connector mismatch${conn.mismatches === 1 ? '' : 'es'}`
                       : null,
+                    conn.disconnected > 0
+                      ? `${conn.disconnected} chart${conn.disconnected === 1 ? '' : 's'} not linked to the ⚓ start`
+                      : null,
                     conn.unfilled > 0
                       ? `${conn.unfilled} empty square${conn.unfilled === 1 ? '' : 's'} (all 9 must be filled)`
                       : null,

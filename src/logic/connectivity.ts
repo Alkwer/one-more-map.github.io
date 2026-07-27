@@ -1,4 +1,5 @@
 import type { Board, ChartData, ConnectivityMode, Edges } from '../types'
+import { START_CELL } from '../types'
 
 /** Rotate edges r × 90° clockwise. */
 export function rotateEdges(edges: Edges, r: number): Edges {
@@ -22,20 +23,25 @@ export interface ConnectivityResult {
   mismatches: number
   /** empty squares (a real voyage always uses all 9) */
   unfilled: number
+  /** placed charts that can't be reached from the start via matched connectors */
+  disconnected: number
+  /** number of matched connections (shared edges where both charts connect) */
+  connections: number
 }
 
 /**
  * Check the connector rules for placed tiles.
  *
- * Confirmed in-game rule (Zac, from the live board): where two placed charts
- * share an edge, either BOTH have a connector there or NEITHER does - a
- * connector meeting a blank neighbour edge is broken (shown red in game).
- * Connectors pointing off the outer board edge are fine. A voyage always fills
- * all 9 squares. The board can branch (T/Cross charts); it need not be a single
- * chain, so there is no reachability requirement.
+ * A layout is runnable when:
+ *  - every internal edge matches: where two placed charts share an edge, both
+ *    have a connector or neither does (a connector meeting a blank neighbour is
+ *    the broken red line in game). Connectors off the outer rim are fine.
+ *  - all 9 squares are filled.
+ *  - every chart is reachable from the start (bottom-left ⚓) through matched
+ *    connectors - otherwise the Voyage can't thread through the whole board and
+ *    those areas never get run.
  *
- * - 'any': connectors ignored entirely (experiment mode).
- * - anything else: the confirmed rule (no mismatches + all 9 filled).
+ * 'any' mode ignores connectors entirely (experiment mode).
  */
 export function checkConnectivity(
   board: Board,
@@ -45,8 +51,6 @@ export function checkConnectivity(
   const placedIdx = board.map((p, i) => (p ? i : -1)).filter((i) => i >= 0)
   const unfilled = 9 - placedIdx.length
 
-  if (mode === 'any') return { valid: true, violations: 0, mismatches: 0, unfilled }
-
   const edgesAt = (i: number): Edges | null => {
     const p = board[i]
     if (!p) return null
@@ -55,9 +59,10 @@ export function checkConnectivity(
     return rotateEdges(c.edges, p.rotation)
   }
 
-  // a mismatch is an internal edge where exactly one side has a connector;
-  // edges facing an empty square or the board rim don't count (only unfilled does)
+  // build the matched-connection graph and count mismatches
   let mismatches = 0
+  let connections = 0
+  const adj: number[][] = Array.from({ length: 9 }, () => [])
   for (const i of placedIdx) {
     const e = edgesAt(i)
     if (!e) continue
@@ -67,13 +72,37 @@ export function checkConnectivity(
       const nr = r + d.dr
       const nc = c + d.dc
       if (nr < 0 || nr > 2 || nc < 0 || nc > 2) continue // off-board rim: fine
-      const ne = edgesAt(nr * 3 + nc)
+      const j = nr * 3 + nc
+      const ne = edgesAt(j)
       if (!ne) continue // neighbour empty: penalised via unfilled, not here
-      if (e[d.edge] !== ne[d.opp]) mismatches++
+      if (e[d.edge] && ne[d.opp]) {
+        adj[i].push(j)
+        if (i < j) connections++
+      } else if (e[d.edge] !== ne[d.opp]) {
+        mismatches++
+      }
     }
   }
   mismatches /= 2 // each mismatched pair is seen from both tiles
 
-  const violations = mismatches + unfilled
-  return { valid: violations === 0, violations, mismatches, unfilled }
+  if (mode === 'any')
+    return { valid: true, violations: 0, mismatches: 0, unfilled, disconnected: 0, connections }
+
+  // reachability: flood-fill from the start square over matched connections
+  let disconnected = 0
+  if (placedIdx.length > 0) {
+    const root = board[START_CELL] ? START_CELL : placedIdx[0]
+    const seen = new Set<number>()
+    const stack = [root]
+    while (stack.length) {
+      const i = stack.pop()!
+      if (seen.has(i)) continue
+      seen.add(i)
+      for (const j of adj[i]) if (!seen.has(j)) stack.push(j)
+    }
+    disconnected = placedIdx.length - seen.size
+  }
+
+  const violations = mismatches + unfilled + disconnected
+  return { valid: violations === 0, violations, mismatches, unfilled, disconnected, connections }
 }

@@ -16,6 +16,10 @@ export interface SolverResult {
 }
 
 const VIOLATION_PENALTY = 10_000
+// small nudge so that among equally-rewarding runnable boards the solver prefers
+// ones with more matched connections (a better-threaded voyage; some mods scale
+// per connection). Kept low so it never outweighs real reward differences.
+const CONNECTION_BONUS = 0.15
 
 function evaluate(
   board: Board,
@@ -26,7 +30,9 @@ function evaluate(
 ): { score: number; valid: boolean } {
   const conn = checkConnectivity(board, charts, opts.mode)
   const s = scoreBoard(board, borders, charts, weights, opts)
-  return { score: s.total - conn.violations * VIOLATION_PENALTY, valid: conn.valid }
+  const objective =
+    s.total + conn.connections * CONNECTION_BONUS - conn.violations * VIOLATION_PENALTY
+  return { score: objective, valid: conn.valid }
 }
 
 function boardKey(board: Board): string {
