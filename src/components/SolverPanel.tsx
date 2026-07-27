@@ -4,7 +4,7 @@ import { solve, type SolverResult } from '../logic/solver'
 import type { AppState } from '../logic/storage'
 import type { AdjacencyMode } from '../logic/scoring'
 import type { Board, ConnectivityMode } from '../types'
-import { ALL_STATS, STAT_DESC, STAT_LABELS } from '../types'
+import { GROUP_LABEL, GROUP_ORDER, REWARD_TYPES } from '../logic/rewards'
 import { displayValue } from './Library'
 
 /** how many of your best charts to hold back from a filler voyage (one full board) */
@@ -150,27 +150,34 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
 
       <div className="panel-title small">Reward weights</div>
       <div className="muted small-note" style={{ marginTop: 0 }}>
-        Your personal priorities - slide up what you value. Hover a label for what it covers.
+        Your personal priorities - slide up what you value. Each reward is weighted on its own.
       </div>
       <div className="weights">
-        {ALL_STATS.map((s) => (
-          <div key={s} className="weight-row">
-            <span className="weight-label" title={STAT_DESC[s]}>
-              {STAT_LABELS[s]}
-            </span>
-            <input
-              type="range"
-              min={0}
-              max={10}
-              step={1}
-              value={state.weights[s]}
-              onChange={(e) =>
-                onPatch({ weights: { ...state.weights, [s]: parseInt(e.target.value, 10) } })
-              }
-            />
-            <span className="weight-val">{state.weights[s]}</span>
-          </div>
-        ))}
+        {GROUP_ORDER.map((group) => {
+          const rows = REWARD_TYPES.filter((r) => r.group === group)
+          if (rows.length === 0) return null
+          return (
+            <div key={group} className="weight-group">
+              <div className="weight-group-title">{GROUP_LABEL[group]}</div>
+              {rows.map((r) => (
+                <div key={r.key} className="weight-row">
+                  <span className="weight-label">{r.label}</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={10}
+                    step={1}
+                    value={state.weights[r.key] ?? r.default}
+                    onChange={(e) =>
+                      onPatch({ weights: { ...state.weights, [r.key]: parseInt(e.target.value, 10) } })
+                    }
+                  />
+                  <span className="weight-val">{state.weights[r.key] ?? r.default}</span>
+                </div>
+              ))}
+            </div>
+          )
+        })}
       </div>
 
       <button className="primary" onClick={run} disabled={busy || state.pool.length === 0}>

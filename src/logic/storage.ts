@@ -1,6 +1,7 @@
 import type { AdjacencyMode } from './scoring'
 import type { Board, Borders, ChartData, ConnectivityMode, Weights } from '../types'
-import { DEFAULT_WEIGHTS, emptyBoard, emptyBorders } from '../types'
+import { emptyBoard, emptyBorders } from '../types'
+import { DEFAULT_WEIGHTS } from './rewards'
 
 export interface AppState {
   pool: ChartData[]

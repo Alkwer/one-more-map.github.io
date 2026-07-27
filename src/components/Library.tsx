@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { VOYAGE_MODS, voyageModById } from '../data/mods'
+import { voyageRewardKey } from '../logic/rewards'
 import { newUid } from '../logic/parser'
 import type { Board, ChartData, Edges, Weights } from '../types'
 import { STAT_LABELS, STAT_SHORT } from '../types'
@@ -27,7 +28,8 @@ function chartValue(chart: ChartData, weights: Weights, disabled: Set<string>): 
     if (disabled.has(id)) continue
     const mod = voyageModById.get(id)
     if (!mod) continue
-    for (const e of mod.effects) v += (weights[e.stat] ?? 0) * e.percent * SCOPE_REACH[mod.scope]
+    const w = weights[voyageRewardKey(mod)] ?? 0
+    for (const e of mod.effects) v += w * e.percent * SCOPE_REACH[mod.scope]
   }
   // header reward sub-stats are shown but not scored; a chart's worth is its implicit
   return v

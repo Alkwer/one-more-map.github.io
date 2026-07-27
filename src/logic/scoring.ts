@@ -2,6 +2,10 @@ import { borderModById, voyageModById } from '../data/mods'
 import type { Board, Borders, ChartData, ModEffect, Stat, Weights } from '../types'
 import { ALL_STATS, borderTouches } from '../types'
 import { rotateEdges } from './connectivity'
+import { borderRewardKey, voyageRewardKey } from './rewards'
+
+/** an effect tagged with the reward-type key it should be weighted under */
+type Tagged = ModEffect & { reward: string }
 
 const NEIGHBOURS: number[][] = Array.from({ length: 9 }, (_, i) => {
   const r = Math.floor(i / 3)
@@ -96,9 +100,9 @@ export function scoreBoard(
     return opts.adjacentAffectsSelf ? [...base, i] : base
   }
 
-  // collect effects per tile
-  const tileEffects: ModEffect[][] = Array.from({ length: 9 }, () => [])
-  const globalEffects: ModEffect[] = []
+  // collect effects per tile, each tagged with its reward-type key
+  const tileEffects: Tagged[][] = Array.from({ length: 9 }, () => [])
+  const globalEffects: Tagged[] = []
 
   board.forEach((p, i) => {
     if (!p) return
@@ -109,12 +113,16 @@ export function scoreBoard(
       if (opts.disabledMods?.has(modId)) continue
       const mod = voyageModById.get(modId)
       if (!mod) continue
+      const reward = voyageRewardKey(mod)
       // magnitude + connection scaling apply to the chart's own mods
       let scale = mag
       if (mod.scaling === 'connections') scale *= connCount[i]
       else if (mod.scaling === 'inverse-connections') scale *= 4 - connCount[i]
-      const effects =
-        scale !== 1 ? mod.effects.map((e) => ({ ...e, percent: e.percent * scale })) : mod.effects
+      const effects: Tagged[] = mod.effects.map((e) => ({
+        ...e,
+        percent: scale !== 1 ? e.percent * scale : e.percent,
+        reward,
+      }))
       if (mod.scope === 'self') tileEffects[i].push(...effects)
       else if (mod.scope === 'global') globalEffects.push(...effects)
       else for (const n of adjacentTargets(i)) tileEffects[n].push(...effects)
@@ -130,17 +138,19 @@ export function scoreBoard(
     if (!mod) return
     const tile = borderTouches(seg)
     if (!board[tile]) return
-    tileEffects[tile].push(...mod.effects)
+    const reward = borderRewardKey(mod)
+    tileEffects[tile].push(...mod.effects.map((e) => ({ ...e, reward })))
     // per-connection border effects (e.g. "+50% rares per Chart connection")
     if (mod.perConnEffects && connCount[tile] > 0) {
       tileEffects[tile].push(
-        ...mod.perConnEffects.map((e) => ({ ...e, percent: e.percent * connCount[tile] })),
+        ...mod.perConnEffects.map((e) => ({ ...e, percent: e.percent * connCount[tile], reward })),
       )
     }
   })
 
-  // Additive stacking within an area (PoE "increased" convention). The game's
-  // exact stacking rules are undocumented; this stays deliberately conservative.
+  // Additive stacking within an area (PoE "increased" convention). The score
+  // total weights each reward type by the user's per-reward weight; perStat is
+  // an unweighted by-stat aggregate kept for the rewards breakdown display.
   const perStat = Object.fromEntries(ALL_STATS.map((s) => [s, 0])) as Record<Stat, number>
   const perTile: number[] = Array(9).fill(0)
   let total = 0
@@ -149,19 +159,20 @@ export function scoreBoard(
   board.forEach((p, i) => {
     if (!p) return
     placedCount++
+    const here = [...tileEffects[i], ...globalEffects]
+    // weighted tile score: sum per reward type × that reward's weight
+    const byReward = new Map<string, number>()
+    for (const e of here) byReward.set(e.reward, (byReward.get(e.reward) ?? 0) + e.percent)
     let tileScore = 0
-    for (const stat of ALL_STATS) {
-      let pct = 0
-      for (const e of tileEffects[i]) if (e.stat === stat) pct += e.percent
-      for (const e of globalEffects) if (e.stat === stat) pct += e.percent
-      if (pct !== 0) {
-        const bonus = pct / 100
-        perStat[stat] += bonus
-        tileScore += (weights[stat] ?? 0) * bonus
-      }
-    }
+    for (const [reward, pct] of byReward) tileScore += (weights[reward] ?? 0) * (pct / 100)
     perTile[i] = tileScore
     total += tileScore
+    // unweighted per-stat aggregate for the breakdown panel
+    for (const stat of ALL_STATS) {
+      let pct = 0
+      for (const e of here) if (e.stat === stat) pct += e.percent
+      if (pct !== 0) perStat[stat] += pct / 100
+    }
   })
 
   // report per-stat bonuses as the average per placed area, not a 9x sum

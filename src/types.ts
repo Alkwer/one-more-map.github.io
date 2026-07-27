@@ -183,27 +183,8 @@ export type Borders = (string | null)[]
 /** Connectivity rule - the real rule is unconfirmed pre-launch, so it's a setting. */
 export type ConnectivityMode = 'any' | 'connected' | 'strict'
 
-export type Weights = Record<Stat, number>
-
-export const DEFAULT_WEIGHTS: Weights = {
-  currency: 10,
-  gold: 3,
-  scarabs: 6,
-  divcards: 6,
-  essences: 4,
-  spirits: 3,
-  wisps: 5,
-  rares: 4,
-  magicmonsters: 2,
-  sulphur: 4,
-  packsize: 3,
-  quantity: 5,
-  rarity: 1,
-  uniques: 3,
-  treasure: 4,
-  exp: 2,
-  preserve: 3,
-}
+/** user reward priorities, keyed by reward-type key (see logic/rewards.ts) */
+export type Weights = Record<string, number>
 
 /** the Voyage starts at the bottom-left square (row 2, col 0) */
 export const START_CELL = 6

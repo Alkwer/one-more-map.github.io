@@ -6,6 +6,7 @@
 // text, level?) and whether it supports regex alternation `|` - adjust here.
 
 import { VOYAGE_MODS } from '../data/mods'
+import { voyageRewardKey } from './rewards'
 import type { VoyageModDef, Weights } from '../types'
 
 /**
@@ -29,7 +30,8 @@ export function buildBestModRegex(
   const families = new Map<string, { m: VoyageModDef; v: number }>()
   for (const m of VOYAGE_MODS) {
     if (disabledMods?.has(m.id)) continue
-    const v = m.effects.reduce((s, e) => s + (weights[e.stat] ?? 0) * e.percent, 0) * reach[m.scope]
+    const w = weights[voyageRewardKey(m)] ?? 0
+    const v = m.effects.reduce((s, e) => s + w * e.percent, 0) * reach[m.scope]
     if (v <= 0) continue
     const key = lettersOnly(m.text)
     const existing = families.get(key)
