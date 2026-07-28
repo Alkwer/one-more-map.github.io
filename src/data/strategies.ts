@@ -132,7 +132,7 @@ export const STRATEGIES: StrategyDef[] = [
     source: { label: 'Milkybk_ - Allflame Buffs and My Strategy', url: 'https://www.youtube.com/watch?v=gVKQhYxeavk' },
     guide: [
       'Builds Milky’s exact board layout: 4 Corners, 2 Straights, 3 T-junctions - 10 connections.',
-      'Golden Lantern charts on the corners + right-middle; Starfish on top/bottom-middle; Pantheon on the left-middle and centre.',
+      'Starfish always top- and bottom-middle; Pantheon only ever right-middle; Golden Lantern preferably centre.',
       'Add Possessed Rares, and if you ever see "Monsters cannot drop Equipment", run it - Rares Fracture or extra Rare Monsters also work.',
       'Corner voyage mods barely matter - use Sea-Pillar (Coral Forest) charts there for even more starfish.',
       'Save the pieces and run it fully juiced - don’t water it down. Speedrun boxes until you have them.',
@@ -150,10 +150,14 @@ export const STRATEGIES: StrategyDef[] = [
       'self:rarity': 3,
     },
     rules: [
-      // icon cells from Milky's planner: lanterns / starfish / pantheon "meat"
-      { cells: [0, 2, 5, 6, 8], modIds: ['adj-lantern'], bonus: 6 },
-      { cells: [1, 7], modIds: ['adj-star-1', 'adj-star-2'], bonus: 6 },
-      { cells: [3, 4], modIds: ['adj-pantheon'], bonus: 6 },
+      // Zac's placement rules: Starfish ALWAYS top/bottom-middle, Pantheon
+      // ONLY right-middle, Golden Lantern preferably centre. Negative bonuses
+      // actively keep the locked pieces out of every other square.
+      { cells: [1, 7], modIds: ['adj-star-1', 'adj-star-2'], bonus: 10 },
+      { cells: [0, 2, 3, 4, 5, 6, 8], modIds: ['adj-star-1', 'adj-star-2'], bonus: -60 },
+      { cells: [5], modIds: ['adj-pantheon'], bonus: 10 },
+      { cells: [0, 1, 2, 3, 4, 6, 7, 8], modIds: ['adj-pantheon'], bonus: -60 },
+      { cells: [4], modIds: ['adj-lantern'], bonus: 8 },
     ],
     layout: MEATFISH_LAYOUT,
   },

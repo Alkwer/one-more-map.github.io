@@ -198,10 +198,15 @@ function hillClimb(
           if (!target || board[cell]) continue
           const used = taken()
           const wanted = opts.strategyRules
-            ?.filter((ru) => ru.cells.includes(cell) && ru.modIds)
+            ?.filter((ru) => ru.cells.includes(cell) && ru.modIds && ru.bonus > 0)
+            .flatMap((ru) => ru.modIds!)
+          const banned = opts.strategyRules
+            ?.filter((ru) => ru.cells.includes(cell) && ru.modIds && ru.bonus < 0)
             .flatMap((ru) => ru.modIds!)
           const fits = (c: ChartData) =>
-            !used.has(c.uid) && rotationFor(c.edges, target, rotMax) !== null
+            !used.has(c.uid) &&
+            rotationFor(c.edges, target, rotMax) !== null &&
+            !(banned?.length && c.modIds.some((id) => banned.includes(id)))
           const pick =
             (wanted?.length
               ? shuffled.find((c) => fits(c) && c.modIds.some((id) => wanted.includes(id)))
