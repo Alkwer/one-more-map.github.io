@@ -32,7 +32,22 @@ export interface StrategyDef {
   /** exact connector layout to build (effective edges [N,E,S,W] per cell after
    *  rotation) - the solver treats any deviation as a heavy penalty */
   layout?: Edges[]
+  /** charts carrying these mods are held back entirely while this strategy is
+   *  active - they're the pieces another strategy is saving up for */
+  reserveModIds?: string[]
 }
+
+/** the pieces Meatfish (and Magic Ethereal) are saving up - the interim
+ *  Speedrun farm must never burn these */
+const JUICE_PIECES = [
+  'adj-star-1', 'adj-star-2',
+  'adj-pantheon',
+  'adj-lantern',
+  'voy-possess', 'voy-fracture', 'voy-rare', 'voy-noequip',
+  'adj-wisps-1', 'adj-wisps-2',
+  'adj-magic-1', 'adj-magic-2',
+  'voy-minmagic',
+]
 
 const CENTER = [4]
 const EDGES = [1, 3, 5, 7]
@@ -87,6 +102,7 @@ export const STRATEGIES: StrategyDef[] = [
       'Corners are throwaways: anything that makes the connectors line up.',
       'Take Alchemy, Scouring and Exalted orbs in to juice every box before opening.',
       'Speed matters: place lanterns, click everything, open the boxes, leave. ~½ div of sulphur plus scarabs, decks and div cards per run.',
+      'Never burns your juice pieces: Starfish, Pantheon, Lantern, Possessed, Fracture, Rares, No-Equipment, Wisp and Magic charts are held back for Meatfish / Ethereal.',
     ],
     weights: {
       'adjacent:divbox': 10,
@@ -95,7 +111,6 @@ export const STRATEGIES: StrategyDef[] = [
       'adjacent:box': 8,
       'self:quant': 8,
       'voyage:quant': 5,
-      'adjacent:lantern': 6,
       'voyage:sulph': 3,
       'self:sulph': 3,
       'border:quantconn': 6,
@@ -103,6 +118,7 @@ export const STRATEGIES: StrategyDef[] = [
       'border:exalt': 3,
       'border:ancient': 3,
     },
+    reserveModIds: JUICE_PIECES,
     rules: [
       { cells: CENTER, modIds: BOX_MODS, bonus: 15 },
       { cells: EDGES, rewardStat: { stat: 'quantity', per: 4 }, bonus: 0 },

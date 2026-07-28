@@ -49,7 +49,13 @@ export function SolverPanel({ state, activeStrategy, onPatch, results, onResults
     // let the UI paint the busy state before the (synchronous) solve
     window.setTimeout(() => {
       try {
-        const res = solve(state.pool, state.borders, weights, {
+        // strategy reservations: hold back charts another strategy is saving for
+        const reserve = activeStrategy?.reserveModIds
+        const solvePool = reserve?.length
+          ? state.pool.filter((c) => !c.modIds.some((id) => reserve.includes(id)))
+          : state.pool
+        const heldBack = state.pool.length - solvePool.length
+        const res = solve(solvePool, state.borders, weights, {
           mode: state.mode,
           allowRotation: state.allowRotation,
           adjacencyMode: state.adjacencyMode,
@@ -60,8 +66,14 @@ export function SolverPanel({ state, activeStrategy, onPatch, results, onResults
           strategyLayout: activeStrategy?.layout,
         })
         onResults(res)
-        if (res.length && !res[0].valid)
-          setSolveNote('No fully runnable layout from these charts - best partial shown.')
+        const notes: string[] = []
+        if (heldBack > 0)
+          notes.push(`${heldBack} juice chart${heldBack === 1 ? '' : 's'} held back for Meatfish/Ethereal.`)
+        if (solvePool.length < 9)
+          notes.push(`Only ${solvePool.length} spare charts - not enough for a full board.`)
+        else if (res.length && !res[0].valid)
+          notes.push('No fully runnable layout from these charts - best partial shown.')
+        setSolveNote(notes.join(' '))
       } finally {
         setBusy(false)
       }
