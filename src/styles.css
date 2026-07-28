@@ -403,6 +403,26 @@ button.primary:hover {
   color: #e3c7ff;
   text-decoration: underline;
 }
+.strat-notready {
+  margin: 4px 10px;
+  padding: 6px 8px;
+  border: 1px solid #8a5a3a;
+  border-radius: 3px;
+  background: rgba(120, 60, 20, 0.2);
+  color: #e8b48a;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+.strat-ready {
+  margin: 4px 10px;
+  padding: 4px 8px;
+  border: 1px solid #3a6a4a;
+  border-radius: 3px;
+  background: rgba(30, 90, 50, 0.15);
+  color: #9fd6ae;
+  font-size: 11px;
+  line-height: 1.4;
+}
 .strat-use {
   display: block;
   width: calc(100% - 20px);

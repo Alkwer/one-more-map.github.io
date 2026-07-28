@@ -590,6 +590,7 @@ export default function App() {
         <section className="col solver-col">
           <StrategiesPanel
             activeId={state.strategyId}
+            pool={state.pool}
             onSelect={(id) => patch({ strategyId: id })}
           />
           <SolverPanel

@@ -39,6 +39,11 @@ export interface StrategyDef {
   /** charts carrying these mods are held back entirely while this strategy is
    *  active - they're the pieces another strategy is saving up for */
   reserveModIds?: string[]
+  /** pieces the strategy needs before it's worth running; if the library
+   *  can't supply them the UI says to avoid this voyage and wait */
+  requirements?: { modIds: string[]; count: number; label: string }[]
+  /** what to do instead while pieces are missing */
+  waitHint?: string
 }
 
 /** the pieces Meatfish (and Magic Ethereal) are saving up - the interim
@@ -128,6 +133,10 @@ export const STRATEGIES: StrategyDef[] = [
       { cells: EDGES, rewardStat: { stat: 'quantity', per: 4 }, bonus: 0 },
       { cells: EDGES, modIds: ['cm-quant-20', 'cm-quant-28', 'cm-quant-32', 'cm-quant-45'], bonus: 3 },
     ],
+    requirements: [
+      { modIds: BOX_MODS, count: 1, label: 'Strongbox adjacent chart (centre)' },
+    ],
+    waitHint: 'Run manual boards until one drops.',
   },
   {
     id: 'milky-meatfish',
@@ -168,6 +177,12 @@ export const STRATEGIES: StrategyDef[] = [
     // soft: a full-board layout deviation (9 cells × 6) must still cost less
     // than any single piece bonus, so lines always yield to piece locations
     layoutPenalty: 6,
+    requirements: [
+      { modIds: ['adj-star-1', 'adj-star-2'], count: 2, label: 'Giant Starfish chart' },
+      { modIds: ['adj-pantheon'], count: 1, label: 'Pantheon chart' },
+      { modIds: ['adj-lantern'], count: 4, label: 'Golden Lantern chart' },
+    ],
+    waitHint: 'Speedrun Strongboxes in the meantime.',
   },
   {
     id: 'milky-ethereal',
@@ -198,6 +213,11 @@ export const STRATEGIES: StrategyDef[] = [
       { cells: CENTER, modIds: ['adj-magic-1', 'adj-magic-2', 'adj-wisps-1', 'adj-wisps-2'], bonus: 5 },
     ],
     layout: ETHEREAL_LAYOUT,
+    requirements: [
+      { modIds: ['adj-wisps-1', 'adj-wisps-2'], count: 4, label: 'Wildwood Wisp chart' },
+      { modIds: ['adj-lantern'], count: 3, label: 'Golden Lantern chart' },
+    ],
+    waitHint: 'Speedrun Strongboxes in the meantime.',
   },
 ]
 
