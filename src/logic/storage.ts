@@ -14,6 +14,8 @@ export interface AppState {
   adjacentAffectsSelf: boolean
   /** mod ids the user has switched off; they contribute nothing to any scoring */
   disabledMods: string[]
+  /** active curated strategy id (overrides weights + shapes the solver) or null */
+  strategyId: string | null
 }
 
 export const defaultState = (): AppState => ({
@@ -26,6 +28,7 @@ export const defaultState = (): AppState => ({
   adjacencyMode: 'physical',
   adjacentAffectsSelf: false,
   disabledMods: [],
+  strategyId: null,
 })
 
 const LS_KEY = 'allflame-voyage-solver'
@@ -90,5 +93,6 @@ function revive(obj: unknown): AppState {
     disabledMods: Array.isArray(o.disabledMods)
       ? o.disabledMods.filter((x): x is string => typeof x === 'string')
       : d.disabledMods,
+    strategyId: typeof o.strategyId === 'string' ? o.strategyId : null,
   }
 }

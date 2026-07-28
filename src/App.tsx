@@ -9,6 +9,8 @@ import { ImportPanel } from './components/ImportPanel'
 import { Library } from './components/Library'
 import { SolverPanel } from './components/SolverPanel'
 import { borderModById, voyageModById } from './data/mods'
+import { strategyById } from './data/strategies'
+import { StrategiesPanel } from './components/StrategiesPanel'
 import { scoreBoard } from './logic/scoring'
 import { checkConnectivity } from './logic/connectivity'
 import type { SolverResult } from './logic/solver'
@@ -82,9 +84,12 @@ export default function App() {
 
   const chartMap = useMemo(() => new Map(state.pool.map((c) => [c.uid, c])), [state.pool])
   const disabledSet = useMemo(() => new Set(state.disabledMods), [state.disabledMods])
+  // active curated strategy: while set, its weights override the manual sliders
+  const activeStrategy = state.strategyId ? strategyById.get(state.strategyId) ?? null : null
+  const effectiveWeights = activeStrategy ? activeStrategy.weights : state.weights
   const score = useMemo(
     () =>
-      scoreBoard(state.board, state.borders, chartMap, state.weights, {
+      scoreBoard(state.board, state.borders, chartMap, effectiveWeights, {
         adjacencyMode: state.adjacencyMode,
         adjacentAffectsSelf: state.adjacentAffectsSelf,
         disabledMods: disabledSet,
@@ -93,7 +98,7 @@ export default function App() {
       state.board,
       state.borders,
       chartMap,
-      state.weights,
+      effectiveWeights,
       state.adjacencyMode,
       state.adjacentAffectsSelf,
       disabledSet,
@@ -389,7 +394,7 @@ export default function App() {
           <Library
             pool={state.pool}
             board={state.board}
-            weights={state.weights}
+            weights={effectiveWeights}
             disabledMods={disabledSet}
             selected={selectedChart}
             onSelect={(uid) => {
@@ -583,8 +588,13 @@ export default function App() {
         </section>
 
         <section className="col solver-col">
+          <StrategiesPanel
+            activeId={state.strategyId}
+            onSelect={(id) => patch({ strategyId: id })}
+          />
           <SolverPanel
             state={state}
+            activeStrategy={activeStrategy}
             onPatch={patch}
             results={results}
             onResults={setResults}

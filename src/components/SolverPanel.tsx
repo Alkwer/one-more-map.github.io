@@ -4,6 +4,7 @@ import { solve, type SolverResult } from '../logic/solver'
 import type { AppState } from '../logic/storage'
 import type { AdjacencyMode } from '../logic/scoring'
 import type { Board, ConnectivityMode } from '../types'
+import type { StrategyDef } from '../data/strategies'
 import { GROUP_LABEL, GROUP_ORDER, REWARD_TYPES } from '../logic/rewards'
 import { displayValue } from './Library'
 
@@ -12,20 +13,24 @@ const KEEP_BEST = 9
 
 interface Props {
   state: AppState
+  /** curated strategy currently overriding weights, or null for manual */
+  activeStrategy: StrategyDef | null
   onPatch: (p: Partial<AppState>) => void
   results: SolverResult[]
   onResults: (r: SolverResult[]) => void
   onApply: (board: Board) => void
 }
 
-export function SolverPanel({ state, onPatch, results, onResults, onApply }: Props) {
+export function SolverPanel({ state, activeStrategy, onPatch, results, onResults, onApply }: Props) {
   const [busy, setBusy] = useState(false)
   const [regexCap, setRegexCap] = useState(50)
   const [copied, setCopied] = useState(false)
   const [solveNote, setSolveNote] = useState('')
+  // while a strategy is active it overrides the manual weights everywhere here
+  const weights = activeStrategy ? activeStrategy.weights : state.weights
   const bestRegex = useMemo(
-    () => buildBestModRegex(state.weights, regexCap, new Set(state.disabledMods)),
-    [state.weights, regexCap, state.disabledMods],
+    () => buildBestModRegex(weights, regexCap, new Set(state.disabledMods)),
+    [weights, regexCap, state.disabledMods],
   )
 
   const copyRegex = async () => {
@@ -44,13 +49,14 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
     // let the UI paint the busy state before the (synchronous) solve
     window.setTimeout(() => {
       try {
-        const res = solve(state.pool, state.borders, state.weights, {
+        const res = solve(state.pool, state.borders, weights, {
           mode: state.mode,
           allowRotation: state.allowRotation,
           adjacencyMode: state.adjacencyMode,
           adjacentAffectsSelf: state.adjacentAffectsSelf,
           disabledMods: new Set(state.disabledMods),
           topK: 5,
+          strategyRules: activeStrategy?.rules,
         })
         onResults(res)
         if (res.length && !res[0].valid)
@@ -72,7 +78,7 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
         const keep = new Set<string>()
         state.pool.forEach((c) => c.preserved && keep.add(c.uid))
         ;[...state.pool]
-          .sort((a, b) => displayValue(b, state.weights, disabled) - displayValue(a, state.weights, disabled))
+          .sort((a, b) => displayValue(b, weights, disabled) - displayValue(a, weights, disabled))
           .slice(0, KEEP_BEST)
           .forEach((c) => keep.add(c.uid))
         const fillerPool = state.pool.filter((c) => !keep.has(c.uid))
@@ -83,7 +89,7 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
           )
           return
         }
-        const res = solve(fillerPool, state.borders, state.weights, {
+        const res = solve(fillerPool, state.borders, weights, {
           mode: state.mode,
           allowRotation: state.allowRotation,
           adjacencyMode: state.adjacencyMode,
@@ -148,12 +154,21 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
         Adjacent modifiers also affect their own area
       </label>
 
+      {activeStrategy && (
+        <div className="strat-override-note">
+          ⚑ <strong>{activeStrategy.name}</strong> is steering the solver - your manual weights
+          below are ignored while it's active.
+        </div>
+      )}
+
       <details className="weights-panel">
-        <summary className="panel-title small weights-summary">Reward weights</summary>
+        <summary className="panel-title small weights-summary">
+          Reward weights{activeStrategy ? ' (overridden)' : ''}
+        </summary>
         <div className="muted small-note" style={{ marginTop: 0 }}>
           Your personal priorities - slide up what you value. Each reward is weighted on its own.
         </div>
-        <div className="weights">
+        <div className={`weights ${activeStrategy ? 'weights-overridden' : ''}`}>
           {GROUP_ORDER.map((group) => {
           const rows = REWARD_TYPES.filter((r) => r.group === group)
           if (rows.length === 0) return null
@@ -168,6 +183,7 @@ export function SolverPanel({ state, onPatch, results, onResults, onApply }: Pro
                     min={0}
                     max={10}
                     step={1}
+                    disabled={!!activeStrategy}
                     value={state.weights[r.key] ?? r.default}
                     onChange={(e) =>
                       onPatch({ weights: { ...state.weights, [r.key]: parseInt(e.target.value, 10) } })

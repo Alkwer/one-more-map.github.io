@@ -1,4 +1,5 @@
 import type { Board, Borders, ChartData, ConnectivityMode, Placement, Weights } from '../types'
+import type { PositionRule } from '../data/strategies'
 import { checkConnectivity } from './connectivity'
 import { scoreBoard, type ScoreOptions } from './scoring'
 
@@ -9,6 +10,27 @@ export interface SolverOptions extends ScoreOptions {
   topK: number
   /** build the LOWEST-value runnable board (for a throwaway "filler" voyage) */
   minimizeReward?: boolean
+  /** active strategy position rules - bonuses that shape where charts land */
+  strategyRules?: PositionRule[]
+}
+
+/** objective bonus from strategy position rules for this arrangement */
+function strategyBonus(board: Board, charts: Map<string, ChartData>, rules: PositionRule[]): number {
+  let bonus = 0
+  for (const rule of rules) {
+    for (const cell of rule.cells) {
+      const p = board[cell]
+      if (!p) continue
+      const chart = charts.get(p.chartUid)
+      if (!chart) continue
+      if (rule.modIds && chart.modIds.some((id) => rule.modIds!.includes(id))) bonus += rule.bonus
+      if (rule.rewardStat) {
+        const r = chart.rewards?.find((e) => e.stat === rule.rewardStat!.stat)
+        if (r) bonus += (r.percent / 100) * rule.rewardStat.per
+      }
+    }
+  }
+  return bonus
 }
 
 export interface SolverResult {
@@ -38,8 +60,9 @@ function evaluate(
   // filler mode wants the least valuable runnable board, so flip the reward term
   // while keeping the runnable requirements (connections good, violations bad)
   const rewardTerm = opts.minimizeReward ? -s.total : s.total
+  const strat = opts.strategyRules ? strategyBonus(board, charts, opts.strategyRules) : 0
   const objective =
-    rewardTerm + conn.connections * CONNECTION_BONUS - conn.violations * VIOLATION_PENALTY
+    rewardTerm + strat + conn.connections * CONNECTION_BONUS - conn.violations * VIOLATION_PENALTY
   return { score: objective, valid: conn.valid, reward: s.total }
 }
 
@@ -128,10 +151,31 @@ function hillClimb(
     // random initial: shuffle pool, take up to 9
     const shuffled = [...pool].sort(() => Math.random() - 0.5)
     const board: Board = Array(9).fill(null)
-    for (let i = 0; i < Math.min(9, shuffled.length); i++) {
-      board[i] = { chartUid: shuffled[i].uid, rotation: Math.floor(Math.random() * rotMax) }
+
+    // strategy-seeded restarts (every other one): pre-place a rule-matching
+    // chart on its target cell so rare shapes (e.g. a single End-shaped box
+    // chart that belongs in the centre) aren't left to random luck
+    if (opts.strategyRules && r % 2 === 0) {
+      for (const rule of opts.strategyRules) {
+        if (!rule.modIds || rule.bonus <= 0) continue
+        for (const cell of rule.cells) {
+          if (board[cell]) continue
+          const idx = shuffled.findIndex(
+            (c) => !board.some((p) => p?.chartUid === c.uid) && c.modIds.some((id) => rule.modIds!.includes(id)),
+          )
+          if (idx < 0) break
+          board[cell] = { chartUid: shuffled[idx].uid, rotation: Math.floor(Math.random() * rotMax) }
+        }
+      }
     }
-    const unused = shuffled.slice(9)
+
+    const remaining = shuffled.filter((c) => !board.some((p) => p?.chartUid === c.uid))
+    let ri = 0
+    for (let i = 0; i < 9 && ri < remaining.length; i++) {
+      if (board[i]) continue
+      board[i] = { chartUid: remaining[ri++].uid, rotation: Math.floor(Math.random() * rotMax) }
+    }
+    const unused = remaining.slice(ri)
     let score = evalScore(board)
 
     for (let it = 0; it < ITERS; it++) {
