@@ -591,6 +591,7 @@ export default function App() {
           <StrategiesPanel
             activeId={state.strategyId}
             pool={state.pool}
+            borders={state.borders}
             onSelect={(id) => patch({ strategyId: id })}
           />
           <SolverPanel

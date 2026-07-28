@@ -51,9 +51,13 @@ export function SolverPanel({ state, activeStrategy, onPatch, results, onResults
       try {
         // strategy reservations: hold back charts another strategy is saving for
         const reserve = activeStrategy?.reserveModIds
-        const solvePool = reserve?.length
-          ? state.pool.filter((c) => !c.modIds.some((id) => reserve.includes(id)))
-          : state.pool
+        const reserveNames = activeStrategy?.reserveNames
+        const solvePool = state.pool.filter(
+          (c) =>
+            !(reserve?.length && c.modIds.some((id) => reserve.includes(id))) &&
+            !(reserveNames?.length &&
+              reserveNames.some((n) => c.name.toLowerCase().includes(n.toLowerCase()))),
+        )
         const heldBack = state.pool.length - solvePool.length
         const res = solve(solvePool, state.borders, weights, {
           mode: state.mode,

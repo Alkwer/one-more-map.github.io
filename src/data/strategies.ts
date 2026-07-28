@@ -10,9 +10,16 @@ import type { Edges, Stat, Weights } from '../types'
 
 export interface PositionRule {
   /** board cells this rule targets (row-major, 4 = centre) */
-  cells: number[]
+  cells?: number[]
+  /** or resolve cells dynamically: tiles touched by border segments rolled
+   *  with this border mod id (e.g. put a chart ON the Divine-border tile) */
+  nearBorderId?: string
+  /** with nearBorderId: target the NEIGHBOURS of the border tile instead */
+  adjacentToBorder?: boolean
   /** chart implicit mod ids that satisfy the rule */
   modIds?: string[]
+  /** or match by chart name (case-insensitive substring, e.g. Sea-Pillar) */
+  nameMatch?: string
   /** or a header reward stat, scored as percent/100 × per */
   rewardStat?: { stat: Stat; per: number }
   /** objective bonus per matching placement */
@@ -39,9 +46,13 @@ export interface StrategyDef {
   /** charts carrying these mods are held back entirely while this strategy is
    *  active - they're the pieces another strategy is saving up for */
   reserveModIds?: string[]
+  /** charts whose NAME contains any of these are held back too (Sea-Pillar) */
+  reserveNames?: string[]
   /** pieces the strategy needs before it's worth running; if the library
    *  can't supply them the UI says to avoid this voyage and wait */
-  requirements?: { modIds: string[]; count: number; label: string }[]
+  requirements?: { modIds?: string[]; nameMatch?: string; count: number; label: string }[]
+  /** a border roll the strategy hinges on (readiness warns if not entered) */
+  requiresBorderId?: { id: string; label: string }
   /** what to do instead while pieces are missing */
   waitHint?: string
 }
@@ -56,6 +67,9 @@ const JUICE_PIECES = [
   'adj-wisps-1', 'adj-wisps-2',
   'adj-magic-1', 'adj-magic-2',
   'voy-minmagic',
+  // Divine Border Rares pieces
+  'adj-box-1', 'adj-box-2', 'adj-box-3',
+  'adj-rare-1', 'adj-rare-2',
 ]
 
 const CENTER = [4]
@@ -92,12 +106,14 @@ const ETHEREAL_LAYOUT: Edges[] = [
   [T, F, F, T], // 8 corner
 ]
 
-const BOX_MODS = [
+// the ONE chart Speedrun puts in the centre: Diviner's / Operative's boxes or
+// Messages in a Bottle (per Zac - Arcanist's and generic boxes don't qualify)
+const SPEEDRUN_CENTER_MODS = [
   'adj-divbox-1', 'adj-divbox-2',
-  'adj-arcbox-1', 'adj-arcbox-2',
   'adj-opbox-1', 'adj-opbox-2',
-  'adj-box-1', 'adj-box-2', 'adj-box-3',
+  'adj-msg-1', 'adj-msg-2',
 ]
+const NOT_CENTER = [0, 1, 2, 3, 5, 6, 7, 8]
 
 export const STRATEGIES: StrategyDef[] = [
   {
@@ -106,18 +122,17 @@ export const STRATEGIES: StrategyDef[] = [
     tagline: 'Milky’s interim farm - burn spare charts, crack boxes, get in, get out.',
     source: { label: 'Milkybk_ - Allflame Buffs and My Strategy', url: 'https://www.youtube.com/watch?v=gVKQhYxeavk' },
     guide: [
-      'Put a Strongbox adjacent modifier (Diviner’s / Arcanist’s / Operative’s / generic) in the CENTRE.',
-      'Put your highest Item Quantity charts on the four sides - quantity scales strongboxes.',
-      'Corners are throwaways: anything that makes the connectors line up.',
+      'Put exactly ONE Diviner’s / Operative’s / Message-in-a-Bottle chart in the CENTRE - spares stay in the library.',
+      'Put 150%+ Item Quantity charts on the four sides - quantity scales the boxes the centre shoots into them.',
+      'Everything else is junk you don’t need for other strategies - corners just make the connectors line up.',
       'Take Alchemy, Scouring and Exalted orbs in to juice every box before opening.',
       'Speed matters: place lanterns, click everything, open the boxes, leave. ~½ div of sulphur plus scarabs, decks and div cards per run.',
-      'Never burns your juice pieces: Starfish, Pantheon, Lantern, Possessed, Fracture, Rares, No-Equipment, Wisp and Magic charts are held back for Meatfish / Ethereal.',
+      'Never burns your juice pieces: Starfish, Pantheon, Lantern, Possessed, Fracture, Rares, No-Equipment, Wisp, Magic, Strongbox and Sea-Pillar charts are held back for the other strats.',
     ],
     weights: {
       'adjacent:divbox': 10,
-      'adjacent:arcbox': 10,
       'adjacent:opbox': 10,
-      'adjacent:box': 8,
+      'adjacent:msg': 10,
       'self:quant': 8,
       'voyage:quant': 5,
       'voyage:sulph': 3,
@@ -128,13 +143,16 @@ export const STRATEGIES: StrategyDef[] = [
       'border:ancient': 3,
     },
     reserveModIds: JUICE_PIECES,
+    reserveNames: ['pillar'],
     rules: [
-      { cells: CENTER, modIds: BOX_MODS, bonus: 15 },
-      { cells: EDGES, rewardStat: { stat: 'quantity', per: 4 }, bonus: 0 },
-      { cells: EDGES, modIds: ['cm-quant-20', 'cm-quant-28', 'cm-quant-32', 'cm-quant-45'], bonus: 3 },
+      // one centre chart, never a second one wasted elsewhere
+      { cells: CENTER, modIds: SPEEDRUN_CENTER_MODS, bonus: 40 },
+      { cells: NOT_CENTER, modIds: SPEEDRUN_CENTER_MODS, bonus: -40 },
+      // 150%+ quant charts adjacent to the centre (continuous: higher = better)
+      { cells: EDGES, rewardStat: { stat: 'quantity', per: 6 }, bonus: 0 },
     ],
     requirements: [
-      { modIds: BOX_MODS, count: 1, label: 'Strongbox adjacent chart (centre)' },
+      { modIds: SPEEDRUN_CENTER_MODS, count: 1, label: 'Diviner’s / Operative’s / Message chart (centre)' },
     ],
     waitHint: 'Run manual boards until one drops.',
   },
@@ -219,6 +237,52 @@ export const STRATEGIES: StrategyDef[] = [
       { modIds: ['adj-lantern'], count: 3, label: 'Golden Lantern chart' },
     ],
     waitHint: 'Speedrun Strongboxes in the meantime.',
+  },
+  {
+    id: 'divine-border-rares',
+    name: 'Divine Border Rares',
+    tagline:
+      'Roll a Divine border, park a Sea-Pillar chart on it, and drown that tile in rares - every rare drops a Divine Orb.',
+    source: { label: 'Zac’s strat', url: '' },
+    guide: [
+      'Reroll borders with Dead Man’s Sulphur until you hit "+1 Divine Orb per Rare Monster".',
+      'Enter your borders on the board - the solver pins your Sea-Pillar chart to the Divine tile (its pillars rain extra rares into that exact area).',
+      '3× Starfish or Strongbox charts (rolled for rares) next to the Divine tile to feed it.',
+      '5× Increased Rare Monsters charts fill the rest - every rare on that tile is a Divine drop.',
+    ],
+    weights: {
+      'adjacent:rare': 10,
+      'voyage:rare': 10,
+      'border:rare': 10,
+      'adjacent:star': 8,
+      'adjacent:box': 8,
+      'voyage:possess': 6,
+      'voyage:fracture': 6,
+      'border:divine': 10,
+      'self:pack': 3,
+    },
+    rules: [
+      // the Sea-Pillar chart sits ON whichever tile the Divine border touches
+      { nearBorderId: 'b-divine', nameMatch: 'pillar', bonus: 100 },
+      // starfish / rare-rolled strongboxes shoot INTO the Divine tile from beside it
+      {
+        nearBorderId: 'b-divine',
+        adjacentToBorder: true,
+        modIds: ['adj-star-1', 'adj-star-2', 'adj-box-1', 'adj-box-2', 'adj-box-3'],
+        bonus: 20,
+      },
+    ],
+    requirements: [
+      { nameMatch: 'pillar', count: 1, label: 'Sea-Pillar chart' },
+      {
+        modIds: ['adj-star-1', 'adj-star-2', 'adj-box-1', 'adj-box-2', 'adj-box-3'],
+        count: 3,
+        label: 'Starfish or Strongbox chart',
+      },
+      { modIds: ['adj-rare-1', 'adj-rare-2', 'voy-rare'], count: 5, label: 'Increased Rares chart' },
+    ],
+    requiresBorderId: { id: 'b-divine', label: 'a "+1 Divine Orb" border roll (enter your borders)' },
+    waitHint: 'Speedrun Strongboxes until the pieces and the Divine border line up.',
   },
 ]
 

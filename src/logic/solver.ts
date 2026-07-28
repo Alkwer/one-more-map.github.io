@@ -1,4 +1,5 @@
 import type { Board, Borders, ChartData, ConnectivityMode, Edges, Placement, Weights } from '../types'
+import { borderTouches } from '../types'
 import type { PositionRule } from '../data/strategies'
 import { checkConnectivity, rotateEdges } from './connectivity'
 import { scoreBoard, type ScoreOptions } from './scoring'
@@ -44,16 +45,55 @@ function layoutMisses(board: Board, charts: Map<string, ChartData>, layout: Edge
   return misses
 }
 
+const CELL_NEIGHBOURS: number[][] = Array.from({ length: 9 }, (_, i) => {
+  const r = Math.floor(i / 3)
+  const c = i % 3
+  const out: number[] = []
+  if (r > 0) out.push(i - 3)
+  if (r < 2) out.push(i + 3)
+  if (c > 0) out.push(i - 1)
+  if (c < 2) out.push(i + 1)
+  return out
+})
+
+/** the cells a rule targets - static, or resolved from the rolled borders */
+function resolveRuleCells(rule: PositionRule, borders: Borders): number[] {
+  if (rule.cells) return rule.cells
+  if (rule.nearBorderId) {
+    const tiles: number[] = []
+    borders.forEach((id, seg) => {
+      if (id === rule.nearBorderId) tiles.push(borderTouches(seg))
+    })
+    if (!rule.adjacentToBorder) return [...new Set(tiles)]
+    const out = new Set<number>()
+    for (const t of tiles) for (const n of CELL_NEIGHBOURS[t]) out.add(n)
+    return [...out]
+  }
+  return []
+}
+
+/** does this chart satisfy the rule's mod/name matcher? */
+function chartMatchesRule(chart: ChartData, rule: PositionRule): boolean {
+  if (rule.modIds && chart.modIds.some((id) => rule.modIds!.includes(id))) return true
+  if (rule.nameMatch && chart.name.toLowerCase().includes(rule.nameMatch.toLowerCase())) return true
+  return false
+}
+
 /** objective bonus from strategy position rules for this arrangement */
-function strategyBonus(board: Board, charts: Map<string, ChartData>, rules: PositionRule[]): number {
+function strategyBonus(
+  board: Board,
+  charts: Map<string, ChartData>,
+  rules: PositionRule[],
+  borders: Borders,
+): number {
   let bonus = 0
   for (const rule of rules) {
-    for (const cell of rule.cells) {
+    for (const cell of resolveRuleCells(rule, borders)) {
       const p = board[cell]
       if (!p) continue
       const chart = charts.get(p.chartUid)
       if (!chart) continue
-      if (rule.modIds && chart.modIds.some((id) => rule.modIds!.includes(id))) bonus += rule.bonus
+      if (chartMatchesRule(chart, rule)) bonus += rule.bonus
       if (rule.rewardStat) {
         const r = chart.rewards?.find((e) => e.stat === rule.rewardStat!.stat)
         if (r) bonus += (r.percent / 100) * rule.rewardStat.per
@@ -90,7 +130,7 @@ function evaluate(
   // filler mode wants the least valuable runnable board, so flip the reward term
   // while keeping the runnable requirements (connections good, violations bad)
   const rewardTerm = opts.minimizeReward ? -s.total : s.total
-  const strat = opts.strategyRules ? strategyBonus(board, charts, opts.strategyRules) : 0
+  const strat = opts.strategyRules ? strategyBonus(board, charts, opts.strategyRules, borders) : 0
   const layoutPen = opts.strategyLayout
     ? layoutMisses(board, charts, opts.strategyLayout) * (opts.strategyLayoutPenalty ?? LAYOUT_PENALTY)
     : 0
@@ -201,13 +241,11 @@ function hillClimb(
       //    to fit, random otherwise
       if (opts.strategyRules) {
         for (const rule of opts.strategyRules) {
-          if (!rule.modIds || rule.bonus <= 0) continue
-          for (const cell of rule.cells) {
+          if (rule.bonus <= 0 || (!rule.modIds && !rule.nameMatch)) continue
+          for (const cell of resolveRuleCells(rule, borders)) {
             if (board[cell]) continue
             const used = taken()
-            const cands = shuffled.filter(
-              (c) => !used.has(c.uid) && c.modIds.some((id) => rule.modIds!.includes(id)),
-            )
+            const cands = shuffled.filter((c) => !used.has(c.uid) && chartMatchesRule(c, rule))
             if (cands.length === 0) continue
             const target = opts.strategyLayout?.[cell]
             const shaped = target
@@ -231,14 +269,14 @@ function hillClimb(
           const target = opts.strategyLayout[cell]
           if (!target || board[cell]) continue
           const used = taken()
-          const banned = opts.strategyRules
-            ?.filter((ru) => ru.cells.includes(cell) && ru.modIds && ru.bonus < 0)
-            .flatMap((ru) => ru.modIds!)
+          const bannedRules = opts.strategyRules?.filter(
+            (ru) => ru.bonus < 0 && resolveRuleCells(ru, borders).includes(cell),
+          )
           const pick = shuffled.find(
             (c) =>
               !used.has(c.uid) &&
               rotationFor(c.edges, target, rotMax) !== null &&
-              !(banned?.length && c.modIds.some((id) => banned.includes(id))),
+              !bannedRules?.some((ru) => chartMatchesRule(c, ru)),
           )
           if (pick)
             board[cell] = { chartUid: pick.uid, rotation: rotationFor(pick.edges, target, rotMax)! }

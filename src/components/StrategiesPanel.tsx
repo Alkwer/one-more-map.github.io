@@ -1,30 +1,48 @@
 import { useState } from 'react'
 import { STRATEGIES, type StrategyDef } from '../data/strategies'
-import type { ChartData } from '../types'
+import type { Borders, ChartData } from '../types'
 
 interface Props {
   activeId: string | null
   pool: ChartData[]
+  borders: Borders
   onSelect: (id: string | null) => void
 }
 
 /** per-requirement tally of what the library can supply */
 function pieceStatus(s: StrategyDef, pool: ChartData[]) {
   return (s.requirements ?? []).map((req) => {
-    const have = pool.filter((c) => c.modIds.some((id) => req.modIds.includes(id))).length
+    const have = pool.filter(
+      (c) =>
+        (req.modIds && c.modIds.some((id) => req.modIds!.includes(id))) ||
+        (req.nameMatch && c.name.toLowerCase().includes(req.nameMatch.toLowerCase())),
+    ).length
     return { ...req, have, missing: Math.max(0, req.count - have) }
   })
 }
 
-function Readiness({ strategy, pool }: { strategy: StrategyDef; pool: ChartData[] }) {
+function Readiness({
+  strategy,
+  pool,
+  borders,
+}: {
+  strategy: StrategyDef
+  pool: ChartData[]
+  borders: Borders
+}) {
   const reqs = pieceStatus(strategy, pool)
-  if (reqs.length === 0) return null
+  const borderMissing =
+    strategy.requiresBorderId && !borders.includes(strategy.requiresBorderId.id)
+  if (reqs.length === 0 && !strategy.requiresBorderId) return null
   const missing = reqs.filter((r) => r.missing > 0)
-  if (missing.length > 0) {
+  if (missing.length > 0 || borderMissing) {
+    const parts = [
+      ...missing.map((m) => `${m.missing}× ${m.label}`),
+      ...(borderMissing ? [strategy.requiresBorderId!.label] : []),
+    ]
     return (
       <div className="strat-notready">
-        ⚠ You don't have the pieces - avoid this voyage and wait. Missing:{' '}
-        {missing.map((m) => `${m.missing}× ${m.label}`).join(', ')}.
+        ⚠ You don't have the pieces - avoid this voyage and wait. Missing: {parts.join(', ')}.
         {strategy.waitHint ? ` ${strategy.waitHint}` : ''}
       </div>
     )
@@ -49,7 +67,7 @@ function Readiness({ strategy, pool }: { strategy: StrategyDef; pool: ChartData[
  * adds placement rules that shape what the solver suggests. Its own section so
  * it's obvious when a strategy - not your sliders - is steering results.
  */
-export function StrategiesPanel({ activeId, pool, onSelect }: Props) {
+export function StrategiesPanel({ activeId, pool, borders, onSelect }: Props) {
   const [expanded, setExpanded] = useState<string | null>(activeId)
 
   return (
@@ -91,12 +109,16 @@ export function StrategiesPanel({ activeId, pool, onSelect }: Props) {
                     <li key={i}>{g}</li>
                   ))}
                 </ul>
-                <a className="strat-source" href={s.source.url} target="_blank" rel="noopener noreferrer">
-                  ▶ {s.source.label}
-                </a>
+                {s.source.url ? (
+                  <a className="strat-source" href={s.source.url} target="_blank" rel="noopener noreferrer">
+                    ▶ {s.source.label}
+                  </a>
+                ) : (
+                  <span className="strat-source">{s.source.label}</span>
+                )}
               </div>
             )}
-            {(isActive || isOpen) && <Readiness strategy={s} pool={pool} />}
+            {(isActive || isOpen) && <Readiness strategy={s} pool={pool} borders={borders} />}
             <button
               className={`strat-use ${isActive ? 'on' : ''}`}
               onClick={() => onSelect(isActive ? null : s.id)}
