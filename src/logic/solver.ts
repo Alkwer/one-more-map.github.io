@@ -14,6 +14,8 @@ export interface SolverOptions extends ScoreOptions {
   strategyRules?: PositionRule[]
   /** exact connector layout the strategy wants (effective edges per cell) */
   strategyLayout?: Edges[]
+  /** per-cell cost of deviating from strategyLayout (default strict) */
+  strategyLayoutPenalty?: number
 }
 
 /** heavy per-cell penalty: an exact-layout strategy treats deviation as broken */
@@ -27,6 +29,7 @@ function rotationFor(edges: Edges, target: Edges, rotMax: number): number | null
   for (let r = 0; r < rotMax; r++) if (edgesEqual(rotateEdges(edges, r), target)) return r
   return null
 }
+
 
 /** how many cells deviate from the strategy's exact layout */
 function layoutMisses(board: Board, charts: Map<string, ChartData>, layout: Edges[]): number {
@@ -89,7 +92,7 @@ function evaluate(
   const rewardTerm = opts.minimizeReward ? -s.total : s.total
   const strat = opts.strategyRules ? strategyBonus(board, charts, opts.strategyRules) : 0
   const layoutPen = opts.strategyLayout
-    ? layoutMisses(board, charts, opts.strategyLayout) * LAYOUT_PENALTY
+    ? layoutMisses(board, charts, opts.strategyLayout) * (opts.strategyLayoutPenalty ?? LAYOUT_PENALTY)
     : 0
   const objective =
     rewardTerm +
@@ -175,8 +178,11 @@ function hillClimb(
   opts: SolverOptions,
   record: (b: Board) => void,
 ) {
-  const RESTARTS = 40
-  const ITERS = 4000
+  // strategies need more exploration: seeded restarts vary piece rotations,
+  // and the climb has to reshape the board around the lucky combinations
+  const hasStrategy = !!(opts.strategyRules || opts.strategyLayout)
+  const RESTARTS = hasStrategy ? 60 : 40
+  const ITERS = hasStrategy ? 5000 : 4000
   const rotMax = opts.allowRotation ? 4 : 1
 
   const evalScore = (b: Board) => evaluate(b, borders, charts, weights, opts).score
@@ -187,45 +193,55 @@ function hillClimb(
     const board: Board = Array(9).fill(null)
 
     // strategy-seeded restarts (every other one): pre-place matching charts on
-    // their target cells so rare shapes aren't left to random luck
-    if (r % 2 === 0) {
+    // their target cells so rare shapes/pieces aren't left to random luck
+    if (r % 2 === 0 && (opts.strategyRules || opts.strategyLayout)) {
       const taken = () => new Set(board.filter(Boolean).map((p) => p!.chartUid))
-      // exact-layout seeding: prefer charts that BOTH satisfy an icon rule for
-      // the cell and have the right shape; fall back to shape-only
-      if (opts.strategyLayout) {
-        for (let cell = 0; cell < 9; cell++) {
-          const target = opts.strategyLayout[cell]
-          if (!target || board[cell]) continue
-          const used = taken()
-          const wanted = opts.strategyRules
-            ?.filter((ru) => ru.cells.includes(cell) && ru.modIds && ru.bonus > 0)
-            .flatMap((ru) => ru.modIds!)
-          const banned = opts.strategyRules
-            ?.filter((ru) => ru.cells.includes(cell) && ru.modIds && ru.bonus < 0)
-            .flatMap((ru) => ru.modIds!)
-          const fits = (c: ChartData) =>
-            !used.has(c.uid) &&
-            rotationFor(c.edges, target, rotMax) !== null &&
-            !(banned?.length && c.modIds.some((id) => banned.includes(id)))
-          const pick =
-            (wanted?.length
-              ? shuffled.find((c) => fits(c) && c.modIds.some((id) => wanted.includes(id)))
-              : undefined) ?? shuffled.find(fits)
-          if (pick)
-            board[cell] = { chartUid: pick.uid, rotation: rotationFor(pick.edges, target, rotMax)! }
-        }
-      } else if (opts.strategyRules) {
+      // 1) positive rule cells first: the designated piece goes there in ANY
+      //    shape (location beats lines); use the layout rotation if it happens
+      //    to fit, random otherwise
+      if (opts.strategyRules) {
         for (const rule of opts.strategyRules) {
           if (!rule.modIds || rule.bonus <= 0) continue
           for (const cell of rule.cells) {
             if (board[cell]) continue
             const used = taken()
-            const pick = shuffled.find(
+            const cands = shuffled.filter(
               (c) => !used.has(c.uid) && c.modIds.some((id) => rule.modIds!.includes(id)),
             )
-            if (!pick) break
-            board[cell] = { chartUid: pick.uid, rotation: Math.floor(Math.random() * rotMax) }
+            if (cands.length === 0) continue
+            const target = opts.strategyLayout?.[cell]
+            const shaped = target
+              ? cands.find((c) => rotationFor(c.edges, target, rotMax) !== null)
+              : undefined
+            const pick = shaped ?? cands[0]
+            // exact-shape pieces take the layout rotation; others get a RANDOM
+            // rotation so different restarts explore different orientations
+            // (the climb then reshapes the board around the lucky ones)
+            const rot =
+              shaped && target
+                ? rotationFor(pick.edges, target, rotMax)!
+                : Math.floor(Math.random() * rotMax)
+            board[cell] = { chartUid: pick.uid, rotation: rot }
           }
+        }
+      }
+      // 2) remaining layout cells: shape-matching charts, avoiding banned mods
+      if (opts.strategyLayout) {
+        for (let cell = 0; cell < 9; cell++) {
+          const target = opts.strategyLayout[cell]
+          if (!target || board[cell]) continue
+          const used = taken()
+          const banned = opts.strategyRules
+            ?.filter((ru) => ru.cells.includes(cell) && ru.modIds && ru.bonus < 0)
+            .flatMap((ru) => ru.modIds!)
+          const pick = shuffled.find(
+            (c) =>
+              !used.has(c.uid) &&
+              rotationFor(c.edges, target, rotMax) !== null &&
+              !(banned?.length && c.modIds.some((id) => banned.includes(id))),
+          )
+          if (pick)
+            board[cell] = { chartUid: pick.uid, rotation: rotationFor(pick.edges, target, rotMax)! }
         }
       }
     }

@@ -64,6 +64,7 @@ export function SolverPanel({ state, activeStrategy, onPatch, results, onResults
           topK: 5,
           strategyRules: activeStrategy?.rules,
           strategyLayout: activeStrategy?.layout,
+          strategyLayoutPenalty: activeStrategy?.layoutPenalty,
         })
         onResults(res)
         const notes: string[] = []

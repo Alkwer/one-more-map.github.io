@@ -32,6 +32,10 @@ export interface StrategyDef {
   /** exact connector layout to build (effective edges [N,E,S,W] per cell after
    *  rotation) - the solver treats any deviation as a heavy penalty */
   layout?: Edges[]
+  /** per-cell cost of deviating from the layout. Default is strict (300);
+   *  a small value makes the lines a soft preference that yields to the
+   *  position rules (piece locations matter more than exact lines) */
+  layoutPenalty?: number
   /** charts carrying these mods are held back entirely while this strategy is
    *  active - they're the pieces another strategy is saving up for */
   reserveModIds?: string[]
@@ -131,8 +135,8 @@ export const STRATEGIES: StrategyDef[] = [
     tagline: 'Milky’s big one - possessed, Pantheon-touched giga-starfish rares that rain uniques.',
     source: { label: 'Milkybk_ - Allflame Buffs and My Strategy', url: 'https://www.youtube.com/watch?v=gVKQhYxeavk' },
     guide: [
-      'Builds Milky’s exact board layout: 4 Corners, 2 Straights, 3 T-junctions - 10 connections.',
-      'Starfish always top- and bottom-middle; Pantheon only ever right-middle; Golden Lantern preferably centre.',
+      'Follows Milky’s board layout (4 Corners, 2 Straights, 3 T-junctions) but bends the lines when a piece’s shape demands it.',
+      'Starfish always top- and bottom-middle; Pantheon only ever right-middle; Golden Lantern preferably centre - any chart shape.',
       'Add Possessed Rares, and if you ever see "Monsters cannot drop Equipment", run it - Rares Fracture or extra Rare Monsters also work.',
       'Corner voyage mods barely matter - use Sea-Pillar (Coral Forest) charts there for even more starfish.',
       'Save the pieces and run it fully juiced - don’t water it down. Speedrun boxes until you have them.',
@@ -151,15 +155,19 @@ export const STRATEGIES: StrategyDef[] = [
     },
     rules: [
       // Zac's placement rules: Starfish ALWAYS top/bottom-middle, Pantheon
-      // ONLY right-middle, Golden Lantern preferably centre. Negative bonuses
-      // actively keep the locked pieces out of every other square.
-      { cells: [1, 7], modIds: ['adj-star-1', 'adj-star-2'], bonus: 10 },
-      { cells: [0, 2, 3, 4, 5, 6, 8], modIds: ['adj-star-1', 'adj-star-2'], bonus: -60 },
-      { cells: [5], modIds: ['adj-pantheon'], bonus: 10 },
-      { cells: [0, 1, 2, 3, 4, 6, 7, 8], modIds: ['adj-pantheon'], bonus: -60 },
-      { cells: [4], modIds: ['adj-lantern'], bonus: 8 },
+      // ONLY right-middle, Golden Lantern preferably centre - any chart shape.
+      // Bonuses outweigh the (soft) layout so location wins over exact lines;
+      // negative bonuses keep the locked pieces out of every other square.
+      { cells: [1, 7], modIds: ['adj-star-1', 'adj-star-2'], bonus: 80 },
+      { cells: [0, 2, 3, 4, 5, 6, 8], modIds: ['adj-star-1', 'adj-star-2'], bonus: -80 },
+      { cells: [5], modIds: ['adj-pantheon'], bonus: 80 },
+      { cells: [0, 1, 2, 3, 4, 6, 7, 8], modIds: ['adj-pantheon'], bonus: -80 },
+      { cells: [4], modIds: ['adj-lantern'], bonus: 40 },
     ],
     layout: MEATFISH_LAYOUT,
+    // soft: a full-board layout deviation (9 cells × 6) must still cost less
+    // than any single piece bonus, so lines always yield to piece locations
+    layoutPenalty: 6,
   },
   {
     id: 'milky-ethereal',
