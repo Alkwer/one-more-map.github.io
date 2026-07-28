@@ -6,7 +6,7 @@
 // 2026-07-28. His approach is deliberately all-or-nothing: run the speedrun
 // board with spare charts until you've collected the pieces for a juiced one.
 
-import type { Stat, Weights } from '../types'
+import type { Edges, Stat, Weights } from '../types'
 
 export interface PositionRule {
   /** board cells this rule targets (row-major, 4 = centre) */
@@ -29,10 +29,44 @@ export interface StrategyDef {
   /** reward-weight override while active (unlisted rewards count as 0) */
   weights: Weights
   rules: PositionRule[]
+  /** exact connector layout to build (effective edges [N,E,S,W] per cell after
+   *  rotation) - the solver treats any deviation as a heavy penalty */
+  layout?: Edges[]
 }
 
 const CENTER = [4]
 const EDGES = [1, 3, 5, 7]
+
+// Milky's exact Meatfish board (from his planner, screenshotted 2026-07-28):
+// corners at 0/2/7... rendered as effective edges [N,E,S,W] per cell.
+// 10 connections, all linked to the ⚓ start; cell 6's south arm dangles off-board.
+const T = true
+const F = false
+const MEATFISH_LAYOUT: Edges[] = [
+  [F, T, T, F], // 0 corner
+  [F, T, T, T], // 1 T-junction
+  [F, F, T, T], // 2 corner
+  [T, F, T, F], // 3 straight
+  [T, T, T, F], // 4 T-junction
+  [T, F, T, T], // 5 T-junction
+  [T, F, T, F], // 6 straight (start; south dangles off-board)
+  [T, T, F, F], // 7 corner
+  [T, F, F, T], // 8 corner
+]
+
+// Milky's exact Magic Ethereal board: a full cross at centre, 11 connections;
+// cells 6 and 7 have south arms dangling off-board.
+const ETHEREAL_LAYOUT: Edges[] = [
+  [F, T, T, F], // 0 corner
+  [F, T, T, T], // 1 T-junction
+  [F, F, T, T], // 2 corner
+  [T, T, T, F], // 3 T-junction
+  [T, T, T, T], // 4 crossing
+  [T, F, T, T], // 5 T-junction
+  [T, F, T, F], // 6 straight (start)
+  [T, T, T, F], // 7 T-junction
+  [T, F, F, T], // 8 corner
+]
 
 const BOX_MODS = [
   'adj-divbox-1', 'adj-divbox-2',
@@ -81,10 +115,10 @@ export const STRATEGIES: StrategyDef[] = [
     tagline: 'Milky’s big one - possessed, Pantheon-touched giga-starfish rares that rain uniques.',
     source: { label: 'Milkybk_ - Allflame Buffs and My Strategy', url: 'https://www.youtube.com/watch?v=gVKQhYxeavk' },
     guide: [
-      'Stack Starfish + Pantheon adjacent mods so they overlap on your kill tiles.',
-      'Fill the rest with Golden Lantern adjacent mods - he targets 28 lanterns (≈280% quant, 840 rarity).',
+      'Builds Milky’s exact board layout: 4 Corners, 2 Straights, 3 T-junctions - 10 connections.',
+      'Golden Lantern charts on the corners + right-middle; Starfish on top/bottom-middle; Pantheon on the left-middle and centre.',
       'Add Possessed Rares, and if you ever see "Monsters cannot drop Equipment", run it - Rares Fracture or extra Rare Monsters also work.',
-      'Corner voyage mods barely matter - use Sea-Pillar (Coral Forest) charts there for even more starfish; corner-shaped ones slot in easiest.',
+      'Corner voyage mods barely matter - use Sea-Pillar (Coral Forest) charts there for even more starfish.',
       'Save the pieces and run it fully juiced - don’t water it down. Speedrun boxes until you have them.',
     ],
     weights: {
@@ -100,8 +134,12 @@ export const STRATEGIES: StrategyDef[] = [
       'self:rarity': 3,
     },
     rules: [
-      { cells: [...CENTER, ...EDGES], modIds: ['adj-star-1', 'adj-star-2', 'adj-pantheon', 'adj-lantern'], bonus: 5 },
+      // icon cells from Milky's planner: lanterns / starfish / pantheon "meat"
+      { cells: [0, 2, 5, 6, 8], modIds: ['adj-lantern'], bonus: 6 },
+      { cells: [1, 7], modIds: ['adj-star-1', 'adj-star-2'], bonus: 6 },
+      { cells: [3, 4], modIds: ['adj-pantheon'], bonus: 6 },
     ],
+    layout: MEATFISH_LAYOUT,
   },
   {
     id: 'milky-ethereal',
@@ -109,8 +147,9 @@ export const STRATEGIES: StrategyDef[] = [
     tagline: 'Milky’s magic-monster variant - wisps, lanterns and everything at least Magic.',
     source: { label: 'Milkybk_ - Allflame Buffs and My Strategy', url: 'https://www.youtube.com/watch?v=gVKQhYxeavk' },
     guide: [
+      'Builds Milky’s exact board layout: 3 Corners, 4 T-junctions, 1 Crossing, 1 Straight - 11 connections.',
+      'Wisp charts on the four sides, Golden Lanterns on the corners, the Crossing chart dead centre.',
       'Instead of rares, go wide on magic monsters: All Monsters at least Magic + increased Magic Monsters.',
-      'Stack Wildwood Wisp adjacent mods; he runs ~16 Golden Lanterns alongside (test the wisp/lantern split).',
       'Use Infested Bathysphere zones - they spawn far more monsters to convert.',
       'Leans harder on "Monsters cannot drop Equipment" than Meatfish - it’s the big multiplier here.',
     ],
@@ -125,8 +164,12 @@ export const STRATEGIES: StrategyDef[] = [
       'self:pack': 3,
     },
     rules: [
-      { cells: [...CENTER, ...EDGES], modIds: ['adj-wisps-1', 'adj-wisps-2', 'adj-magic-1', 'adj-magic-2', 'adj-lantern'], bonus: 5 },
+      // icon cells from Milky's planner: wisps on the cross, lanterns on corners
+      { cells: EDGES, modIds: ['adj-wisps-1', 'adj-wisps-2'], bonus: 6 },
+      { cells: [0, 2, 8], modIds: ['adj-lantern'], bonus: 5 },
+      { cells: CENTER, modIds: ['adj-magic-1', 'adj-magic-2', 'adj-wisps-1', 'adj-wisps-2'], bonus: 5 },
     ],
+    layout: ETHEREAL_LAYOUT,
   },
 ]
 

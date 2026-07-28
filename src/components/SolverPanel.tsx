@@ -57,6 +57,7 @@ export function SolverPanel({ state, activeStrategy, onPatch, results, onResults
           disabledMods: new Set(state.disabledMods),
           topK: 5,
           strategyRules: activeStrategy?.rules,
+          strategyLayout: activeStrategy?.layout,
         })
         onResults(res)
         if (res.length && !res[0].valid)
