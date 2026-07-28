@@ -180,7 +180,8 @@ export const STRATEGIES: StrategyDef[] = [
     requirements: [
       { modIds: ['adj-star-1', 'adj-star-2'], count: 2, label: 'Giant Starfish chart' },
       { modIds: ['adj-pantheon'], count: 1, label: 'Pantheon chart' },
-      { modIds: ['adj-lantern'], count: 4, label: 'Golden Lantern chart' },
+      // one is enough: from the centre it shoots 4 lanterns into each adjacent area
+      { modIds: ['adj-lantern'], count: 1, label: 'Golden Lantern chart (centre)' },
     ],
     waitHint: 'Speedrun Strongboxes in the meantime.',
   },

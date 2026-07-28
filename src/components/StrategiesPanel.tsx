@@ -31,7 +31,15 @@ function Readiness({ strategy, pool }: { strategy: StrategyDef; pool: ChartData[
   }
   return (
     <div className="strat-ready">
-      ✓ Pieces ready: {reqs.map((r) => `${r.have}× ${r.label}`).join(', ')}
+      ✓ Pieces ready:{' '}
+      {reqs
+        .map(
+          (r) =>
+            `${Math.min(r.have, r.count)}/${r.count}× ${r.label}${
+              r.have > r.count ? ` (+${r.have - r.count} spare)` : ''
+            }`,
+        )
+        .join(', ')}
     </div>
   )
 }
