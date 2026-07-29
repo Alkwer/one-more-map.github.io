@@ -55,7 +55,13 @@ export interface StrategyDef {
   requiresBorderId?: { id: string; label: string }
   /** what to do instead while pieces are missing */
   waitHint?: string
+  /** Milky's in-game search string highlighting this strategy's keeper charts */
+  searchRegex?: string
 }
+
+/** Milky's master keeper regex - every mod worth saving, across all strats */
+export const ALL_GOOD_MODS_REGEX =
+  '"at least|cannot drop|poss|fract|bottle|divine|arca|oper|star|pantheon|belt|lantern|4000 w|strongbo|rare monsters in all voy|sulphur found in all"'
 
 /** the pieces Meatfish (and Magic Ethereal) are saving up - the interim
  *  Speedrun farm must never burn these */
@@ -161,6 +167,7 @@ export const STRATEGIES: StrategyDef[] = [
       { modIds: SPEEDRUN_CENTER_MODS, count: 1, label: 'Diviner’s / Operative’s / Message chart (centre)' },
     ],
     waitHint: 'Run manual boards until one drops.',
+    searchRegex: '"bottle|divine|oper"',
   },
   {
     id: 'milky-meatfish',
@@ -168,11 +175,11 @@ export const STRATEGIES: StrategyDef[] = [
     tagline: 'Milky’s big one - possessed, Pantheon-touched giga-starfish rares that rain uniques.',
     source: { label: 'Milkybk_ - Allflame Buffs and My Strategy', url: 'https://www.youtube.com/watch?v=gVKQhYxeavk' },
     guide: [
-      'Follows Milky’s board layout (4 Corners, 2 Straights, 3 T-junctions) but bends the lines when a piece’s shape demands it.',
+      'Milky’s full composition (his sheet): 2× Starfish, 1× Pantheon, 2× Sea-Pillars (corners), 2× Golden Lanterns, 1× Possessed Rares, 1× No-Equipment.',
       'Starfish always top- and bottom-middle; Pantheon only ever right-middle; Golden Lantern preferably centre - any chart shape.',
-      'Add Possessed Rares, and if you ever see "Monsters cannot drop Equipment", run it - Rares Fracture or extra Rare Monsters also work.',
-      'Corner voyage mods barely matter - use Sea-Pillar (Coral Forest) charts there for even more starfish.',
-      'Save the pieces and run it fully juiced - don’t water it down. Speedrun boxes until you have them.',
+      '"Monsters cannot drop Equipment" is the jackpot piece - Rares Fracture works as the fallback. Optionally swap Pantheon for 4k Wisps.',
+      'Collect every lantern in the voyage: ≈280% Quantity, 840 Rarity. Kill all the giga-rares. Obtain Mageblood/Headhunter.',
+      'Very risky, all-or-nothing - don’t water it down. Speedrun boxes until you have the pieces.',
     ],
     weights: {
       'adjacent:star': 10,
@@ -196,18 +203,25 @@ export const STRATEGIES: StrategyDef[] = [
       { cells: [5], modIds: ['adj-pantheon'], bonus: 80 },
       { cells: [0, 1, 2, 3, 4, 6, 7, 8], modIds: ['adj-pantheon'], bonus: -80 },
       { cells: [4], modIds: ['adj-lantern'], bonus: 40 },
+      // Sea-Pillars belong in the corners (their rain juices their own tile)
+      { cells: [0, 2, 6, 8], nameMatch: 'pillar', bonus: 40 },
+      { cells: [1, 3, 4, 5, 7], nameMatch: 'pillar', bonus: -40 },
     ],
     layout: MEATFISH_LAYOUT,
     // soft: a full-board layout deviation (9 cells × 6) must still cost less
     // than any single piece bonus, so lines always yield to piece locations
     layoutPenalty: 6,
     requirements: [
+      // Milky's sheet composition (2+1+2+2+1+1 = 9 charts)
       { modIds: ['adj-star-1', 'adj-star-2'], count: 2, label: 'Giant Starfish chart' },
-      { modIds: ['adj-pantheon'], count: 1, label: 'Pantheon chart' },
-      // one is enough: from the centre it shoots 4 lanterns into each adjacent area
-      { modIds: ['adj-lantern'], count: 1, label: 'Golden Lantern chart (centre)' },
+      { modIds: ['adj-pantheon', 'adj-wisps-1', 'adj-wisps-2'], count: 1, label: 'Pantheon (or 4k Wisp) chart' },
+      { nameMatch: 'pillar', count: 2, label: 'Sea-Pillar chart (corners)' },
+      { modIds: ['adj-lantern'], count: 2, label: 'Golden Lantern chart' },
+      { modIds: ['voy-possess'], count: 1, label: 'Possessed Rares chart' },
+      { modIds: ['voy-noequip', 'voy-fracture'], count: 1, label: 'No-Equipment (or Fracture) chart' },
     ],
     waitHint: 'Speedrun Strongboxes in the meantime.',
+    searchRegex: '"cannot|poss|lantern|pantheon"',
   },
   {
     id: 'milky-ethereal',
@@ -289,6 +303,7 @@ export const STRATEGIES: StrategyDef[] = [
     ],
     requiresBorderId: { id: 'b-divine', label: 'a "+1 Divine Orb" border roll (enter your borders)' },
     waitHint: 'Speedrun Strongboxes until the pieces and the Divine border line up.',
+    searchRegex: '"rare monsters in all voy|strongbox"',
   },
 ]
 

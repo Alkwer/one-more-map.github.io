@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ALL_GOOD_MODS_REGEX } from '../data/strategies'
 import { generateDemoCharts } from '../logic/demo'
 import { parseChartText } from '../logic/parser'
 import type { AppState } from '../logic/storage'
@@ -119,19 +120,22 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
       {msg && <div className="muted pad">{msg}</div>}
 
       <details className="ahk-help">
-        <summary>🎲 Rolling charts (before you run them)</summary>
+        <summary>🎲 Rolling & keeping charts (Milky's regexes)</summary>
         <p className="muted">
-          Charts can't be rolled after running, so roll first. Milky's bar: 110%+ Item Quantity
-          (quantity scales strongboxes). Paste these into the in-game chart search to highlight
-          keepers - experimental, depends on the search supporting regex.
+          Charts can't be rolled after running, so roll first (quantity scales strongboxes). Paste
+          these into the in-game chart search - from Milky's sheet.
         </p>
         <div className="roll-regex-row">
-          <span className="roll-regex-label">110%+ quantity</span>
-          <input readOnly value={'ty: \\+1[1-9]\\d'} onFocus={(e) => e.target.select()} />
+          <span className="roll-regex-label">All good mods (keepers)</span>
+          <input readOnly value={ALL_GOOD_MODS_REGEX} onFocus={(e) => e.target.select()} />
         </div>
         <div className="roll-regex-row">
-          <span className="roll-regex-label">80%+ sulphur (save for Filthscrabble)</span>
-          <input readOnly value={'r: \\+([89]\\d|\\d{3})'} onFocus={(e) => e.target.select()} />
+          <span className="roll-regex-label">120%+ quantity roll</span>
+          <input readOnly value={'"m q.*(1[2-9].|[2-9]..)%"'} onFocus={(e) => e.target.select()} />
+        </div>
+        <div className="roll-regex-row">
+          <span className="roll-regex-label">75%+ sulphur (save for Filthscrabble)</span>
+          <input readOnly value={'"sul.*(7[5-9]|[89].|\\d..)%"'} onFocus={(e) => e.target.select()} />
         </div>
       </details>
 

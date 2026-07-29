@@ -443,6 +443,26 @@ button.primary:hover {
   color: #e3c7ff;
   text-decoration: underline;
 }
+.strat-regex-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 10px;
+}
+.strat-regex-label {
+  font-size: 10.5px;
+  white-space: nowrap;
+  opacity: 0.85;
+}
+.strat-regex-row input {
+  font-family: monospace;
+  font-size: 11px;
+  min-width: 0;
+}
+.strat-regex-row button {
+  flex: 0 0 auto;
+  font-size: 11px;
+}
 .strat-notready {
   margin: 4px 10px;
   padding: 6px 8px;
