@@ -119,6 +119,23 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
       {msg && <div className="muted pad">{msg}</div>}
 
       <details className="ahk-help">
+        <summary>🎲 Rolling charts (before you run them)</summary>
+        <p className="muted">
+          Charts can't be rolled after running, so roll first. Milky's bar: 110%+ Item Quantity
+          (quantity scales strongboxes). Paste these into the in-game chart search to highlight
+          keepers - experimental, depends on the search supporting regex.
+        </p>
+        <div className="roll-regex-row">
+          <span className="roll-regex-label">110%+ quantity</span>
+          <input readOnly value={'ty: \\+1[1-9]\\d'} onFocus={(e) => e.target.select()} />
+        </div>
+        <div className="roll-regex-row">
+          <span className="roll-regex-label">80%+ sulphur (save for Filthscrabble)</span>
+          <input readOnly value={'r: \\+([89]\\d|\\d{3})'} onFocus={(e) => e.target.select()} />
+        </div>
+      </details>
+
+      <details className="ahk-help">
         <summary>🖱️ Bulk-import every chart from PoE (Windows)</summary>
         <p className="muted">
           A tiny AutoHotkey script hovers each chart in your Voyage panel, copies it, and pastes

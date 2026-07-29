@@ -122,17 +122,19 @@ export const STRATEGIES: StrategyDef[] = [
     tagline: 'Milky’s interim farm - burn spare charts, crack boxes, get in, get out.',
     source: { label: 'Milkybk_ - Allflame Buffs and My Strategy', url: 'https://www.youtube.com/watch?v=gVKQhYxeavk' },
     guide: [
-      'Put exactly ONE Diviner’s / Operative’s / Message-in-a-Bottle chart in the CENTRE - spares stay in the library.',
-      'Put 150%+ Item Quantity charts on the four sides - quantity scales the boxes the centre shoots into them.',
+      'Put exactly ONE Operative’s chart in the CENTRE - it’s the best (a few divines of scarabs per run); Diviner’s or Message-in-a-Bottle are the consistent fallbacks.',
+      'Roll charts to 110%+ Item Quantity BEFORE running them - they can’t be rolled after, and quantity scales the boxes.',
+      'Put your highest Item Quantity charts on the four sides.',
       'Everything else is junk you don’t need for other strategies - corners just make the connectors line up.',
       'Take Alchemy, Scouring and Exalted orbs in to juice every box before opening.',
-      'Speed matters: place lanterns, click everything, open the boxes, leave. ~½ div of sulphur plus scarabs, decks and div cards per run.',
+      'If a Filthscrabble border appears (a ~4,000-sulphur boss), the solver pins your highest-sulphur chart to its tile.',
+      'Speed matters: place lanterns, click everything, open the boxes, leave. Even a junk voyage yields a div or two of scattered loot.',
       'Never burns your juice pieces: Starfish, Pantheon, Lantern, Possessed, Fracture, Rares, No-Equipment, Wisp, Magic, Strongbox and Sea-Pillar charts are held back for the other strats.',
     ],
     weights: {
-      'adjacent:divbox': 10,
       'adjacent:opbox': 10,
-      'adjacent:msg': 10,
+      'adjacent:divbox': 7,
+      'adjacent:msg': 7,
       'self:quant': 8,
       'voyage:quant': 5,
       'voyage:sulph': 3,
@@ -145,11 +147,15 @@ export const STRATEGIES: StrategyDef[] = [
     reserveModIds: JUICE_PIECES,
     reserveNames: ['pillar'],
     rules: [
-      // one centre chart, never a second one wasted elsewhere
-      { cells: CENTER, modIds: SPEEDRUN_CENTER_MODS, bonus: 40 },
+      // one centre chart, never a second one wasted elsewhere. Operative's
+      // outranks the fallbacks (Milky: "won't yield as much, but consistent")
+      { cells: CENTER, modIds: ['adj-opbox-1', 'adj-opbox-2'], bonus: 55 },
+      { cells: CENTER, modIds: ['adj-divbox-1', 'adj-divbox-2', 'adj-msg-1', 'adj-msg-2'], bonus: 40 },
       { cells: NOT_CENTER, modIds: SPEEDRUN_CENTER_MODS, bonus: -40 },
       // 150%+ quant charts adjacent to the centre (continuous: higher = better)
       { cells: EDGES, rewardStat: { stat: 'quantity', per: 6 }, bonus: 0 },
+      // Filthscrabble border: park the highest-sulphur chart on its tile
+      { nearBorderId: 'b-octoboss', rewardStat: { stat: 'sulphur', per: 8 }, bonus: 0 },
     ],
     requirements: [
       { modIds: SPEEDRUN_CENTER_MODS, count: 1, label: 'Diviner’s / Operative’s / Message chart (centre)' },
@@ -209,6 +215,7 @@ export const STRATEGIES: StrategyDef[] = [
     tagline: 'Milky’s magic-monster variant - wisps, lanterns and everything at least Magic.',
     source: { label: 'Milkybk_ - Allflame Buffs and My Strategy', url: 'https://www.youtube.com/watch?v=gVKQhYxeavk' },
     guide: [
+      '⚠ Field reports are underwhelming so far (Palsteron ran it: ~5 div) - Milky has moved to the rares build (Meatfish). Kept for reference.',
       'Builds Milky’s exact board layout: 3 Corners, 4 T-junctions, 1 Crossing, 1 Straight - 11 connections.',
       'Wisp charts on the four sides, Golden Lanterns on the corners, the Crossing chart dead centre.',
       'Instead of rares, go wide on magic monsters: All Monsters at least Magic + increased Magic Monsters.',
@@ -245,9 +252,10 @@ export const STRATEGIES: StrategyDef[] = [
       'Roll a Divine border, park a Sea-Pillar chart on it, and drown that tile in rares - every rare drops a Divine Orb.',
     source: { label: 'Zac’s strat', url: '' },
     guide: [
-      'Reroll borders with Dead Man’s Sulphur until you hit "+1 Divine Orb per Rare Monster".',
+      'Reroll borders with Dead Man’s Sulphur until you hit "+1 Divine Orb per Rare Monster" - this is one of the mechanic’s two real jackpots.',
       'Enter your borders on the board - the solver pins your Sea-Pillar chart to the Divine tile (its pillars rain extra rares into that exact area).',
-      '3× Starfish or Strongbox charts (rolled for rares) next to the Divine tile to feed it.',
+      'The treasure feeders are "+5 Strongboxes" adjacent charts: roll the boxes themselves for "Stream of Monsters" (+4 rares) and "of Rarity" (+3) - 7 rares per box, a Divine each. One +5 chart ≈ 35 Divines; three around the tile ≈ 105.',
+      'Starfish charts also feed it if you’re short on Strongbox charts.',
       '5× Increased Rare Monsters charts fill the rest - every rare on that tile is a Divine drop.',
     ],
     weights: {
@@ -264,13 +272,11 @@ export const STRATEGIES: StrategyDef[] = [
     rules: [
       // the Sea-Pillar chart sits ON whichever tile the Divine border touches
       { nearBorderId: 'b-divine', nameMatch: 'pillar', bonus: 100 },
-      // starfish / rare-rolled strongboxes shoot INTO the Divine tile from beside it
-      {
-        nearBorderId: 'b-divine',
-        adjacentToBorder: true,
-        modIds: ['adj-star-1', 'adj-star-2', 'adj-box-1', 'adj-box-2', 'adj-box-3'],
-        bonus: 20,
-      },
+      // feeders shoot INTO the Divine tile from beside it. "+5 Strongboxes"
+      // (7 rares per box when rolled = 35 divines) outranks lower tiers/starfish
+      { nearBorderId: 'b-divine', adjacentToBorder: true, modIds: ['adj-box-3'], bonus: 35 },
+      { nearBorderId: 'b-divine', adjacentToBorder: true, modIds: ['adj-box-1', 'adj-box-2'], bonus: 22 },
+      { nearBorderId: 'b-divine', adjacentToBorder: true, modIds: ['adj-star-1', 'adj-star-2'], bonus: 15 },
     ],
     requirements: [
       { nameMatch: 'pillar', count: 1, label: 'Sea-Pillar chart' },
