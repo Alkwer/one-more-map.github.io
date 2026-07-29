@@ -121,7 +121,44 @@ const SPEEDRUN_CENTER_MODS = [
 ]
 const NOT_CENTER = [0, 1, 2, 3, 5, 6, 7, 8]
 
+// "Alc & Go" highway (Zac's sketch): three vertical lanes capped at the top,
+// joined along the bottom row. 8 connections, all reaching the ⚓ start.
+const ALC_GO_LAYOUT: Edges[] = [
+  [F, F, T, F], // 0 end (lane cap)
+  [F, F, T, F], // 1 end
+  [F, F, T, F], // 2 end
+  [T, F, T, F], // 3 straight
+  [T, F, T, F], // 4 straight
+  [T, F, T, F], // 5 straight
+  [T, T, F, F], // 6 corner (start)
+  [T, T, F, T], // 7 T-junction
+  [T, F, F, T], // 8 corner
+]
+
 export const STRATEGIES: StrategyDef[] = [
+  {
+    id: 'alc-and-go',
+    name: 'Alc & Go',
+    tagline: 'Burn the charts nothing else wants - one-lane highways, hope for random encounters.',
+    source: { label: 'Zac’s strat', url: '' },
+    guide: [
+      'Uses only charts no other strategy needs - every juice piece and centre box is held back automatically.',
+      'Forms single-lane highways (three lanes joined along the bottom) - or whatever the shapes allow.',
+      'Don’t care what’s on the tiles: you’re there for scattered loot, sulphur and random encounters.',
+      'Alc, go, place every lantern, click everything, leave. Rinse and repeat between real runs.',
+    ],
+    weights: {
+      'self:quant': 2,
+      'self:sulph': 2,
+      'voyage:sulph': 2,
+      'voyage:quant': 2,
+    },
+    rules: [],
+    layout: ALC_GO_LAYOUT,
+    layoutPenalty: 15, // a preference, not a law - "whatever works"
+    reserveModIds: [...JUICE_PIECES, ...SPEEDRUN_CENTER_MODS],
+    reserveNames: ['pillar'],
+  },
   {
     id: 'milky-speedrun',
     name: 'Speedrun Strongboxes',
