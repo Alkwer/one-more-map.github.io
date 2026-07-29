@@ -27,8 +27,11 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
       return
     }
 
-    if (borderOcr.matches.length > 0) {
-      const borders = [...state.borders]
+    if (borderOcr.blockCount > 0) {
+      // A complete importer sweep is a snapshot of all 12 current rolls.
+      // Start clean so an OCR miss cannot leave a stale modifier from an
+      // earlier run and masquerade as a wrongly recognized border.
+      const borders = borderOcr.blockCount >= 12 ? [...borderOcr.borders] : [...state.borders]
       for (const match of borderOcr.matches) borders[match.index] = match.id
       onLoadState({
         ...state,

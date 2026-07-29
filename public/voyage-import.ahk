@@ -190,14 +190,117 @@ param(
     [Parameter(Mandatory = $true)][string]$OutputPath)
 
 $ErrorActionPreference = 'Stop'
+trap {
+    $utf8 = [System.Text.UTF8Encoding]::new($false)
+    [System.IO.File]::WriteAllText(
+        $OutputPath,
+        ('OCR HELPER ERROR: ' + $_.Exception.ToString()),
+        $utf8)
+    exit 1
+}
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Runtime.WindowsRuntime
+
+Add-Type -ReferencedAssemblies 'System.Drawing' -TypeDefinition @'
+using System;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
+
+public static class VoyageOcrImage
+{
+    public static void Prepare(string sourcePath, string outputPath)
+    {
+        using (var original = new Bitmap(sourcePath))
+        using (var source = new Bitmap(original.Width, original.Height, PixelFormat.Format32bppArgb))
+        {
+            using (var graphics = Graphics.FromImage(source))
+            {
+                graphics.DrawImageUnscaled(original, 0, 0);
+            }
+
+            var rect = new Rectangle(0, 0, source.Width, source.Height);
+            var sourceData = source.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            var sourceStride = Math.Abs(sourceData.Stride);
+            var sourceBytes = new byte[sourceStride * source.Height];
+            Marshal.Copy(sourceData.Scan0, sourceBytes, 0, sourceBytes.Length);
+            source.UnlockBits(sourceData);
+
+            using (var mask = new Bitmap(source.Width, source.Height, PixelFormat.Format24bppRgb))
+            {
+                var maskData = mask.LockBits(rect, ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
+                var maskStride = Math.Abs(maskData.Stride);
+                var maskBytes = new byte[maskStride * mask.Height];
+                for (var i = 0; i < maskBytes.Length; i++)
+                {
+                    maskBytes[i] = 255;
+                }
+
+                for (var y = 0; y < source.Height; y++)
+                {
+                    for (var x = 0; x < source.Width; x++)
+                    {
+                        var sourceOffset = y * sourceStride + x * 4;
+                        var blue = sourceBytes[sourceOffset];
+                        var green = sourceBytes[sourceOffset + 1];
+                        var red = sourceBytes[sourceOffset + 2];
+
+                        // PoE board modifiers use lavender text. Keep its
+                        // anti-aliased pixels and discard inventory levels,
+                        // icons, scenery and other white UI text.
+                        var isModifierText =
+                            blue >= 130 &&
+                            blue - red >= 30 &&
+                            blue - green >= 30 &&
+                            Math.Abs(red - green) <= 18;
+                        if (!isModifierText)
+                        {
+                            continue;
+                        }
+
+                        var maskOffset = y * maskStride + x * 3;
+                        maskBytes[maskOffset] = 0;
+                        maskBytes[maskOffset + 1] = 0;
+                        maskBytes[maskOffset + 2] = 0;
+                    }
+                }
+
+                Marshal.Copy(maskBytes, 0, maskData.Scan0, maskBytes.Length);
+                mask.UnlockBits(maskData);
+
+                var scale = Math.Min(2.0, 6000.0 / Math.Max(mask.Width, mask.Height));
+                var scaledWidth = (int)Math.Round(mask.Width * scale);
+                var scaledHeight = (int)Math.Round(mask.Height * scale);
+                const int padding = 64;
+                using (var prepared = new Bitmap(
+                    scaledWidth + 2 * padding,
+                    scaledHeight + 2 * padding,
+                    PixelFormat.Format24bppRgb))
+                {
+                    using (var graphics = Graphics.FromImage(prepared))
+                    {
+                        graphics.Clear(Color.White);
+                        graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
+                        graphics.PixelOffsetMode = PixelOffsetMode.Half;
+                        graphics.DrawImage(
+                            mask,
+                            new Rectangle(padding, padding, scaledWidth, scaledHeight));
+                    }
+                    prepared.Save(outputPath, ImageFormat.Png);
+                }
+            }
+        }
+    }
+}
+'@
 
 [void][Windows.Storage.StorageFile, Windows.Storage, ContentType = WindowsRuntime]
 [void][Windows.Storage.FileAccessMode, Windows.Storage, ContentType = WindowsRuntime]
 [void][Windows.Storage.Streams.IRandomAccessStream, Windows.Storage.Streams, ContentType = WindowsRuntime]
 [void][Windows.Graphics.Imaging.BitmapDecoder, Windows.Graphics.Imaging, ContentType = WindowsRuntime]
 [void][Windows.Graphics.Imaging.SoftwareBitmap, Windows.Graphics.Imaging, ContentType = WindowsRuntime]
+[void][Windows.Globalization.Language, Windows.Globalization, ContentType = WindowsRuntime]
 [void][Windows.Media.Ocr.OcrEngine, Windows.Foundation, ContentType = WindowsRuntime]
 [void][Windows.Media.Ocr.OcrResult, Windows.Foundation, ContentType = WindowsRuntime]
 
@@ -219,25 +322,33 @@ function Await-Result {
 
 function Read-OcrLines {
     param([Parameter(Mandatory = $true)][string]$Path)
-    $file = Await-Result ([Windows.Storage.StorageFile]::GetFileFromPathAsync($Path)) ([Windows.Storage.StorageFile])
-    $stream = Await-Result ($file.OpenAsync([Windows.Storage.FileAccessMode]::Read)) ([Windows.Storage.Streams.IRandomAccessStream])
+    $preparedPath = Join-Path $env:TEMP "voyage-ocr-filtered-$PID-$([Guid]::NewGuid().ToString('N')).png"
+    [VoyageOcrImage]::Prepare($Path, $preparedPath)
+
     try {
-        $decoder = Await-Result ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($stream)) ([Windows.Graphics.Imaging.BitmapDecoder])
-        $bitmap = Await-Result ($decoder.GetSoftwareBitmapAsync()) ([Windows.Graphics.Imaging.SoftwareBitmap])
+        $file = Await-Result ([Windows.Storage.StorageFile]::GetFileFromPathAsync($preparedPath)) ([Windows.Storage.StorageFile])
+        $stream = Await-Result ($file.OpenAsync([Windows.Storage.FileAccessMode]::Read)) ([Windows.Storage.Streams.IRandomAccessStream])
         try {
-            $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
-            if ($null -eq $engine) {
-                throw 'Windows OCR is unavailable for the current language profile.'
+            $decoder = Await-Result ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($stream)) ([Windows.Graphics.Imaging.BitmapDecoder])
+            $bitmap = Await-Result ($decoder.GetSoftwareBitmapAsync()) ([Windows.Graphics.Imaging.SoftwareBitmap])
+            try {
+                $language = [Windows.Globalization.Language]::new('en-US')
+                $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromLanguage($language)
+                if ($null -eq $engine) {
+                    throw 'Windows OCR is unavailable for English (United States).'
+                }
+                $result = Await-Result ($engine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
+                $lines = @($result.Lines | ForEach-Object { $_.Text })
+                if ($lines.Count -gt 0) { return $lines -join [Environment]::NewLine }
+                return $result.Text
+            } finally {
+                if ($null -ne $bitmap) { $bitmap.Dispose() }
             }
-            $result = Await-Result ($engine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
-            $lines = @($result.Lines | ForEach-Object { $_.Text })
-            if ($lines.Count -gt 0) { return $lines -join [Environment]::NewLine }
-            return $result.Text
         } finally {
-            if ($null -ne $bitmap) { $bitmap.Dispose() }
+            $stream.Dispose()
         }
     } finally {
-        $stream.Dispose()
+        Remove-Item -LiteralPath $preparedPath -Force -ErrorAction SilentlyContinue
     }
 }
 
