@@ -191,10 +191,15 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
             Click once on this page first so it has focus.
           </li>
           <li>
-            Double-click the script. For board OCR, hover the <strong>top border modifier above the
-            top-left board square</strong> and press <kbd>F5</kbd>; then hover the{' '}
-            <strong>bottom border modifier below the bottom-right square</strong> and press{' '}
+            Double-click the script. For quick board calibration, point at the{' '}
+            <strong>top-left corner of the border-modifier square</strong> and press{' '}
+            <kbd>F5</kbd>; then point at its <strong>bottom-right corner</strong> and press{' '}
             <kbd>F6</kbd>.
+          </li>
+          <li>
+            If any border is missed, press <kbd>Ctrl+F5</kbd> to start exact calibration. Hover the
+            modifier named by the script and press <kbd>Ctrl+F6</kbd> to save it; repeat for all 12.
+            Press <kbd>Ctrl+F4</kbd> to preview the saved positions without running OCR.
           </li>
           <li>
             For chart import, hover the <strong>top-left</strong> chart and press <kbd>F7</kbd>;
