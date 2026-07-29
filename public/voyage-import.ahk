@@ -56,7 +56,7 @@ GridRows := 10   ; rows to sweep (overshooting is fine - empty cells skip)
 
 ActivateDelay := 60    ; ms after focusing a window (paid only ~twice total now)
 HoverDelay    := 28    ; ms for PoE to register the cursor before Ctrl+C
-BorderHoverDelay := 180 ; ms for a border tooltip to appear before OCR capture
+BorderHoverDelay := 250 ; ms for a border tooltip to appear before OCR capture
 PasteDelay    := 90    ; ms after the single big paste
 ClipTimeout   := 0.2   ; seconds to wait for Ctrl+C (only empty cells wait the full time)
 OcrTimeout    := 90    ; seconds before a stuck Windows OCR scan is stopped
@@ -129,36 +129,21 @@ BorderPoints() {
     return points
 }
 
-SerializePoints(points) {
-    text := ""
-    for point in points
-        text .= (text = "" ? "" : ";") point[1] "," point[2]
-    return text
-}
-
 OcrPowerShell() {
     return "
 (
 param(
-    [string]$Points = '',
+    [int]$Index = -1,
     [int]$WindowLeft = 0,
     [int]$WindowTop = 0,
     [int]$WindowWidth = 0,
     [int]$WindowHeight = 0,
-    [int]$HoverDelay = 180,
     [string]$ImagePath = '',
     [Parameter(Mandatory = $true)][string]$OutputPath)
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Runtime.WindowsRuntime
-Add-Type @'
-using System.Runtime.InteropServices;
-public static class VoyageMouse {
-    [DllImport("user32.dll")]
-    public static extern bool SetCursorPos(int x, int y);
-}
-'@
 
 [void][Windows.Storage.StorageFile, Windows.Storage, ContentType = WindowsRuntime]
 [void][Windows.Storage.FileAccessMode, Windows.Storage, ContentType = WindowsRuntime]
@@ -222,33 +207,25 @@ $builder = [System.Text.StringBuilder]::new()
 if ($ImagePath) {
     Add-Block $builder 0 (Read-OcrLines $ImagePath)
 } else {
-    if ($WindowWidth -le 0 -or $WindowHeight -le 0) {
+    if ($Index -lt 0 -or $WindowWidth -le 0 -or $WindowHeight -le 0) {
         throw 'Invalid Path of Exile window size.'
     }
-    $positions = @($Points -split ';' | ForEach-Object {
-        $xy = $_ -split ','
-        [pscustomobject]@{ X = [int]$xy[0]; Y = [int]$xy[1] }
-    })
-    for ($i = 0; $i -lt $positions.Count; $i++) {
-        [void][VoyageMouse]::SetCursorPos($positions[$i].X, $positions[$i].Y)
-        Start-Sleep -Milliseconds $HoverDelay
-        $png = Join-Path $env:TEMP "voyage-border-$PID-$i.png"
+    $png = Join-Path $env:TEMP "voyage-border-$PID-$Index.png"
+    try {
+        $image = [System.Drawing.Bitmap]::new($WindowWidth, $WindowHeight)
+        $graphics = [System.Drawing.Graphics]::FromImage($image)
         try {
-            $image = [System.Drawing.Bitmap]::new($WindowWidth, $WindowHeight)
-            $graphics = [System.Drawing.Graphics]::FromImage($image)
-            try {
-                $graphics.CopyFromScreen($WindowLeft, $WindowTop, 0, 0, $image.Size)
-                $image.Save($png, [System.Drawing.Imaging.ImageFormat]::Png)
-            } finally {
-                $graphics.Dispose()
-                $image.Dispose()
-            }
-            Add-Block $builder $i (Read-OcrLines $png)
-        } catch {
-            Add-Block $builder $i ("OCR ERROR: " + $_.Exception.Message)
+            $graphics.CopyFromScreen($WindowLeft, $WindowTop, 0, 0, $image.Size)
+            $image.Save($png, [System.Drawing.Imaging.ImageFormat]::Png)
         } finally {
-            Remove-Item -LiteralPath $png -Force -ErrorAction SilentlyContinue
+            $graphics.Dispose()
+            $image.Dispose()
         }
+        Add-Block $builder $Index (Read-OcrLines $png)
+    } catch {
+        Add-Block $builder $Index ("OCR ERROR: " + $_.Exception.Message)
+    } finally {
+        Remove-Item -LiteralPath $png -Force -ErrorAction SilentlyContinue
     }
 }
 
@@ -293,15 +270,25 @@ RunOcrHelper(arguments, cancellable := true) {
 }
 
 ScanBorders() {
-    global PoeWinTitle, BorderHoverDelay
+    global PoeWinTitle, BorderHoverDelay, Running
     WinGetPos &winX, &winY, &winW, &winH, PoeWinTitle
-    quote := Chr(34)
-    points := SerializePoints(BorderPoints())
-    arguments := "-Points " quote points quote
-        . " -WindowLeft " winX " -WindowTop " winY
-        . " -WindowWidth " winW " -WindowHeight " winH
-        . " -HoverDelay " BorderHoverDelay
-    return RunOcrHelper(arguments)
+    result := ""
+    for index, point in BorderPoints() {
+        if !Running
+            break
+        ToolTip "Moving to board border " index "/12..."
+        MouseMove point[1], point[2], 0
+        Sleep BorderHoverDelay
+        ToolTip()
+        Sleep 30
+        arguments := "-Index " (index - 1)
+            . " -WindowLeft " winX " -WindowTop " winY
+            . " -WindowWidth " winW " -WindowHeight " winH
+        block := RunOcrHelper(arguments)
+        if (block != "")
+            result .= (result = "" ? "" : "`n") block
+    }
+    return result
 }
 
 ; Developer smoke-test: run the embedded Windows OCR helper against an image.
