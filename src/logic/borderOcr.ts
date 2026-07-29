@@ -14,6 +14,14 @@ const normalize = (text: string): string =>
     .replace(/\s+/g, ' ')
     .trim()
 
+const borderTokenFrequency = new Map<string, number>()
+for (const mod of BORDER_MODS) {
+  const uniqueTokens = new Set(normalize(mod.text).split(' ').filter(Boolean))
+  for (const token of uniqueTokens) {
+    borderTokenFrequency.set(token, (borderTokenFrequency.get(token) ?? 0) + 1)
+  }
+}
+
 function editDistance(a: string, b: string): number {
   if (Math.abs(a.length - b.length) > 2) return 99
   let prev = Array.from({ length: b.length + 1 }, (_, i) => i)
@@ -74,6 +82,21 @@ function matchBorder(raw: string): Match | null {
       if (exact) return { id: mod.id, text: mod.text, confidence: 1, exact }
 
       const actualTokens = candidate.split(' ')
+      const signatureTokens = expectedTokens.filter(
+        (token) =>
+          !/^\d+$/.test(token) &&
+          token.length >= 4 &&
+          (borderTokenFrequency.get(token) ?? 0) <= 3,
+      )
+      const hasSignatureMatch =
+        signatureTokens.length === 0 ||
+        signatureTokens.some((token) =>
+          actualTokens.some((actual) => tokenMatches(token, actual)),
+        )
+      if (!hasSignatureMatch) {
+        return { id: mod.id, text: mod.text, confidence: 0, exact }
+      }
+
       const matched = expectedTokens.filter((token) =>
         actualTokens.some((actual) => tokenMatches(token, actual)),
       ).length
