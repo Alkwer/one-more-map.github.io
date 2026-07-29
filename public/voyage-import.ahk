@@ -29,8 +29,9 @@ CoordMode "Mouse", "Screen"  ; all coords are absolute screen pixels
 ;   4. Double-click this file to run it (it lives in the tray).
 ;
 ;  CALIBRATE THE BOARD BORDERS (once; saved to voyage-import.ini)
-;   - Hover the TOP border modifier above the TOP-LEFT board square, press F5.
-;   - Hover the BOTTOM border modifier below the BOTTOM-RIGHT square, press F6.
+;   - Point at the TOP-LEFT corner of the border-modifier square, press F5.
+;   - Point at the BOTTOM-RIGHT corner of the border-modifier square, press F6.
+;   All 12 hover points are kept inside this rectangle.
 ;
 ;  CALIBRATE THE CHART GRID (once; saved to voyage-import.ini)
 ;   - Hover the CENTRE of the TOP-LEFT chart, press  F7.
@@ -106,25 +107,24 @@ BoardCalibrated() =>
 
 BorderPoints() {
     global BorderTLx, BorderTLy, BorderBRx, BorderBRy
-    ; F5/F6 are the centres of the top-left and bottom-right modifiers.
-    ; Their X distance spans two columns, while their Y distance spans
-    ; three full cell heights (top edge -> bottom edge).
-    dx := (BorderBRx - BorderTLx) / 2
+    ; F5/F6 define the outer rectangle. Each modifier sits at the centre
+    ; of one of the three equal edge segments, never outside that rectangle.
+    cellW := (BorderBRx - BorderTLx) / 3
     cellH := (BorderBRy - BorderTLy) / 3
     points := []
 
     ; indices 0-2: top, left to right
     Loop 3
-        points.Push([Round(BorderTLx + (A_Index - 1) * dx), BorderTLy])
+        points.Push([Round(BorderTLx + (A_Index - 0.5) * cellW), BorderTLy])
     ; indices 3-5: right, top to bottom
     Loop 3
-        points.Push([Round(BorderBRx + dx / 2), Round(BorderTLy + (A_Index - 0.5) * cellH)])
+        points.Push([BorderBRx, Round(BorderTLy + (A_Index - 0.5) * cellH)])
     ; indices 6-8: bottom, left to right
     Loop 3
-        points.Push([Round(BorderTLx + (A_Index - 1) * dx), BorderBRy])
+        points.Push([Round(BorderTLx + (A_Index - 0.5) * cellW), BorderBRy])
     ; indices 9-11: left, top to bottom
     Loop 3
-        points.Push([Round(BorderTLx - dx / 2), Round(BorderTLy + (A_Index - 0.5) * cellH)])
+        points.Push([BorderTLx, Round(BorderTLy + (A_Index - 0.5) * cellH)])
 
     return points
 }
@@ -299,7 +299,7 @@ if A_Args.Length >= 2 && A_Args[1] = "--ocr-file" {
     ExitApp
 }
 
-; ---- F5 / F6: capture diagonal board-border calibration points ----
+; ---- F5 / F6: capture the outer board-border rectangle ----
 F5:: {
     global
     MouseGetPos &x, &y
