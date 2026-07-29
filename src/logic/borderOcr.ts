@@ -78,7 +78,7 @@ function matchBorder(raw: string): Match | null {
     const expectedNumbers = expectedTokens.filter((token) => /^\d+$/.test(token))
 
     return candidates.map((candidate) => {
-      const exact = candidate.includes(expected)
+      const exact = candidate === expected
       if (exact) return { id: mod.id, text: mod.text, confidence: 1, exact }
 
       const actualTokens = candidate.split(' ')
@@ -97,10 +97,16 @@ function matchBorder(raw: string): Match | null {
         return { id: mod.id, text: mod.text, confidence: 0, exact }
       }
 
-      const matched = expectedTokens.filter((token) =>
+      const matchedExpected = expectedTokens.filter((token) =>
         actualTokens.some((actual) => tokenMatches(token, actual)),
       ).length
-      let confidence = matched / expectedTokens.length
+      const matchedActual = actualTokens.filter((token) =>
+        expectedTokens.some((expectedToken) => tokenMatches(expectedToken, token)),
+      ).length
+      const recall = matchedExpected / expectedTokens.length
+      const precision = matchedActual / actualTokens.length
+      let confidence =
+        recall + precision === 0 ? 0 : (2 * recall * precision) / (recall + precision)
 
       // Tiers often differ only by a number. Never guess a tier when OCR did
       // not read that number from the same tooltip line.
@@ -114,7 +120,9 @@ function matchBorder(raw: string): Match | null {
     })
   })
 
-  scored.sort((a, b) => b.confidence - a.confidence)
+  scored.sort(
+    (a, b) => Number(b.exact) - Number(a.exact) || b.confidence - a.confidence,
+  )
   const best = scored[0]
   const runnerUp = scored.find((item) => item.id !== best.id)
   if (best.confidence < 0.72) return null
