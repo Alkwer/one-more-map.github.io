@@ -3,6 +3,7 @@
 SetWorkingDir A_ScriptDir
 SetTitleMatchMode 2          ; match window titles by "contains"
 CoordMode "Mouse", "Screen"  ; all coords are absolute screen pixels
+CoordMode "ToolTip", "Screen"
 
 ; =====================================================================
 ;  Allflame Voyage - bulk chart + board-border importer  (AutoHotkey v2)
@@ -33,6 +34,12 @@ CoordMode "Mouse", "Screen"  ; all coords are absolute screen pixels
 ;   - Point at the BOTTOM-RIGHT corner of the border-modifier square, press F6.
 ;   All 12 hover points are kept inside this rectangle.
 ;
+;  EXACT BORDER CALIBRATION (optional; use if the quick mode misses)
+;   - Press Ctrl+F5 to start. The script names the next modifier to record.
+;   - Hover that modifier and press Ctrl+F6. Repeat for all 12 modifiers.
+;   - Press Ctrl+F4 to preview every saved point slowly without running OCR.
+;   Exact points override the F5/F6 rectangle until F5 or F6 is used again.
+;
 ;  CALIBRATE THE CHART GRID (once; saved to voyage-import.ini)
 ;   - Hover the CENTRE of the TOP-LEFT chart, press  F7.
 ;   - Hover the CENTRE of the BOTTOM-RIGHT cell of the 6-wide grid
@@ -58,6 +65,7 @@ GridRows := 10   ; rows to sweep (overshooting is fine - empty cells skip)
 ActivateDelay := 60    ; ms after focusing a window (paid only ~twice total now)
 HoverDelay    := 28    ; ms for PoE to register the cursor before Ctrl+C
 BorderHoverDelay := 250 ; ms for a border tooltip to appear before OCR capture
+BorderPreviewDelay := 900 ; ms per point during the Ctrl+F4 visual preview
 PasteDelay    := 90    ; ms after the single big paste
 ClipTimeout   := 0.2   ; seconds to wait for Ctrl+C (only empty cells wait the full time)
 OcrTimeout    := 90    ; seconds before a stuck Windows OCR scan is stopped
@@ -74,6 +82,17 @@ BorderTLx := IniRead(IniFile, "board", "TopLeftX", "0") + 0
 BorderTLy := IniRead(IniFile, "board", "TopY", "0") + 0
 BorderBRx := IniRead(IniFile, "board", "BottomRightX", "0") + 0
 BorderBRy := IniRead(IniFile, "board", "BottomY", "0") + 0
+ExactBorderPoints := []
+Loop 12 {
+    exactX := IniRead(IniFile, "board-exact", "Point" A_Index "X", "0") + 0
+    exactY := IniRead(IniFile, "board-exact", "Point" A_Index "Y", "0") + 0
+    if (exactX = 0 && exactY = 0) {
+        ExactBorderPoints := []
+        break
+    }
+    ExactBorderPoints.Push([exactX, exactY])
+}
+ExactBorderNext := 0
 ScriptPid := ProcessExist()
 OcrHelper := A_Temp "\voyage-border-ocr-" ScriptPid ".ps1"
 OcrOutput := A_Temp "\voyage-border-ocr-" ScriptPid ".txt"
@@ -102,11 +121,40 @@ CellPos(row, col) {
 }
 
 Calibrated() => (TLx != 0 && TLy != 0 && BRx != 0 && BRy != 0)
-BoardCalibrated() =>
-    (BorderTLx != 0 && BorderTLy != 0 && BorderBRx > BorderTLx && BorderBRy > BorderTLy)
+
+ExactBordersCalibrated() {
+    global ExactBorderPoints
+    return ExactBorderPoints.Length = 12
+}
+
+BoardCalibrated() {
+    global BorderTLx, BorderTLy, BorderBRx, BorderBRy
+    return ExactBordersCalibrated()
+        || (BorderTLx != 0 && BorderTLy != 0 && BorderBRx > BorderTLx && BorderBRy > BorderTLy)
+}
+
+BorderPointLabel(index) {
+    labels := [
+        "TOP - left", "TOP - middle", "TOP - right",
+        "RIGHT - top", "RIGHT - middle", "RIGHT - bottom",
+        "BOTTOM - left", "BOTTOM - middle", "BOTTOM - right",
+        "LEFT - top", "LEFT - middle", "LEFT - bottom"
+    ]
+    return (index >= 1 && index <= labels.Length) ? labels[index] : "unknown"
+}
+
+ClearExactBorderCalibration() {
+    global ExactBorderPoints, ExactBorderNext, IniFile
+    ExactBorderPoints := []
+    ExactBorderNext := 0
+    try IniDelete IniFile, "board-exact"
+}
 
 BorderPoints() {
-    global BorderTLx, BorderTLy, BorderBRx, BorderBRy
+    global BorderTLx, BorderTLy, BorderBRx, BorderBRy, ExactBorderPoints
+    if ExactBordersCalibrated()
+        return ExactBorderPoints
+
     ; F5/F6 define the outer rectangle. Each modifier sits at the centre
     ; of one of the three equal edge segments, never outside that rectangle.
     cellW := (BorderBRx - BorderTLx) / 3
@@ -302,6 +350,7 @@ if A_Args.Length >= 2 && A_Args[1] = "--ocr-file" {
 ; ---- F5 / F6: capture the outer board-border rectangle ----
 F5:: {
     global
+    ClearExactBorderCalibration()
     MouseGetPos &x, &y
     BorderTLx := x, BorderTLy := y
     IniWrite BorderTLx, IniFile, "board", "TopLeftX"
@@ -310,11 +359,89 @@ F5:: {
 }
 F6:: {
     global
+    ClearExactBorderCalibration()
     MouseGetPos &x, &y
     BorderBRx := x, BorderBRy := y
     IniWrite BorderBRx, IniFile, "board", "BottomRightX"
     IniWrite BorderBRy, IniFile, "board", "BottomY"
     Flash "Bottom-right board border set: " BorderBRx ", " BorderBRy
+}
+
+; ---- Ctrl+F5 / Ctrl+F6: guided exact calibration of all 12 modifiers ----
+^F5:: {
+    global
+    ClearExactBorderCalibration()
+    ExactBorderNext := 1
+    Flash "Exact border calibration started."
+        . "`nHover 1/12: " BorderPointLabel(ExactBorderNext)
+        . "`nPress Ctrl+F6 to save it.", 5000
+}
+
+^F6:: {
+    global
+    if (ExactBorderNext < 1 || ExactBorderNext > 12) {
+        Flash "Press Ctrl+F5 first to start exact border calibration.", 3500
+        return
+    }
+
+    MouseGetPos &x, &y
+    savedIndex := ExactBorderNext
+    ExactBorderPoints.Push([x, y])
+    IniWrite x, IniFile, "board-exact", "Point" savedIndex "X"
+    IniWrite y, IniFile, "board-exact", "Point" savedIndex "Y"
+    ExactBorderNext++
+
+    if (ExactBorderNext > 12) {
+        ExactBorderNext := 0
+        Flash "Exact border calibration complete: 12/12."
+            . "`nPress Ctrl+F4 to preview or F9 to scan.", 5000
+        return
+    }
+
+    Flash "Saved " savedIndex "/12: " BorderPointLabel(savedIndex)
+        . "`nNext " ExactBorderNext "/12: " BorderPointLabel(ExactBorderNext)
+        . "`nHover it and press Ctrl+F6.", 5000
+}
+
+; ---- Ctrl+F4: preview border positions without OCR or clipboard changes ----
+^F4:: {
+    global
+    if Running {
+        Flash "A scan or preview is already running.", 2500
+        return
+    }
+    if !BoardCalibrated() {
+        MsgBox "Calibrate borders first with F5/F6 or Ctrl+F5/Ctrl+F6."
+        return
+    }
+    if !WinExist(PoeWinTitle) {
+        MsgBox "Can't find the PoE window (" PoeWinTitle ")."
+        return
+    }
+
+    Running := true
+    WinActivate PoeWinTitle
+    if !WinWaitActive(PoeWinTitle, , 2) {
+        Running := false
+        Flash "Couldn't focus PoE.", 3000
+        return
+    }
+
+    for index, point in BorderPoints() {
+        if !Running
+            break
+        MouseMove point[1], point[2], 0
+        ToolTip "Border preview " index "/12"
+            . "`n" BorderPointLabel(index)
+            . "`n(F10 to abort)", 20, 20
+        Sleep BorderPreviewDelay
+    }
+
+    completed := Running
+    Running := false
+    ToolTip()
+    if completed
+        Flash "Border preview complete. No OCR was run.", 3500
 }
 
 ; ---- F7 / F8: capture the grid corners ----
@@ -337,8 +464,9 @@ F8:: {
 
 ; ---- F10: abort ----
 F10:: {
-    global Running, OcrPid
+    global Running, OcrPid, ExactBorderNext
     Running := false
+    ExactBorderNext := 0
     if OcrPid && ProcessExist(OcrPid) {
         ProcessClose OcrPid
         OcrPid := 0
