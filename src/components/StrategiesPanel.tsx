@@ -67,6 +67,27 @@ function Readiness({
  * adds placement rules that shape what the solver suggests. Its own section so
  * it's obvious when a strategy - not your sliders - is steering results.
  */
+function RegexRow({ regex }: { regex: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <div className="strat-regex-row">
+      <span className="strat-regex-label" title="Paste into the in-game chart search to highlight this strategy's keeper charts">
+        Keeper search
+      </span>
+      <input readOnly value={regex} onFocus={(e) => e.target.select()} />
+      <button
+        onClick={() => {
+          navigator.clipboard.writeText(regex).catch(() => {})
+          setCopied(true)
+          window.setTimeout(() => setCopied(false), 1500)
+        }}
+      >
+        {copied ? '✓' : 'Copy'}
+      </button>
+    </div>
+  )
+}
+
 export function StrategiesPanel({ activeId, pool, borders, onSelect }: Props) {
   const [expanded, setExpanded] = useState<string | null>(activeId)
 
@@ -118,6 +139,7 @@ export function StrategiesPanel({ activeId, pool, borders, onSelect }: Props) {
                 )}
               </div>
             )}
+            {(isActive || isOpen) && s.searchRegex && <RegexRow regex={s.searchRegex} />}
             {(isActive || isOpen) && <Readiness strategy={s} pool={pool} borders={borders} />}
             <button
               className={`strat-use ${isActive ? 'on' : ''}`}

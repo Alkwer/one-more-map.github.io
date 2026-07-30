@@ -109,6 +109,23 @@ export default function App() {
     [state.board, chartMap, state.mode],
   )
 
+  // jackpot detection (Milky: the mechanic's only two real jackpots) - flag
+  // them loudly and offer the matching strategy in one click
+  const jackpots = useMemo(() => {
+    const out: { label: string; strategyId: string }[] = []
+    if (state.pool.some((c) => c.modIds.includes('voy-noequip')))
+      out.push({
+        label: '"Monsters cannot drop Equipment" chart in your library - build the rares board around it',
+        strategyId: 'milky-meatfish',
+      })
+    if (state.borders.includes('b-divine'))
+      out.push({
+        label: '"+1 Divine Orb per Rare" border rolled - park a Sea-Pillar on it and feed it Strongboxes',
+        strategyId: 'divine-border-rares',
+      })
+    return out.filter((j) => j.strategyId !== state.strategyId)
+  }, [state.pool, state.borders, state.strategyId])
+
   // breakdown of the implicit mods currently on the board, by scope
   const modCount = useMemo(() => {
     let self = 0
@@ -588,6 +605,12 @@ export default function App() {
         </section>
 
         <section className="col solver-col">
+          {jackpots.map((j) => (
+            <div key={j.strategyId} className="jackpot-banner">
+              <span className="jackpot-label">🎰 JACKPOT: {j.label}.</span>
+              <button onClick={() => patch({ strategyId: j.strategyId })}>Switch strategy</button>
+            </div>
+          ))}
           <StrategiesPanel
             activeId={state.strategyId}
             pool={state.pool}

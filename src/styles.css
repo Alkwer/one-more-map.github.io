@@ -313,6 +313,46 @@ button.primary:hover {
   border-color: #7a4a4a;
 }
 
+/* jackpot alert - the two builds actually worth waiting for */
+.jackpot-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #b08a2e;
+  border-radius: 3px;
+  background: linear-gradient(180deg, rgba(140, 100, 20, 0.35), rgba(60, 42, 8, 0.35));
+  box-shadow: 0 0 10px rgba(200, 160, 60, 0.25);
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.jackpot-label {
+  color: var(--gold-bright);
+  flex: 1;
+}
+.jackpot-banner button {
+  white-space: nowrap;
+  font-family: var(--sc);
+}
+
+/* chart-rolling regex helpers */
+.roll-regex-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+}
+.roll-regex-label {
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0.85;
+}
+.roll-regex-row input {
+  font-family: monospace;
+  font-size: 12px;
+}
+
 /* curated strategies - a clearly separate section from the manual solver */
 .strategies {
   border: 1px solid #6b4b8a;
@@ -402,6 +442,26 @@ button.primary:hover {
 .strat-source:hover {
   color: #e3c7ff;
   text-decoration: underline;
+}
+.strat-regex-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 10px;
+}
+.strat-regex-label {
+  font-size: 10.5px;
+  white-space: nowrap;
+  opacity: 0.85;
+}
+.strat-regex-row input {
+  font-family: monospace;
+  font-size: 11px;
+  min-width: 0;
+}
+.strat-regex-row button {
+  flex: 0 0 auto;
+  font-size: 11px;
 }
 .strat-notready {
   margin: 4px 10px;

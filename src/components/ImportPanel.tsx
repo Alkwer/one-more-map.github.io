@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { ALL_GOOD_MODS_REGEX } from '../data/strategies'
 import { generateDemoCharts } from '../logic/demo'
 import { parseBorderOcrPayload } from '../logic/borderOcr'
 import { parseChartText } from '../logic/parser'
@@ -145,6 +146,26 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
         </button>
       </div>
       {msg && <div className="muted pad">{msg}</div>}
+
+      <details className="ahk-help">
+        <summary>🎲 Rolling & keeping charts (Milky's regexes)</summary>
+        <p className="muted">
+          Charts can't be rolled after running, so roll first (quantity scales strongboxes). Paste
+          these into the in-game chart search - from Milky's sheet.
+        </p>
+        <div className="roll-regex-row">
+          <span className="roll-regex-label">All good mods (keepers)</span>
+          <input readOnly value={ALL_GOOD_MODS_REGEX} onFocus={(e) => e.target.select()} />
+        </div>
+        <div className="roll-regex-row">
+          <span className="roll-regex-label">120%+ quantity roll</span>
+          <input readOnly value={'"m q.*(1[2-9].|[2-9]..)%"'} onFocus={(e) => e.target.select()} />
+        </div>
+        <div className="roll-regex-row">
+          <span className="roll-regex-label">75%+ sulphur (save for Filthscrabble)</span>
+          <input readOnly value={'"sul.*(7[5-9]|[89].|\\d..)%"'} onFocus={(e) => e.target.select()} />
+        </div>
+      </details>
 
       <details className="ahk-help">
         <summary>🖱️ Bulk-import charts + board borders from PoE (Windows OCR)</summary>
