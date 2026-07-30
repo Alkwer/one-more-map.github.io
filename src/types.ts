@@ -85,7 +85,8 @@ export const STAT_LABELS: Record<Stat, string> = {
 
 /** What each reward axis covers, shown as a hover tooltip on the weight sliders. */
 export const STAT_DESC: Record<Stat, string> = {
-  currency: 'Currency orbs - from Arcanist Strongboxes and border orb-drop rolls (Divine, Exalted, Chaos…)',
+  currency:
+    'Currency orbs - from Arcanist Strongboxes and border orb-drop rolls (Divine, Exalted, Chaos…)',
   gold: 'Gold - from equipment-to-Gold conversion mods and ground-effect charts',
   scarabs: 'Scarabs - from Operative Strongboxes and scarab border rolls',
   divcards: 'Divination Cards - from Diviner Strongboxes and Stacked Deck borders',

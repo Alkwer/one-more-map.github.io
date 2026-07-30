@@ -1,10 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'vitest'
 import type { Board, Borders, ChartData } from '../src/types'
-import {
-  suggestStrategies,
-  type StrategyEvaluationOptions,
-} from '../src/logic/strategySuggestions'
+import { suggestStrategies, type StrategyEvaluationOptions } from '../src/logic/strategySuggestions'
 
 const options = {
   adjacencyMode: 'physical',
@@ -14,11 +11,7 @@ const options = {
   allowRotation: false,
 } satisfies StrategyEvaluationOptions
 
-const chart = (
-  uid: string,
-  modIds: string[] = [],
-  name = `Chart ${uid}`,
-): ChartData => ({
+const chart = (uid: string, modIds: string[] = [], name = `Chart ${uid}`): ChartData => ({
   uid,
   name,
   level: 83,
@@ -33,194 +26,149 @@ describe('strategy suggestion regressions', () => {
   it('prioritizes the Divine border jackpot without a placed board', () => {
     // The Divine roll is an explicit jackpot and must outrank generic strategies
     // even before the player places charts on the board.
-  const borders = emptyBorders()
-  borders[0] = 'b-divine'
-  const result = suggestStrategies(emptyBoard(), borders, new Map(), [], options)
+    const borders = emptyBorders()
+    borders[0] = 'b-divine'
+    const result = suggestStrategies(emptyBoard(), borders, new Map(), [], options)
 
-  assert.equal(result.suggestions[0].strategy.id, 'divine-border-rares')
-  assert.equal(result.suggestions[0].jackpot, true)
-  assert.equal(result.suggestions[0].confidence, 'high')
-  assert.equal(result.suggestions[0].matchingBorders, 1)
+    assert.equal(result.suggestions[0].strategy.id, 'divine-border-rares')
+    assert.equal(result.suggestions[0].jackpot, true)
+    assert.equal(result.suggestions[0].confidence, 'high')
+    assert.equal(result.suggestions[0].matchingBorders, 1)
   })
 
   it('uses the Meatfish library jackpot without a border roll', () => {
     // "Cannot drop Equipment" is the Meatfish library jackpot and remains useful
     // evidence even when no border roll has been entered yet.
-  const keeper = chart('keeper', ['voy-noequip'])
-  const result = suggestStrategies(
-    emptyBoard(),
-    emptyBorders(),
-    new Map([[keeper.uid, keeper]]),
-    [keeper],
-    options,
-  )
+    const keeper = chart('keeper', ['voy-noequip'])
+    const result = suggestStrategies(
+      emptyBoard(),
+      emptyBorders(),
+      new Map([[keeper.uid, keeper]]),
+      [keeper],
+      options,
+    )
 
-  assert.equal(result.hasEvidence, true)
-  assert.equal(result.suggestions[0].strategy.id, 'milky-meatfish')
-  assert.equal(result.suggestions[0].jackpot, true)
-  assert.ok(
-    result.suggestions[0].reasons.some((reason) =>
-      /cannot drop Equipment/.test(reason),
-    ),
-  )
+    assert.equal(result.hasEvidence, true)
+    assert.equal(result.suggestions[0].strategy.id, 'milky-meatfish')
+    assert.equal(result.suggestions[0].jackpot, true)
+    assert.ok(result.suggestions[0].reasons.some((reason) => /cannot drop Equipment/.test(reason)))
   })
 
   it('ranks Ethereal from a Magic-monster border signal', () => {
-  const borders = emptyBorders()
-  borders[4] = 'b-minmagic'
-  const result = suggestStrategies(emptyBoard(), borders, new Map(), [], options)
+    const borders = emptyBorders()
+    borders[4] = 'b-minmagic'
+    const result = suggestStrategies(emptyBoard(), borders, new Map(), [], options)
 
-  assert.equal(result.suggestions[0].strategy.id, 'milky-ethereal')
-  assert.equal(result.suggestions[0].matchingBorders, 1)
-  assert.ok(result.suggestions[0].borderScore > 0)
+    assert.equal(result.suggestions[0].strategy.id, 'milky-ethereal')
+    assert.equal(result.suggestions[0].matchingBorders, 1)
+    assert.ok(result.suggestions[0].borderScore > 0)
   })
 
   it('does not invent evidence for an empty state', () => {
-  const result = suggestStrategies(emptyBoard(), emptyBorders(), new Map(), [], options)
-  assert.equal(result.hasEvidence, false)
+    const result = suggestStrategies(emptyBoard(), emptyBorders(), new Map(), [], options)
+    assert.equal(result.hasEvidence, false)
   })
 
   it('does not promote an incomplete recipe over a runnable strategy', () => {
-  const pool = Array.from({ length: 9 }, (_, index) =>
-    chart(`ready-filler-${index}`),
-  )
-  const charts = new Map(pool.map((entry) => [entry.uid, entry]))
-  const borders = Array(12).fill('b-rare-3')
-  const result = suggestStrategies(
-    emptyBoard(),
-    borders,
-    charts,
-    pool,
-    options,
-  )
+    const pool = Array.from({ length: 9 }, (_, index) => chart(`ready-filler-${index}`))
+    const charts = new Map(pool.map((entry) => [entry.uid, entry]))
+    const borders = Array(12).fill('b-rare-3')
+    const result = suggestStrategies(emptyBoard(), borders, charts, pool, options)
 
-  assert.equal(result.suggestions[0].strategy.id, 'alc-and-go')
-  assert.equal(result.suggestions[0].readiness.ready, true)
-  assert.equal(
-    result.evaluations.find(
-      (entry) => entry.strategy.id === 'milky-meatfish',
-    ).readiness.ready,
-    false,
-  )
+    assert.equal(result.suggestions[0].strategy.id, 'alc-and-go')
+    assert.equal(result.suggestions[0].readiness.ready, true)
+    assert.equal(
+      result.evaluations.find((entry) => entry.strategy.id === 'milky-meatfish').readiness.ready,
+      false,
+    )
   })
 
   it('ranks from the full imported library instead of the manual board', () => {
     // Strategy discovery must use every imported chart, not only charts already
     // arranged on the manual board. Replacing the whole board with junk changes
     // only current-board diagnostics, never the library ranking or best-found fit.
-  const pieces = [
-    // Include a manual explicit so magnitude borders create a legitimate
-    // current-board diagnostic difference without amplifying the implicit.
-    chart('star-1', ['cm-quant-20', 'adj-star-1']),
-    chart('star-2', ['adj-star-2']),
-    chart('pantheon', ['adj-pantheon']),
-    chart('pillar-1', [], 'Sea-Pillar Alpha'),
-    chart('pillar-2', [], 'Sea-Pillar Beta'),
-    chart('lantern-1', ['adj-lantern']),
-    chart('lantern-2', ['adj-lantern']),
-    chart('possess', ['voy-possess']),
-    chart('no-equipment', ['voy-noequip']),
-  ]
-  const junk = Array.from({ length: 9 }, (_, index) =>
-    chart(`junk-${index}`),
-  )
-  const pool = [...pieces, ...junk]
-  const charts = new Map(pool.map((entry) => [entry.uid, entry]))
-  const borders = Array(12).fill('b-mag-3')
-  const pieceBoard = pieces.map((entry) => ({
-    chartUid: entry.uid,
-    rotation: 0,
-  }))
-  const junkBoard = junk.map((entry) => ({
-    chartUid: entry.uid,
-    rotation: 0,
-  }))
+    const pieces = [
+      // Include a manual explicit so magnitude borders create a legitimate
+      // current-board diagnostic difference without amplifying the implicit.
+      chart('star-1', ['cm-quant-20', 'adj-star-1']),
+      chart('star-2', ['adj-star-2']),
+      chart('pantheon', ['adj-pantheon']),
+      chart('pillar-1', [], 'Sea-Pillar Alpha'),
+      chart('pillar-2', [], 'Sea-Pillar Beta'),
+      chart('lantern-1', ['adj-lantern']),
+      chart('lantern-2', ['adj-lantern']),
+      chart('possess', ['voy-possess']),
+      chart('no-equipment', ['voy-noequip']),
+    ]
+    const junk = Array.from({ length: 9 }, (_, index) => chart(`junk-${index}`))
+    const pool = [...pieces, ...junk]
+    const charts = new Map(pool.map((entry) => [entry.uid, entry]))
+    const borders = Array(12).fill('b-mag-3')
+    const pieceBoard = pieces.map((entry) => ({
+      chartUid: entry.uid,
+      rotation: 0,
+    }))
+    const junkBoard = junk.map((entry) => ({
+      chartUid: entry.uid,
+      rotation: 0,
+    }))
 
-  const withPiecesPlaced = suggestStrategies(
-    pieceBoard,
-    borders,
-    charts,
-    pool,
-    options,
-  )
-  const withPiecesUnplaced = suggestStrategies(
-    junkBoard,
-    borders,
-    charts,
-    pool,
-    options,
-  )
+    const withPiecesPlaced = suggestStrategies(pieceBoard, borders, charts, pool, options)
+    const withPiecesUnplaced = suggestStrategies(junkBoard, borders, charts, pool, options)
 
-  assert.equal(
-    withPiecesUnplaced.suggestions[0].strategy.id,
-    'milky-meatfish',
-  )
-  assert.deepEqual(
-    withPiecesPlaced.evaluations.map((entry) => entry.strategy.id),
-    withPiecesUnplaced.evaluations.map((entry) => entry.strategy.id),
-  )
-  assert.deepEqual(
-    withPiecesPlaced.evaluations.map((entry) => entry.rankScore),
-    withPiecesUnplaced.evaluations.map((entry) => entry.rankScore),
-  )
-  assert.deepEqual(
-    withPiecesPlaced.evaluations.map((entry) => entry.fit),
-    withPiecesUnplaced.evaluations.map((entry) => entry.fit),
-  )
-  assert.deepEqual(
-    withPiecesPlaced.evaluations.map((entry) => entry.potentialBoard),
-    withPiecesUnplaced.evaluations.map((entry) => entry.potentialBoard),
-  )
-  assert.notEqual(
-    withPiecesPlaced.suggestions[0].currentFit,
-    withPiecesUnplaced.suggestions[0].currentFit,
-  )
+    assert.equal(withPiecesUnplaced.suggestions[0].strategy.id, 'milky-meatfish')
+    assert.deepEqual(
+      withPiecesPlaced.evaluations.map((entry) => entry.strategy.id),
+      withPiecesUnplaced.evaluations.map((entry) => entry.strategy.id),
+    )
+    assert.deepEqual(
+      withPiecesPlaced.evaluations.map((entry) => entry.rankScore),
+      withPiecesUnplaced.evaluations.map((entry) => entry.rankScore),
+    )
+    assert.deepEqual(
+      withPiecesPlaced.evaluations.map((entry) => entry.fit),
+      withPiecesUnplaced.evaluations.map((entry) => entry.fit),
+    )
+    assert.deepEqual(
+      withPiecesPlaced.evaluations.map((entry) => entry.potentialBoard),
+      withPiecesUnplaced.evaluations.map((entry) => entry.potentialBoard),
+    )
+    assert.notEqual(
+      withPiecesPlaced.suggestions[0].currentFit,
+      withPiecesUnplaced.suggestions[0].currentFit,
+    )
   })
 
   it('lets the border roll change the winner between runnable strategies', () => {
     // With the same complete chart library, the border roll must be able to change
     // the winner between runnable strategies. Rare-monster borders favor Meatfish,
     // while quantity-per-connection borders favor Speedrun Strongboxes.
-  const meatfishPieces = [
-    chart('border-star-1', ['adj-star-1']),
-    chart('border-star-2', ['adj-star-2']),
-    chart('border-pantheon', ['adj-pantheon']),
-    chart('border-pillar-1', [], 'Sea-Pillar Gamma'),
-    chart('border-pillar-2', [], 'Sea-Pillar Delta'),
-    chart('border-lantern-1', ['adj-lantern']),
-    chart('border-lantern-2', ['adj-lantern']),
-    chart('border-possess', ['voy-possess']),
-    chart('border-no-equipment', ['voy-noequip']),
-  ]
-  const speedrunCenter = chart('border-divbox', ['adj-divbox-1'])
-  const filler = Array.from({ length: 9 }, (_, index) =>
-    chart(`border-filler-${index}`),
-  )
-  const pool = [...meatfishPieces, speedrunCenter, ...filler]
-  const charts = new Map(pool.map((entry) => [entry.uid, entry]))
-  const rareRoll = Array(12).fill('b-rare-3')
-  const quantityRoll = Array(12).fill('b-quantconn-2')
+    const meatfishPieces = [
+      chart('border-star-1', ['adj-star-1']),
+      chart('border-star-2', ['adj-star-2']),
+      chart('border-pantheon', ['adj-pantheon']),
+      chart('border-pillar-1', [], 'Sea-Pillar Gamma'),
+      chart('border-pillar-2', [], 'Sea-Pillar Delta'),
+      chart('border-lantern-1', ['adj-lantern']),
+      chart('border-lantern-2', ['adj-lantern']),
+      chart('border-possess', ['voy-possess']),
+      chart('border-no-equipment', ['voy-noequip']),
+    ]
+    const speedrunCenter = chart('border-divbox', ['adj-divbox-1'])
+    const filler = Array.from({ length: 9 }, (_, index) => chart(`border-filler-${index}`))
+    const pool = [...meatfishPieces, speedrunCenter, ...filler]
+    const charts = new Map(pool.map((entry) => [entry.uid, entry]))
+    const rareRoll = Array(12).fill('b-rare-3')
+    const quantityRoll = Array(12).fill('b-quantconn-2')
 
-  const rareResult = suggestStrategies(
-    emptyBoard(),
-    rareRoll,
-    charts,
-    pool,
-    options,
-  )
-  const quantityResult = suggestStrategies(
-    emptyBoard(),
-    quantityRoll,
-    charts,
-    pool,
-    options,
-  )
+    const rareResult = suggestStrategies(emptyBoard(), rareRoll, charts, pool, options)
+    const quantityResult = suggestStrategies(emptyBoard(), quantityRoll, charts, pool, options)
 
-  assert.equal(rareResult.suggestions[0].strategy.id, 'milky-meatfish')
-  assert.equal(quantityResult.suggestions[0].strategy.id, 'milky-speedrun')
-  assert.notEqual(
-    rareResult.suggestions[0].strategy.id,
-    quantityResult.suggestions[0].strategy.id,
-  )
+    assert.equal(rareResult.suggestions[0].strategy.id, 'milky-meatfish')
+    assert.equal(quantityResult.suggestions[0].strategy.id, 'milky-speedrun')
+    assert.notEqual(
+      rareResult.suggestions[0].strategy.id,
+      quantityResult.suggestions[0].strategy.id,
+    )
   })
 })

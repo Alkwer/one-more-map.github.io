@@ -97,45 +97,41 @@ describe('connectivity regressions', () => {
   })
 
   it('keeps strict solver and strategy readiness on the safe default', () => {
-    const [result] = solve(verticals, emptyBorders(), {}, {
-      mode: 'strict',
-      allowRotation: false,
-      adjacencyMode: 'physical',
-      adjacentAffectsSelf: false,
-      disabledMods: new Set(),
-      topK: 1,
-      forceHeuristic: true,
-      searchRestarts: 1,
-      searchIterations: 0,
-      seed: 12,
-    })
-    assert.equal(result.launchable, true)
-    assert.equal(result.fullyReachable, false)
-    assert.equal(result.valid, false)
-
-    const inventory = evaluateStrategyInventory(
-      emptyBorders(),
-      verticalMap,
+    const [result] = solve(
       verticals,
+      emptyBorders(),
+      {},
       {
         mode: 'strict',
         allowRotation: false,
         adjacencyMode: 'physical',
         adjacentAffectsSelf: false,
         disabledMods: new Set(),
+        topK: 1,
+        forceHeuristic: true,
+        searchRestarts: 1,
+        searchIterations: 0,
+        seed: 12,
       },
     )
-    const alcAndGo = inventory.evaluations.find(
-      (entry) => entry.strategy.id === 'alc-and-go',
-    )
+    assert.equal(result.launchable, true)
+    assert.equal(result.fullyReachable, false)
+    assert.equal(result.valid, false)
+
+    const inventory = evaluateStrategyInventory(emptyBorders(), verticalMap, verticals, {
+      mode: 'strict',
+      allowRotation: false,
+      adjacencyMode: 'physical',
+      adjacentAffectsSelf: false,
+      disabledMods: new Set(),
+    })
+    const alcAndGo = inventory.evaluations.find((entry) => entry.strategy.id === 'alc-and-go')
     assert.ok(alcAndGo)
     assert.equal(alcAndGo.potentialLaunchable, true)
     assert.equal(alcAndGo.potentialFullyReachable, false)
     assert.equal(alcAndGo.readiness.ready, false)
     assert.ok(
-      alcAndGo.readiness.missing.some((entry) =>
-        /fully reachable connector layout/.test(entry),
-      ),
+      alcAndGo.readiness.missing.some((entry) => /fully reachable connector layout/.test(entry)),
     )
   })
 })

@@ -96,7 +96,9 @@ export function scoreBoard(
   // which neighbours does an Adjacent mod on tile i reach?
   const adjacentTargets = (i: number): number[] => {
     const base =
-      opts.adjacencyMode === 'connected' ? connectedNeighbours[i] : NEIGHBOURS[i].filter((n) => board[n])
+      opts.adjacencyMode === 'connected'
+        ? connectedNeighbours[i]
+        : NEIGHBOURS[i].filter((n) => board[n])
     return opts.adjacentAffectsSelf ? [...base, i] : base
   }
 

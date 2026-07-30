@@ -23,7 +23,11 @@ export function buildBestModRegex(
 ): { regex: string; included: VoyageModDef[] } {
   const reach = { self: 1, adjacent: 3, global: 9 } as const
   const lettersOnly = (s: string) =>
-    s.toLowerCase().replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim()
+    s
+      .toLowerCase()
+      .replace(/[^a-z ]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
 
   // group tier variants into families (identical text once numbers are stripped);
   // a family's value is its best tier's value

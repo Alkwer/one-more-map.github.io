@@ -10,11 +10,7 @@ const HORIZONTAL: Edges = [false, true, false, true]
 
 const emptyBorders = (): Borders => Array(12).fill(null)
 
-const chart = (
-  uid: string,
-  quantity = 0,
-  overrides: Partial<ChartData> = {},
-): ChartData => ({
+const chart = (uid: string, quantity = 0, overrides: Partial<ChartData> = {}): ChartData => ({
   uid,
   name: `Chart ${uid}`,
   level: 83,
@@ -24,9 +20,7 @@ const chart = (
   ...overrides,
 })
 
-const baseOptions = (
-  overrides: Partial<SolverOptions> = {},
-): SolverOptions => ({
+const baseOptions = (overrides: Partial<SolverOptions> = {}): SolverOptions => ({
   mode: 'any',
   allowRotation: false,
   adjacencyMode: 'physical',
@@ -38,9 +32,7 @@ const baseOptions = (
 
 const boardSignature = (result: ReturnType<typeof solve>[number]) =>
   result.board
-    .map((placement) =>
-      placement ? `${placement.chartUid}:${placement.rotation}` : '_',
-    )
+    .map((placement) => (placement ? `${placement.chartUid}:${placement.rotation}` : '_'))
     .join('|')
 
 describe('exact solver', () => {
@@ -92,18 +84,11 @@ describe('exact solver', () => {
     expect(results).not.toHaveLength(0)
     expect(
       results.flatMap((result) =>
-        result.board.flatMap((placement) =>
-          placement ? [placement.chartUid] : [],
-        ),
+        result.board.flatMap((placement) => (placement ? [placement.chartUid] : [])),
       ),
     ).not.toContain('unresolved')
     expect(
-      solve(
-        [unresolved],
-        emptyBorders(),
-        { 'self:quant': 1 },
-        baseOptions({ mode: 'strict' }),
-      ),
+      solve([unresolved], emptyBorders(), { 'self:quant': 1 }, baseOptions({ mode: 'strict' })),
     ).toEqual([])
   })
 })
@@ -122,27 +107,13 @@ describe('heuristic solver', () => {
       topK: 3,
     })
 
-    const first = solve(
-      pool,
-      emptyBorders(),
-      { 'self:quant': 1 },
-      options,
-    )
-    const second = solve(
-      pool,
-      emptyBorders(),
-      { 'self:quant': 1 },
-      options,
-    )
+    const first = solve(pool, emptyBorders(), { 'self:quant': 1 }, options)
+    const second = solve(pool, emptyBorders(), { 'self:quant': 1 }, options)
 
     expect(second).toEqual(first)
     expect(first[0].reward).toBeCloseTo(5.4)
     expect(first[0].board.filter(Boolean)).toHaveLength(9)
-    expect(
-      first[0].board.some(
-        (placement) => placement?.chartUid === 'reward-1',
-      ),
-    ).toBe(false)
+    expect(first[0].board.some((placement) => placement?.chartUid === 'reward-1')).toBe(false)
   })
 
   it('honors strategy placement rules and rotates charts into the target layout', () => {
@@ -154,9 +125,7 @@ describe('heuristic solver', () => {
       chart(`filler-${index + 1}`, 0, { edges: VERTICAL }),
     )
     const layout: Edges[] = Array.from({ length: 9 }, () => HORIZONTAL)
-    const rules: PositionRule[] = [
-      { cells: [4], modIds: ['adj-star-1'], bonus: 100 },
-    ]
+    const rules: PositionRule[] = [{ cells: [4], modIds: ['adj-star-1'], bonus: 100 }]
 
     const [result] = solve(
       [special, ...fillers],
@@ -178,13 +147,9 @@ describe('heuristic solver', () => {
     expect(result.board.filter(Boolean)).toHaveLength(9)
     for (const placement of result.board) {
       expect(placement).not.toBeNull()
-      const placedChart = [special, ...fillers].find(
-        (entry) => entry.uid === placement?.chartUid,
-      )
+      const placedChart = [special, ...fillers].find((entry) => entry.uid === placement?.chartUid)
       expect(placedChart).toBeDefined()
-      expect(rotateEdges(placedChart!.edges, placement!.rotation)).toEqual(
-        HORIZONTAL,
-      )
+      expect(rotateEdges(placedChart!.edges, placement!.rotation)).toEqual(HORIZONTAL)
     }
   })
 })

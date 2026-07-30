@@ -33,16 +33,13 @@ export function StrategySuggestions({
             Strategy compatibility
           </div>
           <div className="muted small-note suggestion-intro">
-            Ranks the best layout each strategy can build from all imported
-            charts together with the current border roll. Runnable strategies
-            rank ahead of incomplete ones; the manual board is only a
-            diagnostic.
+            Ranks the best layout each strategy can build from all imported charts together with the
+            current border roll. Runnable strategies rank ahead of incomplete ones; the manual board
+            is only a diagnostic.
           </div>
         </div>
         {result.enteredBorders > 0 && (
-          <span className="suggestion-roll-count">
-            {result.enteredBorders}/12 borders
-          </span>
+          <span className="suggestion-roll-count">{result.enteredBorders}/12 borders</span>
         )}
       </div>
 
@@ -56,8 +53,7 @@ export function StrategySuggestions({
         </div>
       ) : !result.hasEvidence ? (
         <div className="suggestion-empty">
-          Import charts or enter border modifiers to get a strategy
-          recommendation.
+          Import charts or enter border modifiers to get a strategy recommendation.
         </div>
       ) : (
         <div className="suggestion-list">
@@ -86,8 +82,7 @@ export function StrategySuggestions({
                 <div className="suggestion-tagline">{suggestion.strategy.tagline}</div>
                 <div className="suggestion-metrics">
                   <span>
-                    Charts{' '}
-                    <strong>{Math.round(suggestion.libraryFit * 100)}%</strong>
+                    Charts <strong>{Math.round(suggestion.libraryFit * 100)}%</strong>
                   </span>
                   <span>
                     Borders{' '}
@@ -98,10 +93,7 @@ export function StrategySuggestions({
                     </strong>
                   </span>
                   <span>
-                    Combined{' '}
-                    <strong>
-                      {Math.round(suggestion.combinedFit * 100)}%
-                    </strong>
+                    Combined <strong>{Math.round(suggestion.combinedFit * 100)}%</strong>
                   </span>
                   <span>
                     Current board{' '}
@@ -120,10 +112,7 @@ export function StrategySuggestions({
                     </strong>
                   </span>
                   <span>
-                    Library{' '}
-                    <strong>
-                      {suggestion.eligibleCharts} eligible
-                    </strong>
+                    Library <strong>{suggestion.eligibleCharts} eligible</strong>
                   </span>
                 </div>
                 {index === 0 && (
@@ -147,8 +136,7 @@ export function StrategySuggestions({
       )}
 
       <div className="suggestion-disclaimer">
-        Diagnostic only — the recommendation above is the single play/reroll
-        decision.
+        Diagnostic only — the recommendation above is the single play/reroll decision.
       </div>
     </section>
   )

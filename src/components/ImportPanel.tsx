@@ -4,11 +4,7 @@ import { generateDemoCharts } from '../logic/demo'
 import { parseBorderOcrPayload } from '../logic/borderOcr'
 import { isChartClipboardText, parseChartText } from '../logic/parser'
 import type { AppState } from '../logic/storage'
-import {
-  decodeStateJson,
-  defaultState,
-  serializeState,
-} from '../logic/storage'
+import { decodeStateJson, defaultState, serializeState } from '../logic/storage'
 import type { ChartData } from '../types'
 
 interface Props {
@@ -21,69 +17,73 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
   const [text, setText] = useState('')
   const [msg, setMsg] = useState('')
 
-  const doParse = useCallback((raw?: string) => {
-    const source = raw ?? text
-    const borderOcr = parseBorderOcrPayload(source)
-    const { charts, rejected, unresolved } = parseChartText(borderOcr.chartText)
-    const notCharted = rejected.filter((r) => r.reason.startsWith('not charted'))
-    if (charts.length === 0 && rejected.length === 0 && borderOcr.blockCount === 0) {
-      setMsg('No items recognised. Is this Ctrl+C item text?')
-      return
-    }
+  const doParse = useCallback(
+    (raw?: string) => {
+      const source = raw ?? text
+      const borderOcr = parseBorderOcrPayload(source)
+      const { charts, rejected, unresolved } = parseChartText(borderOcr.chartText)
+      const notCharted = rejected.filter((r) => r.reason.startsWith('not charted'))
+      if (charts.length === 0 && rejected.length === 0 && borderOcr.blockCount === 0) {
+        setMsg('No items recognised. Is this Ctrl+C item text?')
+        return
+      }
 
-    if (borderOcr.blockCount > 0) {
-      // A complete importer sweep is a snapshot of all 12 current rolls.
-      // Start clean so an OCR miss cannot leave a stale modifier from an
-      // earlier run and masquerade as a wrongly recognized border.
-      const borders = borderOcr.blockCount >= 12 ? [...borderOcr.borders] : [...state.borders]
-      for (const match of borderOcr.matches) borders[match.index] = match.id
-      onLoadState({
-        ...state,
-        pool: charts.length > 0 ? [...state.pool, ...charts] : state.pool,
-        borders,
-      })
-    } else if (charts.length > 0) {
-      onImport(charts)
-    }
-    if (charts.length > 0 || borderOcr.blockCount > 0) {
-      setText('')
-    }
+      if (borderOcr.blockCount > 0) {
+        // A complete importer sweep is a snapshot of all 12 current rolls.
+        // Start clean so an OCR miss cannot leave a stale modifier from an
+        // earlier run and masquerade as a wrongly recognized border.
+        const borders = borderOcr.blockCount >= 12 ? [...borderOcr.borders] : [...state.borders]
+        for (const match of borderOcr.matches) borders[match.index] = match.id
+        onLoadState({
+          ...state,
+          pool: charts.length > 0 ? [...state.pool, ...charts] : state.pool,
+          borders,
+        })
+      } else if (charts.length > 0) {
+        onImport(charts)
+      }
+      if (charts.length > 0 || borderOcr.blockCount > 0) {
+        setText('')
+      }
 
-    const parts: string[] = []
-    if (charts.length) parts.push(`Imported ${charts.length} chart${charts.length === 1 ? '' : 's'}`)
-    if (unresolved.length) {
-      parts.push(
-        `needs shape confirmation: ${unresolved
-          .map(({ name, reason }) => `"${name}" (${reason})`)
-          .join(', ')}`,
-      )
-    }
-    if (borderOcr.blockCount > 0) {
-      parts.push(
-        `matched ${borderOcr.matches.length}/${borderOcr.blockCount} border modifier${
-          borderOcr.blockCount === 1 ? '' : 's'
-        }`,
-      )
-    }
-    if (notCharted.length)
-      parts.push(
-        `skipped ${notCharted.length} uncharted (run them first to reveal their modifier)`,
-      )
-    const otherRejects = rejected.filter((r) => !r.reason.startsWith('not charted'))
-    if (otherRejects.length) {
-      parts.push(
-        `skipped: ${otherRejects
-          .map(({ name, reason }) => `"${name}" (${reason})`)
-          .join(', ')}`,
-      )
-    }
-    if (borderOcr.misses.length > 0) {
-      parts.push(`OCR unmatched at border${borderOcr.misses.length === 1 ? '' : 's'} ${borderOcr.misses
-        .map((miss) => miss.index + 1)
-        .join(', ')}`)
-    }
-    setMsg(parts.join('; ') || 'Nothing imported')
-  }, [onImport, onLoadState, state, text])
+      const parts: string[] = []
+      if (charts.length)
+        parts.push(`Imported ${charts.length} chart${charts.length === 1 ? '' : 's'}`)
+      if (unresolved.length) {
+        parts.push(
+          `needs shape confirmation: ${unresolved
+            .map(({ name, reason }) => `"${name}" (${reason})`)
+            .join(', ')}`,
+        )
+      }
+      if (borderOcr.blockCount > 0) {
+        parts.push(
+          `matched ${borderOcr.matches.length}/${borderOcr.blockCount} border modifier${
+            borderOcr.blockCount === 1 ? '' : 's'
+          }`,
+        )
+      }
+      if (notCharted.length)
+        parts.push(
+          `skipped ${notCharted.length} uncharted (run them first to reveal their modifier)`,
+        )
+      const otherRejects = rejected.filter((r) => !r.reason.startsWith('not charted'))
+      if (otherRejects.length) {
+        parts.push(
+          `skipped: ${otherRejects.map(({ name, reason }) => `"${name}" (${reason})`).join(', ')}`,
+        )
+      }
+      if (borderOcr.misses.length > 0) {
+        parts.push(
+          `OCR unmatched at border${borderOcr.misses.length === 1 ? '' : 's'} ${borderOcr.misses
+            .map((miss) => miss.index + 1)
+            .join(', ')}`,
+        )
+      }
+      setMsg(parts.join('; ') || 'Nothing imported')
+    },
+    [onImport, onLoadState, state, text],
+  )
 
   // Ctrl+V anywhere on the page: if the clipboard holds chart or border text, import
   // it straight away (no need to focus the box). Normal pastes into fields are
@@ -193,16 +193,20 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
         </div>
         <div className="roll-regex-row">
           <span className="roll-regex-label">75%+ sulphur (save for Filthscrabble)</span>
-          <input readOnly value={'"sul.*(7[5-9]|[89].|\\d..)%"'} onFocus={(e) => e.target.select()} />
+          <input
+            readOnly
+            value={'"sul.*(7[5-9]|[89].|\\d..)%"'}
+            onFocus={(e) => e.target.select()}
+          />
         </div>
       </details>
 
       <details className="ahk-help">
         <summary>🖱️ Bulk-import charts + board borders from PoE (Windows OCR)</summary>
         <p className="muted">
-          A self-contained AutoHotkey script copies every chart, reads all 12 board-border
-          tooltips with Windows OCR, and pastes everything here in one go. OCR stays on your PC;
-          no screenshots are uploaded.
+          A self-contained AutoHotkey script copies every chart, reads all 12 board-border tooltips
+          with Windows OCR, and pastes everything here in one go. OCR stays on your PC; no
+          screenshots are uploaded.
         </p>
         <a className="ahk-dl" href={`${import.meta.env.BASE_URL}voyage-import.ahk`} download>
           ⬇ Download voyage-import.ahk
@@ -225,9 +229,8 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
           </li>
           <li>
             Double-click the script. For quick board calibration, point at the{' '}
-            <strong>top-left corner of the border-modifier square</strong> and press{' '}
-            <kbd>F5</kbd>; then point at its <strong>bottom-right corner</strong> and press{' '}
-            <kbd>F6</kbd>.
+            <strong>top-left corner of the border-modifier square</strong> and press <kbd>F5</kbd>;
+            then point at its <strong>bottom-right corner</strong> and press <kbd>F6</kbd>.
           </li>
           <li>
             If any border is missed, press <kbd>Ctrl+F5</kbd> to start exact calibration. Hover the
@@ -236,19 +239,18 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
           </li>
           <li>
             For chart import, hover the <strong>top-left</strong> chart and press <kbd>F7</kbd>;
-            hover the <strong>bottom-right</strong> cell of the chart grid and press{' '}
-            <kbd>F8</kbd>. (Edit GridCols/GridRows if your panel isn't 6×10.)
+            hover the <strong>bottom-right</strong> cell of the chart grid and press <kbd>F8</kbd>.
+            (Edit GridCols/GridRows if your panel isn't 6×10.)
           </li>
           <li>
             <kbd>F9</kbd> copies the charts, scans the 12 borders, and imports both ·{' '}
             <kbd>Ctrl+F9</kbd> refreshes only the 12 borders after a reroll, without rescanning
-            charts ·{' '}
-            <kbd>F10</kbd> aborts. Border OCR can take around 15–30 seconds on a 4K screen.
+            charts · <kbd>F10</kbd> aborts. Border OCR can take around 15–30 seconds on a 4K screen.
           </li>
         </ol>
         <p className="muted small">
-          If PoE runs as administrator, run the script as administrator too, or its keypresses
-          won't reach the game. Don't touch the mouse or keyboard while it's running.
+          If PoE runs as administrator, run the script as administrator too, or its keypresses won't
+          reach the game. Don't touch the mouse or keyboard while it's running.
         </p>
       </details>
     </div>

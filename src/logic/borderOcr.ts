@@ -45,10 +45,7 @@ function tokenMatches(expected: string, actual: string): boolean {
 }
 
 function candidateLines(raw: string): string[] {
-  const lines = raw
-    .split(/\r?\n/)
-    .map(normalize)
-    .filter(Boolean)
+  const lines = raw.split(/\r?\n/).map(normalize).filter(Boolean)
   const candidates = new Set(lines)
   for (let i = 0; i < lines.length; i++) {
     if (i + 1 < lines.length) candidates.add(`${lines[i]} ${lines[i + 1]}`)
@@ -84,15 +81,11 @@ function matchBorder(raw: string): Match | null {
       const actualTokens = candidate.split(' ')
       const signatureTokens = expectedTokens.filter(
         (token) =>
-          !/^\d+$/.test(token) &&
-          token.length >= 4 &&
-          (borderTokenFrequency.get(token) ?? 0) <= 3,
+          !/^\d+$/.test(token) && token.length >= 4 && (borderTokenFrequency.get(token) ?? 0) <= 3,
       )
       const hasSignatureMatch =
         signatureTokens.length === 0 ||
-        signatureTokens.some((token) =>
-          actualTokens.some((actual) => tokenMatches(token, actual)),
-        )
+        signatureTokens.some((token) => actualTokens.some((actual) => tokenMatches(token, actual)))
       if (!hasSignatureMatch) {
         return { id: mod.id, text: mod.text, confidence: 0, exact }
       }
@@ -120,9 +113,7 @@ function matchBorder(raw: string): Match | null {
     })
   })
 
-  scored.sort(
-    (a, b) => Number(b.exact) - Number(a.exact) || b.confidence - a.confidence,
-  )
+  scored.sort((a, b) => Number(b.exact) - Number(a.exact) || b.confidence - a.confidence)
   const best = scored[0]
   const runnerUp = scored.find((item) => item.id !== best.id)
   if (best.confidence < 0.72) return null

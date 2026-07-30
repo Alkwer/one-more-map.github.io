@@ -1,20 +1,9 @@
-import {
-  KEEP_FIT_LINES,
-  REROLL_COSTS,
-  clampRerollsUsed,
-  sulphurSpentAfter,
-} from './rerollAdvice'
+import { KEEP_FIT_LINES, REROLL_COSTS, clampRerollsUsed, sulphurSpentAfter } from './rerollAdvice'
 import type { StrategySuggestion } from './strategySuggestions'
 
 export const ABSOLUTE_PLAYABLE_FIT = 0.5
 
-export type VoyageDecisionKind =
-  | 'needs-data'
-  | 'play'
-  | 'switch'
-  | 'wait'
-  | 'reroll'
-  | 'stop'
+export type VoyageDecisionKind = 'needs-data' | 'play' | 'switch' | 'wait' | 'reroll' | 'stop'
 
 export interface VoyageDecisionAction {
   kind: 'select-strategy'
@@ -63,9 +52,7 @@ const percent = (fit: number | null) =>
 
 const sulphur = (value: number) => value.toLocaleString('en-US')
 
-const candidateFrom = (
-  evaluation: StrategySuggestion,
-): DecisionCandidate => ({
+const candidateFrom = (evaluation: StrategySuggestion): DecisionCandidate => ({
   strategyId: evaluation.strategy.id,
   strategyName: evaluation.strategy.name,
   fit: evaluation.fit,
@@ -94,10 +81,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
   const rerollsUsed = clampRerollsUsed(input.rerollsUsed)
   const nextCost = REROLL_COSTS[rerollsUsed] ?? null
   const keepFitLine = KEEP_FIT_LINES[rerollsUsed] ?? null
-  const decisionFitLine = Math.max(
-    ABSOLUTE_PLAYABLE_FIT,
-    keepFitLine ?? ABSOLUTE_PLAYABLE_FIT,
-  )
+  const decisionFitLine = Math.max(ABSOLUTE_PLAYABLE_FIT, keepFitLine ?? ABSOLUTE_PLAYABLE_FIT)
   const base = {
     rerollsUsed,
     remainingRerolls: REROLL_COSTS.length - rerollsUsed,
@@ -107,15 +91,12 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     decisionFitLine,
   }
 
-  const ranked = input.evaluations
-    .map(candidateFrom)
-    .sort((a, b) => b.rankScore - a.rankScore)
+  const ranked = input.evaluations.map(candidateFrom).sort((a, b) => b.rankScore - a.rankScore)
 
   // A Divine border remains the single exception that can be acted on before
   // every border is entered. Never lose it to an ordinary reroll prompt.
   const divine = ranked.find(
-    (candidate) =>
-      candidate.strategyId === 'divine-border-rares' && candidate.jackpot,
+    (candidate) => candidate.strategyId === 'divine-border-rares' && candidate.jackpot,
   )
   if (divine) {
     if (!divine.ready) {
@@ -138,9 +119,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     return {
       ...base,
       kind: alreadyActive ? 'play' : 'switch',
-      label: alreadyActive
-        ? `PLAY: ${divine.strategyName}`
-        : `SWITCH TO: ${divine.strategyName}`,
+      label: alreadyActive ? `PLAY: ${divine.strategyName}` : `SWITCH TO: ${divine.strategyName}`,
       reason: `A +1 Divine Orb border is present and all required pieces are available across the ${input.availableCharts} imported charts. Preserve the roll and build the recommended layout.`,
       strategyId: divine.strategyId,
       strategyName: divine.strategyName,

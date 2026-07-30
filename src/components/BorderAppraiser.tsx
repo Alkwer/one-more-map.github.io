@@ -38,7 +38,13 @@ const segmentTitle = (segment: BorderSegmentAppraisal) => {
   return `Best known fit for this slot: ${segment.bestLabel} (${scoreText(segment.bestContribution)})`
 }
 
-function SegmentRow({ segment, compact = false }: { segment: BorderSegmentAppraisal; compact?: boolean }) {
+function SegmentRow({
+  segment,
+  compact = false,
+}: {
+  segment: BorderSegmentAppraisal
+  compact?: boolean
+}) {
   const issue = segment.issue ? ISSUE_LABEL[segment.issue] : null
   const tone =
     segment.contribution < 0 ? 'negative' : segment.contribution > 0 ? 'positive' : 'zero'
@@ -54,7 +60,9 @@ function SegmentRow({ segment, compact = false }: { segment: BorderSegmentApprai
         {!compact && (
           <span className="muted">
             {issue ??
-              (segment.fit !== null ? `${Math.round(segment.fit * 100)}% slot fit` : 'Scored effect')}
+              (segment.fit !== null
+                ? `${Math.round(segment.fit * 100)}% slot fit`
+                : 'Scored effect')}
           </span>
         )}
       </div>
@@ -81,9 +89,7 @@ export function BorderAppraiser({ appraisal, contextLabel }: Props) {
           <div id="border-appraiser-title" className="panel-title">
             Border Fit Diagnostic
           </div>
-          <div className="muted border-appraiser-subtitle">
-            {contextLabel}
-          </div>
+          <div className="muted border-appraiser-subtitle">{contextLabel}</div>
         </div>
         <span className={`border-fit-badge ${appraisal.status}`}>
           {STATUS_LABEL[appraisal.status]}
@@ -105,14 +111,17 @@ export function BorderAppraiser({ appraisal, contextLabel }: Props) {
           </div>
           <div className="muted border-fit-meta">
             {appraisal.enteredBorders}/12 entered · {appraisal.activeSegments} active
-            {appraisal.attentionSegments > 0 ? ` · ${appraisal.attentionSegments} need attention` : ''}
+            {appraisal.attentionSegments > 0
+              ? ` · ${appraisal.attentionSegments} need attention`
+              : ''}
           </div>
         </div>
       </div>
 
       <div className="muted small-note border-appraisal-note">
         Score is the difference versus this same layout with no borders. Fit compares each slot with
-        its best-scoring known modifier; it is not a roll percentile or a keep/reroll recommendation.
+        its best-scoring known modifier; it is not a roll percentile or a keep/reroll
+        recommendation.
       </div>
 
       {statGains.length > 0 && (

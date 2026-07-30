@@ -18,8 +18,7 @@ const normalizedChart = (chart: ChartData, includePreserved: boolean) => ({
   ...(includePreserved ? { preserved: !!chart.preserved } : {}),
 })
 
-const normalizedDisabledMods = (disabledMods: Iterable<string>) =>
-  [...new Set(disabledMods)].sort()
+const normalizedDisabledMods = (disabledMods: Iterable<string>) => [...new Set(disabledMods)].sort()
 
 const normalizedWeights = (weights: Weights) =>
   Object.entries(weights).sort(([a], [b]) => a.localeCompare(b))

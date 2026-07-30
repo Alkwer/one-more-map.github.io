@@ -23,9 +23,7 @@ function Readiness({
   if (readiness.requirements.length === 0) return null
   if (!readiness.ready) {
     return (
-      <div className="strat-notready">
-        Missing requirements: {readiness.missing.join(', ')}.
-      </div>
+      <div className="strat-notready">Missing requirements: {readiness.missing.join(', ')}.</div>
     )
   }
   return (
@@ -52,7 +50,10 @@ function RegexRow({ regex }: { regex: string }) {
   const [copied, setCopied] = useState(false)
   return (
     <div className="strat-regex-row">
-      <span className="strat-regex-label" title="Paste into the in-game chart search to highlight this strategy's keeper charts">
+      <span
+        className="strat-regex-label"
+        title="Paste into the in-game chart search to highlight this strategy's keeper charts"
+      >
         Keeper search
       </span>
       <input readOnly value={regex} onFocus={(e) => e.target.select()} />
@@ -112,7 +113,12 @@ export function StrategiesPanel({ activeId, pool, borders, onSelect }: Props) {
                   ))}
                 </ul>
                 {s.source.url ? (
-                  <a className="strat-source" href={s.source.url} target="_blank" rel="noopener noreferrer">
+                  <a
+                    className="strat-source"
+                    href={s.source.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     ▶ {s.source.label}
                   </a>
                 ) : (

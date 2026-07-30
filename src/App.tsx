@@ -16,15 +16,20 @@ import { strategyById } from './data/strategies'
 import { StrategiesPanel } from './components/StrategiesPanel'
 import { scoreBoard } from './logic/scoring'
 import { appraiseBorders } from './logic/borderAppraisal'
-import {
-  evaluateCurrentBoardStrategies,
-} from './logic/strategySuggestions'
+import { evaluateCurrentBoardStrategies } from './logic/strategySuggestions'
 import { useStrategyInventory } from './hooks/useStrategyInventory'
 import { checkConnectivity } from './logic/connectivity'
 import { isChartShapeResolved } from './logic/chartShapes'
 import { clampRerollsUsed } from './logic/rerollAdvice'
 import { decideVoyage } from './logic/voyageDecision'
-import { decodeShare, defaultState, encodeShare, loadLocal, saveLocal, type AppState } from './logic/storage'
+import {
+  decodeShare,
+  defaultState,
+  encodeShare,
+  loadLocal,
+  saveLocal,
+  type AppState,
+} from './logic/storage'
 import type { ChartData } from './types'
 import { ALL_STATS, STAT_LABELS, borderTouches, emptyBoard } from './types'
 
@@ -92,13 +97,10 @@ export default function App() {
   }, [state])
 
   const chartMap = useMemo(() => new Map(state.pool.map((c) => [c.uid, c])), [state.pool])
-  const resolvedPool = useMemo(
-    () => state.pool.filter(isChartShapeResolved),
-    [state.pool],
-  )
+  const resolvedPool = useMemo(() => state.pool.filter(isChartShapeResolved), [state.pool])
   const disabledSet = useMemo(() => new Set(state.disabledMods), [state.disabledMods])
   // active curated strategy: while set, its weights override the manual sliders
-  const activeStrategy = state.strategyId ? strategyById.get(state.strategyId) ?? null : null
+  const activeStrategy = state.strategyId ? (strategyById.get(state.strategyId) ?? null) : null
   const effectiveWeights = activeStrategy ? activeStrategy.weights : state.weights
   const scoreOptions = useMemo(
     () => ({
@@ -124,11 +126,7 @@ export default function App() {
     inventory: strategyInventory,
     loading: strategyInventoryLoading,
     error: strategyInventoryError,
-  } = useStrategyInventory(
-    resolvedPool,
-    state.borders,
-    strategyEvaluationOptions,
-  )
+  } = useStrategyInventory(resolvedPool, state.borders, strategyEvaluationOptions)
   const strategySuggestions = useMemo(
     () =>
       evaluateCurrentBoardStrategies(
@@ -141,20 +139,14 @@ export default function App() {
     [strategyInventory, state.board, state.borders, chartMap, scoreOptions],
   )
   const activeStrategyEvaluation = activeStrategy
-    ? strategySuggestions.evaluations.find(
+    ? (strategySuggestions.evaluations.find(
         (evaluation) => evaluation.strategy.id === activeStrategy.id,
-      ) ?? null
+      ) ?? null)
     : null
   const borderAppraisal = useMemo(
     () =>
       activeStrategyEvaluation?.appraisal ??
-      appraiseBorders(
-        state.board,
-        state.borders,
-        chartMap,
-        effectiveWeights,
-        scoreOptions,
-      ),
+      appraiseBorders(state.board, state.borders, chartMap, effectiveWeights, scoreOptions),
     [
       activeStrategyEvaluation,
       state.board,
@@ -243,7 +235,10 @@ export default function App() {
   const bulkMods = (ids: string[], off: boolean) =>
     setState((s) => {
       const set = new Set(s.disabledMods)
-      for (const id of ids) (off ? set.add(id) : set.delete(id))
+      for (const id of ids) {
+        if (off) set.add(id)
+        else set.delete(id)
+      }
       return { ...s, disabledMods: [...set] }
     })
 
@@ -258,7 +253,11 @@ export default function App() {
     }))
 
   const clearCharts = () => {
-    if (!window.confirm('Remove all charts from the library and clear the board? (Borders and weights are kept.)'))
+    if (
+      !window.confirm(
+        'Remove all charts from the library and clear the board? (Borders and weights are kept.)',
+      )
+    )
       return
     setState((s) => ({ ...s, pool: [], board: emptyBoard() }))
     setSelectedChart(null)
@@ -429,10 +428,7 @@ export default function App() {
     <div className="app">
       <TooltipLayer />
       {showOnboarding && (
-        <Onboarding
-          onClose={closeOnboarding}
-          onDemo={() => addCharts(generateDemoCharts(25))}
-        />
+        <Onboarding onClose={closeOnboarding} onDemo={() => addCharts(generateDemoCharts(25))} />
       )}
       {showMods && (
         <ModBrowser
@@ -451,7 +447,10 @@ export default function App() {
           <button title="How it works" onClick={() => setShowOnboarding(true)}>
             ?
           </button>
-          <button title="Browse all modifiers and switch off ones you don't want" onClick={() => setShowMods(true)}>
+          <button
+            title="Browse all modifiers and switch off ones you don't want"
+            onClick={() => setShowMods(true)}
+          >
             Mods{state.disabledMods.length > 0 ? ` (${state.disabledMods.length} off)` : ''}
           </button>
           <button
@@ -473,9 +472,7 @@ export default function App() {
         decision={voyageDecision}
         loading={strategyInventoryLoading}
         error={strategyInventoryError}
-        onChangeRerolls={(value) =>
-          patch({ borderRerollsUsed: clampRerollsUsed(value) })
-        }
+        onChangeRerolls={(value) => patch({ borderRerollsUsed: clampRerollsUsed(value) })}
         onSelectStrategy={(id) => patch({ strategyId: id })}
       />
 
@@ -516,7 +513,7 @@ export default function App() {
                     : null
             }
             strictMode={state.mode !== 'any'}
-            placingChart={selectedChart ? chartMap.get(selectedChart) ?? null : null}
+            placingChart={selectedChart ? (chartMap.get(selectedChart) ?? null) : null}
             onCellClick={onCellClick}
             onRemove={(i) =>
               setState((s) => {
@@ -618,19 +615,19 @@ export default function App() {
                   ? `⚠ Voyage can start, but ${conn.unreachable} chart${
                       conn.unreachable === 1 ? ' is' : 's are'
                     } unreachable from the ⚓ start`
-                : [
-                    conn.mismatches > 0
-                      ? `✗ ${conn.mismatches} connector mismatch${conn.mismatches === 1 ? '' : 'es'}`
-                      : null,
-                    conn.unfilled > 0
-                      ? `${conn.unfilled} empty square${conn.unfilled === 1 ? '' : 's'} (all 9 must be filled)`
-                      : null,
-                    conn.unreachable > 0
-                      ? `${conn.unreachable} chart${conn.unreachable === 1 ? '' : 's'} unreachable from the ⚓ start`
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
+                  : [
+                      conn.mismatches > 0
+                        ? `✗ ${conn.mismatches} connector mismatch${conn.mismatches === 1 ? '' : 'es'}`
+                        : null,
+                      conn.unfilled > 0
+                        ? `${conn.unfilled} empty square${conn.unfilled === 1 ? '' : 's'} (all 9 must be filled)`
+                        : null,
+                      conn.unreachable > 0
+                        ? `${conn.unreachable} chart${conn.unreachable === 1 ? '' : 's'} unreachable from the ⚓ start`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
           </div>
 
           {modCount.total > 0 && (
@@ -704,9 +701,8 @@ export default function App() {
           <div className="diagnostics-heading">
             <div className="panel-title">Diagnostics</div>
             <div>
-              Combined chart-library potential, border-roll fit, strategy
-              requirements, and current-board fit
-              explain the recommendation above; they do not replace it.
+              Combined chart-library potential, border-roll fit, strategy requirements, and
+              current-board fit explain the recommendation above; they do not replace it.
             </div>
           </div>
           <StrategySuggestions

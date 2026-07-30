@@ -24,9 +24,7 @@ export class WorkerRequestCancelledError extends Error {
   }
 }
 
-export const isWorkerRequestCancelled = (
-  error: unknown,
-): error is WorkerRequestCancelledError =>
+export const isWorkerRequestCancelled = (error: unknown): error is WorkerRequestCancelledError =>
   error instanceof WorkerRequestCancelledError
 
 const createSolverWorker: SolverWorkerFactory = () =>
@@ -121,9 +119,7 @@ export class SolverWorkerClient {
       worker.onerror = (event) => {
         const message =
           event.message ||
-          (event.error instanceof Error
-            ? event.error.message
-            : 'The solver worker failed')
+          (event.error instanceof Error ? event.error.message : 'The solver worker failed')
         finish(() => reject(new Error(message)))
       }
 

@@ -63,7 +63,11 @@ function BorderSelect({
       {mod ? (
         <span>
           {mod.short ??
-            (eff ? `+${eff.percent}% ${STAT_SHORT[eff.stat]}` : mod.magnitude ? `${mod.magnitude}% Magnitude` : '✦')}
+            (eff
+              ? `+${eff.percent}% ${STAT_SHORT[eff.stat]}`
+              : mod.magnitude
+                ? `${mod.magnitude}% Magnitude`
+                : '✦')}
         </span>
       ) : (
         <span className="bslot-empty">·</span>
@@ -225,7 +229,11 @@ function Tile({
       <div className="tile-actions">
         <button
           className={chart.preserved ? 'active' : ''}
-          title={chart.preserved ? 'Preserved: unmark to allow consuming' : 'Preserve: keep this chart when you Finish Voyage'}
+          title={
+            chart.preserved
+              ? 'Preserved: unmark to allow consuming'
+              : 'Preserve: keep this chart when you Finish Voyage'
+          }
           onClick={(e) => {
             e.stopPropagation()
             onTogglePreserve()
@@ -315,7 +323,7 @@ export function BoardView(props: Props) {
       <Tile
         key={i}
         placement={p}
-        chart={p ? charts.get(p.chartUid) ?? null : null}
+        chart={p ? (charts.get(p.chartUid) ?? null) : null}
         score={props.perTile[i]}
         selected={props.selectedCell === i}
         highlighted={!!p && p.chartUid === props.highlightUid}
@@ -393,8 +401,8 @@ export function BoardView(props: Props) {
         </div>
       </div>
       <div className="board-hint">
-        Corners get 2 border mods, edges 1, center 0. Click a library chart then a cell to
-        place; click two placed cells to swap.
+        Corners get 2 border mods, edges 1, center 0. Click a library chart then a cell to place;
+        click two placed cells to swap.
       </div>
       <div className="legend">
         <span className="legend-item scope-self">■ this area</span>

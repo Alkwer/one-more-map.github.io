@@ -21,8 +21,7 @@ describe('reroll advice regressions', () => {
   it('revives shared reroll counts into the supported range', () => {
     // Older shared states did not have the counter; malformed/newer values are
     // safely revived into the supported range.
-    const encode = (value: unknown) =>
-      Buffer.from(JSON.stringify(value), 'utf8').toString('base64')
+    const encode = (value: unknown) => Buffer.from(JSON.stringify(value), 'utf8').toString('base64')
     assert.equal(decodeShare(encode({}))?.borderRerollsUsed, 0)
     assert.equal(decodeShare(encode({ borderRerollsUsed: 99 }))?.borderRerollsUsed, 5)
   })

@@ -13,11 +13,7 @@ import type {
   Weights,
 } from '../types'
 import { ALL_STATS, emptyBoard, emptyBorders } from '../types'
-import {
-  CHART_SHAPES,
-  chartShapeForEdges,
-  isChartShapeResolved,
-} from './chartShapes'
+import { CHART_SHAPES, chartShapeForEdges, isChartShapeResolved } from './chartShapes'
 import { DEFAULT_WEIGHTS } from './rewards'
 
 export interface AppState {
@@ -72,10 +68,7 @@ class StateDecodeError extends Error {
   }
 }
 
-const knownModifierIds = new Set([
-  ...voyageModById.keys(),
-  ...borderModById.keys(),
-])
+const knownModifierIds = new Set([...voyageModById.keys(), ...borderModById.keys()])
 const knownStats = new Set<Stat>(ALL_STATS)
 const knownShapes = new Set<ChartShape>(CHART_SHAPES)
 const knownWeightKeys = new Set(Object.keys(DEFAULT_WEIGHTS))
@@ -91,22 +84,14 @@ function incompatible(message: string): never {
   throw new StateDecodeError('incompatible', message)
 }
 
-function optionalBoolean(
-  object: UnknownRecord,
-  key: string,
-  fallback: boolean,
-): boolean {
+function optionalBoolean(object: UnknownRecord, key: string, fallback: boolean): boolean {
   const value = object[key]
   if (value === undefined) return fallback
   if (typeof value !== 'boolean') fail(`${key} must be a boolean`)
   return value
 }
 
-function optionalString(
-  object: UnknownRecord,
-  key: string,
-  path: string,
-): string | undefined {
+function optionalString(object: UnknownRecord, key: string, path: string): string | undefined {
   const value = object[key]
   if (value === undefined) return undefined
   if (typeof value !== 'string') fail(`${path}.${key} must be a string`)
@@ -116,17 +101,11 @@ function optionalString(
 function decodeVersion(object: UnknownRecord): number | null {
   const version = object.v
   if (version === undefined) return null
-  if (
-    typeof version !== 'number' ||
-    !Number.isInteger(version) ||
-    version < 1
-  ) {
+  if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) {
     fail('v must be a positive integer')
   }
   if (version > STATE_VERSION) {
-    incompatible(
-      `state version ${version} is newer than supported version ${STATE_VERSION}`,
-    )
+    incompatible(`state version ${version} is newer than supported version ${STATE_VERSION}`)
   }
   return version
 }
@@ -137,16 +116,10 @@ function decodeRewards(value: unknown, path: string): ModEffect[] | undefined {
   return value.map((rawEffect, index) => {
     const effectPath = `${path}[${index}]`
     if (!isRecord(rawEffect)) fail(`${effectPath} must be an object`)
-    if (
-      typeof rawEffect.stat !== 'string' ||
-      !knownStats.has(rawEffect.stat as Stat)
-    ) {
+    if (typeof rawEffect.stat !== 'string' || !knownStats.has(rawEffect.stat as Stat)) {
       fail(`${effectPath}.stat is not a supported reward stat`)
     }
-    if (
-      typeof rawEffect.percent !== 'number' ||
-      !Number.isFinite(rawEffect.percent)
-    ) {
+    if (typeof rawEffect.percent !== 'number' || !Number.isFinite(rawEffect.percent)) {
       fail(`${effectPath}.percent must be a finite number`)
     }
     return {
@@ -156,11 +129,7 @@ function decodeRewards(value: unknown, path: string): ModEffect[] | undefined {
   })
 }
 
-function decodeChart(
-  value: unknown,
-  index: number,
-  warnings: string[],
-): ChartData {
+function decodeChart(value: unknown, index: number, warnings: string[]): ChartData {
   const path = `pool[${index}]`
   if (!isRecord(value)) fail(`${path} must be an object`)
   if (typeof value.uid !== 'string' || value.uid.trim() === '') {
@@ -177,10 +146,7 @@ function decodeChart(
   ) {
     fail(`${path}.edges must contain exactly four booleans`)
   }
-  if (
-    !Array.isArray(value.modIds) ||
-    value.modIds.some((id) => typeof id !== 'string')
-  ) {
+  if (!Array.isArray(value.modIds) || value.modIds.some((id) => typeof id !== 'string')) {
     fail(`${path}.modIds must be an array of strings`)
   }
 
@@ -189,20 +155,14 @@ function decodeChart(
   const rawShape = value.shape
   let storedShape: ChartShape | undefined
   if (rawShape !== undefined) {
-    if (
-      typeof rawShape !== 'string' ||
-      !knownShapes.has(rawShape as ChartShape)
-    ) {
+    if (typeof rawShape !== 'string' || !knownShapes.has(rawShape as ChartShape)) {
       fail(`${path}.shape is not supported`)
     }
     storedShape = rawShape as ChartShape
   }
 
   const rawShapeResolved = value.shapeResolved
-  if (
-    rawShapeResolved !== undefined &&
-    typeof rawShapeResolved !== 'boolean'
-  ) {
+  if (rawShapeResolved !== undefined && typeof rawShapeResolved !== 'boolean') {
     fail(`${path}.shapeResolved must be a boolean`)
   }
   if (rawShapeResolved !== false && !inferredShape) {
@@ -275,27 +235,18 @@ function decodePool(value: unknown, warnings: string[]): ChartData[] {
   })
 }
 
-function decodeBoard(
-  value: unknown,
-  pool: ChartData[],
-  warnings: string[],
-): Board {
+function decodeBoard(value: unknown, pool: ChartData[], warnings: string[]): Board {
   if (value === undefined) return emptyBoard()
   if (!Array.isArray(value) || value.length !== 9) {
     fail('board must contain exactly nine placements')
   }
-  const resolvedUids = new Set(
-    pool.filter(isChartShapeResolved).map((chart) => chart.uid),
-  )
+  const resolvedUids = new Set(pool.filter(isChartShapeResolved).map((chart) => chart.uid))
   const placedUids = new Set<string>()
   return value.map((rawPlacement, index) => {
     const path = `board[${index}]`
     if (rawPlacement === null) return null
     if (!isRecord(rawPlacement)) fail(`${path} must be an object or null`)
-    if (
-      typeof rawPlacement.chartUid !== 'string' ||
-      rawPlacement.chartUid.trim() === ''
-    ) {
+    if (typeof rawPlacement.chartUid !== 'string' || rawPlacement.chartUid.trim() === '') {
       fail(`${path}.chartUid must be a non-empty string`)
     }
     if (
@@ -361,10 +312,7 @@ function decodeWeights(value: unknown, warnings: string[]): Weights {
   return weights
 }
 
-function decodeDisabledMods(
-  value: unknown,
-  warnings: string[],
-): string[] {
+function decodeDisabledMods(value: unknown, warnings: string[]): string[] {
   if (value === undefined) return []
   if (!Array.isArray(value) || value.some((id) => typeof id !== 'string')) {
     fail('disabledMods must be an array of strings')
@@ -381,10 +329,7 @@ function decodeDisabledMods(
   return [...disabled]
 }
 
-function decodeStrategyId(
-  value: unknown,
-  warnings: string[],
-): string | null {
+function decodeStrategyId(value: unknown, warnings: string[]): string | null {
   if (value === undefined || value === null) return null
   if (typeof value !== 'string') fail('strategyId must be a string or null')
   if (!strategyById.has(value)) {
@@ -455,9 +400,7 @@ export function decodeState(value: unknown): StateDecodeResult {
     if (version === null) {
       warnings.push('unversioned state was migrated')
     } else if (resetTransient) {
-      warnings.push(
-        `state version ${version} reset chart, board and border data during migration`,
-      )
+      warnings.push(`state version ${version} reset chart, board and border data during migration`)
     }
 
     const modeValue = value.mode
@@ -470,22 +413,15 @@ export function decodeState(value: unknown): StateDecodeResult {
     const adjacencyValue = value.adjacencyMode
     let adjacencyMode: AdjacencyMode
     if (adjacencyValue === undefined) adjacencyMode = defaults.adjacencyMode
-    else if (
-      adjacencyValue === 'physical' ||
-      adjacencyValue === 'connected'
-    ) {
+    else if (adjacencyValue === 'physical' || adjacencyValue === 'connected') {
       adjacencyMode = adjacencyValue
     } else {
       fail('adjacencyMode is not supported')
     }
 
     const pool = resetTransient ? [] : decodePool(value.pool, warnings)
-    const board = resetTransient
-      ? emptyBoard()
-      : decodeBoard(value.board, pool, warnings)
-    const borders = resetTransient
-      ? emptyBorders()
-      : decodeBorders(value.borders, warnings)
+    const board = resetTransient ? emptyBoard() : decodeBoard(value.board, pool, warnings)
+    const borders = resetTransient ? emptyBorders() : decodeBorders(value.borders, warnings)
 
     return {
       ok: true,
@@ -496,11 +432,7 @@ export function decodeState(value: unknown): StateDecodeResult {
         borders,
         weights: decodeWeights(value.weights, warnings),
         mode,
-        allowRotation: optionalBoolean(
-          value,
-          'allowRotation',
-          defaults.allowRotation,
-        ),
+        allowRotation: optionalBoolean(value, 'allowRotation', defaults.allowRotation),
         adjacencyMode,
         adjacentAffectsSelf: optionalBoolean(
           value,
@@ -509,10 +441,7 @@ export function decodeState(value: unknown): StateDecodeResult {
         ),
         disabledMods: decodeDisabledMods(value.disabledMods, warnings),
         strategyId: decodeStrategyId(value.strategyId, warnings),
-        borderRerollsUsed: decodeRerolls(
-          value.borderRerollsUsed,
-          warnings,
-        ),
+        borderRerollsUsed: decodeRerolls(value.borderRerollsUsed, warnings),
       },
     }
   } catch (error) {

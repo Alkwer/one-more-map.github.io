@@ -28,13 +28,13 @@ Confidence labels used below:
 - The cumulative cost of `k` rerolls is:
   `total(k) = 3000 × (2^k - 1)`.
 
-| Paid rerolls | Next costs | Cumulative Sulphur |
-| ---: | --- | ---: |
-| 1 | 3,000 | 3,000 |
-| 2 | 3,000 + 6,000 | 9,000 |
-| 3 | + 12,000 | 21,000 |
-| 4 | + 24,000 | 45,000 |
-| 5 | + 48,000 | **93,000** |
+| Paid rerolls | Next costs    | Cumulative Sulphur |
+| -----------: | ------------- | -----------------: |
+|            1 | 3,000         |              3,000 |
+|            2 | 3,000 + 6,000 |              9,000 |
+|            3 | + 12,000      |             21,000 |
+|            4 | + 24,000      |             45,000 |
+|            5 | + 48,000      |         **93,000** |
 
 One community comment gives `75k` for five rerolls, but its written sequence is
 `3+6+12+24+48`; the correct sum is **93k**.
@@ -64,7 +64,7 @@ One community comment gives `75k` for five rerolls, but its written sequence is
 - The 66 records include explicit tier variants (for example 16/24/32% pack
   size and 50/75/100% more currency), but all tiers still report required level
   1. Tier selection must therefore be controlled by separate Voyage logic or
-  server-side data, not the public mod-level field.
+     server-side data, not the public mod-level field.
 - `DeepwaterBalancePerLevel.datc64` and the other public `Deepwater*.datc64`
   tables inspected do not expose a border weight/tier table. Some patch bundles
   returned 404 in the community data viewer, so this is **not proof that no such
@@ -305,8 +305,8 @@ Static SPA (React or Svelte + TypeScript, gh-pages/Netlify deployable - no backe
 - [ ] Ctrl+C a Lost Chart and a Charted Chart → capture exact item text format
 - [ ] Ctrl+C over the Voyage Board UI → does it export anything?
 - [x] Confirm connector rules: charts rotate; all 9 slots are filled; local edges
-  must match for launch, while disconnected components remain unreachable from
-  the bottom-left start.
+      must match for launch, while disconnected components remain unreachable from
+      the bottom-left start.
 - [ ] Collect the border modifier pool + whether weights/tiers vary by area level
 - [ ] Confirm chart modifier pool + scopes (self/adjacent/global) from poedb/patch notes
 

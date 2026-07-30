@@ -1,7 +1,7 @@
 # Allflame Voyage Solver
 
-Planner + auto-solver for the **Voyage Board** in Path of Exile 3.29 *Curse of the
-Allflame*. 
+Planner + auto-solver for the **Voyage Board** in Path of Exile 3.29 _Curse of the
+Allflame_.
 
 ## Features
 

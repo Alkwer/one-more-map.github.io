@@ -70,9 +70,7 @@ function ChartEditor({ chart, onUpdate }: { chart: ChartData; onUpdate: (c: Char
     })
   }
   const shapeResolved = isChartShapeResolved(chart)
-  const selectedShape = shapeResolved
-    ? chartShapeForEdges(chart.edges) ?? chart.shape ?? ''
-    : ''
+  const selectedShape = shapeResolved ? (chartShapeForEdges(chart.edges) ?? chart.shape ?? '') : ''
   return (
     <div className="chart-editor" onClick={(e) => e.stopPropagation()}>
       <div className="row">
@@ -286,9 +284,7 @@ export function Library(props: Props) {
         </div>
       )}
       {props.pool.length === 0 && (
-        <div className="muted pad">
-          No charts yet. Add manually or paste from the game below.
-        </div>
+        <div className="muted pad">No charts yet. Add manually or paste from the game below.</div>
       )}
       {view === 'grid' && (
         <div className="chart-grid">
@@ -302,9 +298,7 @@ export function Library(props: Props) {
               ...(unresolvedShape
                 ? [
                     {
-                      text: `Shape confirmation required${
-                        c.shapeInput ? `: ${c.shapeInput}` : ''
-                      }`,
+                      text: `Shape confirmation required${c.shapeInput ? `: ${c.shapeInput}` : ''}`,
                       cls: 'bad',
                     },
                   ]
@@ -373,78 +367,78 @@ export function Library(props: Props) {
         </div>
       )}
       {view === 'list' && (
-      <div className="chart-list">
-        {visible.map((c) => {
-          const unresolvedShape = !isChartShapeResolved(c)
-          const allMods = c.modIds.map((id) => voyageModById.get(id)).filter(Boolean)
-          const mod = allMods.find((m) => m!.scope !== 'self') ?? allMods[0] ?? null
-          return (
-            <div
-              key={c.uid}
-              className={`chart-card ${unresolvedShape ? 'unresolved-shape' : ''} ${props.selected === c.uid ? 'selected' : ''} ${onBoard.has(c.uid) ? 'on-board' : ''}`}
-              onClick={() => {
-                if (unresolvedShape) {
-                  setEditing(c.uid)
-                  return
-                }
-                props.onSelect(c.uid)
-              }}
-            >
-              <div className="chart-card-head">
-                {unresolvedShape ? (
-                  <span className="shape-alert" aria-label="Shape confirmation required">
-                    !
-                  </span>
-                ) : (
-                  <EdgeGlyph edges={c.edges} />
-                )}
-                <span className="chart-name">{c.name}</span>
-                <span className="chart-level">lvl {c.level}</span>
-                {unresolvedShape && <span className="badge bad">needs shape</span>}
-                {onBoard.has(c.uid) && <span className="badge">on board</span>}
-                <span className="spacer" />
-                <button
-                  title="Edit"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setEditing(editing === c.uid ? null : c.uid)
-                  }}
-                >
-                  ✎
-                </button>
-                <button
-                  title="Delete"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    props.onRemove(c.uid)
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
-              {mod && (
-                <div
-                  className={`chart-mod scope-${mod.scope}`}
-                  {...tooltipProps({
-                    title: c.name,
-                    lines: [
-                      { text: `Area Level: ${c.level}`, cls: 'muted' },
-                      ...allMods.map((m) => ({ text: m!.text, cls: `scope-${m!.scope}` })),
-                    ],
-                  })}
-                >
-                  {allMods.map((m) => (
-                    <div key={m!.id} className={`scope-${m!.scope}`}>
-                      {m!.text}
-                    </div>
-                  ))}
+        <div className="chart-list">
+          {visible.map((c) => {
+            const unresolvedShape = !isChartShapeResolved(c)
+            const allMods = c.modIds.map((id) => voyageModById.get(id)).filter(Boolean)
+            const mod = allMods.find((m) => m!.scope !== 'self') ?? allMods[0] ?? null
+            return (
+              <div
+                key={c.uid}
+                className={`chart-card ${unresolvedShape ? 'unresolved-shape' : ''} ${props.selected === c.uid ? 'selected' : ''} ${onBoard.has(c.uid) ? 'on-board' : ''}`}
+                onClick={() => {
+                  if (unresolvedShape) {
+                    setEditing(c.uid)
+                    return
+                  }
+                  props.onSelect(c.uid)
+                }}
+              >
+                <div className="chart-card-head">
+                  {unresolvedShape ? (
+                    <span className="shape-alert" aria-label="Shape confirmation required">
+                      !
+                    </span>
+                  ) : (
+                    <EdgeGlyph edges={c.edges} />
+                  )}
+                  <span className="chart-name">{c.name}</span>
+                  <span className="chart-level">lvl {c.level}</span>
+                  {unresolvedShape && <span className="badge bad">needs shape</span>}
+                  {onBoard.has(c.uid) && <span className="badge">on board</span>}
+                  <span className="spacer" />
+                  <button
+                    title="Edit"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setEditing(editing === c.uid ? null : c.uid)
+                    }}
+                  >
+                    ✎
+                  </button>
+                  <button
+                    title="Delete"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      props.onRemove(c.uid)
+                    }}
+                  >
+                    ✕
+                  </button>
                 </div>
-              )}
-              {editing === c.uid && <ChartEditor chart={c} onUpdate={props.onUpdate} />}
-            </div>
-          )
-        })}
-      </div>
+                {mod && (
+                  <div
+                    className={`chart-mod scope-${mod.scope}`}
+                    {...tooltipProps({
+                      title: c.name,
+                      lines: [
+                        { text: `Area Level: ${c.level}`, cls: 'muted' },
+                        ...allMods.map((m) => ({ text: m!.text, cls: `scope-${m!.scope}` })),
+                      ],
+                    })}
+                  >
+                    {allMods.map((m) => (
+                      <div key={m!.id} className={`scope-${m!.scope}`}>
+                        {m!.text}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {editing === c.uid && <ChartEditor chart={c} onUpdate={props.onUpdate} />}
+              </div>
+            )
+          })}
+        </div>
       )}
     </div>
   )

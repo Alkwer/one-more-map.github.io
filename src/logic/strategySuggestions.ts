@@ -1,12 +1,6 @@
 import { borderModById } from '../data/mods'
 import { STRATEGIES, type StrategyDef } from '../data/strategies'
-import type {
-  Board,
-  Borders,
-  ChartData,
-  ConnectivityMode,
-  Weights,
-} from '../types'
+import type { Board, Borders, ChartData, ConnectivityMode, Weights } from '../types'
 import { borderTouches, emptyBorders } from '../types'
 import {
   appraiseBorders,
@@ -107,8 +101,7 @@ function countMatchingCharts(
 ): number {
   return pool.filter(
     (chart) =>
-      (requirement.modIds &&
-        chart.modIds.some((id) => requirement.modIds!.includes(id))) ||
+      (requirement.modIds && chart.modIds.some((id) => requirement.modIds!.includes(id))) ||
       (requirement.nameMatch &&
         chart.name.toLowerCase().includes(requirement.nameMatch.toLowerCase())),
   ).length
@@ -167,12 +160,11 @@ function eligiblePoolFor(strategy: StrategyDef, pool: ChartData[]): ChartData[] 
   const reserveNames = strategy.reserveNames
   return pool.filter(
     (chart) =>
-      !(reserveModIds?.length &&
-        chart.modIds.some((id) => reserveModIds.includes(id))) &&
-      !(reserveNames?.length &&
-        reserveNames.some((name) =>
-          chart.name.toLowerCase().includes(name.toLowerCase()),
-        )),
+      !(reserveModIds?.length && chart.modIds.some((id) => reserveModIds.includes(id))) &&
+      !(
+        reserveNames?.length &&
+        reserveNames.some((name) => chart.name.toLowerCase().includes(name.toLowerCase()))
+      ),
   )
 }
 
@@ -189,10 +181,7 @@ function directBorderContribution(modId: string, weights: Weights): number {
   const mod = borderModById.get(modId)
   if (!mod) return 0
   const weight = weights[borderRewardKey(mod)] ?? 0
-  return mod.effects.reduce(
-    (sum, effect) => sum + (effect.percent / 100) * weight,
-    0,
-  )
+  return mod.effects.reduce((sum, effect) => sum + (effect.percent / 100) * weight, 0)
 }
 
 function borderContributions(
@@ -212,22 +201,17 @@ function borderContributions(
     if (board[borderTouches(segment)]) {
       const isolated = emptyBorders()
       isolated[segment] = modId
-      contribution =
-        scoreBoard(board, isolated, charts, weights, opts).total - base
+      contribution = scoreBoard(board, isolated, charts, weights, opts).total - base
     }
 
     return [{ segment, modId, contribution }]
   })
 }
 
-function uniqueTopBorderLabels(
-  contributions: { modId: string; contribution: number }[],
-): string[] {
+function uniqueTopBorderLabels(contributions: { modId: string; contribution: number }[]): string[] {
   const seen = new Set<string>()
   const labels: string[] = []
-  for (const entry of [...contributions].sort(
-    (a, b) => b.contribution - a.contribution,
-  )) {
+  for (const entry of [...contributions].sort((a, b) => b.contribution - a.contribution)) {
     if (entry.contribution <= EPSILON) break
     const mod = borderModById.get(entry.modId)
     const label = mod?.short ?? mod?.text
@@ -245,10 +229,7 @@ function confidenceFor(
   status: BorderAppraisalStatus,
 ): SuggestionConfidence {
   if (jackpot) return 'high'
-  if (
-    fit !== null &&
-    (status === 'strong' || status === 'excellent')
-  ) {
+  if (fit !== null && (status === 'strong' || status === 'excellent')) {
     return 'high'
   }
   if (fit !== null && status === 'mixed') return 'medium'
@@ -292,11 +273,8 @@ export function evaluateStrategyInventory(
   limit = 3,
 ): StrategyInventoryResult {
   const enteredBorders = borders.filter(Boolean).length
-  const hasNoEquipment = pool.some((chart) =>
-    chart.modIds.includes('voy-noequip'),
-  )
-  const hasDivineBorder =
-    borders.includes('b-divine') && !opts.disabledMods?.has('b-divine')
+  const hasNoEquipment = pool.some((chart) => chart.modIds.includes('voy-noequip'))
+  const hasDivineBorder = borders.includes('b-divine') && !opts.disabledMods?.has('b-divine')
 
   const rawEvaluations = STRATEGIES.map((strategy) => {
     const eligiblePool = eligiblePoolFor(strategy, pool)
@@ -312,8 +290,7 @@ export function evaluateStrategyInventory(
         searchIterations: POTENTIAL_SEARCH_ITERATIONS,
         seed: stableSeed(strategy.id),
       })[0] ?? null
-    const potentialBoard =
-      potential?.board ?? (Array(9).fill(null) as Board)
+    const potentialBoard = potential?.board ?? (Array(9).fill(null) as Board)
     const readiness = addRunnableRequirements(
       strategyReadiness(strategy, pool, borders),
       eligiblePool.length,
@@ -333,22 +310,12 @@ export function evaluateStrategyInventory(
       strategy.weights,
       opts,
     )
-    const borderScore = contributions.reduce(
-      (sum, entry) => sum + entry.contribution,
-      0,
-    )
-    const matchingBorders = contributions.filter(
-      (entry) => entry.contribution > EPSILON,
-    ).length
-    const harmfulBorders = contributions.filter(
-      (entry) => entry.contribution < -EPSILON,
-    ).length
+    const borderScore = contributions.reduce((sum, entry) => sum + entry.contribution, 0)
+    const matchingBorders = contributions.filter((entry) => entry.contribution > EPSILON).length
+    const harmfulBorders = contributions.filter((entry) => entry.contribution < -EPSILON).length
     const weightScale = Math.max(
       1,
-      Object.values(strategy.weights).reduce(
-        (sum, weight) => sum + Math.max(0, weight),
-        0,
-      ),
+      Object.values(strategy.weights).reduce((sum, weight) => sum + Math.max(0, weight), 0),
     )
     const rollAffinity = Math.max(0, borderScore) / weightScale
     const libraryScore = scoreBoard(
@@ -358,12 +325,9 @@ export function evaluateStrategyInventory(
       strategy.weights,
       opts,
     ).total
-    const libraryAffinity =
-      Math.max(0, libraryScore) / weightScale
-    const divineJackpot =
-      hasDivineBorder && strategy.id === 'divine-border-rares'
-    const equipmentJackpot =
-      hasNoEquipment && strategy.id === 'milky-meatfish'
+    const libraryAffinity = Math.max(0, libraryScore) / weightScale
+    const divineJackpot = hasDivineBorder && strategy.id === 'divine-border-rares'
+    const equipmentJackpot = hasNoEquipment && strategy.id === 'milky-meatfish'
     const jackpot = divineJackpot || equipmentJackpot
 
     const reasons: string[] = [
@@ -394,17 +358,13 @@ export function evaluateStrategyInventory(
         )}.`,
       )
     } else if (enteredBorders > 0) {
-      reasons.push(
-        'The current border roll has little direct support for this strategy.',
-      )
+      reasons.push('The current border roll has little direct support for this strategy.')
     }
 
     if (readiness.need === 0 && readiness.ready) {
       reasons.push('No special chart pieces are required.')
     } else if (readiness.ready) {
-      reasons.push(
-        `All ${readiness.need} declared chart/border requirements are available.`,
-      )
+      reasons.push(`All ${readiness.need} declared chart/border requirements are available.`)
     } else {
       reasons.push(
         `Library readiness: ${readiness.have}/${readiness.need}; still missing ${readiness.missing
@@ -416,11 +376,7 @@ export function evaluateStrategyInventory(
     return {
       strategy,
       rankScore: 0,
-      confidence: confidenceFor(
-        jackpot,
-        potentialAppraisal.fit,
-        potentialAppraisal.status,
-      ),
+      confidence: confidenceFor(jackpot, potentialAppraisal.fit, potentialAppraisal.status),
       fit: potentialAppraisal.fit,
       status: potentialAppraisal.status,
       potentialAppraisal,
@@ -456,50 +412,33 @@ export function evaluateStrategyInventory(
   const borderWeight = 0.5 * Math.min(1, enteredBorders / 12)
   const libraryWeight = 1 - borderWeight
 
-  const evaluations: StrategyInventorySuggestion[] = rawEvaluations.map(
-    (raw) => {
-      const {
-        libraryAffinity,
-        rollAffinity,
-        equipmentJackpot,
-        ...evaluation
-      } = raw
-      const libraryFit = clamp01(libraryAffinity / maxLibraryAffinity)
-      const borderFit = clamp01(
-        raw.potentialAppraisal.fit ??
-          rollAffinity / maxRollAffinity,
-      )
-      const combinedFit =
-        libraryFit * libraryWeight + borderFit * borderWeight
-      const rankScore = raw.readiness.ready
-        ? combinedFit
-        : raw.readiness.ratio * 0.5 +
-          combinedFit * 0.4 +
-          (equipmentJackpot ? 0.1 : 0)
+  const evaluations: StrategyInventorySuggestion[] = rawEvaluations.map((raw) => {
+    const { libraryAffinity, rollAffinity, equipmentJackpot, ...evaluation } = raw
+    const libraryFit = clamp01(libraryAffinity / maxLibraryAffinity)
+    const borderFit = clamp01(raw.potentialAppraisal.fit ?? rollAffinity / maxRollAffinity)
+    const combinedFit = libraryFit * libraryWeight + borderFit * borderWeight
+    const rankScore = raw.readiness.ready
+      ? combinedFit
+      : raw.readiness.ratio * 0.5 + combinedFit * 0.4 + (equipmentJackpot ? 0.1 : 0)
 
-      return {
-        ...evaluation,
-        rankScore,
-        libraryFit,
-        borderFit,
-        combinedFit,
-        reasons: [
-          `Combined match: ${Math.round(
-            combinedFit * 100,
-          )}% (${Math.round(libraryFit * 100)}% charts, ${Math.round(
-            borderFit * 100,
-          )}% borders).`,
-          ...raw.reasons,
-        ],
-      }
-    },
-  )
+    return {
+      ...evaluation,
+      rankScore,
+      libraryFit,
+      borderFit,
+      combinedFit,
+      reasons: [
+        `Combined match: ${Math.round(
+          combinedFit * 100,
+        )}% (${Math.round(libraryFit * 100)}% charts, ${Math.round(borderFit * 100)}% borders).`,
+        ...raw.reasons,
+      ],
+    }
+  })
 
   evaluations.sort((a, b) => {
-    const aDivine =
-      a.strategy.id === 'divine-border-rares' && a.jackpot
-    const bDivine =
-      b.strategy.id === 'divine-border-rares' && b.jackpot
+    const aDivine = a.strategy.id === 'divine-border-rares' && a.jackpot
+    const bDivine = b.strategy.id === 'divine-border-rares' && b.jackpot
     if (aDivine !== bDivine) return aDivine ? -1 : 1
     if (a.readiness.ready !== b.readiness.ready) {
       return a.readiness.ready ? -1 : 1
@@ -527,16 +466,8 @@ export function evaluateCurrentBoardStrategies(
   charts: Map<string, ChartData>,
   opts: ScoreOptions,
 ): StrategySuggestionResult {
-  const attach = (
-    suggestion: StrategyInventorySuggestion,
-  ): StrategySuggestion => {
-    const appraisal = appraiseBorders(
-      board,
-      borders,
-      charts,
-      suggestion.strategy.weights,
-      opts,
-    )
+  const attach = (suggestion: StrategyInventorySuggestion): StrategySuggestion => {
+    const appraisal = appraiseBorders(board, borders, charts, suggestion.strategy.weights, opts)
     return {
       ...suggestion,
       appraisal,
@@ -545,19 +476,12 @@ export function evaluateCurrentBoardStrategies(
     }
   }
   const byId = new Map(
-    inventory.evaluations.map((suggestion) => [
-      suggestion.strategy.id,
-      attach(suggestion),
-    ]),
+    inventory.evaluations.map((suggestion) => [suggestion.strategy.id, attach(suggestion)]),
   )
-  const evaluations = inventory.evaluations.map(
-    (suggestion) => byId.get(suggestion.strategy.id)!,
-  )
+  const evaluations = inventory.evaluations.map((suggestion) => byId.get(suggestion.strategy.id)!)
 
   return {
-    suggestions: inventory.suggestions.map(
-      (suggestion) => byId.get(suggestion.strategy.id)!,
-    ),
+    suggestions: inventory.suggestions.map((suggestion) => byId.get(suggestion.strategy.id)!),
     evaluations,
     enteredBorders: inventory.enteredBorders,
     availableCharts: inventory.availableCharts,
@@ -574,18 +498,6 @@ export function suggestStrategies(
   opts: StrategyEvaluationOptions,
   limit = 3,
 ): StrategySuggestionResult {
-  const inventory = evaluateStrategyInventory(
-    borders,
-    charts,
-    pool,
-    opts,
-    limit,
-  )
-  return evaluateCurrentBoardStrategies(
-    inventory,
-    board,
-    borders,
-    charts,
-    opts,
-  )
+  const inventory = evaluateStrategyInventory(borders, charts, pool, opts, limit)
+  return evaluateCurrentBoardStrategies(inventory, board, borders, charts, opts)
 }

@@ -11,7 +11,4 @@ export const clampRerollsUsed = (value: number): number =>
   Math.max(0, Math.min(REROLL_COSTS.length, Math.floor(Number.isFinite(value) ? value : 0)))
 
 export const sulphurSpentAfter = (rerollsUsed: number): number =>
-  REROLL_COSTS.slice(0, clampRerollsUsed(rerollsUsed)).reduce(
-    (sum, cost) => sum + cost,
-    0,
-  )
+  REROLL_COSTS.slice(0, clampRerollsUsed(rerollsUsed)).reduce((sum, cost) => sum + cost, 0)
