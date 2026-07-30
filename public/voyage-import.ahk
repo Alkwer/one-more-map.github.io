@@ -47,8 +47,9 @@ CoordMode "ToolTip", "Screen"
 ;   - Set GridCols / GridRows below to match your panel.
 ;
 ;  RUN
-;   F9  = do the real import sweep
-;   F10 = abort at any time
+;   F9      = import charts + board borders
+;   Ctrl+F9 = refresh only the 12 board borders (use after a reroll)
+;   F10     = abort at any time
 ;
 ;  If PoE is running as administrator, run this script as admin too,
 ;  or its keypresses won't reach the game. Don't touch the mouse or
@@ -514,6 +515,26 @@ ScanBorders() {
     return result
 }
 
+PasteIntoSolver(payload, failureMessage) {
+    global BrowserWinTitle, ActivateDelay, PasteDelay, Running
+    if (payload = "")
+        return false
+
+    A_Clipboard := payload
+    ClipWait 1
+    WinActivate BrowserWinTitle
+    if !WinWaitActive(BrowserWinTitle, , 2) {
+        Running := false
+        Flash failureMessage, 4000
+        return false
+    }
+
+    Sleep ActivateDelay
+    Send "^v"
+    Sleep PasteDelay
+    return true
+}
+
 ; Developer smoke-test: run the embedded Windows OCR helper against an image.
 if A_Args.Length >= 2 && A_Args[1] = "--ocr-file" {
     quote := Chr(34)
@@ -649,6 +670,56 @@ F10:: {
     Flash "Aborting..."
 }
 
+; ---- Ctrl+F9: refresh only the board borders after an in-game reroll ----
+^F9:: {
+    global
+    if Running {
+        Flash "A scan is already running.", 2500
+        return
+    }
+    if !BoardCalibrated() {
+        MsgBox "Calibrate borders first with F5/F6 or Ctrl+F5/Ctrl+F6."
+        return
+    }
+    if !WinExist(PoeWinTitle) {
+        MsgBox "Can't find the PoE window (" PoeWinTitle ")."
+        return
+    }
+    if !WinExist(BrowserWinTitle) {
+        MsgBox "Can't find a window titled '" BrowserWinTitle "'.`nOpen the solver and make it the active browser tab."
+        return
+    }
+
+    Running := true
+    WinActivate PoeWinTitle
+    if !WinWaitActive(PoeWinTitle, , 2) {
+        Running := false
+        Flash "Couldn't focus PoE.", 3000
+        return
+    }
+    Sleep ActivateDelay
+
+    ToolTip "Refreshing 12 board borders with Windows OCR..."
+        . "`nCharts will not be scanned."
+        . "`n(F10 to abort)"
+    borderBlob := ScanBorders()
+    if !Running
+        return
+    if (borderBlob = "") {
+        Running := false
+        Flash "Border OCR returned no data. Try Ctrl+F9 again.", 4000
+        return
+    }
+    if !PasteIntoSolver(
+        borderBlob,
+        "Read 12 borders but couldn't focus the browser to paste."
+    )
+        return
+
+    Running := false
+    Flash "Done. Refreshed 12 borders; charts were not rescanned.", 5000
+}
+
 ; ---- F9: the real import sweep ----
 F9:: {
     global
@@ -722,18 +793,11 @@ F9:: {
         if (payload != "" && borderBlob != "")
             payload .= "`n"
         payload .= borderBlob
-        A_Clipboard := payload
-        ClipWait(1)
-        WinActivate BrowserWinTitle
-        if WinWaitActive(BrowserWinTitle, , 2) {
-            Sleep ActivateDelay
-            Send "^v"
-            Sleep PasteDelay
-        } else {
-            Running := false
-            Flash "Copied " copied " charts but couldn't focus the browser to paste.", 4000
+        if !PasteIntoSolver(
+            payload,
+            "Copied " copied " charts but couldn't focus the browser to paste."
+        )
             return
-        }
     }
 
     Running := false
