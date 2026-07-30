@@ -55,7 +55,10 @@ export interface StrategyInventorySuggestion {
   potentialAppraisal: BorderAppraisal
   potentialBoard: Board
   potentialScore: number
-  potentialValid: boolean
+  /** whether the game accepts the best-found board */
+  potentialLaunchable: boolean
+  /** whether every chart on the best-found board can be reached from the start */
+  potentialFullyReachable: boolean
   /** Library-only potential, normalized against the strongest evaluated strategy. */
   libraryFit: number
   /** Absolute fit of the entered border roll for the best layout found. */
@@ -255,19 +258,19 @@ function confidenceFor(
 function addRunnableRequirements(
   readiness: StrategyReadiness,
   eligibleCharts: number,
-  potentialValid: boolean,
+  potentialValidForMode: boolean,
 ): StrategyReadiness {
   const missing = [...readiness.missing]
   const capacityRatio = Math.min(1, eligibleCharts / 9)
-  const layoutRatio = eligibleCharts >= 9 && !potentialValid ? 0.75 : 1
+  const layoutRatio = eligibleCharts >= 9 && !potentialValidForMode ? 0.75 : 1
   if (eligibleCharts < 9) {
     missing.push(
       `${9 - eligibleCharts}× additional eligible chart${
         9 - eligibleCharts === 1 ? '' : 's'
       } for a full voyage`,
     )
-  } else if (!potentialValid) {
-    missing.push('a runnable connector layout from the available chart shapes')
+  } else if (!potentialValidForMode) {
+    missing.push('a fully reachable connector layout from the available chart shapes')
   }
   return {
     ...readiness,
@@ -365,7 +368,11 @@ export function evaluateStrategyInventory(
 
     const reasons: string[] = [
       `Evaluated all ${eligiblePool.length} eligible imported charts; the best layout found is ${
-        potential?.valid ? 'runnable' : 'not connector-complete'
+        potential?.fullyReachable
+          ? 'fully reachable'
+          : potential?.launchable
+            ? 'launchable but contains unreachable charts'
+            : 'not connector-complete'
       }.`,
     ]
     if (divineJackpot) {
@@ -419,7 +426,8 @@ export function evaluateStrategyInventory(
       potentialAppraisal,
       potentialBoard,
       potentialScore: libraryScore,
-      potentialValid: potential?.valid ?? false,
+      potentialLaunchable: potential?.launchable ?? false,
+      potentialFullyReachable: potential?.fullyReachable ?? false,
       libraryFit: 0,
       borderFit: 0,
       combinedFit: 0,

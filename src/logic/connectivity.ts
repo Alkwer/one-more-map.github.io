@@ -16,7 +16,12 @@ const DIRS = [
 ]
 
 export interface ConnectivityResult {
+  /** whether the selected solver rule accepts this layout */
   valid: boolean
+  /** whether the game allows the Voyage to start */
+  launchable: boolean
+  /** whether every chart is reachable from the bottom-left start */
+  fullyReachable: boolean
   /** total rule violations, used as a penalty to guide the solver */
   violations: number
   /** connector mismatches between two adjacent placed charts */
@@ -24,7 +29,7 @@ export interface ConnectivityResult {
   /** empty squares (a real voyage always uses all 9) */
   unfilled: number
   /** placed charts that can't be reached from the start via matched connectors */
-  disconnected: number
+  unreachable: number
   /** number of matched connections (shared edges where both charts connect) */
   connections: number
 }
@@ -32,14 +37,15 @@ export interface ConnectivityResult {
 /**
  * Check the connector rules for placed tiles.
  *
- * A layout is runnable when:
+ * The game distinguishes two useful states:
  *  - every internal edge matches: where two placed charts share an edge, both
  *    have a connector or neither does (a connector meeting a blank neighbour is
  *    the broken red line in game). Connectors off the outer rim are fine.
  *  - all 9 squares are filled.
+ *    Together these conditions make a layout launchable.
  *  - every chart is reachable from the start (bottom-left ⚓) through matched
- *    connectors - otherwise the Voyage can't thread through the whole board and
- *    those areas never get run.
+ *    connectors. The game allows a Voyage without this, but unreachable areas
+ *    cannot be entered, so the strict solver still requires full reachability.
  *
  * 'any' mode ignores connectors entirely (experiment mode).
  */
@@ -85,24 +91,32 @@ export function checkConnectivity(
   }
   mismatches /= 2 // each mismatched pair is seen from both tiles
 
-  if (mode === 'any')
-    return { valid: true, violations: 0, mismatches: 0, unfilled, disconnected: 0, connections }
-
   // reachability: flood-fill from the start square over matched connections
-  let disconnected = 0
+  let unreachable = placedIdx.length
   if (placedIdx.length > 0) {
-    const root = board[START_CELL] ? START_CELL : placedIdx[0]
     const seen = new Set<number>()
-    const stack = [root]
+    const stack = board[START_CELL] ? [START_CELL] : []
     while (stack.length) {
       const i = stack.pop()!
       if (seen.has(i)) continue
       seen.add(i)
       for (const j of adj[i]) if (!seen.has(j)) stack.push(j)
     }
-    disconnected = placedIdx.length - seen.size
+    unreachable = placedIdx.length - seen.size
   }
 
-  const violations = mismatches + unfilled + disconnected
-  return { valid: violations === 0, violations, mismatches, unfilled, disconnected, connections }
+  const launchable = mismatches === 0 && unfilled === 0
+  const fullyReachable = launchable && unreachable === 0
+  const violations = mode === 'any' ? 0 : mismatches + unfilled + unreachable
+  const valid = mode === 'any' || fullyReachable
+  return {
+    valid,
+    launchable,
+    fullyReachable,
+    violations,
+    mismatches,
+    unfilled,
+    unreachable,
+    connections,
+  }
 }

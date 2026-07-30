@@ -196,8 +196,10 @@ of assumed.
 
 - **Stacking rules are undocumented.** Model now assumes additive stacking within
   an area ("increased" convention); the rewards panel reports average bonus per area.
-- **Start square is bottom-left** (per Zac's observation); connectivity is now rooted
-  there and the board must occupy it. Unconfirmed whether the start ever moves.
+- **Start square is bottom-left.** Live reports confirm that the game allows a
+  locally valid but disconnected Voyage to start; only the component containing
+  this square can then be explored. The solver therefore distinguishes a board
+  the game will launch from a fully reachable board and defaults to the latter.
 - **CONFIRMED (ZiggyD video): some mods scale with the number of connections a
   chart has** - stacking bonuses per connection, and others that reward FEWER
   connections. Modelled via `scaling: 'connections' | 'inverse-connections'` on
@@ -213,12 +215,15 @@ League: **Path of Exile 3.29 - Curse of the Allflame** (launches July 24, 2026).
   reveals its **Voyage Modifier** implicit.
 - **Voyage Board**: a **3×3 grid**. Place 9 Charted Charts to assemble one big
   seafloor Voyage.
-- **Connectivity constraint (CONFIRMED, live board)**: each Chart has connector lines;
+- **Connector constraint (CONFIRMED, live board)**: each Chart has connector lines;
   where two placed charts share an edge, either both have a connector there or neither
   does - a connector meeting a blank neighbour edge is broken (drawn red in game).
   Connectors pointing off the outer board rim are fine. A voyage always fills all 9
-  squares. Boards may branch (T/Cross), so there is NO single-path/reachability rule.
-  Charts can rotate. Modelled as the 'strict' mode in `connectivity.ts` (default).
+  squares. The game will launch several separately matched components, but the player
+  starts in the bottom-left and cannot enter components disconnected from it. Boards
+  may branch (T/Cross); branching is compatible with full reachability and does not
+  remove the need for every useful area to be connected to the start. Charts can
+  rotate. The default `strict` mode requires both launchability and full reachability.
 - **Voyage Modifiers** come in three scopes:
   - affects **own region** only
   - affects **adjacent charts**
@@ -296,7 +301,9 @@ Static SPA (React or Svelte + TypeScript, gh-pages/Netlify deployable - no backe
 
 - [ ] Ctrl+C a Lost Chart and a Charted Chart → capture exact item text format
 - [ ] Ctrl+C over the Voyage Board UI → does it export anything?
-- [ ] Confirm connector rules: rotation? must all 9 connect? partial boards allowed (fewer than 9)?
+- [x] Confirm connector rules: charts rotate; all 9 slots are filled; local edges
+  must match for launch, while disconnected components remain unreachable from
+  the bottom-left start.
 - [ ] Collect the border modifier pool + whether weights/tiers vary by area level
 - [ ] Confirm chart modifier pool + scopes (self/adjacent/global) from poedb/patch notes
 
@@ -307,3 +314,6 @@ Static SPA (React or Svelte + TypeScript, gh-pages/Netlify deployable - no backe
 - https://www.poebuilds.net/post/path-of-exile-3-29-curse-of-the-allflame
 - https://www.arcanestash.com/guides/curse-of-the-allflame-new-path-of-exile-1-league
 - Reveal breakdown video: https://www.youtube.com/watch?v=SCAAl94bJLo
+- Disconnected Voyage accepted by the game but inaccessible from the start:
+  https://www.reddit.com/r/pathofexile/comments/1v809kx/i_did_it_for_science_but_why_is_it_possible/
+  https://www.reddit.com/r/pathofexile/comments/1v6wgku/messed_up_my_first_voyage_and_now_im_stuck/

@@ -22,7 +22,7 @@ const STEPS: { title: string; body: string }[] = [
   },
   {
     title: '5 · Solve',
-    body: 'Solve finds the highest-value arrangement that keeps every chart connected. Click a result to load it, tweak by hand if you like, then Copy in-game search to highlight exactly those charts in your stash.',
+    body: 'Solve finds the highest-value arrangement that keeps all nine charts reachable from the bottom-left ⚓ start. Click a result to load it, tweak by hand if you like, then Copy in-game search to highlight exactly those charts in your stash.',
   },
 ]
 

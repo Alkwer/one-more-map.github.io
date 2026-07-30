@@ -598,20 +598,34 @@ export default function App() {
             </div>
           )}
 
-          <div className={`conn-status ${conn.valid ? 'ok' : 'bad'}`}>
+          <div
+            className={`conn-status ${
+              state.mode === 'any'
+                ? ''
+                : conn.fullyReachable
+                  ? 'ok'
+                  : conn.launchable
+                    ? 'warn'
+                    : 'bad'
+            }`}
+          >
             {state.mode === 'any'
               ? 'Connector rules ignored'
-              : conn.valid
-                ? '✓ Connector layout valid'
+              : conn.fullyReachable
+                ? '✓ All 9 charts reachable from the ⚓ start'
+                : conn.launchable
+                  ? `⚠ Voyage can start, but ${conn.unreachable} chart${
+                      conn.unreachable === 1 ? ' is' : 's are'
+                    } unreachable from the ⚓ start`
                 : [
                     conn.mismatches > 0
                       ? `✗ ${conn.mismatches} connector mismatch${conn.mismatches === 1 ? '' : 'es'}`
                       : null,
-                    conn.disconnected > 0
-                      ? `${conn.disconnected} chart${conn.disconnected === 1 ? '' : 's'} not linked to the ⚓ start`
-                      : null,
                     conn.unfilled > 0
                       ? `${conn.unfilled} empty square${conn.unfilled === 1 ? '' : 's'} (all 9 must be filled)`
+                      : null,
+                    conn.unreachable > 0
+                      ? `${conn.unreachable} chart${conn.unreachable === 1 ? '' : 's'} unreachable from the ⚓ start`
                       : null,
                   ]
                     .filter(Boolean)
