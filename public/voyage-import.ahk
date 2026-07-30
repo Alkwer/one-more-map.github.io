@@ -65,6 +65,7 @@ GridRows := 10   ; rows to sweep (overshooting is fine - empty cells skip)
 ActivateDelay := 60    ; ms after focusing a window (paid only ~twice total now)
 HoverDelay    := 28    ; ms for PoE to register the cursor before Ctrl+C
 BorderHoverDelay := 250 ; ms for a border tooltip to appear before OCR capture
+BorderOcrAttempts := 2  ; retry once when both filtered and unfiltered OCR are empty
 BorderPreviewDelay := 900 ; ms per point during the Ctrl+F4 visual preview
 PasteDelay    := 90    ; ms after the single big paste
 ClipTimeout   := 0.2   ; seconds to wait for Ctrl+C (only empty cells wait the full time)
@@ -359,29 +360,48 @@ function New-OcrEngine {
         'DISM /Online /Add-Capability /CapabilityName:Language.OCR~~~en-US~0.0.1.0')
 }
 
+function Invoke-OcrFile {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)]$Engine)
+
+    $file = Await-Result ([Windows.Storage.StorageFile]::GetFileFromPathAsync($Path)) ([Windows.Storage.StorageFile])
+    $stream = Await-Result ($file.OpenAsync([Windows.Storage.FileAccessMode]::Read)) ([Windows.Storage.Streams.IRandomAccessStream])
+    try {
+        $decoder = Await-Result ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($stream)) ([Windows.Graphics.Imaging.BitmapDecoder])
+        $bitmap = Await-Result ($decoder.GetSoftwareBitmapAsync()) ([Windows.Graphics.Imaging.SoftwareBitmap])
+        try {
+            $result = Await-Result ($Engine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
+            $lines = @($result.Lines | ForEach-Object { $_.Text })
+            if ($lines.Count -gt 0) { return $lines -join [Environment]::NewLine }
+            return $result.Text
+        } finally {
+            if ($null -ne $bitmap) { $bitmap.Dispose() }
+        }
+    } finally {
+        $stream.Dispose()
+    }
+}
+
 function Read-OcrLines {
     param([Parameter(Mandatory = $true)][string]$Path)
     $preparedPath = Join-Path $env:TEMP "voyage-ocr-filtered-$PID-$([Guid]::NewGuid().ToString('N')).png"
     [VoyageOcrImage]::Prepare($Path, $preparedPath)
 
     try {
-        $file = Await-Result ([Windows.Storage.StorageFile]::GetFileFromPathAsync($preparedPath)) ([Windows.Storage.StorageFile])
-        $stream = Await-Result ($file.OpenAsync([Windows.Storage.FileAccessMode]::Read)) ([Windows.Storage.Streams.IRandomAccessStream])
-        try {
-            $decoder = Await-Result ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($stream)) ([Windows.Graphics.Imaging.BitmapDecoder])
-            $bitmap = Await-Result ($decoder.GetSoftwareBitmapAsync()) ([Windows.Graphics.Imaging.SoftwareBitmap])
-            try {
-                $engine = New-OcrEngine
-                $result = Await-Result ($engine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
-                $lines = @($result.Lines | ForEach-Object { $_.Text })
-                if ($lines.Count -gt 0) { return $lines -join [Environment]::NewLine }
-                return $result.Text
-            } finally {
-                if ($null -ne $bitmap) { $bitmap.Dispose() }
-            }
-        } finally {
-            $stream.Dispose()
+        $engine = New-OcrEngine
+        $text = Invoke-OcrFile $preparedPath $engine
+
+        # The lavender-only mask can occasionally be empty even though the
+        # tooltip is visible. Retry the original screenshot before declaring
+        # the border unreadable.
+        if ([string]::IsNullOrWhiteSpace($text)) {
+            $text = Invoke-OcrFile $Path $engine
         }
+        if ([string]::IsNullOrWhiteSpace($text)) {
+            throw 'Windows OCR returned no text after filtered and unfiltered scans.'
+        }
+        return $text
     } finally {
         Remove-Item -LiteralPath $preparedPath -Force -ErrorAction SilentlyContinue
     }
@@ -464,21 +484,30 @@ RunOcrHelper(arguments, cancellable := true) {
 }
 
 ScanBorders() {
-    global PoeWinTitle, BorderHoverDelay, Running
+    global PoeWinTitle, BorderHoverDelay, BorderOcrAttempts, Running
     WinGetPos &winX, &winY, &winW, &winH, PoeWinTitle
     result := ""
     for index, point in BorderPoints() {
         if !Running
             break
-        ToolTip "Moving to board border " index "/12..."
-        MouseMove point[1], point[2], 0
-        Sleep BorderHoverDelay
-        ToolTip()
-        Sleep 30
         arguments := "-Index " (index - 1)
             . " -WindowLeft " winX " -WindowTop " winY
             . " -WindowWidth " winW " -WindowHeight " winH
-        block := RunOcrHelper(arguments)
+        block := ""
+        Loop BorderOcrAttempts {
+            if !Running
+                break
+            attempt := A_Index
+            ToolTip "Moving to board border " index "/12..."
+                . (attempt > 1 ? "`nRetrying empty OCR scan..." : "")
+            MouseMove point[1], point[2], 0
+            Sleep BorderHoverDelay + (attempt - 1) * 200
+            ToolTip()
+            Sleep 30
+            block := RunOcrHelper(arguments)
+            if !InStr(block, "Windows OCR returned no text")
+                break
+        }
         if (block != "")
             result .= (result = "" ? "" : "`n") block
     }
