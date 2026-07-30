@@ -60,21 +60,13 @@ describe('state decoding', () => {
       code: 'invalid',
       message: 'state root must be an object',
     })
-    expect(
-      decodeShare(
-        btoa(JSON.stringify({ v: STATE_VERSION, pool: [{}] })),
-      ),
-    ).toBeNull()
+    expect(decodeShare(btoa(JSON.stringify({ v: STATE_VERSION, pool: [{}] })))).toBeNull()
   })
 
   it.each([
     ['pool type', { pool: {} }, 'pool must be an array'],
     ['chart shape', { pool: [{}] }, 'pool[0].uid must be a non-empty string'],
-    [
-      'setting type',
-      { allowRotation: 'yes' },
-      'allowRotation must be a boolean',
-    ],
+    ['setting type', { allowRotation: 'yes' }, 'allowRotation must be a boolean'],
     [
       'border entry',
       { borders: [{}, ...Array(11).fill(null)] },
@@ -92,17 +84,13 @@ describe('state decoding', () => {
     const invalidReward = chart({
       rewards: [{ stat: 'not-a-stat', percent: 10 } as unknown as ModEffect],
     })
-    expect(
-      decodeState(persisted({ pool: [invalidReward] })),
-    ).toMatchObject({
+    expect(decodeState(persisted({ pool: [invalidReward] }))).toMatchObject({
       ok: false,
       message: 'pool[0].rewards[0].stat is not a supported reward stat',
     })
 
     const weightKey = Object.keys(defaultState().weights)[0]
-    expect(
-      decodeState(persisted({ weights: { [weightKey]: 'high' } })),
-    ).toMatchObject({
+    expect(decodeState(persisted({ weights: { [weightKey]: 'high' } }))).toMatchObject({
       ok: false,
       message: `weights.${weightKey} must be a finite number`,
     })
@@ -122,9 +110,7 @@ describe('state decoding', () => {
 
     const board = Array(9).fill(null)
     board[0] = { chartUid: 'chart-1', rotation: 4 }
-    expect(
-      decodeState(persisted({ pool: [chart()], board })),
-    ).toMatchObject({
+    expect(decodeState(persisted({ pool: [chart()], board }))).toMatchObject({
       ok: false,
       message: 'board[0].rotation must be an integer from 0 to 3',
     })
@@ -166,14 +152,10 @@ describe('state decoding', () => {
   })
 
   it('repairs stale canonical shape labels from valid stored edges', () => {
-    const result = decoded(
-      persisted({ pool: [chart({ shape: 'Corner' })] }),
-    )
+    const result = decoded(persisted({ pool: [chart({ shape: 'Corner' })] }))
 
     expect(result.state.pool[0].shape).toBe('Straight')
-    expect(result.warnings).toContain(
-      'pool[0].shape was repaired from connector edges',
-    )
+    expect(result.warnings).toContain('pool[0].shape was repaired from connector edges')
   })
 
   it('migrates older versions and rejects newer incompatible versions', () => {
@@ -194,9 +176,7 @@ describe('state decoding', () => {
     expect(migrated.state.mode).toBe('strict')
     expect(migrated.warnings[0]).toContain('reset chart, board and border data')
 
-    expect(
-      decodeState(persisted({ v: STATE_VERSION + 1 })),
-    ).toMatchObject({
+    expect(decodeState(persisted({ v: STATE_VERSION + 1 }))).toMatchObject({
       ok: false,
       code: 'incompatible',
       message: `state version ${STATE_VERSION + 1} is newer than supported version ${STATE_VERSION}`,
@@ -207,10 +187,7 @@ describe('state decoding', () => {
     const state: AppState = {
       ...defaultState(),
       pool: [chart({ shapeResolved: true, preserved: true })],
-      board: [
-        { chartUid: 'chart-1', rotation: 2 },
-        ...Array(8).fill(null),
-      ],
+      board: [{ chartUid: 'chart-1', rotation: 2 }, ...Array(8).fill(null)],
       borders: ['b-divine', ...Array(11).fill(null)],
       allowRotation: false,
       strategyId: 'alc-and-go',

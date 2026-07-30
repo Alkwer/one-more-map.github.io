@@ -68,16 +68,25 @@ export const ALL_GOOD_MODS_REGEX =
 /** the pieces Meatfish (and Magic Ethereal) are saving up - the interim
  *  Speedrun farm must never burn these */
 const JUICE_PIECES = [
-  'adj-star-1', 'adj-star-2',
+  'adj-star-1',
+  'adj-star-2',
   'adj-pantheon',
   'adj-lantern',
-  'voy-possess', 'voy-fracture', 'voy-rare', 'voy-noequip',
-  'adj-wisps-1', 'adj-wisps-2',
-  'adj-magic-1', 'adj-magic-2',
+  'voy-possess',
+  'voy-fracture',
+  'voy-rare',
+  'voy-noequip',
+  'adj-wisps-1',
+  'adj-wisps-2',
+  'adj-magic-1',
+  'adj-magic-2',
   'voy-minmagic',
   // Divine Border Rares pieces
-  'adj-box-1', 'adj-box-2', 'adj-box-3',
-  'adj-rare-1', 'adj-rare-2',
+  'adj-box-1',
+  'adj-box-2',
+  'adj-box-3',
+  'adj-rare-1',
+  'adj-rare-2',
 ]
 
 const CENTER = [4]
@@ -117,9 +126,12 @@ const ETHEREAL_LAYOUT: Edges[] = [
 // the ONE chart Speedrun puts in the centre: Diviner's / Operative's boxes or
 // Messages in a Bottle (Arcanist's and generic boxes don't qualify)
 const SPEEDRUN_CENTER_MODS = [
-  'adj-divbox-1', 'adj-divbox-2',
-  'adj-opbox-1', 'adj-opbox-2',
-  'adj-msg-1', 'adj-msg-2',
+  'adj-divbox-1',
+  'adj-divbox-2',
+  'adj-opbox-1',
+  'adj-opbox-2',
+  'adj-msg-1',
+  'adj-msg-2',
 ]
 const NOT_CENTER = [0, 1, 2, 3, 5, 6, 7, 8]
 
@@ -165,7 +177,10 @@ export const STRATEGIES: StrategyDef[] = [
     id: 'milky-speedrun',
     name: 'Speedrun Strongboxes',
     tagline: 'Milky’s interim farm - burn spare charts, crack boxes, get in, get out.',
-    source: { label: 'Milkybk_ - Allflame Buffs and My Strategy', url: 'https://www.youtube.com/watch?v=gVKQhYxeavk' },
+    source: {
+      label: 'Milkybk_ - Allflame Buffs and My Strategy',
+      url: 'https://www.youtube.com/watch?v=gVKQhYxeavk',
+    },
     guide: [
       'Put exactly ONE Operative’s chart in the CENTRE - it’s the best (a few divines of scarabs per run); Diviner’s or Message-in-a-Bottle are the consistent fallbacks.',
       'Roll charts to 110%+ Item Quantity BEFORE running them - they can’t be rolled after, and quantity scales the boxes.',
@@ -195,7 +210,11 @@ export const STRATEGIES: StrategyDef[] = [
       // one centre chart, never a second one wasted elsewhere. Operative's
       // outranks the fallbacks (Milky: "won't yield as much, but consistent")
       { cells: CENTER, modIds: ['adj-opbox-1', 'adj-opbox-2'], bonus: 55 },
-      { cells: CENTER, modIds: ['adj-divbox-1', 'adj-divbox-2', 'adj-msg-1', 'adj-msg-2'], bonus: 40 },
+      {
+        cells: CENTER,
+        modIds: ['adj-divbox-1', 'adj-divbox-2', 'adj-msg-1', 'adj-msg-2'],
+        bonus: 40,
+      },
       { cells: NOT_CENTER, modIds: SPEEDRUN_CENTER_MODS, bonus: -40 },
       // 150%+ quant charts adjacent to the centre (continuous: higher = better)
       { cells: EDGES, rewardStat: { stat: 'quantity', per: 6 }, bonus: 0 },
@@ -203,7 +222,11 @@ export const STRATEGIES: StrategyDef[] = [
       { nearBorderId: 'b-octoboss', rewardStat: { stat: 'sulphur', per: 8 }, bonus: 0 },
     ],
     requirements: [
-      { modIds: SPEEDRUN_CENTER_MODS, count: 1, label: 'Diviner’s / Operative’s / Message chart (centre)' },
+      {
+        modIds: SPEEDRUN_CENTER_MODS,
+        count: 1,
+        label: 'Diviner’s / Operative’s / Message chart (centre)',
+      },
     ],
     waitHint: 'Run manual boards until one drops.',
     searchRegex: '"bottle|divine|oper"',
@@ -212,7 +235,10 @@ export const STRATEGIES: StrategyDef[] = [
     id: 'milky-meatfish',
     name: 'Meatfish',
     tagline: 'Milky’s big one - possessed, Pantheon-touched giga-starfish rares that rain uniques.',
-    source: { label: 'Milkybk_ - Allflame Buffs and My Strategy', url: 'https://www.youtube.com/watch?v=gVKQhYxeavk' },
+    source: {
+      label: 'Milkybk_ - Allflame Buffs and My Strategy',
+      url: 'https://www.youtube.com/watch?v=gVKQhYxeavk',
+    },
     guide: [
       'Milky’s full composition (his sheet): 2× Starfish, 1× Pantheon, 2× Sea-Pillars (corners), 2× Golden Lanterns, 1× Possessed Rares, 1× No-Equipment.',
       'Starfish always top- and bottom-middle; Pantheon only ever right-middle; Golden Lantern preferably centre - any chart shape.',
@@ -253,11 +279,19 @@ export const STRATEGIES: StrategyDef[] = [
     requirements: [
       // Milky's sheet composition (2+1+2+2+1+1 = 9 charts)
       { modIds: ['adj-star-1', 'adj-star-2'], count: 2, label: 'Giant Starfish chart' },
-      { modIds: ['adj-pantheon', 'adj-wisps-1', 'adj-wisps-2'], count: 1, label: 'Pantheon (or 4k Wisp) chart' },
+      {
+        modIds: ['adj-pantheon', 'adj-wisps-1', 'adj-wisps-2'],
+        count: 1,
+        label: 'Pantheon (or 4k Wisp) chart',
+      },
       { nameMatch: 'pillar', count: 2, label: 'Sea-Pillar chart (corners)' },
       { modIds: ['adj-lantern'], count: 2, label: 'Golden Lantern chart' },
       { modIds: ['voy-possess'], count: 1, label: 'Possessed Rares chart' },
-      { modIds: ['voy-noequip', 'voy-fracture'], count: 1, label: 'No-Equipment (or Fracture) chart' },
+      {
+        modIds: ['voy-noequip', 'voy-fracture'],
+        count: 1,
+        label: 'No-Equipment (or Fracture) chart',
+      },
     ],
     waitHint: 'Speedrun Strongboxes in the meantime.',
     searchRegex: '"cannot|poss|lantern|pantheon"',
@@ -266,7 +300,10 @@ export const STRATEGIES: StrategyDef[] = [
     id: 'milky-ethereal',
     name: 'Magic Ethereal',
     tagline: 'Milky’s magic-monster variant - wisps, lanterns and everything at least Magic.',
-    source: { label: 'Milkybk_ - Allflame Buffs and My Strategy', url: 'https://www.youtube.com/watch?v=gVKQhYxeavk' },
+    source: {
+      label: 'Milkybk_ - Allflame Buffs and My Strategy',
+      url: 'https://www.youtube.com/watch?v=gVKQhYxeavk',
+    },
     guide: [
       '⚠ Field reports are underwhelming so far (Palsteron ran it: ~5 div) - Milky has moved to the rares build (Meatfish). Kept for reference.',
       'Builds Milky’s exact board layout: 3 Corners, 4 T-junctions, 1 Crossing, 1 Straight - 11 connections.',
@@ -289,7 +326,11 @@ export const STRATEGIES: StrategyDef[] = [
       // icon cells from Milky's planner: wisps on the cross, lanterns on corners
       { cells: EDGES, modIds: ['adj-wisps-1', 'adj-wisps-2'], bonus: 6 },
       { cells: [0, 2, 8], modIds: ['adj-lantern'], bonus: 5 },
-      { cells: CENTER, modIds: ['adj-magic-1', 'adj-magic-2', 'adj-wisps-1', 'adj-wisps-2'], bonus: 5 },
+      {
+        cells: CENTER,
+        modIds: ['adj-magic-1', 'adj-magic-2', 'adj-wisps-1', 'adj-wisps-2'],
+        bonus: 5,
+      },
     ],
     layout: ETHEREAL_LAYOUT,
     requirements: [
@@ -328,8 +369,18 @@ export const STRATEGIES: StrategyDef[] = [
       // feeders shoot INTO the Divine tile from beside it. "+5 Strongboxes"
       // (7 rares per box when rolled = 35 divines) outranks lower tiers/starfish
       { nearBorderId: 'b-divine', adjacentToBorder: true, modIds: ['adj-box-3'], bonus: 35 },
-      { nearBorderId: 'b-divine', adjacentToBorder: true, modIds: ['adj-box-1', 'adj-box-2'], bonus: 22 },
-      { nearBorderId: 'b-divine', adjacentToBorder: true, modIds: ['adj-star-1', 'adj-star-2'], bonus: 15 },
+      {
+        nearBorderId: 'b-divine',
+        adjacentToBorder: true,
+        modIds: ['adj-box-1', 'adj-box-2'],
+        bonus: 22,
+      },
+      {
+        nearBorderId: 'b-divine',
+        adjacentToBorder: true,
+        modIds: ['adj-star-1', 'adj-star-2'],
+        bonus: 15,
+      },
     ],
     requirements: [
       { nameMatch: 'pillar', count: 1, label: 'Sea-Pillar chart' },
@@ -338,9 +389,16 @@ export const STRATEGIES: StrategyDef[] = [
         count: 3,
         label: 'Starfish or Strongbox chart',
       },
-      { modIds: ['adj-rare-1', 'adj-rare-2', 'voy-rare'], count: 5, label: 'Increased Rares chart' },
+      {
+        modIds: ['adj-rare-1', 'adj-rare-2', 'voy-rare'],
+        count: 5,
+        label: 'Increased Rares chart',
+      },
     ],
-    requiresBorderId: { id: 'b-divine', label: 'a "+1 Divine Orb" border roll (enter your borders)' },
+    requiresBorderId: {
+      id: 'b-divine',
+      label: 'a "+1 Divine Orb" border roll (enter your borders)',
+    },
     waitHint: 'Speedrun Strongboxes until the pieces and the Divine border line up.',
     searchRegex: '"rare monsters in all voy|strongbox"',
   },
@@ -377,10 +435,15 @@ export const STRATEGIES: StrategyDef[] = [
         nearBorderId: 'b-divine',
         adjacentToBorder: true,
         modIds: [
-          'adj-box-1', 'adj-box-2', 'adj-box-3',
-          'adj-divbox-1', 'adj-divbox-2',
-          'adj-arcbox-1', 'adj-arcbox-2',
-          'adj-opbox-1', 'adj-opbox-2',
+          'adj-box-1',
+          'adj-box-2',
+          'adj-box-3',
+          'adj-divbox-1',
+          'adj-divbox-2',
+          'adj-arcbox-1',
+          'adj-arcbox-2',
+          'adj-opbox-1',
+          'adj-opbox-2',
         ],
         bonus: 25,
       },
@@ -389,21 +452,32 @@ export const STRATEGIES: StrategyDef[] = [
       { nameMatch: 'pelagic', count: 1, label: 'Pelagic Abyss chart (high pack size)' },
       {
         modIds: [
-          'adj-box-1', 'adj-box-2', 'adj-box-3',
-          'adj-divbox-1', 'adj-divbox-2',
-          'adj-arcbox-1', 'adj-arcbox-2',
-          'adj-opbox-1', 'adj-opbox-2',
+          'adj-box-1',
+          'adj-box-2',
+          'adj-box-3',
+          'adj-divbox-1',
+          'adj-divbox-2',
+          'adj-arcbox-1',
+          'adj-arcbox-2',
+          'adj-opbox-1',
+          'adj-opbox-2',
         ],
         count: 3,
         label: 'Strongbox adjacent chart (any type)',
       },
       { modIds: ['voy-rare'], count: 5, label: 'Increased Rares (voyage) chart' },
     ],
-    requiresBorderId: { id: 'b-divine', label: 'a "+1 Divine Orb" border roll (enter your borders)' },
+    requiresBorderId: {
+      id: 'b-divine',
+      label: 'a "+1 Divine Orb" border roll (enter your borders)',
+    },
     waitHint: 'Speedrun Strongboxes until the pieces and the Divine border line up.',
     searchRegex: '"m q.*(1[2-9].|[2-9]..)%"',
     extraLinks: [
-      { label: 'Trade search: cheap good charts', url: 'https://www.pathofexile.com/trade/search/Allflame/9zRn7YLRHK' },
+      {
+        label: 'Trade search: cheap good charts',
+        url: 'https://www.pathofexile.com/trade/search/Allflame/9zRn7YLRHK',
+      },
     ],
   },
 ]

@@ -31,11 +31,13 @@ body.theme-harvest {
 
   background:
     linear-gradient(to right, #e2e2e2 1px, transparent 1px),
-    linear-gradient(to bottom, #e2e2e2 1px, transparent 1px),
-    #ffffff;
+    linear-gradient(to bottom, #e2e2e2 1px, transparent 1px), #ffffff;
   background-size: 21px 21px;
   color: var(--text);
-  font: 13px/1.4 Arial, Helvetica, sans-serif;
+  font:
+    13px/1.4 Arial,
+    Helvetica,
+    sans-serif;
 }
 
 body.theme-harvest h1 {

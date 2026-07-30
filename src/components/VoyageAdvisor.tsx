@@ -8,8 +8,7 @@ interface Props {
   onSelectStrategy: (id: string) => void
 }
 
-const sulphur = (value: number | null) =>
-  value === null ? '—' : value.toLocaleString('en-US')
+const sulphur = (value: number | null) => (value === null ? '—' : value.toLocaleString('en-US'))
 
 const toneFor = (decision: VoyageDecision) => {
   if (decision.kind === 'play' || decision.kind === 'switch') return 'keep'
@@ -62,8 +61,7 @@ export function VoyageAdvisor({
     )
   }
 
-  const fitPercent =
-    decision.fit === null ? null : Math.round(decision.fit * 100)
+  const fitPercent = decision.fit === null ? null : Math.round(decision.fit * 100)
   const linePercent = Math.round(decision.decisionFitLine * 100)
   const action = decision.action
 
@@ -145,9 +143,7 @@ export function VoyageAdvisor({
             <div className="next">
               <span>Next</span>
               <strong>{sulphur(decision.nextCost)}</strong>
-              <small>
-                {decision.nextCost === null ? 'cap reached' : 'Sulphur'}
-              </small>
+              <small>{decision.nextCost === null ? 'cap reached' : 'Sulphur'}</small>
             </div>
           </div>
         </div>

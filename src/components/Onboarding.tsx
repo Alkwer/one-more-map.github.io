@@ -32,8 +32,8 @@ export function Onboarding({ onClose, onDemo }: Props) {
       <div className="onboard" onClick={(e) => e.stopPropagation()}>
         <div className="panel-title">Plan your Voyage</div>
         <p className="onboard-intro">
-          Build the most valuable 3×3 Voyage from your charted Charts, solved automatically
-          around connector shapes, adjacency, and border rolls.
+          Build the most valuable 3×3 Voyage from your charted Charts, solved automatically around
+          connector shapes, adjacency, and border rolls.
         </p>
         {STEPS.map((s) => (
           <div key={s.title} className="onboard-step">

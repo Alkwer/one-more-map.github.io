@@ -3,10 +3,7 @@ import { buildBestModRegex } from '../logic/regex'
 import { isChartShapeResolved } from '../logic/chartShapes'
 import type { SolverResult } from '../logic/solver'
 import { createSolverStateKey } from '../logic/solverRequestKeys'
-import {
-  isWorkerRequestCancelled,
-  SolverWorkerClient,
-} from '../logic/solverWorkerClient'
+import { isWorkerRequestCancelled, SolverWorkerClient } from '../logic/solverWorkerClient'
 import type { AppState } from '../logic/storage'
 import type { AdjacencyMode } from '../logic/scoring'
 import type { Board, ConnectivityMode } from '../types'
@@ -58,15 +55,20 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
   if (clientRef.current === null) clientRef.current = new SolverWorkerClient()
   // while a strategy is active it overrides the manual weights everywhere here
   const weights = activeStrategy ? activeStrategy.weights : state.weights
-  const eligiblePool = useMemo(
-    () => state.pool.filter(isChartShapeResolved),
-    [state.pool],
-  )
+  const eligiblePool = useMemo(() => state.pool.filter(isChartShapeResolved), [state.pool])
   const unresolvedShapeCount = state.pool.length - eligiblePool.length
   const solveKey = useMemo(
     () =>
       createSolverStateKey(
-        { ...state, pool: eligiblePool },
+        {
+          pool: eligiblePool,
+          borders: state.borders,
+          mode: state.mode,
+          allowRotation: state.allowRotation,
+          adjacencyMode: state.adjacencyMode,
+          adjacentAffectsSelf: state.adjacentAffectsSelf,
+          disabledMods: state.disabledMods,
+        },
         weights,
         activeStrategy?.id ?? null,
       ),
@@ -85,8 +87,7 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
   const latestSolveKey = useRef(solveKey)
   latestSolveKey.current = solveKey
   const busy = busyRequest?.key === solveKey
-  const results =
-    resultState.key === solveKey ? resultState.results : []
+  const results = resultState.key === solveKey ? resultState.results : []
   const solveNote = noteState.key === solveKey ? noteState.text : ''
 
   useEffect(
@@ -122,17 +123,16 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
     const reserveNames = activeStrategy?.reserveNames
     const solvePool = eligiblePool.filter(
       (chart) =>
-        !(reserve?.length &&
-          chart.modIds.some((id) => reserve.includes(id))) &&
-        !(reserveNames?.length &&
-          reserveNames.some((name) =>
-            chart.name.toLowerCase().includes(name.toLowerCase()),
-          )),
+        !(reserve?.length && chart.modIds.some((id) => reserve.includes(id))) &&
+        !(
+          reserveNames?.length &&
+          reserveNames.some((name) => chart.name.toLowerCase().includes(name.toLowerCase()))
+        ),
     )
     const heldBack = eligiblePool.length - solvePool.length
 
-    clientRef.current!
-      .solve({
+    clientRef
+      .current!.solve({
         pool: solvePool,
         borders: state.borders,
         weights,
@@ -149,18 +149,14 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
         },
       })
       .then((res) => {
-        setBusyRequest((current) =>
-          current?.requestId === requestId ? null : current,
-        )
-        if (
-          latestSolveKey.current !== requestKey ||
-          latestRequestId.current !== requestId
-        )
-          return
+        setBusyRequest((current) => (current?.requestId === requestId ? null : current))
+        if (latestSolveKey.current !== requestKey || latestRequestId.current !== requestId) return
         setResultState({ key: requestKey, results: res })
         const notes: string[] = []
         if (heldBack > 0)
-          notes.push(`${heldBack} juice chart${heldBack === 1 ? '' : 's'} held back for Meatfish/Ethereal.`)
+          notes.push(
+            `${heldBack} juice chart${heldBack === 1 ? '' : 's'} held back for Meatfish/Ethereal.`,
+          )
         if (solvePool.length < 9)
           notes.push(`Only ${solvePool.length} spare charts - not enough for a full board.`)
         else if (res.length && !res[0].valid)
@@ -168,9 +164,7 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
         setNoteState({ key: requestKey, text: notes.join(' ') })
       })
       .catch((error: unknown) => {
-        setBusyRequest((current) =>
-          current?.requestId === requestId ? null : current,
-        )
+        setBusyRequest((current) => (current?.requestId === requestId ? null : current))
         if (
           isWorkerRequestCancelled(error) ||
           latestSolveKey.current !== requestKey ||
@@ -179,9 +173,7 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
           return
         setNoteState({
           key: requestKey,
-          text: `Solver failed: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
+          text: `Solver failed: ${error instanceof Error ? error.message : String(error)}`,
         })
       })
   }
@@ -195,11 +187,7 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
     const keep = new Set<string>()
     eligiblePool.forEach((chart) => chart.preserved && keep.add(chart.uid))
     ;[...eligiblePool]
-      .sort(
-        (a, b) =>
-          displayValue(b, weights, disabled) -
-          displayValue(a, weights, disabled),
-      )
+      .sort((a, b) => displayValue(b, weights, disabled) - displayValue(a, weights, disabled))
       .slice(0, KEEP_BEST)
       .forEach((chart) => keep.add(chart.uid))
     const fillerPool = eligiblePool.filter((chart) => !keep.has(chart.uid))
@@ -216,8 +204,8 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
     latestRequestId.current = requestId
     setBusyRequest({ key: requestKey, requestId })
     setResultState({ key: requestKey, results: [] })
-    clientRef.current!
-      .solve({
+    clientRef
+      .current!.solve({
         pool: fillerPool,
         borders: state.borders,
         weights,
@@ -232,14 +220,8 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
         },
       })
       .then((res) => {
-        setBusyRequest((current) =>
-          current?.requestId === requestId ? null : current,
-        )
-        if (
-          latestSolveKey.current !== requestKey ||
-          latestRequestId.current !== requestId
-        )
-          return
+        setBusyRequest((current) => (current?.requestId === requestId ? null : current))
+        if (latestSolveKey.current !== requestKey || latestRequestId.current !== requestId) return
         setResultState({ key: requestKey, results: res })
         setNoteState({
           key: requestKey,
@@ -249,9 +231,7 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
         })
       })
       .catch((error: unknown) => {
-        setBusyRequest((current) =>
-          current?.requestId === requestId ? null : current,
-        )
+        setBusyRequest((current) => (current?.requestId === requestId ? null : current))
         if (
           isWorkerRequestCancelled(error) ||
           latestSolveKey.current !== requestKey ||
@@ -260,9 +240,7 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
           return
         setNoteState({
           key: requestKey,
-          text: `Solver failed: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
+          text: `Solver failed: ${error instanceof Error ? error.message : String(error)}`,
         })
       })
   }
@@ -327,31 +305,33 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
         </div>
         <div className={`weights ${activeStrategy ? 'weights-overridden' : ''}`}>
           {GROUP_ORDER.map((group) => {
-          const rows = REWARD_TYPES.filter((r) => r.group === group)
-          if (rows.length === 0) return null
-          return (
-            <div key={group} className="weight-group">
-              <div className="weight-group-title">{GROUP_LABEL[group]}</div>
-              {rows.map((r) => (
-                <div key={r.key} className="weight-row">
-                  <span className="weight-label">{r.label}</span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={10}
-                    step={1}
-                    disabled={!!activeStrategy}
-                    value={state.weights[r.key] ?? r.default}
-                    onChange={(e) =>
-                      onPatch({ weights: { ...state.weights, [r.key]: parseInt(e.target.value, 10) } })
-                    }
-                  />
-                  <span className="weight-val">{state.weights[r.key] ?? r.default}</span>
-                </div>
-              ))}
-            </div>
-          )
-        })}
+            const rows = REWARD_TYPES.filter((r) => r.group === group)
+            if (rows.length === 0) return null
+            return (
+              <div key={group} className="weight-group">
+                <div className="weight-group-title">{GROUP_LABEL[group]}</div>
+                {rows.map((r) => (
+                  <div key={r.key} className="weight-row">
+                    <span className="weight-label">{r.label}</span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={10}
+                      step={1}
+                      disabled={!!activeStrategy}
+                      value={state.weights[r.key] ?? r.default}
+                      onChange={(e) =>
+                        onPatch({
+                          weights: { ...state.weights, [r.key]: parseInt(e.target.value, 10) },
+                        })
+                      }
+                    />
+                    <span className="weight-val">{state.weights[r.key] ?? r.default}</span>
+                  </div>
+                ))}
+              </div>
+            )
+          })}
         </div>
       </details>
 
@@ -374,16 +354,18 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
       )}
       {solveNote && <div className="muted small-note">{solveNote}</div>}
       {eligiblePool.length > 9 || state.allowRotation ? (
-        <div className="muted small-note">Large pool / rotation → heuristic search (near-optimal)</div>
+        <div className="muted small-note">
+          Large pool / rotation → heuristic search (near-optimal)
+        </div>
       ) : (
         <div className="muted small-note">Pool ≤ 9 charts → exhaustive search (optimal)</div>
       )}
 
       <div className="panel-title small">Best-Charts Regex</div>
       <div className="muted small-note" style={{ marginTop: 0 }}>
-        Paste into the in-game chart search to highlight charts worth taking, based on your
-        weights above. No import needed. Experimental: the in-game search may or may not
-        support this syntax, we'll see once live.
+        Paste into the in-game chart search to highlight charts worth taking, based on your weights
+        above. No import needed. Experimental: the in-game search may or may not support this
+        syntax, we'll see once live.
       </div>
       <div className="regex-row">
         <input readOnly value={bestRegex.regex} onFocus={(e) => e.target.select()} />
@@ -408,7 +390,11 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
           <div className="panel-title small">Results</div>
           <div className="results">
             {results.map((r, i) => (
-              <button key={i} className={`result ${r.valid ? '' : 'invalid'}`} onClick={() => onApply(r.board)}>
+              <button
+                key={i}
+                className={`result ${r.valid ? '' : 'invalid'}`}
+                onClick={() => onApply(r.board)}
+              >
                 <span>#{i + 1}</span>
                 <span>{r.reward.toFixed(1)} pts</span>
                 {!r.valid && <span className="badge bad">not fully reachable</span>}

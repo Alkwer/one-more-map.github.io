@@ -19,9 +19,23 @@ export const GROUP_ORDER: RewardGroup[] = ['voyage', 'adjacent', 'self', 'border
 
 // prior per-stat priorities, used only to seed sensible per-reward defaults
 const STAT_PRIORITY: Record<Stat, number> = {
-  currency: 10, gold: 3, scarabs: 6, divcards: 6, essences: 4, spirits: 3,
-  wisps: 5, rares: 4, magicmonsters: 2, sulphur: 4, packsize: 3, quantity: 5,
-  rarity: 1, uniques: 3, treasure: 4, exp: 2, preserve: 3,
+  currency: 10,
+  gold: 3,
+  scarabs: 6,
+  divcards: 6,
+  essences: 4,
+  spirits: 3,
+  wisps: 5,
+  rares: 4,
+  magicmonsters: 2,
+  sulphur: 4,
+  packsize: 3,
+  quantity: 5,
+  rarity: 1,
+  uniques: 3,
+  treasure: 4,
+  exp: 2,
+  preserve: 3,
 }
 
 const familyOf = (id: string): string => id.replace(/^(adj|voy|cm|b)-/, '').replace(/-\d+$/, '')
@@ -29,7 +43,8 @@ const groupOfScope = (scope: string): RewardGroup =>
   scope === 'global' ? 'voyage' : scope === 'adjacent' ? 'adjacent' : 'self'
 
 /** weight key for a chart implicit / map mod (scoped so adjacent vs voyage rares differ) */
-export const voyageRewardKey = (m: VoyageModDef): string => `${groupOfScope(m.scope)}:${familyOf(m.id)}`
+export const voyageRewardKey = (m: VoyageModDef): string =>
+  `${groupOfScope(m.scope)}:${familyOf(m.id)}`
 /** weight key for a border roll */
 export const borderRewardKey = (m: BorderModDef): string => `border:${familyOf(m.id)}`
 

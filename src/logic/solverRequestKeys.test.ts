@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ChartData } from '../types'
-import {
-  createSolverStateKey,
-  createStrategyInventoryKey,
-} from './solverRequestKeys'
+import { createSolverStateKey, createStrategyInventoryKey } from './solverRequestKeys'
 
 const chart = (overrides: Partial<ChartData> = {}): ChartData => ({
   uid: 'chart-1',
@@ -25,11 +22,7 @@ const inventoryOptions = {
 describe('solver request keys', () => {
   it('ignores chart fields that cannot affect strategy inventory', () => {
     const borders = Array(12).fill(null)
-    const original = createStrategyInventoryKey(
-      [chart()],
-      borders,
-      inventoryOptions,
-    )
+    const original = createStrategyInventoryKey([chart()], borders, inventoryOptions)
     const metadataEdit = createStrategyInventoryKey(
       [
         chart({
@@ -48,24 +41,16 @@ describe('solver request keys', () => {
 
   it('invalidates strategy inventory when scoring inputs change', () => {
     const borders = Array(12).fill(null)
-    const original = createStrategyInventoryKey(
-      [chart()],
-      borders,
-      inventoryOptions,
-    )
+    const original = createStrategyInventoryKey([chart()], borders, inventoryOptions)
     const changedEdges = createStrategyInventoryKey(
       [chart({ edges: [true, true, true, false] })],
       borders,
       inventoryOptions,
     )
-    const changedDisabledMods = createStrategyInventoryKey(
-      [chart()],
-      borders,
-      {
-        ...inventoryOptions,
-        disabledMods: new Set(['cm-quant-20']),
-      },
-    )
+    const changedDisabledMods = createStrategyInventoryKey([chart()], borders, {
+      ...inventoryOptions,
+      disabledMods: new Set(['cm-quant-20']),
+    })
 
     expect(changedEdges).not.toBe(original)
     expect(changedDisabledMods).not.toBe(original)

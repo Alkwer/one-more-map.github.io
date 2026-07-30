@@ -194,13 +194,18 @@ describe('parseChartText', () => {
     )
 
     expect(
-      solve(result.charts, emptyBorders(), {}, {
-        mode: 'strict',
-        allowRotation: true,
-        adjacencyMode: 'physical',
-        adjacentAffectsSelf: false,
-        topK: 1,
-      }),
+      solve(
+        result.charts,
+        emptyBorders(),
+        {},
+        {
+          mode: 'strict',
+          allowRotation: true,
+          adjacencyMode: 'physical',
+          adjacentAffectsSelf: false,
+          topK: 1,
+        },
+      ),
     ).toEqual([])
   })
 
@@ -213,9 +218,7 @@ describe('parseChartText', () => {
     )
 
     expect(result.charts).toEqual([])
-    expect(result.rejected[0]?.reason).toBe(
-      'not charted yet (run it first to reveal its modifier)',
-    )
+    expect(result.rejected[0]?.reason).toBe('not charted yet (run it first to reveal its modifier)')
   })
 
   it('preserves the existing level 80 fallback when Area Level is absent', () => {
@@ -246,6 +249,8 @@ describe('isChartClipboardText', () => {
 
   it('does not intercept non-Chart Korean clipboard text or ordinary prose', () => {
     expect(isChartClipboardText('아이템 종류: 갑옷\n아이템 희귀도: 희귀')).toBe(false)
-    expect(isChartClipboardText('일반 문장 안의 아이템 종류: 해도 표기는 붙여넣기로 처리하지 않음')).toBe(false)
+    expect(
+      isChartClipboardText('일반 문장 안의 아이템 종류: 해도 표기는 붙여넣기로 처리하지 않음'),
+    ).toBe(false)
   })
 })

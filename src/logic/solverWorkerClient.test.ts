@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type {
-  SolverWorkerRequest,
-  SolverWorkerResponse,
-} from './solverWorkerProtocol'
+import type { SolverWorkerRequest, SolverWorkerResponse } from './solverWorkerProtocol'
 import {
   SolverWorkerClient,
   WorkerRequestCancelledError,
@@ -72,9 +69,7 @@ describe('SolverWorkerClient', () => {
     })
 
     const first = client.solve(solvePayload)
-    const firstRejection = expect(first).rejects.toBeInstanceOf(
-      WorkerRequestCancelledError,
-    )
+    const firstRejection = expect(first).rejects.toBeInstanceOf(WorkerRequestCancelledError)
     const second = client.solve(solvePayload)
 
     await firstRejection

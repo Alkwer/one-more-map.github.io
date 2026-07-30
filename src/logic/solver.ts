@@ -1,4 +1,4 @@
-import type { Board, Borders, ChartData, ConnectivityMode, Edges, Placement, Weights } from '../types'
+import type { Board, Borders, ChartData, ConnectivityMode, Edges, Weights } from '../types'
 import { borderTouches } from '../types'
 import type { PositionRule } from '../data/strategies'
 import { isChartShapeResolved } from './chartShapes'
@@ -38,7 +38,6 @@ function rotationFor(edges: Edges, target: Edges, rotMax: number): number | null
   for (let r = 0; r < rotMax; r++) if (edgesEqual(rotateEdges(edges, r), target)) return r
   return null
 }
-
 
 /** how many cells deviate from the strategy's exact layout */
 function layoutMisses(board: Board, charts: Map<string, ChartData>, layout: Edges[]): number {
@@ -151,7 +150,8 @@ function evaluate(
   const rewardTerm = opts.minimizeReward ? -s.total : s.total
   const strat = opts.strategyRules ? strategyBonus(board, charts, opts.strategyRules, borders) : 0
   const layoutPen = opts.strategyLayout
-    ? layoutMisses(board, charts, opts.strategyLayout) * (opts.strategyLayoutPenalty ?? LAYOUT_PENALTY)
+    ? layoutMisses(board, charts, opts.strategyLayout) *
+      (opts.strategyLayoutPenalty ?? LAYOUT_PENALTY)
     : 0
   const objective =
     rewardTerm +
@@ -183,8 +183,7 @@ export function solve(
   weights: Weights,
   opts: SolverOptions,
 ): SolverResult[] {
-  const eligiblePool =
-    opts.mode === 'strict' ? pool.filter(isChartShapeResolved) : pool
+  const eligiblePool = opts.mode === 'strict' ? pool.filter(isChartShapeResolved) : pool
   const charts = new Map(eligiblePool.map((c) => [c.uid, c]))
   if (eligiblePool.length === 0) return []
 
@@ -352,7 +351,7 @@ function hillClimb(
 
     for (let it = 0; it < ITERS; it++) {
       const move = random()
-      let undo: (() => void) | null = null
+      let undo: () => void
 
       if (move < 0.5) {
         // swap two cells
@@ -399,7 +398,7 @@ function hillClimb(
       if (newScore >= score) {
         score = newScore
       } else {
-        undo?.()
+        undo()
       }
     }
     record(board)

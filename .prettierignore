@@ -1,0 +1,8 @@
+dist/
+coverage/
+staging/
+node_modules/
+.codex-remote-attachments/
+package-lock.json
+public/harvest.html
+public/mockups.html

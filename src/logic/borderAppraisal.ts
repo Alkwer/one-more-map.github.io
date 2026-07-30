@@ -21,22 +21,10 @@ export const BORDER_SEGMENT_LABELS = [
 ] as const
 
 export type BorderAppraisalStatus =
-  | 'empty'
-  | 'incomplete'
-  | 'unscored'
-  | 'weak'
-  | 'mixed'
-  | 'strong'
-  | 'excellent'
+  'empty' | 'incomplete' | 'unscored' | 'weak' | 'mixed' | 'strong' | 'excellent'
 
 export type BorderSegmentIssue =
-  | 'empty-border'
-  | 'empty-tile'
-  | 'disabled'
-  | 'unknown'
-  | 'unscored'
-  | 'harmful'
-  | null
+  'empty-border' | 'empty-tile' | 'disabled' | 'unknown' | 'unscored' | 'harmful' | null
 
 export interface BorderSegmentAppraisal {
   segment: number
@@ -145,9 +133,9 @@ export function appraiseBorders(
   const segments: BorderSegmentAppraisal[] = Array.from({ length: 12 }, (_, segment) => {
     const tile = borderTouches(segment)
     const placement = board[tile]
-    const chart = placement ? charts.get(placement.chartUid) ?? null : null
+    const chart = placement ? (charts.get(placement.chartUid) ?? null) : null
     const modId = borders[segment]
-    const mod = modId ? borderModById.get(modId) ?? null : null
+    const mod = modId ? (borderModById.get(modId) ?? null) : null
     const candidate = emptyBorders()
     if (modId) candidate[segment] = modId
     const contribution = modId
@@ -170,7 +158,7 @@ export function appraiseBorders(
       tile,
       chartName: chart?.name ?? null,
       modId,
-      modLabel: mod ? mod.short ?? mod.text : null,
+      modLabel: mod ? (mod.short ?? mod.text) : null,
       contribution,
       bestContribution: best.contribution,
       bestModId: best.modId,
@@ -194,10 +182,7 @@ export function appraiseBorders(
   ) as Record<Stat, number>
   const activeSegments = segments.filter((segment) => segment.active).length
   const attentionSegments = segments.filter(
-    (segment) =>
-      segment.modId &&
-      segment.issue !== null &&
-      segment.issue !== 'empty-tile',
+    (segment) => segment.modId && segment.issue !== null && segment.issue !== 'empty-tile',
   ).length
 
   return {

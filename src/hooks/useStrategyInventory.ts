@@ -4,10 +4,7 @@ import type {
   StrategyInventoryResult,
 } from '../logic/strategySuggestions'
 import { createStrategyInventoryKey } from '../logic/solverRequestKeys'
-import {
-  isWorkerRequestCancelled,
-  SolverWorkerClient,
-} from '../logic/solverWorkerClient'
+import { isWorkerRequestCancelled, SolverWorkerClient } from '../logic/solverWorkerClient'
 import { isChartShapeResolved } from '../logic/chartShapes'
 import type { Borders, ChartData } from '../types'
 
@@ -23,10 +20,7 @@ const cacheInventory = (key: string, result: StrategyInventoryResult) => {
   }
 }
 
-const emptyInventory = (
-  pool: ChartData[],
-  borders: Borders,
-): StrategyInventoryResult => ({
+const emptyInventory = (pool: ChartData[], borders: Borders): StrategyInventoryResult => ({
   suggestions: [],
   evaluations: [],
   enteredBorders: borders.filter(Boolean).length,
@@ -45,18 +39,12 @@ export function useStrategyInventory(
   borders: Borders,
   options: StrategyEvaluationOptions,
 ) {
-  const eligiblePool = useMemo(
-    () => pool.filter(isChartShapeResolved),
-    [pool],
-  )
+  const eligiblePool = useMemo(() => pool.filter(isChartShapeResolved), [pool])
   const key = useMemo(
     () => createStrategyInventoryKey(eligiblePool, borders, options),
     [eligiblePool, borders, options],
   )
-  const placeholder = useMemo(
-    () => emptyInventory(eligiblePool, borders),
-    [eligiblePool, borders],
-  )
+  const placeholder = useMemo(() => emptyInventory(eligiblePool, borders), [eligiblePool, borders])
   const [state, setState] = useState<InventoryState>({
     key: '',
     result: null,
@@ -66,8 +54,7 @@ export function useStrategyInventory(
   if (clientRef.current === null) clientRef.current = new SolverWorkerClient()
 
   const cached = inventoryCache.get(key) ?? null
-  const currentResult =
-    cached ?? (state.key === key ? state.result : null)
+  const currentResult = cached ?? (state.key === key ? state.result : null)
   const currentError = state.key === key ? state.error : null
 
   useEffect(() => {
@@ -106,10 +93,7 @@ export function useStrategyInventory(
           setState({
             key,
             result: null,
-            error:
-              error instanceof Error
-                ? error.message
-                : 'Strategy analysis failed',
+            error: error instanceof Error ? error.message : 'Strategy analysis failed',
           })
         })
     }, 80)
@@ -119,7 +103,7 @@ export function useStrategyInventory(
       window.clearTimeout(timer)
       client.cancel()
     }
-  }, [key])
+  }, [borders, eligiblePool, key, options, placeholder])
 
   return {
     inventory: currentResult ?? placeholder,

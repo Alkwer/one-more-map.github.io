@@ -23,65 +23,26 @@ const CURRENT_BORDER_TOOLTIPS = [
   ['b-mag-1', 'Adjacent Areas have 40% increased explicit modifier magnitudes'],
   ['b-mag-2', 'Adjacent Areas have 60% increased explicit modifier magnitudes'],
   ['b-mag-3', 'Adjacent Areas have 80% increased explicit modifier magnitudes'],
-  [
-    'b-keep-1',
-    'Adjacent Charts have 30% chance to not be consumed when beginning a Voyage',
-  ],
-  [
-    'b-keep-2',
-    'Adjacent Charts have 50% chance to not be consumed when beginning a Voyage',
-  ],
+  ['b-keep-1', 'Adjacent Charts have 30% chance to not be consumed when beginning a Voyage'],
+  ['b-keep-2', 'Adjacent Charts have 50% chance to not be consumed when beginning a Voyage'],
   ['b-octoboss', 'Adjacent Areas contain Filthscrabble'],
-  [
-    'b-lanterns',
-    'Placing Lanterns does not reduce your Lantern count in adjacent Areas',
-  ],
-  [
-    'b-ancient',
-    'Rare Monsters in adjacent Areas drop 1 additional Ancient Orbs',
-  ],
+  ['b-lanterns', 'Placing Lanterns does not reduce your Lantern count in adjacent Areas'],
+  ['b-ancient', 'Rare Monsters in adjacent Areas drop 1 additional Ancient Orbs'],
   ['b-divine', 'Rare Monsters adjacent in Areas drop 1 additional Divine Orbs'],
-  [
-    'b-exalt',
-    'Rare Monsters in adjacent Areas drop 1 additional Exalted Orbs',
-  ],
-  [
-    'b-annul',
-    'Rare Monsters in adjacent Areas drop 1 additional Orbs of Annulment',
-  ],
+  ['b-exalt', 'Rare Monsters in adjacent Areas drop 1 additional Exalted Orbs'],
+  ['b-annul', 'Rare Monsters in adjacent Areas drop 1 additional Orbs of Annulment'],
   ['b-chaos', 'Rare Monsters in adjacent Areas drop 1 additional Chaos Orbs'],
   ['b-vaal', 'Rare Monsters in adjacent Areas drop an additional Vaal Orb'],
-  [
-    'b-gcp',
-    "Rare Monsters in adjacent Areas drop 1 additional Gemcutter's Prisms",
-  ],
-  [
-    'b-chrome',
-    'Rare Monsters in adjacent Areas drop 1 additional Chromatic Orbs',
-  ],
-  [
-    'b-regret',
-    'Rare Monsters in adjacent Areas drop 1 additional Orbs of Regret',
-  ],
-  [
-    'b-blessed',
-    'Rare Monsters in adjacent Areas drop 1 additional Blessed Orbs',
-  ],
+  ['b-gcp', "Rare Monsters in adjacent Areas drop 1 additional Gemcutter's Prisms"],
+  ['b-chrome', 'Rare Monsters in adjacent Areas drop 1 additional Chromatic Orbs'],
+  ['b-regret', 'Rare Monsters in adjacent Areas drop 1 additional Orbs of Regret'],
+  ['b-blessed', 'Rare Monsters in adjacent Areas drop 1 additional Blessed Orbs'],
   ['b-regal', 'Rare Monsters in adjacent Areas drop 1 additional Regal Orbs'],
-  [
-    'b-support',
-    'Rare Monsters in adjacent Areas have 20% chance to drop a Support Gem',
-  ],
+  ['b-support', 'Rare Monsters in adjacent Areas have 20% chance to drop a Support Gem'],
   ['b-locker', "Adjacent Areas contain a lost Pirate's Locker"],
   ['b-pirates', 'Adjacent Areas contain a Brinerot raiding party'],
-  [
-    'b-rareconn-1',
-    '50% increased number of Rare monsters in adjacent Areas per connection',
-  ],
-  [
-    'b-rareconn-2',
-    '75% increased number of Rare monsters in adjacent Areas per connection',
-  ],
+  ['b-rareconn-1', '50% increased number of Rare monsters in adjacent Areas per connection'],
+  ['b-rareconn-2', '75% increased number of Rare monsters in adjacent Areas per connection'],
   [
     'b-quantconn-1',
     '50% reduced quantity of items found in adjacent Areas per connection\n120% increased Quantity of Items found in adjacent Areas',
@@ -90,22 +51,13 @@ const CURRENT_BORDER_TOOLTIPS = [
     'b-quantconn-2',
     '50% reduced quantity of items found in adjacent Areas per connection\n180% increased Quantity of Items found in adjacent Areas',
   ],
-  [
-    'b-gold-1',
-    '25% of Equipment dropped by monsters in adjacent Areas is converted to Gold',
-  ],
-  [
-    'b-gold-2',
-    '50% of Equipment dropped by monsters in adjacent Areas is converted to Gold',
-  ],
+  ['b-gold-1', '25% of Equipment dropped by monsters in adjacent Areas is converted to Gold'],
+  ['b-gold-2', '50% of Equipment dropped by monsters in adjacent Areas is converted to Gold'],
   [
     'b-decks',
     'Basic Currency items dropped by Monsters in adjacent Areas will instead drop as Stacked Decks',
   ],
-  [
-    'b-scarabdrop',
-    'Rare Monsters in adjacent Areas drop 1 additional Scarabs',
-  ],
+  ['b-scarabdrop', 'Rare Monsters in adjacent Areas drop 1 additional Scarabs'],
   ['b-curr-1', '50% more Currency found in adjacent Areas'],
   ['b-curr-2', '75% more Currency found in adjacent Areas'],
   ['b-curr-3', '100% more Currency found in adjacent Areas'],
@@ -119,16 +71,10 @@ const CURRENT_BORDER_TOOLTIPS = [
   ['b-exp-1', 'Players in adjacent Areas gain 100% increased Experience'],
   ['b-exp-2', 'Players in adjacent Areas gain 150% increased Experience'],
   ['b-exp-3', 'Players in adjacent Areas gain 200% increased Experience'],
-  [
-    'b-magicmods',
-    'Magic Monsters in adjacent Areas have an additional modifier',
-  ],
+  ['b-magicmods', 'Magic Monsters in adjacent Areas have an additional modifier'],
   ['b-anchor-1', 'Adjacent Areas contain 2 additional Treasure Anchors'],
   ['b-anchor-2', 'Adjacent Areas contain 4 additional Treasure Anchors'],
-  [
-    'b-sulphdrop',
-    "Rare Monsters in adjacent Areas drop Dead Man's Sulphur",
-  ],
+  ['b-sulphdrop', "Rare Monsters in adjacent Areas drop Dead Man's Sulphur"],
   ['b-goldlantern', 'Adjacent Areas contain 4 additional Golden Lanterns'],
   ['b-izaro', 'Adjacent Areas contain 2 Altars to the Goddess'],
 ]
@@ -155,28 +101,20 @@ describe('border OCR regressions', () => {
     assert.equal(unknown.matches.length, 0)
     assert.equal(unknown.misses.length, 1)
 
-    const noisyFilthscrabble = parseBorderOcrPayload(
-      block('Adjacent Areas contain Filthscrabblc'),
-    )
+    const noisyFilthscrabble = parseBorderOcrPayload(block('Adjacent Areas contain Filthscrabblc'))
     assert.equal(noisyFilthscrabble.matches[0]?.id, 'b-octoboss')
 
     const baseRare = parseBorderOcrPayload(
       block('50% increased number of Rare Monsters in adjacent Areas', 0),
     )
     const rarePerConnection = parseBorderOcrPayload(
-      block(
-        '50% increased number of Rare monsters in adjacent Areas per connection',
-        1,
-      ),
+      block('50% increased number of Rare monsters in adjacent Areas per connection', 1),
     )
     assert.equal(baseRare.matches[0]?.id, 'b-rare-1')
     assert.equal(rarePerConnection.matches[0]?.id, 'b-rareconn-1')
 
     const noisyRarePerConnection = parseBorderOcrPayload(
-      block(
-        '50% increased number of Rare monsters in adjacent Areas per connectlon',
-        2,
-      ),
+      block('50% increased number of Rare monsters in adjacent Areas per connectlon', 2),
     )
     assert.equal(noisyRarePerConnection.matches[0]?.id, 'b-rareconn-1')
   })
@@ -191,10 +129,7 @@ describe('border OCR regressions', () => {
     assert.match(ahkImporter, /TryCreateFromUserProfileLanguages/)
     assert.match(ahkImporter, /AvailableRecognizerLanguages/)
     assert.match(ahkImporter, /Invoke-OcrFile \$Path \$engine/)
-    assert.match(
-      ahkImporter,
-      /Windows OCR returned no text after filtered and unfiltered scans/,
-    )
+    assert.match(ahkImporter, /Windows OCR returned no text after filtered and unfiltered scans/)
     assert.match(ahkImporter, /BorderOcrAttempts := 2/)
     assert.match(ahkImporter, /Retrying empty OCR scan/)
     const borderRefreshStart = ahkImporter.indexOf('^F9:: {')
