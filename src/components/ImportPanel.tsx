@@ -4,7 +4,11 @@ import { generateDemoCharts } from '../logic/demo'
 import { parseBorderOcrPayload } from '../logic/borderOcr'
 import { isChartClipboardText, parseChartText } from '../logic/parser'
 import type { AppState } from '../logic/storage'
-import { defaultState, reviveState } from '../logic/storage'
+import {
+  decodeStateJson,
+  defaultState,
+  serializeState,
+} from '../logic/storage'
 import type { ChartData } from '../types'
 
 interface Props {
@@ -96,7 +100,7 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
   }, [doParse])
 
   const exportJson = () => {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })
+    const blob = new Blob([serializeState(state, 2)], { type: 'application/json' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
     a.download = 'voyage-solver-state.json'
@@ -104,15 +108,24 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
     URL.revokeObjectURL(a.href)
   }
 
-  const importJson = (file: File) => {
-    file.text().then((t) => {
-      try {
-        onLoadState(reviveState(JSON.parse(t)))
-        setMsg('State loaded from JSON')
-      } catch {
-        setMsg('Invalid JSON file')
+  const importJson = async (file: File) => {
+    try {
+      const decoded = decodeStateJson(await file.text())
+      if (!decoded.ok) {
+        setMsg(`Invalid or incompatible state file: ${decoded.message}`)
+        return
       }
-    })
+      onLoadState(decoded.state)
+      setMsg(
+        decoded.warnings.length > 0
+          ? `State loaded from JSON with ${decoded.warnings.length} compatibility adjustment${
+              decoded.warnings.length === 1 ? '' : 's'
+            }`
+          : 'State loaded from JSON',
+      )
+    } catch {
+      setMsg('Invalid or incompatible state file: file could not be read')
+    }
   }
 
   const clearAll = () => {
@@ -151,7 +164,11 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
           <input
             type="file"
             accept=".json"
-            onChange={(e) => e.target.files?.[0] && importJson(e.target.files[0])}
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) void importJson(file)
+              e.target.value = ''
+            }}
           />
         </label>
         <button onClick={clearAll} title="Clear all charts, board and borders">
