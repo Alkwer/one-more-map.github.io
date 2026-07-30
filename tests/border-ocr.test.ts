@@ -1,21 +1,7 @@
-const assert = require('node:assert/strict')
-const fs = require('node:fs')
-const ts = require('typescript')
-
-require.extensions['.ts'] = (module, filename) => {
-  const source = fs.readFileSync(filename, 'utf8')
-  const output = ts.transpileModule(source, {
-    compilerOptions: {
-      esModuleInterop: true,
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022,
-    },
-    fileName: filename,
-  }).outputText
-  module._compile(output, filename)
-}
-
-const { parseBorderOcrPayload } = require('../src/logic/borderOcr.ts')
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { describe, it } from 'vitest'
+import { parseBorderOcrPayload } from '../src/logic/borderOcr'
 
 const CURRENT_BORDER_TOOLTIPS = [
   ['b-pack-1', '16% increased Pack Size in adjacent Areas'],
@@ -147,76 +133,82 @@ const CURRENT_BORDER_TOOLTIPS = [
   ['b-izaro', 'Adjacent Areas contain 2 Altars to the Goddess'],
 ]
 
-const block = (text, index = 0) =>
+const block = (text: string, index = 0) =>
   `=== VOYAGE BORDER ${index} ===\n${text}\n=== END VOYAGE BORDER ===`
 
-assert.equal(CURRENT_BORDER_TOOLTIPS.length, 64)
+describe('border OCR regressions', () => {
+  it('matches every current canonical tooltip', () => {
+    assert.equal(CURRENT_BORDER_TOOLTIPS.length, 64)
 
-for (const [expectedId, tooltip] of CURRENT_BORDER_TOOLTIPS) {
-  const result = parseBorderOcrPayload(block(tooltip))
-  assert.equal(
-    result.matches[0]?.id,
-    expectedId,
-    `${expectedId} was parsed as ${result.matches[0]?.id ?? 'MISS'}: ${tooltip}`,
-  )
-}
+    for (const [expectedId, tooltip] of CURRENT_BORDER_TOOLTIPS) {
+      const result = parseBorderOcrPayload(block(tooltip))
+      assert.equal(
+        result.matches[0]?.id,
+        expectedId,
+        `${expectedId} was parsed as ${result.matches[0]?.id ?? 'MISS'}: ${tooltip}`,
+      )
+    }
+  })
 
-const unknown = parseBorderOcrPayload(block('Adjacent Areas contain TotallyUnknownBoss'))
-assert.equal(unknown.matches.length, 0)
-assert.equal(unknown.misses.length, 1)
+  it('handles unknown, noisy, and per-connection tooltips', () => {
+    const unknown = parseBorderOcrPayload(block('Adjacent Areas contain TotallyUnknownBoss'))
+    assert.equal(unknown.matches.length, 0)
+    assert.equal(unknown.misses.length, 1)
 
-const noisyFilthscrabble = parseBorderOcrPayload(
-  block('Adjacent Areas contain Filthscrabblc'),
-)
-assert.equal(noisyFilthscrabble.matches[0]?.id, 'b-octoboss')
+    const noisyFilthscrabble = parseBorderOcrPayload(
+      block('Adjacent Areas contain Filthscrabblc'),
+    )
+    assert.equal(noisyFilthscrabble.matches[0]?.id, 'b-octoboss')
 
-const baseRare = parseBorderOcrPayload(
-  block('50% increased number of Rare Monsters in adjacent Areas', 0),
-)
-const rarePerConnection = parseBorderOcrPayload(
-  block(
-    '50% increased number of Rare monsters in adjacent Areas per connection',
-    1,
-  ),
-)
-assert.equal(baseRare.matches[0]?.id, 'b-rare-1')
-assert.equal(rarePerConnection.matches[0]?.id, 'b-rareconn-1')
+    const baseRare = parseBorderOcrPayload(
+      block('50% increased number of Rare Monsters in adjacent Areas', 0),
+    )
+    const rarePerConnection = parseBorderOcrPayload(
+      block(
+        '50% increased number of Rare monsters in adjacent Areas per connection',
+        1,
+      ),
+    )
+    assert.equal(baseRare.matches[0]?.id, 'b-rare-1')
+    assert.equal(rarePerConnection.matches[0]?.id, 'b-rareconn-1')
 
-const noisyRarePerConnection = parseBorderOcrPayload(
-  block(
-    '50% increased number of Rare monsters in adjacent Areas per connectlon',
-    2,
-  ),
-)
-assert.equal(noisyRarePerConnection.matches[0]?.id, 'b-rareconn-1')
+    const noisyRarePerConnection = parseBorderOcrPayload(
+      block(
+        '50% increased number of Rare monsters in adjacent Areas per connectlon',
+        2,
+      ),
+    )
+    assert.equal(noisyRarePerConnection.matches[0]?.id, 'b-rareconn-1')
+  })
 
-// Windows installations often only have their display-language OCR pack.
-// Keep the importer from regressing to a hard dependency on en-US.
-const ahkImporter = fs.readFileSync(
-  require.resolve('../public/voyage-import.ahk'),
-  'utf8',
-)
-assert.match(ahkImporter, /TryCreateFromUserProfileLanguages/)
-assert.match(ahkImporter, /AvailableRecognizerLanguages/)
-assert.match(ahkImporter, /Invoke-OcrFile \$Path \$engine/)
-assert.match(
-  ahkImporter,
-  /Windows OCR returned no text after filtered and unfiltered scans/,
-)
-assert.match(ahkImporter, /BorderOcrAttempts := 2/)
-assert.match(ahkImporter, /Retrying empty OCR scan/)
-const borderRefreshStart = ahkImporter.indexOf('^F9:: {')
-const fullImportMarker = ahkImporter.indexOf('\nF9:: {', borderRefreshStart + 1)
-const fullImportStart = fullImportMarker >= 0 ? fullImportMarker + 1 : -1
-assert.ok(borderRefreshStart >= 0, 'Ctrl+F9 border-only refresh hotkey is missing')
-assert.ok(fullImportStart > borderRefreshStart, 'full F9 import hotkey is missing')
-const borderRefreshHotkey = ahkImporter.slice(borderRefreshStart, fullImportStart)
-assert.match(borderRefreshHotkey, /borderBlob := ScanBorders\(\)/)
-assert.match(borderRefreshHotkey, /PasteIntoSolver\(\s*borderBlob/)
-assert.doesNotMatch(borderRefreshHotkey, /CellPos|GridRows|GridCols|Send "\^c"/)
-assert.doesNotMatch(
-  ahkImporter,
-  /throw 'Windows OCR is unavailable for English \(United States\)\.'/,
-)
-
-console.log('Border OCR regression: 64/64 current tooltips matched')
+  it('keeps the Windows importer language fallback and border-only refresh', () => {
+    // Windows installations often only have their display-language OCR pack.
+    // Keep the importer from regressing to a hard dependency on en-US.
+    const ahkImporter = readFileSync(
+      new URL('../public/voyage-import.ahk', import.meta.url),
+      'utf8',
+    )
+    assert.match(ahkImporter, /TryCreateFromUserProfileLanguages/)
+    assert.match(ahkImporter, /AvailableRecognizerLanguages/)
+    assert.match(ahkImporter, /Invoke-OcrFile \$Path \$engine/)
+    assert.match(
+      ahkImporter,
+      /Windows OCR returned no text after filtered and unfiltered scans/,
+    )
+    assert.match(ahkImporter, /BorderOcrAttempts := 2/)
+    assert.match(ahkImporter, /Retrying empty OCR scan/)
+    const borderRefreshStart = ahkImporter.indexOf('^F9:: {')
+    const fullImportMarker = ahkImporter.indexOf('\nF9:: {', borderRefreshStart + 1)
+    const fullImportStart = fullImportMarker >= 0 ? fullImportMarker + 1 : -1
+    assert.ok(borderRefreshStart >= 0, 'Ctrl+F9 border-only refresh hotkey is missing')
+    assert.ok(fullImportStart > borderRefreshStart, 'full F9 import hotkey is missing')
+    const borderRefreshHotkey = ahkImporter.slice(borderRefreshStart, fullImportStart)
+    assert.match(borderRefreshHotkey, /borderBlob := ScanBorders\(\)/)
+    assert.match(borderRefreshHotkey, /PasteIntoSolver\(\s*borderBlob/)
+    assert.doesNotMatch(borderRefreshHotkey, /CellPos|GridRows|GridCols|Send "\^c"/)
+    assert.doesNotMatch(
+      ahkImporter,
+      /throw 'Windows OCR is unavailable for English \(United States\)\.'/,
+    )
+  })
+})

@@ -1,24 +1,21 @@
-const assert = require('node:assert/strict')
-const fs = require('node:fs')
-const ts = require('typescript')
-
-require.extensions['.ts'] = (module, filename) => {
-  const source = fs.readFileSync(filename, 'utf8')
-  const output = ts.transpileModule(source, {
-    compilerOptions: {
-      esModuleInterop: true,
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022,
-    },
-    fileName: filename,
-  }).outputText
-  module._compile(output, filename)
-}
-
-const {
+import assert from 'node:assert/strict'
+import { describe, it } from 'vitest'
+import type { StrategySuggestion } from '../src/logic/strategySuggestions'
+import {
   ABSOLUTE_PLAYABLE_FIT,
   decideVoyage,
-} = require('../src/logic/voyageDecision.ts')
+  type VoyageDecisionInput,
+} from '../src/logic/voyageDecision'
+
+interface CandidateOptions {
+  id: string
+  name?: string
+  fit: number | null
+  ready?: boolean
+  missing?: string[]
+  rankScore?: number
+  jackpot?: boolean
+}
 
 const candidate = ({
   id,
@@ -28,7 +25,7 @@ const candidate = ({
   missing = [],
   rankScore = fit ?? 0,
   jackpot = false,
-}) => ({
+}: CandidateOptions): StrategySuggestion => ({
   strategy: { id, name },
   fit,
   readiness: {
@@ -37,7 +34,7 @@ const candidate = ({
   },
   rankScore,
   jackpot,
-})
+}) as StrategySuggestion
 
 const decide = ({
   evaluations,
@@ -45,7 +42,7 @@ const decide = ({
   availableCharts = 25,
   enteredBorders = 12,
   rerollsUsed = 0,
-}) =>
+}: Partial<VoyageDecisionInput> & Pick<VoyageDecisionInput, 'evaluations'>) =>
   decideVoyage({
     evaluations,
     activeStrategyId,
@@ -54,10 +51,12 @@ const decide = ({
     rerollsUsed,
   })
 
-assert.equal(ABSOLUTE_PLAYABLE_FIT, 0.5)
+describe('Voyage decision regressions', () => {
+  it('keeps the absolute playable fit threshold', () => {
+    assert.equal(ABSOLUTE_PLAYABLE_FIT, 0.5)
+  })
 
-// Inventory rank, not the manually active strategy, chooses the recommendation.
-{
+  it('chooses the inventory-ranked strategy over the active strategy', () => {
   const decision = decide({
     evaluations: [
       candidate({
@@ -80,10 +79,9 @@ assert.equal(ABSOLUTE_PLAYABLE_FIT, 0.5)
   assert.match(decision.label, /^SWITCH TO: Best Library Strategy$/)
   assert.equal(decision.action.strategyId, 'alternative')
   assert.match(decision.reason, /all 25 imported charts/)
-}
+  })
 
-// Winning the inventory ranking is not enough without absolute roll fit.
-{
+  it('does not play a relative winner without absolute fit', () => {
   const decision = decide({
     activeStrategyId: null,
     evaluations: [
@@ -99,10 +97,9 @@ assert.equal(ABSOLUTE_PLAYABLE_FIT, 0.5)
 
   assert.equal(decision.kind, 'reroll')
   assert.doesNotMatch(decision.label, /PLAY|SWITCH/)
-}
+  })
 
-// Strong roll evidence with missing library pieces must never become PLAY.
-{
+  it('does not play when required library pieces are missing', () => {
   const decision = decide({
     evaluations: [
       candidate({
@@ -119,10 +116,9 @@ assert.equal(ABSOLUTE_PLAYABLE_FIT, 0.5)
   assert.equal(decision.strategyId, 'missing')
   assert.match(decision.label, /Missing Pieces/)
   assert.deepEqual(decision.missing, ['2× Starfish', '1× Lantern'])
-}
+  })
 
-// A weak early roll is rerolled while the next attempt is inexpensive.
-{
+  it('rerolls a weak early roll', () => {
   const decision = decide({
     evaluations: [candidate({ id: 'active', fit: 0.2 })],
   })
@@ -130,10 +126,9 @@ assert.equal(ABSOLUTE_PLAYABLE_FIT, 0.5)
   assert.equal(decision.kind, 'reroll')
   assert.equal(decision.nextCost, 3_000)
   assert.equal(decision.label, 'REROLL — next costs 3,000 Sulphur')
-}
+  })
 
-// An equally weak late roll is not described as good; only the payment stops.
-{
+  it('stops paying for an equally weak late roll', () => {
   const decision = decide({
     evaluations: [candidate({ id: 'active', fit: 0.2 })],
     rerollsUsed: 3,
@@ -143,10 +138,9 @@ assert.equal(ABSOLUTE_PLAYABLE_FIT, 0.5)
   assert.equal(decision.nextCost, 24_000)
   assert.equal(decision.label, "DON'T PAY FOR ANOTHER REROLL")
   assert.match(decision.reason, /not a quality endorsement/)
-}
+  })
 
-// A ready Divine jackpot overrides incomplete border entry and selects its strategy.
-{
+  it('lets a ready Divine jackpot override incomplete border entry', () => {
   const decision = decide({
     evaluations: [
       candidate({ id: 'active', fit: null }),
@@ -164,10 +158,9 @@ assert.equal(ABSOLUTE_PLAYABLE_FIT, 0.5)
   assert.equal(decision.kind, 'switch')
   assert.equal(decision.strategyId, 'divine-border-rares')
   assert.match(decision.reason, /Preserve the roll/)
-}
+  })
 
-// A Divine jackpot with missing pieces is preserved, but cannot become PLAY.
-{
+  it('preserves but does not play an incomplete Divine jackpot', () => {
   const decision = decide({
     evaluations: [
       candidate({
@@ -187,11 +180,9 @@ assert.equal(ABSOLUTE_PLAYABLE_FIT, 0.5)
   assert.equal(decision.kind, 'wait')
   assert.match(decision.label, /Divine Border Rares/)
   assert.doesNotMatch(decision.label, /PLAY/)
-}
+  })
 
-// Strategy discovery works before layout; only missing border-roll data blocks
-// the final play/reroll command.
-{
+  it('blocks the final command only on missing border data', () => {
   const decision = decide({
     evaluations: [
       candidate({
@@ -209,10 +200,9 @@ assert.equal(ABSOLUTE_PLAYABLE_FIT, 0.5)
   assert.equal(decision.label, 'ENTER ALL BORDERS')
   assert.equal(decision.strategyId, 'library-best')
   assert.equal(decision.action.strategyId, 'library-best')
-}
+  })
 
-// With no active strategy, the best library strategy is still recommended.
-{
+  it('recommends the best library strategy when none is active', () => {
   const decision = decide({
     activeStrategyId: null,
     evaluations: [
@@ -228,10 +218,9 @@ assert.equal(ABSOLUTE_PLAYABLE_FIT, 0.5)
   assert.equal(decision.kind, 'switch')
   assert.equal(decision.strategyName, 'Curated Strategy')
   assert.equal(decision.action.strategyId, 'curated')
-}
+  })
 
-// No imported inventory means there is no strategy recommendation yet.
-{
+  it('requires imported inventory before recommending a strategy', () => {
   const decision = decide({
     activeStrategyId: null,
     availableCharts: 0,
@@ -240,8 +229,5 @@ assert.equal(ABSOLUTE_PLAYABLE_FIT, 0.5)
 
   assert.equal(decision.kind, 'needs-data')
   assert.equal(decision.label, 'IMPORT CHARTS')
-}
-
-console.log(
-  'Voyage decision regression: inventory ranking, readiness, costs, incomplete roll data and Divine handling passed',
-)
+  })
+})

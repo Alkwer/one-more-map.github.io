@@ -6,16 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "test:connectivity": "node tests/connectivity-regression.cjs",
-    "test:border-ocr": "node tests/border-ocr-regression.cjs",
-    "test:scoring": "node tests/scoring-regression.cjs",
-    "test:border-appraisal": "node tests/border-appraisal-regression.cjs",
-    "test:strategy-suggestions": "node tests/strategy-suggestions-regression.cjs",
-    "test:reroll-advice": "node tests/reroll-advice-regression.cjs",
-    "test:voyage-decision": "node tests/voyage-decision-regression.cjs",
-    "test:parser": "vitest run",
-    "test": "npm run test:parser && npm run test:connectivity && npm run test:border-ocr && npm run test:scoring && npm run test:border-appraisal && npm run test:strategy-suggestions && npm run test:reroll-advice && npm run test:voyage-decision",
-    "bench:solver": "node benchmarks/solver-performance.cjs",
+    "test": "vitest run",
+    "bench:solver": "vitest bench --run benchmarks/solver-performance.bench.ts",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -28,6 +20,6 @@
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "^5.6.3",
     "vite": "^5.4.11",
-    "vitest": "^3.2.6"
+    "vitest": "3.2.6"
   }
 }
