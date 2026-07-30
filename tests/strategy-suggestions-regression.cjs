@@ -90,6 +90,32 @@ const emptyBorders = () => Array(12).fill(null)
   assert.equal(result.hasEvidence, false)
 }
 
+// A strong border affinity cannot promote an incomplete recipe above a
+// runnable strategy.
+{
+  const pool = Array.from({ length: 9 }, (_, index) =>
+    chart(`ready-filler-${index}`),
+  )
+  const charts = new Map(pool.map((entry) => [entry.uid, entry]))
+  const borders = Array(12).fill('b-rare-3')
+  const result = suggestStrategies(
+    emptyBoard(),
+    borders,
+    charts,
+    pool,
+    options,
+  )
+
+  assert.equal(result.suggestions[0].strategy.id, 'alc-and-go')
+  assert.equal(result.suggestions[0].readiness.ready, true)
+  assert.equal(
+    result.evaluations.find(
+      (entry) => entry.strategy.id === 'milky-meatfish',
+    ).readiness.ready,
+    false,
+  )
+}
+
 // Strategy discovery must use every imported chart, not only charts already
 // arranged on the manual board. Replacing the whole board with junk changes
 // only current-board diagnostics, never the library ranking or best-found fit.
@@ -157,6 +183,53 @@ const emptyBorders = () => Array(12).fill(null)
   )
 }
 
+// With the same complete chart library, the border roll must be able to change
+// the winner between runnable strategies. Rare-monster borders favor Meatfish,
+// while quantity-per-connection borders favor Speedrun Strongboxes.
+{
+  const meatfishPieces = [
+    chart('border-star-1', ['adj-star-1']),
+    chart('border-star-2', ['adj-star-2']),
+    chart('border-pantheon', ['adj-pantheon']),
+    chart('border-pillar-1', [], 'Sea-Pillar Gamma'),
+    chart('border-pillar-2', [], 'Sea-Pillar Delta'),
+    chart('border-lantern-1', ['adj-lantern']),
+    chart('border-lantern-2', ['adj-lantern']),
+    chart('border-possess', ['voy-possess']),
+    chart('border-no-equipment', ['voy-noequip']),
+  ]
+  const speedrunCenter = chart('border-divbox', ['adj-divbox-1'])
+  const filler = Array.from({ length: 9 }, (_, index) =>
+    chart(`border-filler-${index}`),
+  )
+  const pool = [...meatfishPieces, speedrunCenter, ...filler]
+  const charts = new Map(pool.map((entry) => [entry.uid, entry]))
+  const rareRoll = Array(12).fill('b-rare-3')
+  const quantityRoll = Array(12).fill('b-quantconn-2')
+
+  const rareResult = suggestStrategies(
+    emptyBoard(),
+    rareRoll,
+    charts,
+    pool,
+    options,
+  )
+  const quantityResult = suggestStrategies(
+    emptyBoard(),
+    quantityRoll,
+    charts,
+    pool,
+    options,
+  )
+
+  assert.equal(rareResult.suggestions[0].strategy.id, 'milky-meatfish')
+  assert.equal(quantityResult.suggestions[0].strategy.id, 'milky-speedrun')
+  assert.notEqual(
+    rareResult.suggestions[0].strategy.id,
+    quantityResult.suggestions[0].strategy.id,
+  )
+}
+
 console.log(
-  'Strategy suggestions regression: jackpots, inventory ranking, roll affinity and board independence passed',
+  'Strategy suggestions regression: jackpots, inventory ranking, border-driven strategy changes and board independence passed',
 )

@@ -173,7 +173,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
       ...base,
       kind: 'wait',
       label: `WAIT — missing pieces for ${bestInventory.strategyName}`,
-      reason: `${bestInventory.strategyName} is the strongest library match, but none of the curated strategies is runnable from all ${input.availableCharts} imported charts yet. Still needed: ${bestInventory.missing.join(
+      reason: `${bestInventory.strategyName} is the strongest charts + border match, but none of the curated strategies is runnable from all ${input.availableCharts} imported charts yet. Still needed: ${bestInventory.missing.join(
         ', ',
       )}.`,
       strategyId: bestInventory.strategyId,
@@ -190,9 +190,9 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
       ...base,
       kind: 'needs-data',
       label: 'ENTER ALL BORDERS',
-      reason: `${bestReady.strategyName} is the best ready strategy across all ${input.availableCharts} imported charts. Enter ${bordersMissing} more border${
+      reason: `${bestReady.strategyName} currently leads after combining all ${input.availableCharts} imported charts with the partial border roll. Enter ${bordersMissing} more border${
         bordersMissing === 1 ? '' : 's'
-      } before issuing the play or reroll decision.`,
+      } to complete the recommendation before issuing the play or reroll decision.`,
       strategyId: bestReady.strategyId,
       strategyName: bestReady.strategyName,
       fit: bestReady.fit,
@@ -206,7 +206,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
       ...base,
       kind: 'needs-data',
       label: 'NO WEIGHTED ROLL SIGNAL',
-      reason: `${bestReady.strategyName} is the best strategy from the library, but the entered border roll has no comparable weighted value for the best layout found.`,
+      reason: `${bestReady.strategyName} is the best strategy after combining the chart library and border roll, but the roll has no comparable weighted value for the best layout found.`,
       strategyId: bestReady.strategyId,
       strategyName: bestReady.strategyName,
       fit: null,
@@ -223,7 +223,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
       label: alreadyActive
         ? `PLAY: ${bestReady.strategyName}`
         : `SWITCH TO: ${bestReady.strategyName}`,
-      reason: `${bestReady.strategyName} is the best ready strategy across all ${input.availableCharts} imported charts. The best layout found reaches ${percent(
+      reason: `${bestReady.strategyName} is the best ready strategy after combining all ${input.availableCharts} imported charts with the current border roll. The best layout found reaches ${percent(
         bestReady.fit,
       )}, meeting the ${Math.round(decisionFitLine * 100)}% decision line.`,
       strategyId: bestReady.strategyId,
@@ -240,7 +240,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
       ...base,
       kind: 'reroll',
       label: `REROLL — next costs ${sulphur(nextCost)} Sulphur`,
-      reason: `Across all ${input.availableCharts} imported charts, the best ready strategy is ${bestReady.strategyName}. The best layout found reaches ${percent(
+      reason: `After combining all ${input.availableCharts} imported charts with the current border roll, the best ready strategy is ${bestReady.strategyName}. The best layout found reaches ${percent(
         bestReady.fit,
       )}, below the ${linePercent}% decision line while another roll is still inexpensive.`,
       strategyId: bestReady.strategyId,
@@ -259,7 +259,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     ...base,
     kind: 'stop',
     label: "DON'T PAY FOR ANOTHER REROLL",
-    reason: `${bestReady.strategyName} is the best ready strategy across all ${input.availableCharts} imported charts, but the best layout found reaches only ${percent(
+    reason: `${bestReady.strategyName} is the best ready strategy after combining all ${input.availableCharts} imported charts with the current border roll, but the best layout found reaches only ${percent(
       bestReady.fit,
     )}; this is not a quality endorsement. ${costReason}`,
     strategyId: bestReady.strategyId,
