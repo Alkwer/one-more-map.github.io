@@ -179,6 +179,10 @@ const emptyBorders = () => Array(12).fill(null)
     withPiecesPlaced.evaluations.map((entry) => entry.fit),
     withPiecesUnplaced.evaluations.map((entry) => entry.fit),
   )
+  assert.deepEqual(
+    withPiecesPlaced.evaluations.map((entry) => entry.potentialBoard),
+    withPiecesUnplaced.evaluations.map((entry) => entry.potentialBoard),
+  )
   assert.notEqual(
     withPiecesPlaced.suggestions[0].currentFit,
     withPiecesUnplaced.suggestions[0].currentFit,

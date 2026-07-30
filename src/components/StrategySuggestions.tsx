@@ -2,6 +2,8 @@ import type { StrategySuggestionResult } from '../logic/strategySuggestions'
 
 interface Props {
   result: StrategySuggestionResult
+  loading?: boolean
+  error?: string | null
   activeId: string | null
   onSelect: (id: string) => void
 }
@@ -16,7 +18,13 @@ const fitLabel = {
   excellent: 'EXCELLENT BORDER FIT',
 } as const
 
-export function StrategySuggestions({ result, activeId, onSelect }: Props) {
+export function StrategySuggestions({
+  result,
+  loading = false,
+  error = null,
+  activeId,
+  onSelect,
+}: Props) {
   return (
     <section className="strategy-suggestions" aria-labelledby="strategy-suggestions-title">
       <div className="suggestion-heading">
@@ -38,7 +46,15 @@ export function StrategySuggestions({ result, activeId, onSelect }: Props) {
         )}
       </div>
 
-      {!result.hasEvidence ? (
+      {loading ? (
+        <div className="suggestion-empty" aria-live="polite">
+          Analyzing the chart library and border roll…
+        </div>
+      ) : error ? (
+        <div className="suggestion-empty" role="alert">
+          Strategy analysis failed: {error}
+        </div>
+      ) : !result.hasEvidence ? (
         <div className="suggestion-empty">
           Import charts or enter border modifiers to get a strategy
           recommendation.
