@@ -144,6 +144,9 @@ export interface BorderModDef {
 /** Edge connectors, clockwise from North: [N, E, S, W]. */
 export type Edges = [boolean, boolean, boolean, boolean]
 
+/** Rotation-independent canonical connector shape. */
+export type ChartShape = 'End' | 'Corner' | 'Straight' | 'Junction' | 'Crossing'
+
 /** A chart instance owned by the player. */
 export interface ChartData {
   uid: string
@@ -163,8 +166,15 @@ export interface ChartData {
    * scoring so the same explicit modifiers cannot be counted twice.
    */
   rewards?: ModEffect[]
-  /** canonical chart connector shape name (Straight/Corner/Junction/End/Crossing) */
-  shape?: string
+  /** canonical chart connector shape name */
+  shape?: ChartShape
+  /**
+   * False only when an imported chart needs manual shape confirmation.
+   * Undefined keeps older saved and manually entered charts backwards-compatible.
+   */
+  shapeResolved?: boolean
+  /** unrecognised or missing clipboard value shown while shape confirmation is required */
+  shapeInput?: string
   /** unparsed mod lines kept from import so nothing is silently lost */
   rawText?: string
   /** marked to survive "Finish Voyage" (won't be consumed) */

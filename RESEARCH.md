@@ -183,6 +183,8 @@ of assumed.
   directly into ChartData.rewards (self-scope), NOT snapped to mod tiers.
 - `Chart Shape:` gives the connector shape: End(1), Corner(2 adjacent L),
   Straight(2 opposite), Junction(3 T), presumably Crossroads(4). Mapped to edges.
+  Missing or unknown names are imported in a needs-confirmation state and are
+  excluded from solving until the user selects a canonical shape.
 - Implicit (adjacent/voyage modifier) is HIDDEN until charted: uncharted charts show
   "Voyage Modifier will be revealed once Charted". Uncharted charts are REJECTED on
   import (must be run first). Charted charts show the real implicit line, matched to

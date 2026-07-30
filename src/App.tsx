@@ -21,6 +21,7 @@ import {
 } from './logic/strategySuggestions'
 import { useStrategyInventory } from './hooks/useStrategyInventory'
 import { checkConnectivity } from './logic/connectivity'
+import { isChartShapeResolved } from './logic/chartShapes'
 import { clampRerollsUsed } from './logic/rerollAdvice'
 import { decideVoyage } from './logic/voyageDecision'
 import { decodeShare, defaultState, encodeShare, loadLocal, saveLocal, type AppState } from './logic/storage'
@@ -91,6 +92,10 @@ export default function App() {
   }, [state])
 
   const chartMap = useMemo(() => new Map(state.pool.map((c) => [c.uid, c])), [state.pool])
+  const resolvedPool = useMemo(
+    () => state.pool.filter(isChartShapeResolved),
+    [state.pool],
+  )
   const disabledSet = useMemo(() => new Set(state.disabledMods), [state.disabledMods])
   // active curated strategy: while set, its weights override the manual sliders
   const activeStrategy = state.strategyId ? strategyById.get(state.strategyId) ?? null : null
@@ -120,7 +125,7 @@ export default function App() {
     loading: strategyInventoryLoading,
     error: strategyInventoryError,
   } = useStrategyInventory(
-    state.pool,
+    resolvedPool,
     state.borders,
     strategyEvaluationOptions,
   )
@@ -713,7 +718,7 @@ export default function App() {
           />
           <StrategiesPanel
             activeId={state.strategyId}
-            pool={state.pool}
+            pool={resolvedPool}
             borders={state.borders}
             onSelect={(id) => patch({ strategyId: id })}
           />

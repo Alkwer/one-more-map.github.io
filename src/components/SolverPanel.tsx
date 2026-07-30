@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { buildBestModRegex } from '../logic/regex'
+import { isChartShapeResolved } from '../logic/chartShapes'
 import type { SolverResult } from '../logic/solver'
 import { createSolverStateKey } from '../logic/solverRequestKeys'
 import {
@@ -57,10 +58,20 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
   if (clientRef.current === null) clientRef.current = new SolverWorkerClient()
   // while a strategy is active it overrides the manual weights everywhere here
   const weights = activeStrategy ? activeStrategy.weights : state.weights
+  const eligiblePool = useMemo(
+    () => state.pool.filter(isChartShapeResolved),
+    [state.pool],
+  )
+  const unresolvedShapeCount = state.pool.length - eligiblePool.length
   const solveKey = useMemo(
-    () => createSolverStateKey(state, weights, activeStrategy?.id ?? null),
+    () =>
+      createSolverStateKey(
+        { ...state, pool: eligiblePool },
+        weights,
+        activeStrategy?.id ?? null,
+      ),
     [
-      state.pool,
+      eligiblePool,
       state.borders,
       state.mode,
       state.allowRotation,
@@ -109,7 +120,7 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
     // strategy reservations: hold back charts another strategy is saving for
     const reserve = activeStrategy?.reserveModIds
     const reserveNames = activeStrategy?.reserveNames
-    const solvePool = state.pool.filter(
+    const solvePool = eligiblePool.filter(
       (chart) =>
         !(reserve?.length &&
           chart.modIds.some((id) => reserve.includes(id))) &&
@@ -118,7 +129,7 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
             chart.name.toLowerCase().includes(name.toLowerCase()),
           )),
     )
-    const heldBack = state.pool.length - solvePool.length
+    const heldBack = eligiblePool.length - solvePool.length
 
     clientRef.current!
       .solve({
@@ -182,8 +193,8 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
     setNoteState({ key: requestKey, text: '' })
     const disabled = new Set(state.disabledMods)
     const keep = new Set<string>()
-    state.pool.forEach((chart) => chart.preserved && keep.add(chart.uid))
-    ;[...state.pool]
+    eligiblePool.forEach((chart) => chart.preserved && keep.add(chart.uid))
+    ;[...eligiblePool]
       .sort(
         (a, b) =>
           displayValue(b, weights, disabled) -
@@ -191,7 +202,7 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
       )
       .slice(0, KEEP_BEST)
       .forEach((chart) => keep.add(chart.uid))
-    const fillerPool = state.pool.filter((chart) => !keep.has(chart.uid))
+    const fillerPool = eligiblePool.filter((chart) => !keep.has(chart.uid))
     if (fillerPool.length < 9) {
       setResultState({ key: requestKey, results: [] })
       setNoteState({
@@ -344,19 +355,25 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
         </div>
       </details>
 
-      <button className="primary" onClick={run} disabled={busy || state.pool.length === 0}>
-        {busy ? 'Solving…' : `Solve (${state.pool.length} charts)`}
+      <button className="primary" onClick={run} disabled={busy || eligiblePool.length === 0}>
+        {busy ? 'Solving…' : `Solve (${eligiblePool.length} charts)`}
       </button>
       <button
         className="filler-btn"
         onClick={runFiller}
-        disabled={busy || state.pool.length < 10}
+        disabled={busy || eligiblePool.length < 10}
         title="Build a throwaway voyage from your lowest-value spare charts, keeping your best and locked charts for a real run"
       >
         🗑 Filler voyage (spare charts)
       </button>
+      {unresolvedShapeCount > 0 && (
+        <div className="shape-warning small-note">
+          {unresolvedShapeCount} chart{unresolvedShapeCount === 1 ? '' : 's'} excluded until its
+          shape is confirmed in the library.
+        </div>
+      )}
       {solveNote && <div className="muted small-note">{solveNote}</div>}
-      {state.pool.length > 9 || state.allowRotation ? (
+      {eligiblePool.length > 9 || state.allowRotation ? (
         <div className="muted small-note">Large pool / rotation → heuristic search (near-optimal)</div>
       ) : (
         <div className="muted small-note">Pool ≤ 9 charts → exhaustive search (optimal)</div>

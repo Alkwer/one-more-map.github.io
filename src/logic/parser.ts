@@ -5,17 +5,13 @@
 // need to know which client language produced the clipboard text.
 
 import { VOYAGE_MODS } from '../data/mods'
-import type { ChartData, Edges, ModEffect, Stat } from '../types'
+import type { ChartData, ChartShape, ModEffect, Stat } from '../types'
+import { edgesForChartShape } from './chartShapes'
 
 let uidCounter = 0
 export function newUid(): string {
   uidCounter += 1
   return `c${Date.now().toString(36)}-${uidCounter}`
-}
-
-interface ShapeDefinition {
-  canonical: string
-  edges: Edges
 }
 
 interface HeaderStat {
@@ -33,18 +29,10 @@ interface ClipboardDialect {
   implicitMarker: RegExp
   uncharted?: RegExp
   headerStats: HeaderStat[]
-  shapes: Record<string, ShapeDefinition>
+  shapes: Record<string, ChartShape>
   structural: RegExp
   rewardRider: RegExp
 }
-
-/** Connector edges are [N,E,S,W]. Orientation is arbitrary because the solver
- * can rotate charts; only connector count and arrangement matter. */
-const END: ShapeDefinition = { canonical: 'End', edges: [true, false, false, false] }
-const CORNER: ShapeDefinition = { canonical: 'Corner', edges: [true, true, false, false] }
-const STRAIGHT: ShapeDefinition = { canonical: 'Straight', edges: [true, false, true, false] }
-const JUNCTION: ShapeDefinition = { canonical: 'Junction', edges: [true, true, true, false] }
-const CROSSING: ShapeDefinition = { canonical: 'Crossing', edges: [true, true, true, true] }
 
 const ENGLISH_DIALECT: ClipboardDialect = {
   itemClass: /^[ \t]*Item Class\s*[:：]/im,
@@ -65,13 +53,13 @@ const ENGLISH_DIALECT: ClipboardDialect = {
     { re: /Currency Found:\s*\+?(\d+)%/i, stat: 'currency' },
   ],
   shapes: {
-    end: END,
-    corner: CORNER,
-    straight: STRAIGHT,
-    junction: JUNCTION,
-    crossing: CROSSING,
-    crossroads: CROSSING,
-    cross: CROSSING,
+    end: 'End',
+    corner: 'Corner',
+    straight: 'Straight',
+    junction: 'Junction',
+    crossing: 'Crossing',
+    crossroads: 'Crossing',
+    cross: 'Crossing',
   },
   structural:
     /^(?:Item Class\s*[:：]|Rarity\s*[:：]|Area Level\s*[:：]|Item Level\s*[:：]|Requires|Chart Shape\s*[:：]|Take this item|Seafloor|Abyssal|Undersea|Anchorfield|Kishara)/i,
@@ -94,11 +82,11 @@ const KOREAN_DIALECT: ClipboardDialect = {
     { re: /몬스터 무리 규모\s*[:：]\s*\+?(\d+)%/i, stat: 'packsize' },
   ],
   shapes: {
-    끄트머리: END,
-    모서리: CORNER,
-    직선: STRAIGHT,
-    접점: JUNCTION,
-    교차: CROSSING,
+    끄트머리: 'End',
+    모서리: 'Corner',
+    직선: 'Straight',
+    접점: 'Junction',
+    교차: 'Crossing',
   },
   structural:
     /^(?:아이템 종류\s*[:：]|아이템 희귀도\s*[:：]|지역 레벨\s*[:：]|아이템 레벨\s*[:：]|요구사항\s*[:：]?|레벨\s*[:：]\s*\d+|해도 형태\s*[:：]|이 지역을 해도로 기록하려면)/i,
@@ -228,6 +216,8 @@ export interface ParseResult {
   charts: ChartData[]
   /** uncharted / unrecognised items skipped, with a reason */
   rejected: { name: string; reason: string }[]
+  /** imported charts quarantined from solving until their shape is confirmed */
+  unresolved: { uid: string; name: string; reason: string }[]
 }
 
 export function parseChartText(text: string): ParseResult {
@@ -238,6 +228,7 @@ export function parseChartText(text: string): ParseResult {
 
   const charts: ChartData[] = []
   const rejected: { name: string; reason: string }[] = []
+  const unresolved: { uid: string; name: string; reason: string }[] = []
 
   for (const item of items) {
     const dialect = dialectForItem(item)
@@ -277,15 +268,12 @@ export function parseChartText(text: string): ParseResult {
 
     const shapeMatch = item.match(dialect.shape)
     const shapeName = shapeMatch?.[1].trim() ?? ''
-    if (!shapeName) {
-      rejected.push({ name, reason: `missing ${dialect.shapeLabel}` })
-      continue
-    }
     const shape = dialect.shapes[normalizeLookupText(shapeName)]
-    if (!shape) {
-      rejected.push({ name, reason: `unknown ${dialect.shapeLabel}: ${shapeName}` })
-      continue
-    }
+    const shapeReason = !shapeName
+      ? `missing ${dialect.shapeLabel}`
+      : !shape
+        ? `unknown ${dialect.shapeLabel}: ${shapeName}`
+        : null
 
     // The revealed implicit is the line under the locale's modifier marker.
     // Unknown modifiers are still imported with their verbatim text preserved.
@@ -330,18 +318,22 @@ export function parseChartText(text: string): ParseResult {
         !(dialect.uncharted?.test(line) ?? false),
     )
 
+    const uid = newUid()
     charts.push({
-      uid: newUid(),
+      uid,
       name,
       level,
-      edges: shape.edges,
+      edges: shape ? edgesForChartShape(shape) : [false, false, false, false],
       modIds,
       implicitText,
       rewards: rewards.length ? rewards : undefined,
-      shape: shape.canonical,
+      shape,
+      shapeResolved: !!shape,
+      shapeInput: shape ? undefined : shapeName || undefined,
       rawText: rawLines.length ? rawLines.join('\n') : undefined,
     })
+    if (shapeReason) unresolved.push({ uid, name, reason: shapeReason })
   }
 
-  return { charts, rejected }
+  return { charts, rejected, unresolved }
 }

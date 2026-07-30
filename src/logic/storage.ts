@@ -1,6 +1,7 @@
 import type { AdjacencyMode } from './scoring'
 import type { Board, Borders, ChartData, ConnectivityMode, Weights } from '../types'
 import { emptyBoard, emptyBorders } from '../types'
+import { chartShapeForEdges, isChartShapeResolved } from './chartShapes'
 import { DEFAULT_WEIGHTS } from './rewards'
 
 export interface AppState {
@@ -51,7 +52,7 @@ export function loadLocal(): AppState | null {
     const raw = localStorage.getItem(LS_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw)
-    const revived = revive(parsed)
+    const revived = reviveState(parsed)
     if (parsed?.v !== STATE_VERSION) {
       // mod data model changed: keep the user's preferences (weights, disabled
       // mods, settings) but reset the transient board that references mod ids.
@@ -72,19 +73,40 @@ export function encodeShare(state: AppState): string {
 export function decodeShare(hash: string): AppState | null {
   try {
     const json = decodeURIComponent(escape(atob(hash)))
-    return revive(JSON.parse(json))
+    return reviveState(JSON.parse(json))
   } catch {
     return null
   }
 }
 
-function revive(obj: unknown): AppState {
+export function reviveState(obj: unknown): AppState {
   const d = defaultState()
   if (typeof obj !== 'object' || obj === null) return d
   const o = obj as Partial<AppState>
+  const pool = (Array.isArray(o.pool)
+    ? o.pool.filter(
+        (chart): chart is ChartData => typeof chart === 'object' && chart !== null,
+      )
+    : d.pool
+  ).map((chart) => {
+    const shape = chartShapeForEdges(chart.edges)
+    return shape && chart.shapeResolved !== false ? { ...chart, shape } : chart
+  })
+  const resolvedUids = new Set(
+    pool.filter(isChartShapeResolved).map((chart) => chart.uid),
+  )
+  const boardCandidate =
+    Array.isArray(o.board) && o.board.length === 9 ? o.board : d.board
+  const board = boardCandidate.map((placement) =>
+    placement &&
+    typeof placement.chartUid === 'string' &&
+    resolvedUids.has(placement.chartUid)
+      ? placement
+      : null,
+  ) as Board
   return {
-    pool: Array.isArray(o.pool) ? o.pool : d.pool,
-    board: Array.isArray(o.board) && o.board.length === 9 ? o.board : d.board,
+    pool,
+    board,
     borders: Array.isArray(o.borders) && o.borders.length === 12 ? o.borders : d.borders,
     weights: { ...d.weights, ...(o.weights ?? {}) },
     // 'connected' was the old pre-launch guess (reachability); the confirmed

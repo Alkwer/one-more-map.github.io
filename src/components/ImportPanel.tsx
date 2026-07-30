@@ -4,7 +4,7 @@ import { generateDemoCharts } from '../logic/demo'
 import { parseBorderOcrPayload } from '../logic/borderOcr'
 import { isChartClipboardText, parseChartText } from '../logic/parser'
 import type { AppState } from '../logic/storage'
-import { defaultState } from '../logic/storage'
+import { defaultState, reviveState } from '../logic/storage'
 import type { ChartData } from '../types'
 
 interface Props {
@@ -20,7 +20,7 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
   const doParse = useCallback((raw?: string) => {
     const source = raw ?? text
     const borderOcr = parseBorderOcrPayload(source)
-    const { charts, rejected } = parseChartText(borderOcr.chartText)
+    const { charts, rejected, unresolved } = parseChartText(borderOcr.chartText)
     const notCharted = rejected.filter((r) => r.reason.startsWith('not charted'))
     if (charts.length === 0 && rejected.length === 0 && borderOcr.blockCount === 0) {
       setMsg('No items recognised. Is this Ctrl+C item text?')
@@ -47,6 +47,13 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
 
     const parts: string[] = []
     if (charts.length) parts.push(`Imported ${charts.length} chart${charts.length === 1 ? '' : 's'}`)
+    if (unresolved.length) {
+      parts.push(
+        `needs shape confirmation: ${unresolved
+          .map(({ name, reason }) => `"${name}" (${reason})`)
+          .join(', ')}`,
+      )
+    }
     if (borderOcr.blockCount > 0) {
       parts.push(
         `matched ${borderOcr.matches.length}/${borderOcr.blockCount} border modifier${
@@ -58,8 +65,14 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
       parts.push(
         `skipped ${notCharted.length} uncharted (run them first to reveal their modifier)`,
       )
-    const otherRejects = rejected.length - notCharted.length
-    if (otherRejects > 0) parts.push(`skipped ${otherRejects} unrecognised`)
+    const otherRejects = rejected.filter((r) => !r.reason.startsWith('not charted'))
+    if (otherRejects.length) {
+      parts.push(
+        `skipped: ${otherRejects
+          .map(({ name, reason }) => `"${name}" (${reason})`)
+          .join(', ')}`,
+      )
+    }
     if (borderOcr.misses.length > 0) {
       parts.push(`OCR unmatched at border${borderOcr.misses.length === 1 ? '' : 's'} ${borderOcr.misses
         .map((miss) => miss.index + 1)
@@ -94,7 +107,7 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
   const importJson = (file: File) => {
     file.text().then((t) => {
       try {
-        onLoadState({ ...defaultState(), ...JSON.parse(t) })
+        onLoadState(reviveState(JSON.parse(t)))
         setMsg('State loaded from JSON')
       } catch {
         setMsg('Invalid JSON file')
