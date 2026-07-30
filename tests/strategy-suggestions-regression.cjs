@@ -121,7 +121,9 @@ const emptyBorders = () => Array(12).fill(null)
 // only current-board diagnostics, never the library ranking or best-found fit.
 {
   const pieces = [
-    chart('star-1', ['adj-star-1']),
+    // Include a manual explicit so magnitude borders create a legitimate
+    // current-board diagnostic difference without amplifying the implicit.
+    chart('star-1', ['cm-quant-20', 'adj-star-1']),
     chart('star-2', ['adj-star-2']),
     chart('pantheon', ['adj-pantheon']),
     chart('pillar-1', [], 'Sea-Pillar Alpha'),

@@ -33,6 +33,40 @@ export const voyageRewardKey = (m: VoyageModDef): string => `${groupOfScope(m.sc
 /** weight key for a border roll */
 export const borderRewardKey = (m: BorderModDef): string => `border:${familyOf(m.id)}`
 
+const CHART_REWARD_FAMILY: Record<Stat, string> = {
+  currency: 'currency',
+  gold: 'gold',
+  scarabs: 'scarabs',
+  divcards: 'divcards',
+  essences: 'essences',
+  spirits: 'spirits',
+  wisps: 'wisps',
+  rares: 'rares',
+  magicmonsters: 'magic',
+  sulphur: 'sulph',
+  packsize: 'pack',
+  quantity: 'quant',
+  rarity: 'rarity',
+  uniques: 'uniques',
+  treasure: 'treasure',
+  exp: 'exp',
+  preserve: 'preserve',
+}
+
+/** Header reward stats currently recognised by the chart text importer. */
+export const CHART_REWARD_STATS: Stat[] = [
+  'quantity',
+  'rarity',
+  'gold',
+  'sulphur',
+  'packsize',
+  'scarabs',
+  'currency',
+]
+
+/** weight key for an imported, self-scope chart header reward */
+export const chartRewardKey = (stat: Stat): string => `self:${CHART_REWARD_FAMILY[stat]}`
+
 const primaryStat = (effects: ModEffect[]): Stat | null => effects[0]?.stat ?? null
 
 // strip leading counts ("+8-10 ", "10% ") to turn a tier's short label into a
@@ -51,6 +85,9 @@ function buildRewardTypes(): RewardType[] {
   const add = (key: string, group: RewardGroup, label: string, stat: Stat | null) => {
     if (map.has(key) || !label) return
     map.set(key, { key, group, label, default: stat ? STAT_PRIORITY[stat] : 0 })
+  }
+  for (const stat of CHART_REWARD_STATS) {
+    add(chartRewardKey(stat), 'self', STAT_LABELS[stat], stat)
   }
   for (const m of VOYAGE_MODS) {
     if (!m.effects.length) continue // flavour-only mods can't be weighted

@@ -8,11 +8,12 @@
     "build": "tsc --noEmit && vite build",
     "test:connectivity": "node tests/connectivity-regression.cjs",
     "test:border-ocr": "node tests/border-ocr-regression.cjs",
+    "test:scoring": "node tests/scoring-regression.cjs",
     "test:border-appraisal": "node tests/border-appraisal-regression.cjs",
     "test:strategy-suggestions": "node tests/strategy-suggestions-regression.cjs",
     "test:reroll-advice": "node tests/reroll-advice-regression.cjs",
     "test:voyage-decision": "node tests/voyage-decision-regression.cjs",
-    "test": "npm run test:connectivity && npm run test:border-ocr && npm run test:border-appraisal && npm run test:strategy-suggestions && npm run test:reroll-advice && npm run test:voyage-decision",
+    "test": "npm run test:connectivity && npm run test:border-ocr && npm run test:scoring && npm run test:border-appraisal && npm run test:strategy-suggestions && npm run test:reroll-advice && npm run test:voyage-decision",
     "preview": "vite preview"
   },
   "dependencies": {

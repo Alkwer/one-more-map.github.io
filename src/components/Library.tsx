@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { VOYAGE_MODS, voyageModById } from '../data/mods'
-import { voyageRewardKey } from '../logic/rewards'
+import { chartRewardKey, voyageRewardKey } from '../logic/rewards'
 import { newUid } from '../logic/parser'
 import type { Board, ChartData, Edges, Weights } from '../types'
 import { STAT_LABELS, STAT_SHORT } from '../types'
@@ -25,14 +25,18 @@ const SCOPE_REACH = { self: 1, adjacent: 3, global: 9 } as const
 /** heuristic worth of a chart under the current weights, for sorting */
 function chartValue(chart: ChartData, weights: Weights, disabled: Set<string>): number {
   let v = 0
+  const hasImportedRewards = !!chart.rewards?.length
   for (const id of chart.modIds) {
     if (disabled.has(id)) continue
     const mod = voyageModById.get(id)
     if (!mod) continue
+    if (mod.scope === 'self' && hasImportedRewards) continue
     const w = weights[voyageRewardKey(mod)] ?? 0
     for (const e of mod.effects) v += w * e.percent * SCOPE_REACH[mod.scope]
   }
-  // header reward sub-stats are shown but not scored; a chart's worth is its implicit
+  for (const effect of chart.rewards ?? []) {
+    v += (weights[chartRewardKey(effect.stat)] ?? 0) * effect.percent
+  }
   return v
 }
 
