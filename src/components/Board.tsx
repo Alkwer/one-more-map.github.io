@@ -237,7 +237,7 @@ function Tile({
           onClick={(e) => {
             e.stopPropagation()
             const implicitTxt =
-              mods.find((m) => m!.scope !== 'self')?.text ?? chart.implicitText ?? ''
+              chart.implicitText ?? mods.find((m) => m!.scope !== 'self')?.text ?? ''
             const search = [chart.name, implicitTxt, `Level ${chart.level}`]
               .filter(Boolean)
               .join(' ')

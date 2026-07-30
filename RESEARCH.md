@@ -196,10 +196,11 @@ of assumed.
 
 - **Stacking rules are undocumented.** Model now assumes additive stacking within
   an area ("increased" convention); the rewards panel reports average bonus per area.
-- **Start square is bottom-left.** Live reports confirm that the game allows a
+- **Start square is bottom-left** (confirmed in-game). The game allows a
   locally valid but disconnected Voyage to start; only the component containing
   this square can then be explored. The solver therefore distinguishes a board
   the game will launch from a fully reachable board and defaults to the latter.
+  Unconfirmed whether the start ever moves.
 - **CONFIRMED (ZiggyD video): some mods scale with the number of connections a
   chart has** - stacking bonuses per connection, and others that reward FEWER
   connections. Modelled via `scaling: 'connections' | 'inverse-connections'` on

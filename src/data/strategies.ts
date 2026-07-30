@@ -57,6 +57,8 @@ export interface StrategyDef {
   waitHint?: string
   /** Milky's in-game search string highlighting this strategy's keeper charts */
   searchRegex?: string
+  /** extra links shown on the card (trade searches, guides) */
+  extraLinks?: { label: string; url: string }[]
 }
 
 /** Milky's master keeper regex - every mod worth saving, across all strats */
@@ -113,7 +115,7 @@ const ETHEREAL_LAYOUT: Edges[] = [
 ]
 
 // the ONE chart Speedrun puts in the centre: Diviner's / Operative's boxes or
-// Messages in a Bottle (per Zac - Arcanist's and generic boxes don't qualify)
+// Messages in a Bottle (Arcanist's and generic boxes don't qualify)
 const SPEEDRUN_CENTER_MODS = [
   'adj-divbox-1', 'adj-divbox-2',
   'adj-opbox-1', 'adj-opbox-2',
@@ -121,7 +123,7 @@ const SPEEDRUN_CENTER_MODS = [
 ]
 const NOT_CENTER = [0, 1, 2, 3, 5, 6, 7, 8]
 
-// "Alc & Go" highway (Zac's sketch): three vertical lanes capped at the top,
+// "Alc & Go" highway: three vertical lanes capped at the top,
 // joined along the bottom row. 8 connections, all reaching the ⚓ start.
 const ALC_GO_LAYOUT: Edges[] = [
   [F, F, T, F], // 0 end (lane cap)
@@ -140,7 +142,7 @@ export const STRATEGIES: StrategyDef[] = [
     id: 'alc-and-go',
     name: 'Alc & Go',
     tagline: 'Burn the charts nothing else wants - one-lane highways, hope for random encounters.',
-    source: { label: 'Zac’s strat', url: '' },
+    source: { label: 'Milky’s strat', url: '' },
     guide: [
       'Uses only charts no other strategy needs - every juice piece and centre box is held back automatically.',
       'Forms single-lane highways (three lanes joined along the bottom) - or whatever the shapes allow.',
@@ -157,7 +159,7 @@ export const STRATEGIES: StrategyDef[] = [
     layout: ALC_GO_LAYOUT,
     layoutPenalty: 15, // a preference, not a law - "whatever works"
     reserveModIds: [...JUICE_PIECES, ...SPEEDRUN_CENTER_MODS],
-    reserveNames: ['pillar'],
+    reserveNames: ['pillar', 'pelagic'],
   },
   {
     id: 'milky-speedrun',
@@ -188,7 +190,7 @@ export const STRATEGIES: StrategyDef[] = [
       'border:ancient': 3,
     },
     reserveModIds: JUICE_PIECES,
-    reserveNames: ['pillar'],
+    reserveNames: ['pillar', 'pelagic'],
     rules: [
       // one centre chart, never a second one wasted elsewhere. Operative's
       // outranks the fallbacks (Milky: "won't yield as much, but consistent")
@@ -231,7 +233,7 @@ export const STRATEGIES: StrategyDef[] = [
       'self:rarity': 3,
     },
     rules: [
-      // Zac's placement rules: Starfish ALWAYS top/bottom-middle, Pantheon
+      // Placement rules: Starfish ALWAYS top/bottom-middle, Pantheon
       // ONLY right-middle, Golden Lantern preferably centre - any chart shape.
       // Bonuses outweigh the (soft) layout so location wins over exact lines;
       // negative bonuses keep the locked pieces out of every other square.
@@ -301,7 +303,7 @@ export const STRATEGIES: StrategyDef[] = [
     name: 'Divine Border Rares',
     tagline:
       'Roll a Divine border, park a Sea-Pillar chart on it, and drown that tile in rares - every rare drops a Divine Orb.',
-    source: { label: 'Zac’s strat', url: '' },
+    source: { label: 'Milky’s strat', url: '' },
     guide: [
       'Reroll borders with Dead Man’s Sulphur until you hit "+1 Divine Orb per Rare Monster" - this is one of the mechanic’s two real jackpots.',
       'Enter your borders on the board - the solver pins your Sea-Pillar chart to the Divine tile (its pillars rain extra rares into that exact area).',
@@ -341,6 +343,68 @@ export const STRATEGIES: StrategyDef[] = [
     requiresBorderId: { id: 'b-divine', label: 'a "+1 Divine Orb" border roll (enter your borders)' },
     waitHint: 'Speedrun Strongboxes until the pieces and the Divine border line up.',
     searchRegex: '"rare monsters in all voy|strongbox"',
+  },
+  {
+    id: 'cutedog-divine-boxes',
+    name: 'Divine Strongboxes',
+    tagline:
+      'cutedog_’s Divine-border variant - Pelagic Abyss on the Divine tile, any strongboxes feeding it, 7 divines per rolled box.',
+    source: { label: 'cutedog_ (Twitch)', url: 'https://www.twitch.tv/cutedog_' },
+    guide: [
+      'Needs the "+1 Divine Orb per Rare" border. Put a Pelagic Abyss chart with high % Pack Size on that exact tile.',
+      '3× strongbox adjacent charts (ANY type) beside the Divine tile - each box they shoot in is up to 7 guaranteed divines.',
+      'Roll the Strongboxes: "3 additional Rares" prefix = 3 divines, "Stream of Monsters" prefix = 4. Both on one box = 7, difficult to roll.',
+      'Every other tile: voyage-wide increased Rare Monsters.',
+      'Buy good charts cheap on trade (link below) - whisper "fastge". Use the 120%+ quantity regex when browsing.',
+    ],
+    weights: {
+      'voyage:rare': 10,
+      'adjacent:rare': 8,
+      'border:rare': 10,
+      'adjacent:box': 9,
+      'adjacent:divbox': 8,
+      'adjacent:arcbox': 8,
+      'adjacent:opbox': 8,
+      'border:divine': 10,
+      'self:pack': 6,
+    },
+    rules: [
+      // Pelagic Abyss (high pack size) sits ON the Divine-border tile
+      { nearBorderId: 'b-divine', nameMatch: 'pelagic', bonus: 80 },
+      { nearBorderId: 'b-divine', rewardStat: { stat: 'packsize', per: 8 }, bonus: 0 },
+      // any strongbox adjacent charts feed the Divine tile from beside it
+      {
+        nearBorderId: 'b-divine',
+        adjacentToBorder: true,
+        modIds: [
+          'adj-box-1', 'adj-box-2', 'adj-box-3',
+          'adj-divbox-1', 'adj-divbox-2',
+          'adj-arcbox-1', 'adj-arcbox-2',
+          'adj-opbox-1', 'adj-opbox-2',
+        ],
+        bonus: 25,
+      },
+    ],
+    requirements: [
+      { nameMatch: 'pelagic', count: 1, label: 'Pelagic Abyss chart (high pack size)' },
+      {
+        modIds: [
+          'adj-box-1', 'adj-box-2', 'adj-box-3',
+          'adj-divbox-1', 'adj-divbox-2',
+          'adj-arcbox-1', 'adj-arcbox-2',
+          'adj-opbox-1', 'adj-opbox-2',
+        ],
+        count: 3,
+        label: 'Strongbox adjacent chart (any type)',
+      },
+      { modIds: ['voy-rare'], count: 5, label: 'Increased Rares (voyage) chart' },
+    ],
+    requiresBorderId: { id: 'b-divine', label: 'a "+1 Divine Orb" border roll (enter your borders)' },
+    waitHint: 'Speedrun Strongboxes until the pieces and the Divine border line up.',
+    searchRegex: '"m q.*(1[2-9].|[2-9]..)%"',
+    extraLinks: [
+      { label: 'Trade search: cheap good charts', url: 'https://www.pathofexile.com/trade/search/Allflame/9zRn7YLRHK' },
+    ],
   },
 ]
 

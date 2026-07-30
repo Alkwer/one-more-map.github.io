@@ -118,6 +118,8 @@ export interface ModEffect {
 export interface VoyageModDef {
   id: string
   text: string
+  /** localized clipboard lines that map to this canonical modifier id */
+  aliases?: readonly string[]
   /** compact label for count-based mods where the scored percent is only a heuristic */
   short?: string
   scope: Scope
@@ -161,7 +163,7 @@ export interface ChartData {
    * scoring so the same explicit modifiers cannot be counted twice.
    */
   rewards?: ModEffect[]
-  /** chart connector shape name from the item text (Straight/Corner/Junction/End) */
+  /** canonical chart connector shape name (Straight/Corner/Junction/End/Crossing) */
   shape?: string
   /** unparsed mod lines kept from import so nothing is silently lost */
   rawText?: string

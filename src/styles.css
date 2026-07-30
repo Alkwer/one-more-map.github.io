@@ -582,6 +582,9 @@ button.primary:hover {
   color: #e3c7ff;
   text-decoration: underline;
 }
+.strat-extra-link {
+  display: block;
+}
 .strat-regex-row {
   display: flex;
   align-items: center;

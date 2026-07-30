@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { ALL_GOOD_MODS_REGEX } from '../data/strategies'
 import { generateDemoCharts } from '../logic/demo'
 import { parseBorderOcrPayload } from '../logic/borderOcr'
-import { parseChartText } from '../logic/parser'
+import { isChartClipboardText, parseChartText } from '../logic/parser'
 import type { AppState } from '../logic/storage'
 import { defaultState } from '../logic/storage'
 import type { ChartData } from '../types'
@@ -68,13 +68,13 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
     setMsg(parts.join('; ') || 'Nothing imported')
   }, [onImport, onLoadState, state, text])
 
-  // Ctrl+V anywhere on the page: if the clipboard holds chart item text, import
+  // Ctrl+V anywhere on the page: if the clipboard holds chart or border text, import
   // it straight away (no need to focus the box). Normal pastes into fields are
-  // untouched because only chart-shaped text is intercepted.
+  // untouched because only supported import text is intercepted.
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
       const clip = e.clipboardData?.getData('text') ?? ''
-      if (!/Item Class:\s*Chart|===\s*VOYAGE BORDER/i.test(clip)) return
+      if (!isChartClipboardText(clip) && !/===\s*VOYAGE BORDER/i.test(clip)) return
       e.preventDefault()
       doParse(clip)
     }

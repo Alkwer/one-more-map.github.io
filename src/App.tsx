@@ -318,9 +318,11 @@ export default function App() {
   }
 
   const FILL_ORDER = [6, 7, 8, 3, 4, 5, 0, 1, 2]
+  // the VERBATIM imported line comes first: the in-game search must match the
+  // game's own wording, and our stored mod texts can drift from it (issue #3)
   const chartImplicit = (chart: ChartData): string =>
-    chart.modIds.map((id) => voyageModById.get(id)).find((m) => m && m.scope !== 'self')?.text ??
     chart.implicitText ??
+    chart.modIds.map((id) => voyageModById.get(id)).find((m) => m && m.scope !== 'self')?.text ??
     ''
   // a PoE stash-search string: name + implicit + level, space-separated. The
   // in-game search ANDs each word, so this filters to exactly this chart.

@@ -13,7 +13,8 @@
     "test:strategy-suggestions": "node tests/strategy-suggestions-regression.cjs",
     "test:reroll-advice": "node tests/reroll-advice-regression.cjs",
     "test:voyage-decision": "node tests/voyage-decision-regression.cjs",
-    "test": "npm run test:connectivity && npm run test:border-ocr && npm run test:scoring && npm run test:border-appraisal && npm run test:strategy-suggestions && npm run test:reroll-advice && npm run test:voyage-decision",
+    "test:parser": "vitest run",
+    "test": "npm run test:parser && npm run test:connectivity && npm run test:border-ocr && npm run test:scoring && npm run test:border-appraisal && npm run test:strategy-suggestions && npm run test:reroll-advice && npm run test:voyage-decision",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -25,6 +26,7 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "^5.6.3",
-    "vite": "^5.4.11"
+    "vite": "^5.4.11",
+    "vitest": "^3.2.6"
   }
 }
