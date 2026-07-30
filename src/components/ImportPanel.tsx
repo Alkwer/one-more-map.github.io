@@ -224,6 +224,8 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
           </li>
           <li>
             <kbd>F9</kbd> copies the charts, scans the 12 borders, and imports both ·{' '}
+            <kbd>Ctrl+F9</kbd> refreshes only the 12 borders after a reroll, without rescanning
+            charts ·{' '}
             <kbd>F10</kbd> aborts. Border OCR can take around 15–30 seconds on a 4K screen.
           </li>
         </ol>

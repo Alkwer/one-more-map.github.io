@@ -205,6 +205,15 @@ assert.match(
 )
 assert.match(ahkImporter, /BorderOcrAttempts := 2/)
 assert.match(ahkImporter, /Retrying empty OCR scan/)
+const borderRefreshStart = ahkImporter.indexOf('^F9:: {')
+const fullImportMarker = ahkImporter.indexOf('\nF9:: {', borderRefreshStart + 1)
+const fullImportStart = fullImportMarker >= 0 ? fullImportMarker + 1 : -1
+assert.ok(borderRefreshStart >= 0, 'Ctrl+F9 border-only refresh hotkey is missing')
+assert.ok(fullImportStart > borderRefreshStart, 'full F9 import hotkey is missing')
+const borderRefreshHotkey = ahkImporter.slice(borderRefreshStart, fullImportStart)
+assert.match(borderRefreshHotkey, /borderBlob := ScanBorders\(\)/)
+assert.match(borderRefreshHotkey, /PasteIntoSolver\(\s*borderBlob/)
+assert.doesNotMatch(borderRefreshHotkey, /CellPos|GridRows|GridCols|Send "\^c"/)
 assert.doesNotMatch(
   ahkImporter,
   /throw 'Windows OCR is unavailable for English \(United States\)\.'/,
