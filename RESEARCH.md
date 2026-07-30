@@ -60,7 +60,7 @@
 
 - **Stacking rules are undocumented.** Model now assumes additive stacking within
   an area ("increased" convention); the rewards panel reports average bonus per area.
-- **Start square is bottom-left** (per Zac's observation); connectivity is now rooted
+- **Start square is bottom-left** (confirmed in-game); connectivity is now rooted
   there and the board must occupy it. Unconfirmed whether the start ever moves.
 - **CONFIRMED (ZiggyD video): some mods scale with the number of connections a
   chart has** - stacking bonuses per connection, and others that reward FEWER

@@ -113,7 +113,7 @@ const ETHEREAL_LAYOUT: Edges[] = [
 ]
 
 // the ONE chart Speedrun puts in the centre: Diviner's / Operative's boxes or
-// Messages in a Bottle (per Zac - Arcanist's and generic boxes don't qualify)
+// Messages in a Bottle (Arcanist's and generic boxes don't qualify)
 const SPEEDRUN_CENTER_MODS = [
   'adj-divbox-1', 'adj-divbox-2',
   'adj-opbox-1', 'adj-opbox-2',
@@ -121,7 +121,7 @@ const SPEEDRUN_CENTER_MODS = [
 ]
 const NOT_CENTER = [0, 1, 2, 3, 5, 6, 7, 8]
 
-// "Alc & Go" highway (Zac's sketch): three vertical lanes capped at the top,
+// "Alc & Go" highway: three vertical lanes capped at the top,
 // joined along the bottom row. 8 connections, all reaching the ⚓ start.
 const ALC_GO_LAYOUT: Edges[] = [
   [F, F, T, F], // 0 end (lane cap)
@@ -140,7 +140,7 @@ export const STRATEGIES: StrategyDef[] = [
     id: 'alc-and-go',
     name: 'Alc & Go',
     tagline: 'Burn the charts nothing else wants - one-lane highways, hope for random encounters.',
-    source: { label: 'Zac’s strat', url: '' },
+    source: { label: 'Milky’s strat', url: '' },
     guide: [
       'Uses only charts no other strategy needs - every juice piece and centre box is held back automatically.',
       'Forms single-lane highways (three lanes joined along the bottom) - or whatever the shapes allow.',
@@ -231,7 +231,7 @@ export const STRATEGIES: StrategyDef[] = [
       'self:rarity': 3,
     },
     rules: [
-      // Zac's placement rules: Starfish ALWAYS top/bottom-middle, Pantheon
+      // Placement rules: Starfish ALWAYS top/bottom-middle, Pantheon
       // ONLY right-middle, Golden Lantern preferably centre - any chart shape.
       // Bonuses outweigh the (soft) layout so location wins over exact lines;
       // negative bonuses keep the locked pieces out of every other square.
@@ -301,7 +301,7 @@ export const STRATEGIES: StrategyDef[] = [
     name: 'Divine Border Rares',
     tagline:
       'Roll a Divine border, park a Sea-Pillar chart on it, and drown that tile in rares - every rare drops a Divine Orb.',
-    source: { label: 'Zac’s strat', url: '' },
+    source: { label: 'Milky’s strat', url: '' },
     guide: [
       'Reroll borders with Dead Man’s Sulphur until you hit "+1 Divine Orb per Rare Monster" - this is one of the mechanic’s two real jackpots.',
       'Enter your borders on the board - the solver pins your Sea-Pillar chart to the Divine tile (its pillars rain extra rares into that exact area).',
