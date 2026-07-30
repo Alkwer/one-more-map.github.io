@@ -2,6 +2,11 @@ import { borderModById } from '../data/mods'
 import { STRATEGIES, type StrategyDef } from '../data/strategies'
 import type { Board, Borders, ChartData, Weights } from '../types'
 import { borderTouches, emptyBorders } from '../types'
+import {
+  appraiseBorders,
+  type BorderAppraisal,
+  type BorderAppraisalStatus,
+} from './borderAppraisal'
 import { borderRewardKey } from './rewards'
 import { scoreBoard, type ScoreOptions } from './scoring'
 
@@ -15,12 +20,23 @@ export interface StrategyReadiness {
   need: number
   ratio: number
   missing: string[]
+  requirements: StrategyRequirementReadiness[]
+}
+
+export interface StrategyRequirementReadiness {
+  label: string
+  have: number
+  need: number
+  missing: number
 }
 
 export interface StrategySuggestion {
   strategy: StrategyDef
   rankScore: number
   confidence: SuggestionConfidence
+  fit: number | null
+  status: BorderAppraisalStatus
+  appraisal: BorderAppraisal
   jackpot: boolean
   borderScore: number
   matchingBorders: number
@@ -31,7 +47,10 @@ export interface StrategySuggestion {
 }
 
 export interface StrategySuggestionResult {
+  /** Top relative matches shown in the diagnostic suggestions panel. */
   suggestions: StrategySuggestion[]
+  /** Every strategy evaluation, used by the canonical Voyage decision. */
+  evaluations: StrategySuggestion[]
   enteredBorders: number
   placedCharts: number
   hasEvidence: boolean
@@ -50,7 +69,7 @@ function countMatchingCharts(
   ).length
 }
 
-function strategyReadiness(
+export function strategyReadiness(
   strategy: StrategyDef,
   pool: ChartData[],
   borders: Borders,
@@ -58,11 +77,18 @@ function strategyReadiness(
   let have = 0
   let need = 0
   const missing: string[] = []
+  const requirements: StrategyRequirementReadiness[] = []
 
   for (const requirement of strategy.requirements ?? []) {
     const count = countMatchingCharts(requirement, pool)
     have += Math.min(count, requirement.count)
     need += requirement.count
+    requirements.push({
+      label: requirement.label,
+      have: count,
+      need: requirement.count,
+      missing: Math.max(0, requirement.count - count),
+    })
     if (count < requirement.count) {
       missing.push(`${requirement.count - count}× ${requirement.label}`)
     }
@@ -70,8 +96,15 @@ function strategyReadiness(
 
   if (strategy.requiresBorderId) {
     need += 1
-    if (borders.includes(strategy.requiresBorderId.id)) have += 1
+    const hasBorder = borders.includes(strategy.requiresBorderId.id)
+    if (hasBorder) have += 1
     else missing.push(strategy.requiresBorderId.label)
+    requirements.push({
+      label: strategy.requiresBorderId.label,
+      have: hasBorder ? 1 : 0,
+      need: 1,
+      missing: hasBorder ? 0 : 1,
+    })
   }
 
   return {
@@ -80,6 +113,7 @@ function strategyReadiness(
     need,
     ratio: need === 0 ? 1 : have / need,
     missing,
+    requirements,
   }
 }
 
@@ -136,11 +170,17 @@ function uniqueTopBorderLabels(
 
 function confidenceFor(
   jackpot: boolean,
-  matchingBorders: number,
-  readiness: StrategyReadiness,
+  fit: number | null,
+  status: BorderAppraisalStatus,
 ): SuggestionConfidence {
   if (jackpot) return 'high'
-  if (matchingBorders >= 3 || (matchingBorders >= 1 && readiness.ready)) return 'medium'
+  if (
+    fit !== null &&
+    (status === 'strong' || status === 'excellent')
+  ) {
+    return 'high'
+  }
+  if (fit !== null && status === 'mixed') return 'medium'
   return 'low'
 }
 
@@ -162,10 +202,18 @@ export function suggestStrategies(
   const enteredBorders = borders.filter(Boolean).length
   const placedCharts = board.filter(Boolean).length
   const hasNoEquipment = pool.some((chart) => chart.modIds.includes('voy-noequip'))
-  const hasDivineBorder = borders.includes('b-divine')
+  const hasDivineBorder =
+    borders.includes('b-divine') && !opts.disabledMods?.has('b-divine')
 
-  const suggestions = STRATEGIES.map((strategy) => {
+  const evaluations = STRATEGIES.map((strategy) => {
     const readiness = strategyReadiness(strategy, pool, borders)
+    const appraisal = appraiseBorders(
+      board,
+      borders,
+      charts,
+      strategy.weights,
+      opts,
+    )
     const contributions = borderContributions(
       board,
       borders,
@@ -244,7 +292,10 @@ export function suggestStrategies(
     return {
       strategy,
       rankScore,
-      confidence: confidenceFor(jackpot, matchingBorders, readiness),
+      confidence: confidenceFor(jackpot, appraisal.fit, appraisal.status),
+      fit: appraisal.fit,
+      status: appraisal.status,
+      appraisal,
       jackpot,
       borderScore,
       matchingBorders,
@@ -255,10 +306,11 @@ export function suggestStrategies(
     }
   })
 
-  suggestions.sort((a, b) => b.rankScore - a.rankScore)
+  evaluations.sort((a, b) => b.rankScore - a.rankScore)
 
   return {
-    suggestions: suggestions.slice(0, Math.max(0, limit)),
+    suggestions: evaluations.slice(0, Math.max(0, limit)),
+    evaluations,
     enteredBorders,
     placedCharts,
     hasEvidence: enteredBorders > 0 || placedCharts > 0 || hasNoEquipment,

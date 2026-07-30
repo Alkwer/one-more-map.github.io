@@ -48,8 +48,8 @@ export interface StrategyDef {
   reserveModIds?: string[]
   /** charts whose NAME contains any of these are held back too (Sea-Pillar) */
   reserveNames?: string[]
-  /** pieces the strategy needs before it's worth running; if the library
-   *  can't supply them the UI says to avoid this voyage and wait */
+  /** pieces the strategy needs before it can receive a PLAY recommendation;
+   *  the UI lists any missing requirements as diagnostic context */
   requirements?: { modIds?: string[]; nameMatch?: string; count: number; label: string }[]
   /** a border roll the strategy hinges on (readiness warns if not entered) */
   requiresBorderId?: { id: string; label: string }

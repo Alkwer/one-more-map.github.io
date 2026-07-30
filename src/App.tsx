@@ -3,7 +3,7 @@ import { BoardView } from './components/Board'
 import { BorderAppraiser } from './components/BorderAppraiser'
 import { ModBrowser } from './components/ModBrowser'
 import { Onboarding } from './components/Onboarding'
-import { RerollAdvisor } from './components/RerollAdvisor'
+import { VoyageAdvisor } from './components/VoyageAdvisor'
 import { TooltipLayer } from './components/Tooltip'
 import { generateDemoCharts } from './logic/demo'
 import { buildChartSearch } from './logic/regex'
@@ -18,7 +18,8 @@ import { scoreBoard } from './logic/scoring'
 import { appraiseBorders } from './logic/borderAppraisal'
 import { suggestStrategies } from './logic/strategySuggestions'
 import { checkConnectivity } from './logic/connectivity'
-import { adviseReroll, clampRerollsUsed } from './logic/rerollAdvice'
+import { clampRerollsUsed } from './logic/rerollAdvice'
+import { decideVoyage } from './logic/voyageDecision'
 import type { SolverResult } from './logic/solver'
 import { decodeShare, defaultState, encodeShare, loadLocal, saveLocal, type AppState } from './logic/storage'
 import type { ChartData } from './types'
@@ -105,10 +106,6 @@ export default function App() {
     () => scoreBoard(state.board, state.borders, chartMap, effectiveWeights, scoreOptions),
     [state.board, state.borders, chartMap, effectiveWeights, scoreOptions],
   )
-  const borderAppraisal = useMemo(
-    () => appraiseBorders(state.board, state.borders, chartMap, effectiveWeights, scoreOptions),
-    [state.board, state.borders, chartMap, effectiveWeights, scoreOptions],
-  )
   const strategySuggestions = useMemo(
     () =>
       suggestStrategies(
@@ -117,18 +114,48 @@ export default function App() {
         chartMap,
         state.pool,
         scoreOptions,
-      ),
+    ),
     [state.board, state.borders, chartMap, state.pool, scoreOptions],
   )
-  const rerollAdvice = adviseReroll({
-    fit: borderAppraisal.fit,
-    status: borderAppraisal.status,
-    placedCharts: borderAppraisal.placedCharts,
-    enteredBorders: borderAppraisal.enteredBorders,
-    rerollsUsed: state.borderRerollsUsed,
-    divineJackpot:
-      state.borders.includes('b-divine') && !disabledSet.has('b-divine'),
-  })
+  const activeStrategyEvaluation = activeStrategy
+    ? strategySuggestions.evaluations.find(
+        (evaluation) => evaluation.strategy.id === activeStrategy.id,
+      ) ?? null
+    : null
+  const borderAppraisal = useMemo(
+    () =>
+      activeStrategyEvaluation?.appraisal ??
+      appraiseBorders(
+        state.board,
+        state.borders,
+        chartMap,
+        effectiveWeights,
+        scoreOptions,
+      ),
+    [
+      activeStrategyEvaluation,
+      state.board,
+      state.borders,
+      chartMap,
+      effectiveWeights,
+      scoreOptions,
+    ],
+  )
+  const voyageDecision = useMemo(
+    () =>
+      decideVoyage({
+        evaluations: strategySuggestions.evaluations,
+        activeStrategyId: activeStrategy?.id ?? null,
+        activeAppraisal: borderAppraisal,
+        rerollsUsed: state.borderRerollsUsed,
+      }),
+    [
+      strategySuggestions.evaluations,
+      activeStrategy?.id,
+      borderAppraisal,
+      state.borderRerollsUsed,
+    ],
+  )
   const conn = useMemo(
     () => checkConnectivity(state.board, chartMap, state.mode),
     [state.board, chartMap, state.mode],
@@ -415,6 +442,14 @@ export default function App() {
         </div>
       </header>
 
+      <VoyageAdvisor
+        decision={voyageDecision}
+        onChangeRerolls={(value) =>
+          patch({ borderRerollsUsed: clampRerollsUsed(value) })
+        }
+        onSelectStrategy={(id) => patch({ strategyId: id })}
+      />
+
       <main>
         <section className="col library-col">
           <Library
@@ -565,11 +600,12 @@ export default function App() {
             </div>
           )}
 
-          <BorderAppraiser appraisal={borderAppraisal} />
-          <RerollAdvisor
-            advice={rerollAdvice}
-            onChangeRerolls={(value) =>
-              patch({ borderRerollsUsed: clampRerollsUsed(value) })
+          <BorderAppraiser
+            appraisal={borderAppraisal}
+            contextLabel={
+              activeStrategy
+                ? `Fit for active strategy: ${activeStrategy.name}`
+                : 'Fit for manual reward weights'
             }
           />
 
@@ -622,6 +658,13 @@ export default function App() {
         </section>
 
         <section className="col solver-col">
+          <div className="diagnostics-heading">
+            <div className="panel-title">Diagnostics</div>
+            <div>
+              Relative compatibility and strategy requirements explain the
+              recommendation above; they do not replace it.
+            </div>
+          </div>
           <StrategySuggestions
             result={strategySuggestions}
             activeId={state.strategyId}

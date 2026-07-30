@@ -10,7 +10,8 @@
     "test:border-appraisal": "node tests/border-appraisal-regression.cjs",
     "test:strategy-suggestions": "node tests/strategy-suggestions-regression.cjs",
     "test:reroll-advice": "node tests/reroll-advice-regression.cjs",
-    "test": "npm run test:border-ocr && npm run test:border-appraisal && npm run test:strategy-suggestions && npm run test:reroll-advice",
+    "test:voyage-decision": "node tests/voyage-decision-regression.cjs",
+    "test": "npm run test:border-ocr && npm run test:border-appraisal && npm run test:strategy-suggestions && npm run test:reroll-advice && npm run test:voyage-decision",
     "preview": "vite preview"
   },
   "dependencies": {

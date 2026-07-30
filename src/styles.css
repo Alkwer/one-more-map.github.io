@@ -128,10 +128,11 @@ main {
   grid-template-columns: 360px 1fr 330px;
   gap: 18px;
   align-items: start;
+  margin-top: 18px;
 }
 @media (max-width: 1100px) {
   main {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -139,17 +140,18 @@ main {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-width: 0;
 }
 
 /* ------- panels: official Allflame 9-slice frame (same asset + slice values
    as pathofexile.com/allflame's .poe2-announcement-panel__frame) ------- */
 .library,
 .import-panel,
-  .solver,
-  .board-wrap,
-  .border-appraiser,
-  .reroll-advisor,
-  .score-panel {
+.solver,
+.board-wrap,
+.border-appraiser,
+.voyage-advisor,
+.score-panel {
   background: rgba(3, 7, 8, 0.82);
   background-clip: padding-box;
   border: solid transparent;
@@ -317,12 +319,9 @@ button.primary:hover {
 
 /* current-roll strategy ranking */
 .strategy-suggestions {
-  border: 1px solid #8b7138;
+  border: 1px solid var(--border);
   border-radius: 3px;
-  background:
-    radial-gradient(circle at 90% 0%, rgba(180, 132, 42, 0.18), transparent 42%),
-    linear-gradient(180deg, rgba(50, 39, 16, 0.72), rgba(5, 7, 8, 0.88));
-  box-shadow: 0 0 18px rgba(200, 160, 60, 0.12);
+  background: rgba(3, 7, 8, 0.72);
   padding: 11px 12px;
 }
 .suggestion-heading {
@@ -342,8 +341,8 @@ button.primary:hover {
   font-family: var(--sc);
   font-size: 10.5px;
   letter-spacing: 0.6px;
-  color: var(--gold-bright);
-  border: 1px solid #715c2c;
+  color: var(--muted);
+  border: 1px solid var(--border);
   background: rgba(0, 0, 0, 0.35);
   padding: 3px 7px;
 }
@@ -368,8 +367,8 @@ button.primary:hover {
   padding: 8px 9px 9px;
 }
 .suggestion-card.best {
-  border-color: #a8873e;
-  background: linear-gradient(135deg, rgba(111, 78, 18, 0.3), rgba(0, 0, 0, 0.36));
+  border-color: var(--border-hi);
+  background: rgba(16, 14, 11, 0.52);
 }
 .suggestion-card.jackpot {
   border-color: #d4a83c;
@@ -388,7 +387,7 @@ button.primary:hover {
   font-size: 9.5px;
 }
 .suggestion-rank {
-  color: var(--gold);
+  color: var(--muted);
 }
 .suggestion-confidence {
   border: 1px solid var(--border-hi);
@@ -405,7 +404,7 @@ button.primary:hover {
 }
 .suggestion-name {
   margin-top: 3px;
-  color: var(--gold-bright);
+  color: var(--gold-dim);
   font-family: var(--sc);
   font-size: 16px;
   letter-spacing: 0.4px;
@@ -456,6 +455,17 @@ button.primary:hover {
   color: var(--muted);
   font-size: 10.5px;
   line-height: 1.35;
+}
+
+.diagnostics-heading {
+  padding: 1px 2px 3px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.diagnostics-heading .panel-title {
+  margin-bottom: 4px;
+  color: var(--gold-dim);
 }
 
 /* chart-rolling regex helpers */
@@ -588,10 +598,10 @@ button.primary:hover {
 .strat-notready {
   margin: 4px 10px;
   padding: 6px 8px;
-  border: 1px solid #8a5a3a;
+  border: 1px dashed var(--border-hi);
   border-radius: 3px;
-  background: rgba(120, 60, 20, 0.2);
-  color: #e8b48a;
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--muted);
   font-size: 11.5px;
   line-height: 1.4;
 }
@@ -1048,12 +1058,23 @@ textarea {
   color: var(--gold);
   text-shadow: 0 0 12px rgba(200, 170, 110, 0.3);
 }
+.board-wrap {
+  min-width: 0;
+}
+.board-scroll {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-hi) rgba(0, 0, 0, 0.35);
+}
 .board-grid {
   display: grid;
   grid-template-columns: 76px repeat(3, minmax(130px, 1fr)) 76px;
   grid-template-rows: 30px repeat(3, minmax(150px, auto)) 30px;
   gap: 6px;
   padding: 10px;
+  min-width: 590px;
   background: radial-gradient(closest-side, rgba(24, 38, 48, 0.5), rgba(0, 0, 0, 0.25)), #0b0d0f;
   border: 1px solid var(--border);
   box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.8);
@@ -1594,110 +1615,181 @@ textarea {
 .border-appraiser {
   padding: 12px 15px 14px;
 }
-.reroll-advisor {
-  padding: 12px 15px 14px;
+.voyage-advisor {
+  position: relative;
+  padding: 11px 16px 9px;
+  overflow: hidden;
 }
-.reroll-advisor-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+.voyage-advisor::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--muted);
+  opacity: 0.9;
 }
-.reroll-advisor-head .panel-title {
-  margin-bottom: 1px;
+.voyage-advisor.keep::after {
+  background: var(--good);
 }
-.reroll-advisor-subtitle {
-  font-size: 12px;
+.voyage-advisor.reroll::after {
+  background: var(--gold);
 }
-.reroll-advisor-badge {
-  flex: 0 0 auto;
-  max-width: 220px;
+.voyage-advisor.stop::after {
+  background: var(--global);
+}
+.voyage-advisor-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.45fr) minmax(205px, 0.8fr) minmax(300px, 1fr);
+  gap: 20px;
+  align-items: stretch;
+}
+.voyage-decision,
+.voyage-context,
+.voyage-costs {
+  min-width: 0;
+}
+.voyage-decision .panel-title {
+  margin-bottom: 7px;
+}
+.voyage-decision-label {
   font-family: var(--sc);
-  font-size: 11px;
-  letter-spacing: 0.5px;
-  text-align: right;
-  color: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: 2px;
-  background: rgba(0, 0, 0, 0.35);
-  padding: 3px 8px;
+  font-size: 21px;
+  line-height: 1.1;
+  letter-spacing: 0.65px;
+  color: var(--gold-bright);
 }
-.reroll-advisor.keep .reroll-advisor-badge {
+.voyage-advisor.keep .voyage-decision-label {
   color: var(--good);
-  border-color: rgba(150, 184, 118, 0.65);
 }
-.reroll-advisor.reroll .reroll-advisor-badge {
-  color: var(--gold-bright);
-  border-color: rgba(200, 170, 110, 0.7);
-}
-.reroll-advisor.stop .reroll-advisor-badge {
+.voyage-advisor.stop .voyage-decision-label {
   color: #e6a06f;
-  border-color: rgba(175, 96, 37, 0.72);
 }
-.reroll-decision {
-  margin-top: 12px;
-  padding: 9px 11px;
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--muted);
-  background: rgba(0, 0, 0, 0.38);
-}
-.reroll-advisor.keep .reroll-decision {
-  border-left-color: var(--good);
-  background: rgba(45, 75, 32, 0.16);
-}
-.reroll-advisor.reroll .reroll-decision {
-  border-left-color: var(--gold);
-  background: rgba(105, 75, 20, 0.18);
-}
-.reroll-advisor.stop .reroll-decision {
-  border-left-color: var(--global);
-  background: rgba(95, 48, 22, 0.18);
-}
-.reroll-decision-label {
-  font-family: var(--sc);
-  font-size: 17px;
-  letter-spacing: 0.5px;
-  color: var(--gold-bright);
-}
-.reroll-decision-reason {
-  margin-top: 2px;
+.voyage-decision-reason {
+  max-width: 720px;
+  margin-top: 5px;
   color: var(--text);
-  font-size: 12px;
+  font-size: 12.5px;
   line-height: 1.42;
 }
-.reroll-cost-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 7px;
-  margin-top: 8px;
+.voyage-primary-action {
+  margin-top: 9px;
+  border-color: rgba(200, 170, 110, 0.72);
+  color: var(--gold-bright);
+  font-family: var(--sc);
+  letter-spacing: 0.4px;
 }
-.reroll-cost-card {
-  min-height: 67px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 7px 9px;
+.voyage-context,
+.voyage-costs {
+  padding: 8px 12px;
   border: 1px solid var(--border);
-  background: linear-gradient(180deg, rgba(30, 26, 18, 0.66), rgba(7, 7, 6, 0.78));
+  background: rgba(0, 0, 0, 0.3);
 }
-.reroll-cost-card > span {
+.voyage-context > span,
+.voyage-cost-heading,
+.voyage-reroll-used > span,
+.voyage-cost-values span {
+  display: block;
   color: var(--muted);
   font-family: var(--sc);
   font-size: 10.5px;
+  letter-spacing: 0.45px;
 }
-.reroll-cost-card > strong {
-  margin-top: 2px;
+.voyage-context > strong {
+  display: block;
+  margin-top: 3px;
   color: var(--gold-bright);
   font-family: var(--sc);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 400;
 }
-.reroll-cost-card > small {
+.voyage-context > small {
+  display: block;
+  margin-top: 4px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
+  line-height: 1.35;
 }
-.reroll-cost-card.next {
-  border-color: rgba(200, 170, 110, 0.48);
+.voyage-fit-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 11px;
+}
+.voyage-fit-summary div {
+  min-width: 0;
+}
+.voyage-fit-summary span {
+  display: block;
+  color: var(--muted);
+  font-family: var(--sc);
+  font-size: 9.5px;
+}
+.voyage-fit-summary strong {
+  display: block;
+  color: var(--gold-bright);
+  font-family: var(--sc);
+  font-size: 14px;
+  font-weight: 400;
+}
+.voyage-fit-summary div:last-child {
+  text-align: right;
+}
+.voyage-fit-track {
+  position: relative;
+  height: 6px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.72);
+}
+.voyage-fit-track span {
+  display: block;
+  max-width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--bad), var(--gold), var(--good));
+  opacity: 0.72;
+}
+.voyage-fit-track i {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--gold-bright);
+  box-shadow: 0 0 6px rgba(231, 215, 171, 0.55);
+}
+.voyage-cost-heading {
+  margin-bottom: 4px;
+}
+.voyage-reroll-used {
+  display: grid;
+  grid-template-columns: auto minmax(118px, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+.voyage-cost-values {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 7px;
+}
+.voyage-cost-values > div {
+  min-width: 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.voyage-cost-values > div.next {
+  border-top-color: rgba(200, 170, 110, 0.55);
+}
+.voyage-cost-values strong {
+  display: block;
+  color: var(--gold-bright);
+  font-family: var(--sc);
+  font-size: 15px;
+  font-weight: 400;
+}
+.voyage-cost-values small {
+  display: block;
+  color: var(--muted);
+  font-size: 9.5px;
 }
 .reroll-stepper {
   display: grid;
@@ -1721,46 +1813,21 @@ textarea {
   text-align: center;
   font-weight: 400;
 }
-.reroll-threshold {
-  margin-top: 9px;
-}
-.reroll-threshold-labels {
+.voyage-disclaimer {
   display: flex;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
+  margin-top: 7px;
   color: var(--muted);
+  font-family: var(--italic);
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+.voyage-disclaimer span {
+  flex: 0 0 auto;
+  color: var(--gold-dim);
   font-family: var(--sc);
-  font-size: 11px;
-}
-.reroll-threshold-labels strong {
-  color: var(--gold-bright);
-  font-weight: 400;
-}
-.reroll-threshold-track {
-  position: relative;
-  height: 7px;
-  margin-top: 4px;
-  border: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.72);
-}
-.reroll-threshold-fill {
-  display: block;
-  max-width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, var(--bad), var(--gold), var(--good));
-  opacity: 0.72;
-}
-.reroll-threshold-line {
-  position: absolute;
-  top: -3px;
-  bottom: -3px;
-  width: 2px;
-  background: var(--gold-bright);
-  box-shadow: 0 0 6px rgba(231, 215, 171, 0.55);
-}
-.reroll-disclaimer {
-  margin-top: 9px;
-  line-height: 1.4;
+  font-style: normal;
+  letter-spacing: 0.35px;
 }
 .border-appraiser-head {
   display: flex;
@@ -1945,35 +2012,81 @@ textarea {
 .border-appraisal-details[open] summary {
   margin-bottom: 6px;
 }
-@media (max-width: 620px) {
-  .strategy-suggestions {
-    width: calc(100vw - 44px);
-    max-width: calc(100vw - 44px);
-    align-self: flex-start;
-  }
-  .border-appraiser {
-    width: calc(100vw - 44px);
-    max-width: calc(100vw - 44px);
-    align-self: flex-start;
-  }
-  .reroll-advisor {
-    width: calc(100vw - 44px);
-    max-width: calc(100vw - 44px);
-    align-self: flex-start;
-  }
-  .reroll-advisor-head {
-    flex-direction: column;
-    gap: 6px;
-  }
-  .reroll-advisor-badge {
-    max-width: 100%;
-    text-align: left;
-  }
-  .reroll-cost-grid {
+@media (max-width: 900px) {
+  .voyage-advisor-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .reroll-cost-card:first-child {
+  .voyage-decision {
     grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 620px) {
+  header {
+    align-items: flex-start;
+  }
+  h1 {
+    font-size: 24px;
+    white-space: nowrap;
+  }
+  .header-right {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .header-right .tag {
+    flex-basis: 100%;
+    width: max-content;
+    white-space: nowrap;
+  }
+  .header-right button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .header-right .theme-link {
+    flex-grow: 0;
+    min-width: 43px;
+  }
+  .library,
+  .import-panel,
+  .solver,
+  .board-wrap,
+  .border-appraiser,
+  .voyage-advisor,
+  .score-panel,
+  .strategy-suggestions,
+  .strategies {
+    width: calc(100vw - 44px);
+    max-width: calc(100vw - 44px);
+    align-self: flex-start;
+  }
+  .voyage-advisor-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .voyage-decision {
+    grid-column: auto;
+  }
+  .voyage-decision-label {
+    font-size: 18px;
+  }
+  .voyage-disclaimer {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .board-toolbar {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+  .board-toolbar .spacer {
+    display: none;
+  }
+  .board-toolbar .board-title {
+    flex-basis: 100%;
+  }
+  .suggestion-metrics {
+    flex-wrap: wrap;
+    gap: 4px 10px;
   }
   .border-appraisal-hero {
     grid-template-columns: 1fr;

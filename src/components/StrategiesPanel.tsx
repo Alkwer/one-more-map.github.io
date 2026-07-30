@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { STRATEGIES, type StrategyDef } from '../data/strategies'
+import { strategyReadiness } from '../logic/strategySuggestions'
 import type { Borders, ChartData } from '../types'
 
 interface Props {
@@ -7,18 +8,6 @@ interface Props {
   pool: ChartData[]
   borders: Borders
   onSelect: (id: string | null) => void
-}
-
-/** per-requirement tally of what the library can supply */
-function pieceStatus(s: StrategyDef, pool: ChartData[]) {
-  return (s.requirements ?? []).map((req) => {
-    const have = pool.filter(
-      (c) =>
-        (req.modIds && c.modIds.some((id) => req.modIds!.includes(id))) ||
-        (req.nameMatch && c.name.toLowerCase().includes(req.nameMatch.toLowerCase())),
-    ).length
-    return { ...req, have, missing: Math.max(0, req.count - have) }
-  })
 }
 
 function Readiness({
@@ -30,31 +19,23 @@ function Readiness({
   pool: ChartData[]
   borders: Borders
 }) {
-  const reqs = pieceStatus(strategy, pool)
-  const borderMissing =
-    strategy.requiresBorderId && !borders.includes(strategy.requiresBorderId.id)
-  if (reqs.length === 0 && !strategy.requiresBorderId) return null
-  const missing = reqs.filter((r) => r.missing > 0)
-  if (missing.length > 0 || borderMissing) {
-    const parts = [
-      ...missing.map((m) => `${m.missing}× ${m.label}`),
-      ...(borderMissing ? [strategy.requiresBorderId!.label] : []),
-    ]
+  const readiness = strategyReadiness(strategy, pool, borders)
+  if (readiness.requirements.length === 0) return null
+  if (!readiness.ready) {
     return (
       <div className="strat-notready">
-        ⚠ You don't have the pieces - avoid this voyage and wait. Missing: {parts.join(', ')}.
-        {strategy.waitHint ? ` ${strategy.waitHint}` : ''}
+        Missing requirements: {readiness.missing.join(', ')}.
       </div>
     )
   }
   return (
     <div className="strat-ready">
-      ✓ Pieces ready:{' '}
-      {reqs
+      ✓ Requirements met:{' '}
+      {readiness.requirements
         .map(
           (r) =>
-            `${Math.min(r.have, r.count)}/${r.count}× ${r.label}${
-              r.have > r.count ? ` (+${r.have - r.count} spare)` : ''
+            `${Math.min(r.have, r.need)}/${r.need} ${r.label}${
+              r.have > r.need ? ` (+${r.have - r.need} spare)` : ''
             }`,
         )
         .join(', ')}
@@ -145,7 +126,7 @@ export function StrategiesPanel({ activeId, pool, borders, onSelect }: Props) {
               className={`strat-use ${isActive ? 'on' : ''}`}
               onClick={() => onSelect(isActive ? null : s.id)}
             >
-              {isActive ? '✓ Active - click to turn off' : 'Use this strategy'}
+              {isActive ? '✓ Active - click to turn off' : 'Set active strategy'}
             </button>
           </div>
         )
