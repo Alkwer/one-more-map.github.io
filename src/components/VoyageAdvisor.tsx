@@ -2,6 +2,8 @@ import type { VoyageDecision } from '../logic/voyageDecision'
 
 interface Props {
   decision: VoyageDecision
+  loading?: boolean
+  error?: string | null
   onChangeRerolls: (value: number) => void
   onSelectStrategy: (id: string) => void
 }
@@ -29,9 +31,37 @@ const contextLabelFor = (decision: VoyageDecision) => {
 
 export function VoyageAdvisor({
   decision,
+  loading = false,
+  error = null,
   onChangeRerolls,
   onSelectStrategy,
 }: Props) {
+  if (loading || error) {
+    return (
+      <section
+        className="voyage-advisor needs-data"
+        aria-labelledby="voyage-advisor-title"
+        aria-live="polite"
+      >
+        <div className="voyage-advisor-grid">
+          <div className="voyage-decision">
+            <div id="voyage-advisor-title" className="panel-title">
+              Voyage Recommendation
+            </div>
+            <div className="voyage-decision-label">
+              {loading ? 'Analyzing strategies…' : 'Analysis unavailable'}
+            </div>
+            <div className="voyage-decision-reason">
+              {loading
+                ? 'Comparing your chart library with the current border roll in the background.'
+                : `Strategy analysis failed: ${error}`}
+            </div>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
   const fitPercent =
     decision.fit === null ? null : Math.round(decision.fit * 100)
   const linePercent = Math.round(decision.decisionFitLine * 100)

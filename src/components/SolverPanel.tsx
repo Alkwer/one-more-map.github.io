@@ -1,6 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { buildBestModRegex } from '../logic/regex'
-import { solve, type SolverResult } from '../logic/solver'
+import type { SolverResult } from '../logic/solver'
+import { createSolverStateKey } from '../logic/solverRequestKeys'
+import {
+  isWorkerRequestCancelled,
+  SolverWorkerClient,
+} from '../logic/solverWorkerClient'
 import type { AppState } from '../logic/storage'
 import type { AdjacencyMode } from '../logic/scoring'
 import type { Board, ConnectivityMode } from '../types'
@@ -16,18 +21,69 @@ interface Props {
   /** curated strategy currently overriding weights, or null for manual */
   activeStrategy: StrategyDef | null
   onPatch: (p: Partial<AppState>) => void
-  results: SolverResult[]
-  onResults: (r: SolverResult[]) => void
   onApply: (board: Board) => void
 }
 
-export function SolverPanel({ state, activeStrategy, onPatch, results, onResults, onApply }: Props) {
-  const [busy, setBusy] = useState(false)
+interface KeyedResults {
+  key: string
+  results: SolverResult[]
+}
+
+interface KeyedNote {
+  key: string
+  text: string
+}
+
+interface BusyRequest {
+  key: string
+  requestId: number
+}
+
+export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) {
   const [regexCap, setRegexCap] = useState(50)
   const [copied, setCopied] = useState(false)
-  const [solveNote, setSolveNote] = useState('')
+  const [busyRequest, setBusyRequest] = useState<BusyRequest | null>(null)
+  const [resultState, setResultState] = useState<KeyedResults>({
+    key: '',
+    results: [],
+  })
+  const [noteState, setNoteState] = useState<KeyedNote>({
+    key: '',
+    text: '',
+  })
+  const clientRef = useRef<SolverWorkerClient | null>(null)
+  const nextRequestId = useRef(1)
+  const latestRequestId = useRef(0)
+  if (clientRef.current === null) clientRef.current = new SolverWorkerClient()
   // while a strategy is active it overrides the manual weights everywhere here
   const weights = activeStrategy ? activeStrategy.weights : state.weights
+  const solveKey = useMemo(
+    () => createSolverStateKey(state, weights, activeStrategy?.id ?? null),
+    [
+      state.pool,
+      state.borders,
+      state.mode,
+      state.allowRotation,
+      state.adjacencyMode,
+      state.adjacentAffectsSelf,
+      state.disabledMods,
+      weights,
+      activeStrategy?.id,
+    ],
+  )
+  const latestSolveKey = useRef(solveKey)
+  latestSolveKey.current = solveKey
+  const busy = busyRequest?.key === solveKey
+  const results =
+    resultState.key === solveKey ? resultState.results : []
+  const solveNote = noteState.key === solveKey ? noteState.text : ''
+
+  useEffect(
+    () => () => {
+      clientRef.current?.cancel()
+    },
+    [solveKey],
+  )
   const bestRegex = useMemo(
     () => buildBestModRegex(weights, regexCap, new Set(state.disabledMods)),
     [weights, regexCap, state.disabledMods],
@@ -44,33 +100,53 @@ export function SolverPanel({ state, activeStrategy, onPatch, results, onResults
   }
 
   const run = () => {
-    setBusy(true)
-    setSolveNote('')
-    // let the UI paint the busy state before the (synchronous) solve
-    window.setTimeout(() => {
-      try {
-        // strategy reservations: hold back charts another strategy is saving for
-        const reserve = activeStrategy?.reserveModIds
-        const reserveNames = activeStrategy?.reserveNames
-        const solvePool = state.pool.filter(
-          (c) =>
-            !(reserve?.length && c.modIds.some((id) => reserve.includes(id))) &&
-            !(reserveNames?.length &&
-              reserveNames.some((n) => c.name.toLowerCase().includes(n.toLowerCase()))),
-        )
-        const heldBack = state.pool.length - solvePool.length
-        const res = solve(solvePool, state.borders, weights, {
+    const requestKey = solveKey
+    const requestId = nextRequestId.current++
+    latestRequestId.current = requestId
+    setBusyRequest({ key: requestKey, requestId })
+    setResultState({ key: requestKey, results: [] })
+    setNoteState({ key: requestKey, text: '' })
+    // strategy reservations: hold back charts another strategy is saving for
+    const reserve = activeStrategy?.reserveModIds
+    const reserveNames = activeStrategy?.reserveNames
+    const solvePool = state.pool.filter(
+      (chart) =>
+        !(reserve?.length &&
+          chart.modIds.some((id) => reserve.includes(id))) &&
+        !(reserveNames?.length &&
+          reserveNames.some((name) =>
+            chart.name.toLowerCase().includes(name.toLowerCase()),
+          )),
+    )
+    const heldBack = state.pool.length - solvePool.length
+
+    clientRef.current!
+      .solve({
+        pool: solvePool,
+        borders: state.borders,
+        weights,
+        options: {
           mode: state.mode,
           allowRotation: state.allowRotation,
           adjacencyMode: state.adjacencyMode,
           adjacentAffectsSelf: state.adjacentAffectsSelf,
-          disabledMods: new Set(state.disabledMods),
+          disabledMods: [...state.disabledMods],
           topK: 5,
           strategyRules: activeStrategy?.rules,
           strategyLayout: activeStrategy?.layout,
           strategyLayoutPenalty: activeStrategy?.layoutPenalty,
-        })
-        onResults(res)
+        },
+      })
+      .then((res) => {
+        setBusyRequest((current) =>
+          current?.requestId === requestId ? null : current,
+        )
+        if (
+          latestSolveKey.current !== requestKey ||
+          latestRequestId.current !== requestId
+        )
+          return
+        setResultState({ key: requestKey, results: res })
         const notes: string[] = []
         if (heldBack > 0)
           notes.push(`${heldBack} juice chart${heldBack === 1 ? '' : 's'} held back for Meatfish/Ethereal.`)
@@ -78,54 +154,106 @@ export function SolverPanel({ state, activeStrategy, onPatch, results, onResults
           notes.push(`Only ${solvePool.length} spare charts - not enough for a full board.`)
         else if (res.length && !res[0].valid)
           notes.push('No fully reachable layout from these charts - best partial shown.')
-        setSolveNote(notes.join(' '))
-      } finally {
-        setBusy(false)
-      }
-    }, 30)
+        setNoteState({ key: requestKey, text: notes.join(' ') })
+      })
+      .catch((error: unknown) => {
+        setBusyRequest((current) =>
+          current?.requestId === requestId ? null : current,
+        )
+        if (
+          isWorkerRequestCancelled(error) ||
+          latestSolveKey.current !== requestKey ||
+          latestRequestId.current !== requestId
+        )
+          return
+        setNoteState({
+          key: requestKey,
+          text: `Solver failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        })
+      })
   }
 
   // build a throwaway "filler" voyage from your lowest-value spare charts, holding
   // back your best KEEP_BEST charts and anything you've locked (🔒) so they survive
   const runFiller = () => {
-    setBusy(true)
-    setSolveNote('')
-    window.setTimeout(() => {
-      try {
-        const disabled = new Set(state.disabledMods)
-        const keep = new Set<string>()
-        state.pool.forEach((c) => c.preserved && keep.add(c.uid))
-        ;[...state.pool]
-          .sort((a, b) => displayValue(b, weights, disabled) - displayValue(a, weights, disabled))
-          .slice(0, KEEP_BEST)
-          .forEach((c) => keep.add(c.uid))
-        const fillerPool = state.pool.filter((c) => !keep.has(c.uid))
-        if (fillerPool.length < 9) {
-          onResults([])
-          setSolveNote(
-            `Only ${fillerPool.length} spare chart${fillerPool.length === 1 ? '' : 's'} - need 9 outside your best ${KEEP_BEST} and locked charts to build a filler voyage.`,
-          )
-          return
-        }
-        const res = solve(fillerPool, state.borders, weights, {
+    const requestKey = solveKey
+    setNoteState({ key: requestKey, text: '' })
+    const disabled = new Set(state.disabledMods)
+    const keep = new Set<string>()
+    state.pool.forEach((chart) => chart.preserved && keep.add(chart.uid))
+    ;[...state.pool]
+      .sort(
+        (a, b) =>
+          displayValue(b, weights, disabled) -
+          displayValue(a, weights, disabled),
+      )
+      .slice(0, KEEP_BEST)
+      .forEach((chart) => keep.add(chart.uid))
+    const fillerPool = state.pool.filter((chart) => !keep.has(chart.uid))
+    if (fillerPool.length < 9) {
+      setResultState({ key: requestKey, results: [] })
+      setNoteState({
+        key: requestKey,
+        text: `Only ${fillerPool.length} spare chart${fillerPool.length === 1 ? '' : 's'} - need 9 outside your best ${KEEP_BEST} and locked charts to build a filler voyage.`,
+      })
+      return
+    }
+
+    const requestId = nextRequestId.current++
+    latestRequestId.current = requestId
+    setBusyRequest({ key: requestKey, requestId })
+    setResultState({ key: requestKey, results: [] })
+    clientRef.current!
+      .solve({
+        pool: fillerPool,
+        borders: state.borders,
+        weights,
+        options: {
           mode: state.mode,
           allowRotation: state.allowRotation,
           adjacencyMode: state.adjacencyMode,
           adjacentAffectsSelf: state.adjacentAffectsSelf,
-          disabledMods: disabled,
+          disabledMods: [...disabled],
           topK: 5,
           minimizeReward: true,
-        })
-        onResults(res)
-        setSolveNote(
-          res[0]?.valid
+        },
+      })
+      .then((res) => {
+        setBusyRequest((current) =>
+          current?.requestId === requestId ? null : current,
+        )
+        if (
+          latestSolveKey.current !== requestKey ||
+          latestRequestId.current !== requestId
+        )
+          return
+        setResultState({ key: requestKey, results: res })
+        setNoteState({
+          key: requestKey,
+          text: res[0]?.valid
             ? 'Filler voyage: lowest-value fully reachable board from your spare charts (your best & locked charts untouched).'
             : 'No fully reachable filler layout from your spare charts.',
+        })
+      })
+      .catch((error: unknown) => {
+        setBusyRequest((current) =>
+          current?.requestId === requestId ? null : current,
         )
-      } finally {
-        setBusy(false)
-      }
-    }, 30)
+        if (
+          isWorkerRequestCancelled(error) ||
+          latestSolveKey.current !== requestKey ||
+          latestRequestId.current !== requestId
+        )
+          return
+        setNoteState({
+          key: requestKey,
+          text: `Solver failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        })
+      })
   }
 
   return (

@@ -18,12 +18,11 @@ import { scoreBoard } from './logic/scoring'
 import { appraiseBorders } from './logic/borderAppraisal'
 import {
   evaluateCurrentBoardStrategies,
-  evaluateStrategyInventory,
 } from './logic/strategySuggestions'
+import { useStrategyInventory } from './hooks/useStrategyInventory'
 import { checkConnectivity } from './logic/connectivity'
 import { clampRerollsUsed } from './logic/rerollAdvice'
 import { decideVoyage } from './logic/voyageDecision'
-import type { SolverResult } from './logic/solver'
 import { decodeShare, defaultState, encodeShare, loadLocal, saveLocal, type AppState } from './logic/storage'
 import type { ChartData } from './types'
 import { ALL_STATS, STAT_LABELS, borderTouches, emptyBoard } from './types'
@@ -82,7 +81,6 @@ export default function App() {
   }
   const [selectedChart, setSelectedChart] = useState<string | null>(null)
   const [selectedCell, setSelectedCell] = useState<number | null>(null)
-  const [results, setResults] = useState<SolverResult[]>([])
   const [shareMsg, setShareMsg] = useState('')
   const saveTimer = useRef<number>()
 
@@ -117,20 +115,14 @@ export default function App() {
     }),
     [scoreOptions, state.mode, state.allowRotation],
   )
-  const strategyInventory = useMemo(
-    () =>
-      evaluateStrategyInventory(
-        state.borders,
-        chartMap,
-        state.pool,
-        strategyEvaluationOptions,
-      ),
-    [
-      state.borders,
-      chartMap,
-      state.pool,
-      strategyEvaluationOptions,
-    ],
+  const {
+    inventory: strategyInventory,
+    loading: strategyInventoryLoading,
+    error: strategyInventoryError,
+  } = useStrategyInventory(
+    state.pool,
+    state.borders,
+    strategyEvaluationOptions,
   )
   const strategySuggestions = useMemo(
     () =>
@@ -474,6 +466,8 @@ export default function App() {
 
       <VoyageAdvisor
         decision={voyageDecision}
+        loading={strategyInventoryLoading}
+        error={strategyInventoryError}
         onChangeRerolls={(value) =>
           patch({ borderRerollsUsed: clampRerollsUsed(value) })
         }
@@ -712,6 +706,8 @@ export default function App() {
           </div>
           <StrategySuggestions
             result={strategySuggestions}
+            loading={strategyInventoryLoading}
+            error={strategyInventoryError}
             activeId={state.strategyId}
             onSelect={(id) => patch({ strategyId: id })}
           />
@@ -725,8 +721,6 @@ export default function App() {
             state={state}
             activeStrategy={activeStrategy}
             onPatch={patch}
-            results={results}
-            onResults={setResults}
             onApply={(board) => {
               patch({ board: board.map((p) => (p ? { ...p } : null)) })
               setSelectedCell(null)

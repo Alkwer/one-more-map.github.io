@@ -15,6 +15,7 @@
     "test:voyage-decision": "node tests/voyage-decision-regression.cjs",
     "test:parser": "vitest run",
     "test": "npm run test:parser && npm run test:connectivity && npm run test:border-ocr && npm run test:scoring && npm run test:border-appraisal && npm run test:strategy-suggestions && npm run test:reroll-advice && npm run test:voyage-decision",
+    "bench:solver": "node benchmarks/solver-performance.cjs",
     "preview": "vite preview"
   },
   "dependencies": {
