@@ -1,18 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BoardView } from './components/Board'
+import { BorderAppraiser } from './components/BorderAppraiser'
 import { ModBrowser } from './components/ModBrowser'
 import { Onboarding } from './components/Onboarding'
+import { RerollAdvisor } from './components/RerollAdvisor'
 import { TooltipLayer } from './components/Tooltip'
 import { generateDemoCharts } from './logic/demo'
 import { buildChartSearch } from './logic/regex'
 import { ImportPanel } from './components/ImportPanel'
 import { Library } from './components/Library'
 import { SolverPanel } from './components/SolverPanel'
+import { StrategySuggestions } from './components/StrategySuggestions'
 import { borderModById, voyageModById } from './data/mods'
 import { strategyById } from './data/strategies'
 import { StrategiesPanel } from './components/StrategiesPanel'
 import { scoreBoard } from './logic/scoring'
+import { appraiseBorders } from './logic/borderAppraisal'
+import { suggestStrategies } from './logic/strategySuggestions'
 import { checkConnectivity } from './logic/connectivity'
+import { adviseReroll, clampRerollsUsed } from './logic/rerollAdvice'
 import type { SolverResult } from './logic/solver'
 import { decodeShare, defaultState, encodeShare, loadLocal, saveLocal, type AppState } from './logic/storage'
 import type { ChartData } from './types'
@@ -87,44 +93,46 @@ export default function App() {
   // active curated strategy: while set, its weights override the manual sliders
   const activeStrategy = state.strategyId ? strategyById.get(state.strategyId) ?? null : null
   const effectiveWeights = activeStrategy ? activeStrategy.weights : state.weights
-  const score = useMemo(
-    () =>
-      scoreBoard(state.board, state.borders, chartMap, effectiveWeights, {
-        adjacencyMode: state.adjacencyMode,
-        adjacentAffectsSelf: state.adjacentAffectsSelf,
-        disabledMods: disabledSet,
-      }),
-    [
-      state.board,
-      state.borders,
-      chartMap,
-      effectiveWeights,
-      state.adjacencyMode,
-      state.adjacentAffectsSelf,
-      disabledSet,
-    ],
+  const scoreOptions = useMemo(
+    () => ({
+      adjacencyMode: state.adjacencyMode,
+      adjacentAffectsSelf: state.adjacentAffectsSelf,
+      disabledMods: disabledSet,
+    }),
+    [state.adjacencyMode, state.adjacentAffectsSelf, disabledSet],
   )
+  const score = useMemo(
+    () => scoreBoard(state.board, state.borders, chartMap, effectiveWeights, scoreOptions),
+    [state.board, state.borders, chartMap, effectiveWeights, scoreOptions],
+  )
+  const borderAppraisal = useMemo(
+    () => appraiseBorders(state.board, state.borders, chartMap, effectiveWeights, scoreOptions),
+    [state.board, state.borders, chartMap, effectiveWeights, scoreOptions],
+  )
+  const strategySuggestions = useMemo(
+    () =>
+      suggestStrategies(
+        state.board,
+        state.borders,
+        chartMap,
+        state.pool,
+        scoreOptions,
+      ),
+    [state.board, state.borders, chartMap, state.pool, scoreOptions],
+  )
+  const rerollAdvice = adviseReroll({
+    fit: borderAppraisal.fit,
+    status: borderAppraisal.status,
+    placedCharts: borderAppraisal.placedCharts,
+    enteredBorders: borderAppraisal.enteredBorders,
+    rerollsUsed: state.borderRerollsUsed,
+    divineJackpot:
+      state.borders.includes('b-divine') && !disabledSet.has('b-divine'),
+  })
   const conn = useMemo(
     () => checkConnectivity(state.board, chartMap, state.mode),
     [state.board, chartMap, state.mode],
   )
-
-  // jackpot detection (Milky: the mechanic's only two real jackpots) - flag
-  // them loudly and offer the matching strategy in one click
-  const jackpots = useMemo(() => {
-    const out: { label: string; strategyId: string }[] = []
-    if (state.pool.some((c) => c.modIds.includes('voy-noequip')))
-      out.push({
-        label: '"Monsters cannot drop Equipment" chart in your library - build the rares board around it',
-        strategyId: 'milky-meatfish',
-      })
-    if (state.borders.includes('b-divine'))
-      out.push({
-        label: '"+1 Divine Orb per Rare" border rolled - park a Sea-Pillar on it and feed it Strongboxes',
-        strategyId: 'divine-border-rares',
-      })
-    return out.filter((j) => j.strategyId !== state.strategyId)
-  }, [state.pool, state.borders, state.strategyId])
 
   // breakdown of the implicit mods currently on the board, by scope
   const modCount = useMemo(() => {
@@ -238,6 +246,7 @@ export default function App() {
         ...s,
         pool: pool.map((c) => (keptUids.has(c.uid) ? { ...c, preserved: false } : c)),
         board: emptyBoard(),
+        borderRerollsUsed: 0,
       }
     })
     setPreserveConfirm(null)
@@ -556,6 +565,14 @@ export default function App() {
             </div>
           )}
 
+          <BorderAppraiser appraisal={borderAppraisal} />
+          <RerollAdvisor
+            advice={rerollAdvice}
+            onChangeRerolls={(value) =>
+              patch({ borderRerollsUsed: clampRerollsUsed(value) })
+            }
+          />
+
           <div className="score-panel">
             <div className="score-total">
               Voyage Rewards <strong>{score.total.toFixed(1)}</strong>
@@ -605,12 +622,11 @@ export default function App() {
         </section>
 
         <section className="col solver-col">
-          {jackpots.map((j) => (
-            <div key={j.strategyId} className="jackpot-banner">
-              <span className="jackpot-label">🎰 JACKPOT: {j.label}.</span>
-              <button onClick={() => patch({ strategyId: j.strategyId })}>Switch strategy</button>
-            </div>
-          ))}
+          <StrategySuggestions
+            result={strategySuggestions}
+            activeId={state.strategyId}
+            onSelect={(id) => patch({ strategyId: id })}
+          />
           <StrategiesPanel
             activeId={state.strategyId}
             pool={state.pool}

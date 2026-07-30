@@ -145,9 +145,11 @@ main {
    as pathofexile.com/allflame's .poe2-announcement-panel__frame) ------- */
 .library,
 .import-panel,
-.solver,
-.board-wrap,
-.score-panel {
+  .solver,
+  .board-wrap,
+  .border-appraiser,
+  .reroll-advisor,
+  .score-panel {
   background: rgba(3, 7, 8, 0.82);
   background-clip: padding-box;
   border: solid transparent;
@@ -313,27 +315,147 @@ button.primary:hover {
   border-color: #7a4a4a;
 }
 
-/* jackpot alert - the two builds actually worth waiting for */
-.jackpot-banner {
+/* current-roll strategy ranking */
+.strategy-suggestions {
+  border: 1px solid #8b7138;
+  border-radius: 3px;
+  background:
+    radial-gradient(circle at 90% 0%, rgba(180, 132, 42, 0.18), transparent 42%),
+    linear-gradient(180deg, rgba(50, 39, 16, 0.72), rgba(5, 7, 8, 0.88));
+  box-shadow: 0 0 18px rgba(200, 160, 60, 0.12);
+  padding: 11px 12px;
+}
+.suggestion-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.suggestion-heading .panel-title {
+  margin-bottom: 3px;
+}
+.suggestion-intro {
+  margin-top: 0;
+}
+.suggestion-roll-count {
+  flex: 0 0 auto;
+  font-family: var(--sc);
+  font-size: 10.5px;
+  letter-spacing: 0.6px;
+  color: var(--gold-bright);
+  border: 1px solid #715c2c;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 3px 7px;
+}
+.suggestion-empty {
+  border: 1px dashed var(--border-hi);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 10px;
+  margin-top: 9px;
+}
+.suggestion-list {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+}
+.suggestion-card {
+  position: relative;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.34);
+  padding: 8px 9px 9px;
+}
+.suggestion-card.best {
+  border-color: #a8873e;
+  background: linear-gradient(135deg, rgba(111, 78, 18, 0.3), rgba(0, 0, 0, 0.36));
+}
+.suggestion-card.jackpot {
+  border-color: #d4a83c;
+  box-shadow: inset 0 0 18px rgba(218, 164, 43, 0.08);
+}
+.suggestion-card-head {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  border: 1px solid #b08a2e;
-  border-radius: 3px;
-  background: linear-gradient(180deg, rgba(140, 100, 20, 0.35), rgba(60, 42, 8, 0.35));
-  box-shadow: 0 0 10px rgba(200, 160, 60, 0.25);
-  padding: 8px 10px;
-  margin-bottom: 10px;
-  font-size: 12.5px;
+}
+.suggestion-rank,
+.suggestion-confidence {
+  font-family: var(--sc);
+  letter-spacing: 0.7px;
+  font-size: 9.5px;
+}
+.suggestion-rank {
+  color: var(--gold);
+}
+.suggestion-confidence {
+  border: 1px solid var(--border-hi);
+  color: var(--muted);
+  padding: 1px 5px;
+}
+.suggestion-confidence.medium {
+  color: #c7d99e;
+  border-color: #687846;
+}
+.suggestion-confidence.high {
+  color: #f2d27b;
+  border-color: #a9852d;
+}
+.suggestion-name {
+  margin-top: 3px;
+  color: var(--gold-bright);
+  font-family: var(--sc);
+  font-size: 16px;
+  letter-spacing: 0.4px;
+}
+.suggestion-tagline {
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.35;
+  opacity: 0.86;
+}
+.suggestion-metrics {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+.suggestion-metrics strong {
+  color: var(--text);
+  font-weight: 400;
+}
+.suggestion-reasons {
+  margin: 7px 0 2px;
+  padding: 7px 8px 6px 22px;
+  border-top: 1px solid rgba(139, 113, 56, 0.45);
+  color: var(--text);
+  font-size: 11px;
   line-height: 1.4;
 }
-.jackpot-label {
-  color: var(--gold-bright);
-  flex: 1;
+.suggestion-reasons li + li {
+  margin-top: 3px;
 }
-.jackpot-banner button {
-  white-space: nowrap;
+.suggestion-use {
+  width: 100%;
+  margin-top: 7px;
   font-family: var(--sc);
+  font-size: 11.5px;
+  letter-spacing: 0.4px;
+}
+.suggestion-use.active,
+.suggestion-use:disabled {
+  color: #bcd39e;
+  border-color: #526740;
+  opacity: 0.85;
+}
+.suggestion-disclaimer {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.35;
 }
 
 /* chart-rolling regex helpers */
@@ -1469,6 +1591,400 @@ textarea {
 }
 
 /* ------- score ------- */
+.border-appraiser {
+  padding: 12px 15px 14px;
+}
+.reroll-advisor {
+  padding: 12px 15px 14px;
+}
+.reroll-advisor-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.reroll-advisor-head .panel-title {
+  margin-bottom: 1px;
+}
+.reroll-advisor-subtitle {
+  font-size: 12px;
+}
+.reroll-advisor-badge {
+  flex: 0 0 auto;
+  max-width: 220px;
+  font-family: var(--sc);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  text-align: right;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 3px 8px;
+}
+.reroll-advisor.keep .reroll-advisor-badge {
+  color: var(--good);
+  border-color: rgba(150, 184, 118, 0.65);
+}
+.reroll-advisor.reroll .reroll-advisor-badge {
+  color: var(--gold-bright);
+  border-color: rgba(200, 170, 110, 0.7);
+}
+.reroll-advisor.stop .reroll-advisor-badge {
+  color: #e6a06f;
+  border-color: rgba(175, 96, 37, 0.72);
+}
+.reroll-decision {
+  margin-top: 12px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--muted);
+  background: rgba(0, 0, 0, 0.38);
+}
+.reroll-advisor.keep .reroll-decision {
+  border-left-color: var(--good);
+  background: rgba(45, 75, 32, 0.16);
+}
+.reroll-advisor.reroll .reroll-decision {
+  border-left-color: var(--gold);
+  background: rgba(105, 75, 20, 0.18);
+}
+.reroll-advisor.stop .reroll-decision {
+  border-left-color: var(--global);
+  background: rgba(95, 48, 22, 0.18);
+}
+.reroll-decision-label {
+  font-family: var(--sc);
+  font-size: 17px;
+  letter-spacing: 0.5px;
+  color: var(--gold-bright);
+}
+.reroll-decision-reason {
+  margin-top: 2px;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.42;
+}
+.reroll-cost-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 8px;
+}
+.reroll-cost-card {
+  min-height: 67px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(30, 26, 18, 0.66), rgba(7, 7, 6, 0.78));
+}
+.reroll-cost-card > span {
+  color: var(--muted);
+  font-family: var(--sc);
+  font-size: 10.5px;
+}
+.reroll-cost-card > strong {
+  margin-top: 2px;
+  color: var(--gold-bright);
+  font-family: var(--sc);
+  font-size: 18px;
+  font-weight: 400;
+}
+.reroll-cost-card > small {
+  color: var(--muted);
+  font-size: 10px;
+}
+.reroll-cost-card.next {
+  border-color: rgba(200, 170, 110, 0.48);
+}
+.reroll-stepper {
+  display: grid;
+  grid-template-columns: 28px 1fr 28px;
+  align-items: center;
+  gap: 4px;
+  margin-top: 5px;
+}
+.reroll-stepper button {
+  width: 28px;
+  min-width: 0;
+  height: 27px;
+  padding: 0;
+  font-size: 17px;
+  line-height: 1;
+}
+.reroll-stepper strong {
+  color: var(--gold-bright);
+  font-family: var(--sc);
+  font-size: 16px;
+  text-align: center;
+  font-weight: 400;
+}
+.reroll-threshold {
+  margin-top: 9px;
+}
+.reroll-threshold-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-family: var(--sc);
+  font-size: 11px;
+}
+.reroll-threshold-labels strong {
+  color: var(--gold-bright);
+  font-weight: 400;
+}
+.reroll-threshold-track {
+  position: relative;
+  height: 7px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.72);
+}
+.reroll-threshold-fill {
+  display: block;
+  max-width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--bad), var(--gold), var(--good));
+  opacity: 0.72;
+}
+.reroll-threshold-line {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--gold-bright);
+  box-shadow: 0 0 6px rgba(231, 215, 171, 0.55);
+}
+.reroll-disclaimer {
+  margin-top: 9px;
+  line-height: 1.4;
+}
+.border-appraiser-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.border-appraiser-head .panel-title {
+  margin-bottom: 1px;
+}
+.border-appraiser-subtitle {
+  font-size: 12px;
+}
+.border-fit-badge {
+  flex-shrink: 0;
+  font-family: var(--sc);
+  font-size: 12px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 3px 8px;
+  background: rgba(0, 0, 0, 0.35);
+}
+.border-fit-badge.weak,
+.border-fit-badge.unscored {
+  color: var(--bad);
+  border-color: rgba(201, 90, 73, 0.55);
+}
+.border-fit-badge.mixed,
+.border-fit-badge.incomplete {
+  color: var(--gold);
+  border-color: var(--gold-dim);
+}
+.border-fit-badge.strong,
+.border-fit-badge.excellent {
+  color: var(--good);
+  border-color: rgba(150, 184, 118, 0.65);
+  box-shadow: 0 0 10px rgba(150, 184, 118, 0.14);
+}
+.border-appraisal-hero {
+  display: grid;
+  grid-template-columns: minmax(130px, auto) 1fr;
+  gap: 20px;
+  align-items: end;
+  margin-top: 12px;
+}
+.border-appraisal-score {
+  font-family: var(--sc);
+  font-size: 28px;
+  line-height: 1;
+  color: var(--gold-bright);
+  text-shadow: 0 0 12px rgba(200, 170, 110, 0.35);
+}
+.border-fit-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--sc);
+  font-size: 12px;
+  color: var(--muted);
+}
+.border-fit-line strong {
+  color: var(--gold-bright);
+  font-size: 16px;
+}
+.border-fit-track {
+  height: 5px;
+  margin: 3px 0 4px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid var(--border);
+}
+.border-fit-track span {
+  display: block;
+  height: 100%;
+  max-width: 100%;
+  background: linear-gradient(90deg, var(--bad), var(--gold), var(--good));
+  box-shadow: 0 0 8px rgba(150, 184, 118, 0.3);
+}
+.border-fit-meta {
+  font-size: 11px;
+}
+.border-appraisal-note {
+  margin-top: 9px;
+  line-height: 1.4;
+}
+.border-stat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 9px;
+}
+.border-stat-chips span {
+  font-family: var(--sc);
+  font-size: 11px;
+  color: var(--accent2);
+  background: rgba(4, 8, 10, 0.72);
+  border: 1px solid rgba(107, 163, 200, 0.35);
+  border-radius: 2px;
+  padding: 2px 7px;
+}
+.border-stat-chips span.negative {
+  color: var(--bad);
+  border-color: rgba(201, 90, 73, 0.45);
+}
+.border-appraiser .panel-title.small {
+  margin-top: 11px;
+}
+.border-appraisal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.border-appraisal-list.top {
+  margin-top: 5px;
+}
+.border-appraisal-row {
+  display: grid;
+  grid-template-columns: minmax(100px, 0.8fr) minmax(170px, 1.8fr) 48px;
+  gap: 10px;
+  align-items: center;
+  min-height: 36px;
+  padding: 4px 7px;
+  background: rgba(0, 0, 0, 0.3);
+  border-left: 2px solid var(--border);
+}
+.border-appraisal-row.positive {
+  border-left-color: var(--good);
+}
+.border-appraisal-row.negative {
+  border-left-color: var(--bad);
+}
+.border-appraisal-place,
+.border-appraisal-mod {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 12px;
+}
+.border-appraisal-place > span:first-child,
+.border-appraisal-mod > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.border-appraisal-place > span:first-child {
+  font-family: var(--sc);
+  color: var(--gold-dim);
+}
+.border-appraisal-place .muted,
+.border-appraisal-mod .muted {
+  font-size: 10.5px;
+}
+.border-appraisal-row strong {
+  text-align: right;
+  font-family: var(--sc);
+  font-size: 14px;
+  color: var(--good);
+}
+.border-appraisal-row.negative strong {
+  color: var(--bad);
+}
+.border-appraisal-row.zero strong {
+  color: var(--muted);
+}
+.border-appraisal-empty {
+  padding: 12px 2px 2px;
+  font-size: 13px;
+}
+.border-appraisal-details {
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.border-appraisal-details summary {
+  width: max-content;
+  cursor: pointer;
+  font-family: var(--sc);
+  font-size: 12px;
+  color: var(--gold-dim);
+}
+.border-appraisal-details[open] summary {
+  margin-bottom: 6px;
+}
+@media (max-width: 620px) {
+  .strategy-suggestions {
+    width: calc(100vw - 44px);
+    max-width: calc(100vw - 44px);
+    align-self: flex-start;
+  }
+  .border-appraiser {
+    width: calc(100vw - 44px);
+    max-width: calc(100vw - 44px);
+    align-self: flex-start;
+  }
+  .reroll-advisor {
+    width: calc(100vw - 44px);
+    max-width: calc(100vw - 44px);
+    align-self: flex-start;
+  }
+  .reroll-advisor-head {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .reroll-advisor-badge {
+    max-width: 100%;
+    text-align: left;
+  }
+  .reroll-cost-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .reroll-cost-card:first-child {
+    grid-column: 1 / -1;
+  }
+  .border-appraisal-hero {
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+  .border-appraisal-row {
+    grid-template-columns: 88px minmax(130px, 1fr) 42px;
+    gap: 6px;
+  }
+}
+
 .score-total {
   font-family: var(--sc);
   font-size: 16px;
