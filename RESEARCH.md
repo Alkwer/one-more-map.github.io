@@ -67,10 +67,20 @@ One community comment gives `75k` for five rerolls, but its written sequence is
 - All 66 use domain `deepwater_border`, generation type `unique`, required level
   `1`, and an empty `spawn_weights` array. Therefore the normal `Mods.dat`
   fields do not reveal their actual roll weights or level gates.
-- The app currently contains **64** border entries. Compared with the current
-  export, it is missing:
-  - `DeepwaterBorderMagicMonsterMods2`
-  - `DeepwaterBorderTreasureAnchorsHardMode`
+- The app intentionally contains **64 canonical, OCR-visible definitions** rather
+  than mirroring every raw record. Two raw records are tracked separately in
+  `src/data/borderSourceRecords.ts` pending live verification:
+  - `DeepwaterBorderMagicMonsterMods2` has a value of 2 in the datamined stat,
+    but its public translation is blank and no live tooltip is confirmed.
+  - `DeepwaterBorderTreasureAnchorsHardMode` has the same public translation as
+    `b-anchor-1` ("Adjacent Areas contain 2 additional Treasure Anchors"). It is
+    not added as a duplicate OCR definition because text-only matching could not
+    distinguish the two IDs, and equivalent gameplay semantics are not yet
+    confirmed.
+- The **66 raw versus 64 canonical** difference is therefore an explicit source
+  gap, not evidence that the UI is missing two independently observable
+  modifiers. The matcher now has a regression invariant requiring normalized
+  canonical tooltip texts to remain unique.
 - The 66 records include explicit tier variants (for example 16/24/32% pack
   size and 50/75/100% more currency), but all tiers still report required level
   1. Tier selection must therefore be controlled by separate Voyage logic or

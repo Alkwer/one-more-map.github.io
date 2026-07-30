@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { describe, it } from 'vitest'
-import { parseBorderOcrPayload } from '../src/logic/borderOcr'
+import { BORDER_SOURCE_SNAPSHOT } from '../src/data/borderSourceRecords'
+import { BORDER_MODS, borderModById } from '../src/data/mods'
+import { normalizeBorderOcrText, parseBorderOcrPayload } from '../src/logic/borderOcr'
 
 const CURRENT_BORDER_TOOLTIPS = [
   ['b-pack-1', '16% increased Pack Size in adjacent Areas'],
@@ -83,6 +85,45 @@ const block = (text: string, index = 0) =>
   `=== VOYAGE BORDER ${index} ===\n${text}\n=== END VOYAGE BORDER ===`
 
 describe('border OCR regressions', () => {
+  it('keeps canonical OCR texts unique and raw-source gaps explicit', () => {
+    const canonicalByText = new Map<string, string>()
+
+    for (const mod of BORDER_MODS) {
+      const normalized = normalizeBorderOcrText(mod.text)
+      assert.ok(normalized, `${mod.id} has an empty normalized tooltip`)
+      assert.equal(
+        canonicalByText.get(normalized),
+        undefined,
+        `${mod.id} duplicates the normalized OCR tooltip for ${canonicalByText.get(normalized)}`,
+      )
+      canonicalByText.set(normalized, mod.id)
+    }
+
+    assert.equal(BORDER_MODS.length, BORDER_SOURCE_SNAPSHOT.canonicalTooltipCount)
+    assert.equal(
+      BORDER_SOURCE_SNAPSHOT.rawRecordCount,
+      BORDER_SOURCE_SNAPSHOT.canonicalTooltipCount +
+        BORDER_SOURCE_SNAPSHOT.unresolvedRecords.length,
+    )
+
+    const rawIds = new Set<string>()
+    for (const record of BORDER_SOURCE_SNAPSHOT.unresolvedRecords) {
+      assert.ok(!rawIds.has(record.rawId), `duplicate unresolved raw ID: ${record.rawId}`)
+      rawIds.add(record.rawId)
+
+      if (record.duplicateCanonicalId) {
+        const canonical = borderModById.get(record.duplicateCanonicalId)
+        assert.ok(canonical, `unknown duplicate canonical ID: ${record.duplicateCanonicalId}`)
+        assert.ok(record.publicTranslation, `${record.rawId} is missing its public translation`)
+        assert.equal(
+          normalizeBorderOcrText(record.publicTranslation),
+          normalizeBorderOcrText(canonical.text),
+          `${record.rawId} no longer duplicates ${record.duplicateCanonicalId}`,
+        )
+      }
+    }
+  })
+
   it('matches every current canonical tooltip', () => {
     assert.equal(CURRENT_BORDER_TOOLTIPS.length, 64)
 

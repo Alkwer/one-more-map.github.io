@@ -5,7 +5,7 @@ import { emptyBorders } from '../types'
 const BORDER_BLOCK =
   /===\s*VOYAGE BORDER\s+(\d{1,2})\s*===\s*([\s\S]*?)===\s*END VOYAGE BORDER\s*===/gi
 
-const normalize = (text: string): string =>
+export const normalizeBorderOcrText = (text: string): string =>
   text
     .normalize('NFKD')
     .toLowerCase()
@@ -16,7 +16,7 @@ const normalize = (text: string): string =>
 
 const borderTokenFrequency = new Map<string, number>()
 for (const mod of BORDER_MODS) {
-  const uniqueTokens = new Set(normalize(mod.text).split(' ').filter(Boolean))
+  const uniqueTokens = new Set(normalizeBorderOcrText(mod.text).split(' ').filter(Boolean))
   for (const token of uniqueTokens) {
     borderTokenFrequency.set(token, (borderTokenFrequency.get(token) ?? 0) + 1)
   }
@@ -45,14 +45,14 @@ function tokenMatches(expected: string, actual: string): boolean {
 }
 
 function candidateLines(raw: string): string[] {
-  const lines = raw.split(/\r?\n/).map(normalize).filter(Boolean)
+  const lines = raw.split(/\r?\n/).map(normalizeBorderOcrText).filter(Boolean)
   const candidates = new Set(lines)
   for (let i = 0; i < lines.length; i++) {
     if (i + 1 < lines.length) candidates.add(`${lines[i]} ${lines[i + 1]}`)
     if (i + 2 < lines.length) candidates.add(`${lines[i]} ${lines[i + 1]} ${lines[i + 2]}`)
   }
   if (lines.length === 0) {
-    const whole = normalize(raw)
+    const whole = normalizeBorderOcrText(raw)
     if (whole) candidates.add(whole)
   }
   return [...candidates]
@@ -70,7 +70,7 @@ function matchBorder(raw: string): Match | null {
   if (candidates.length === 0) return null
 
   const scored = BORDER_MODS.flatMap((mod) => {
-    const expected = normalize(mod.text)
+    const expected = normalizeBorderOcrText(mod.text)
     const expectedTokens = expected.split(' ')
     const expectedNumbers = expectedTokens.filter((token) => /^\d+$/.test(token))
 
