@@ -1614,6 +1614,9 @@ textarea {
 .conn-status.ok {
   color: var(--good);
 }
+.conn-status.warn {
+  color: var(--gold-bright);
+}
 .conn-status.bad {
   color: var(--bad);
 }

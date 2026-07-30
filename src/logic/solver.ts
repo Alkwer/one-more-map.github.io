@@ -116,7 +116,12 @@ export interface SolverResult {
   score: number
   /** the actual reward value of the board, for display */
   reward: number
+  /** whether the selected connector mode accepts this result */
   valid: boolean
+  /** whether the game allows the Voyage to start */
+  launchable: boolean
+  /** whether all nine charts are reachable from the start */
+  fullyReachable: boolean
 }
 
 const VIOLATION_PENALTY = 10_000
@@ -131,7 +136,13 @@ function evaluate(
   charts: Map<string, ChartData>,
   weights: Weights,
   opts: SolverOptions,
-): { score: number; valid: boolean; reward: number } {
+): {
+  score: number
+  valid: boolean
+  launchable: boolean
+  fullyReachable: boolean
+  reward: number
+} {
   const conn = checkConnectivity(board, charts, opts.mode)
   const s = scoreBoard(board, borders, charts, weights, opts)
   // filler mode wants the least valuable runnable board, so flip the reward term
@@ -147,7 +158,13 @@ function evaluate(
     conn.connections * CONNECTION_BONUS -
     layoutPen -
     conn.violations * VIOLATION_PENALTY
-  return { score: objective, valid: conn.valid, reward: s.total }
+  return {
+    score: objective,
+    valid: conn.valid,
+    launchable: conn.launchable,
+    fullyReachable: conn.fullyReachable,
+    reward: s.total,
+  }
 }
 
 function boardKey(board: Board): string {
@@ -172,12 +189,25 @@ export function solve(
   let top: SolverResult[] = []
   const seen = new Set<string>()
   const record = (board: Board) => {
-    const { score, valid, reward } = evaluate(board, borders, charts, weights, opts)
+    const { score, valid, launchable, fullyReachable, reward } = evaluate(
+      board,
+      borders,
+      charts,
+      weights,
+      opts,
+    )
     if (top.length >= CAP && score <= top[top.length - 1].score) return
     const key = boardKey(board)
     if (seen.has(key)) return
     seen.add(key)
-    top.push({ board: board.map((p) => (p ? { ...p } : null)), score, reward, valid })
+    top.push({
+      board: board.map((p) => (p ? { ...p } : null)),
+      score,
+      reward,
+      valid,
+      launchable,
+      fullyReachable,
+    })
     top.sort((a, b) => b.score - a.score)
     if (top.length > CAP) top = top.slice(0, CAP)
   }

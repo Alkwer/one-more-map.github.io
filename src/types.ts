@@ -180,8 +180,8 @@ export type Board = (Placement | null)[]
  */
 export type Borders = (string | null)[]
 
-/** Connectivity rule - the real rule is unconfirmed pre-launch, so it's a setting. */
-export type ConnectivityMode = 'any' | 'connected' | 'strict'
+/** Connector validation: safe full reachability, or an explicit experiment bypass. */
+export type ConnectivityMode = 'any' | 'strict'
 
 /** user reward priorities, keyed by reward-type key (see logic/rewards.ts) */
 export type Weights = Record<string, number>

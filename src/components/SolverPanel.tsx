@@ -77,7 +77,7 @@ export function SolverPanel({ state, activeStrategy, onPatch, results, onResults
         if (solvePool.length < 9)
           notes.push(`Only ${solvePool.length} spare charts - not enough for a full board.`)
         else if (res.length && !res[0].valid)
-          notes.push('No fully runnable layout from these charts - best partial shown.')
+          notes.push('No fully reachable layout from these charts - best partial shown.')
         setSolveNote(notes.join(' '))
       } finally {
         setBusy(false)
@@ -119,8 +119,8 @@ export function SolverPanel({ state, activeStrategy, onPatch, results, onResults
         onResults(res)
         setSolveNote(
           res[0]?.valid
-            ? 'Filler voyage: lowest-value runnable board from your spare charts (your best & locked charts untouched).'
-            : 'No runnable filler layout from your spare charts.',
+            ? 'Filler voyage: lowest-value fully reachable board from your spare charts (your best & locked charts untouched).'
+            : 'No fully reachable filler layout from your spare charts.',
         )
       } finally {
         setBusy(false)
@@ -266,7 +266,7 @@ export function SolverPanel({ state, activeStrategy, onPatch, results, onResults
               <button key={i} className={`result ${r.valid ? '' : 'invalid'}`} onClick={() => onApply(r.board)}>
                 <span>#{i + 1}</span>
                 <span>{r.reward.toFixed(1)} pts</span>
-                {!r.valid && <span className="badge bad">not runnable</span>}
+                {!r.valid && <span className="badge bad">not fully reachable</span>}
               </button>
             ))}
           </div>
