@@ -1,5 +1,141 @@
 # Allflame Voyage Solver - Scoping Notes (2026-07-24, pre-launch)
 
+## BORDER REROLL RESEARCH (2026-07-30)
+
+### Result
+
+Research is sufficient to model the **Sulphur cost curve**, but not yet to
+calculate a defensible reroll EV. The game data exposes the border-mod pool and
+reroll constants, but it does **not** expose border selection weights, tier
+eligibility by Voyage level, duplicate rules, or independence between slots.
+
+Confidence labels used below:
+
+- **Confirmed** — current 3.29.0.4.2 client data and independent live reports agree.
+- **Strongly supported** — repeated live reports/UI wording agree, but GGG has not
+  documented the rule.
+- **Unknown** — neither the public client data nor official notes answer it.
+
+### Reroll mechanics and cost
+
+- **Confirmed:** the first paid reroll costs **3,000 Dead Man's Sulphur**.
+- **Confirmed:** the price doubles after every reroll of the current board:
+  **3k, 6k, 12k, 24k, 48k**. Current `DeepwaterConstants.datc64` contains three
+  `RerollBorder...` values: `3000`, `200`, and `5`; the first two match the live
+  base cost and 200% cost multiplier.
+- The cost of reroll number `n` (1-based) is:
+  `cost(n) = 3000 × 2^(n - 1)`.
+- The cumulative cost of `k` rerolls is:
+  `total(k) = 3000 × (2^k - 1)`.
+
+| Paid rerolls | Next costs | Cumulative Sulphur |
+| ---: | --- | ---: |
+| 1 | 3,000 | 3,000 |
+| 2 | 3,000 + 6,000 | 9,000 |
+| 3 | + 12,000 | 21,000 |
+| 4 | + 24,000 | 45,000 |
+| 5 | + 48,000 | **93,000** |
+
+One community comment gives `75k` for five rerolls, but its written sequence is
+`3+6+12+24+48`; the correct sum is **93k**.
+
+- **Strongly supported:** the action rerolls the current **board/set of 12
+  Corruption Currents**, rather than a chosen border slot. Live discussion
+  consistently calls this "rerolling the board", and no per-slot control has
+  been reported.
+- **Probable, not yet proven:** the third client constant (`5`) is a maximum of
+  five paid rerolls for one board. Its full identifier was truncated in the
+  current data viewer, so this needs one live UI check before implementation.
+- **Unknown:** the exact event that resets the cost counter. The working
+  assumption is that completing/starting the next Voyage creates a fresh board
+  and resets the first cost to 3,000, but this has not been directly captured.
+
+### Border pool and probabilities
+
+- The current RePoE 3.29.0.4.2 export contains **66** modifier records whose IDs
+  start with `DeepwaterBorder`.
+- All 66 use domain `deepwater_border`, generation type `unique`, required level
+  `1`, and an empty `spawn_weights` array. Therefore the normal `Mods.dat`
+  fields do not reveal their actual roll weights or level gates.
+- The app currently contains **64** border entries. Compared with the current
+  export, it is missing:
+  - `DeepwaterBorderMagicMonsterMods2`
+  - `DeepwaterBorderTreasureAnchorsHardMode`
+- The 66 records include explicit tier variants (for example 16/24/32% pack
+  size and 50/75/100% more currency), but all tiers still report required level
+  1. Tier selection must therefore be controlled by separate Voyage logic or
+  server-side data, not the public mod-level field.
+- `DeepwaterBalancePerLevel.datc64` and the other public `Deepwater*.datc64`
+  tables inspected do not expose a border weight/tier table. Some patch bundles
+  returned 404 in the community data viewer, so this is **not proof that no such
+  table exists**; it only means it is not currently recoverable from the checked
+  public exports.
+- The current demo/randomize button selects each of the 12 slots independently
+  and uniformly with `Math.random()`. That is useful demo behaviour, but there is
+  no evidence that it matches the game. It must not be used as the probability
+  model for a real reroll recommendation.
+
+Still unknown:
+
+1. Weight of each family and tier.
+2. How Voyage/chart area level changes tier eligibility or magnitude.
+3. Whether the 12 slots are independent.
+4. Whether duplicate modifiers can occur on one board and, if so, without limit.
+5. Whether paid rerolls use the same distribution as a newly generated board.
+6. Whether the third reroll constant really enforces a five-reroll cap.
+7. Precisely when the doubling counter resets.
+
+### Consequence for the suggested feature
+
+- A deterministic **current-roll appraiser** is unblocked: score the 12 observed
+  borders against the user's planned charts and preferences.
+- A mathematically honest **"reroll or keep" recommendation** is still blocked
+  on the roll distribution. Do not label a uniform-pool calculation as expected
+  value.
+- Until probabilities are measured, a later strategy feature may expose a
+  clearly labelled heuristic (for example, compare the current board score with
+  a user-selected keep threshold), but not a claimed optimal decision.
+
+### Minimal in-game data collection needed
+
+Capture natural boards and paid rerolls without discarding bad outcomes. For
+each observation store:
+
+```text
+patch, voyage/board level, natural-or-paid, reroll index, displayed cost,
+12 ordered border modifier IDs/texts
+```
+
+The first validation batch should answer mechanics, not estimate rare-mod EV:
+
+1. Record one board through every allowed reroll to confirm the cap, all-12
+   scope, and displayed costs.
+2. Complete/start the next Voyage and record the first displayed reroll cost.
+3. Check whether a single board can contain duplicate IDs/families.
+4. Repeat at low, mid, and endgame chart levels and compare which tier variants
+   appear.
+
+Only after those checks should a larger unbiased sample be used to estimate
+weights. Every board contributes 12 observations, but slots from one board
+should be kept under the same `board_id` so independence can be tested instead
+of assumed.
+
+### Research sources
+
+- Official 3.29.0 notes (describe Voyages, but publish no reroll constants):
+  https://www.pathofexile.com/forum/view-thread/3985332
+- Current RePoE PoE1 export index and `mods.min.json`:
+  https://repoe-fork.github.io/poe1.html
+- PoE Dat Viewer used to inspect `DeepwaterConstants.datc64` and the available
+  `Deepwater*.datc64` tables:
+  https://snosme.github.io/poe-dat-viewer/
+- PoEDB border-mod listing:
+  https://poedb.tw/us/Maiden_Voyage#DeepWaterBorderMods
+- Live reports of the 3k/6k cost and doubling:
+  https://www.reddit.com/r/PathOfExileBuilds/comments/1v90lxh/voyage_strategies_discussion/
+  https://www.reddit.com/r/pathofexile/comments/1v79vww/list_of_issues_with_current_league_mechanic/
+  https://www.reddit.com/r/pathofexile/comments/1v74hcz/ive_solved_voyages_theyre_good_but_maybe_theres/
+
 ## LAUNCH-DAY CONFIRMATIONS (from poewiki.net/wiki/Voyage, 2026-07-24)
 
 - Board is **3×3** ✓. Border has **12 segments (2 per corner, 1 per middle edge)**

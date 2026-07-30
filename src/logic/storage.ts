@@ -16,6 +16,8 @@ export interface AppState {
   disabledMods: string[]
   /** active curated strategy id (overrides weights + shapes the solver) or null */
   strategyId: string | null
+  /** paid border rerolls recorded for the current Voyage board (0–5 assumed cap) */
+  borderRerollsUsed: number
 }
 
 export const defaultState = (): AppState => ({
@@ -29,6 +31,7 @@ export const defaultState = (): AppState => ({
   adjacentAffectsSelf: false,
   disabledMods: [],
   strategyId: null,
+  borderRerollsUsed: 0,
 })
 
 const LS_KEY = 'allflame-voyage-solver'
@@ -94,5 +97,9 @@ function revive(obj: unknown): AppState {
       ? o.disabledMods.filter((x): x is string => typeof x === 'string')
       : d.disabledMods,
     strategyId: typeof o.strategyId === 'string' ? o.strategyId : null,
+    borderRerollsUsed:
+      typeof o.borderRerollsUsed === 'number'
+        ? Math.max(0, Math.min(5, Math.floor(o.borderRerollsUsed)))
+        : d.borderRerollsUsed,
   }
 }
