@@ -689,7 +689,8 @@ export default function App() {
           <div className="diagnostics-heading">
             <div className="panel-title">Diagnostics</div>
             <div>
-              Library potential, strategy requirements, and current-board fit
+              Combined chart-library potential, border-roll fit, strategy
+              requirements, and current-board fit
               explain the recommendation above; they do not replace it.
             </div>
           </div>

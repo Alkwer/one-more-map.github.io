@@ -18,13 +18,13 @@ const toneFor = (decision: VoyageDecision) => {
 
 const contextLabelFor = (decision: VoyageDecision) => {
   if (decision.kind === 'stop' || decision.kind === 'reroll') {
-    return 'Best ready library strategy'
+    return 'Best ready charts + border strategy'
   }
   if (decision.kind === 'play' || decision.kind === 'switch') {
-    return 'Best strategy from library'
+    return 'Best strategy for charts + border roll'
   }
   if (decision.kind === 'wait') return 'Strategy worth preserving'
-  return 'Best strategy from library'
+  return 'Best strategy for charts + border roll'
 }
 
 export function VoyageAdvisor({

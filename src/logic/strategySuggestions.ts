@@ -20,6 +20,7 @@ import { solve } from './solver'
 const EPSILON = 1e-9
 const POTENTIAL_SEARCH_RESTARTS = 12
 const POTENTIAL_SEARCH_ITERATIONS = 900
+const clamp01 = (value: number) => Math.max(0, Math.min(1, value))
 
 export type SuggestionConfidence = 'low' | 'medium' | 'high'
 
@@ -55,6 +56,12 @@ export interface StrategyInventorySuggestion {
   potentialBoard: Board
   potentialScore: number
   potentialValid: boolean
+  /** Library-only potential, normalized against the strongest evaluated strategy. */
+  libraryFit: number
+  /** Absolute fit of the entered border roll for the best layout found. */
+  borderFit: number
+  /** Combined charts + borders score used to rank runnable strategies. */
+  combinedFit: number
   eligibleCharts: number
   jackpot: boolean
   borderScore: number
@@ -81,7 +88,7 @@ export interface StrategyInventoryResult {
 }
 
 export interface StrategySuggestionResult {
-  /** Top library matches shown in the diagnostic suggestions panel. */
+  /** Top combined chart-library and border-roll matches shown in the panel. */
   suggestions: StrategySuggestion[]
   /** Every strategy evaluation, used by the canonical Voyage decision. */
   evaluations: StrategySuggestion[]
@@ -288,7 +295,7 @@ export function evaluateStrategyInventory(
   const hasDivineBorder =
     borders.includes('b-divine') && !opts.disabledMods?.has('b-divine')
 
-  const evaluations = STRATEGIES.map((strategy) => {
+  const rawEvaluations = STRATEGIES.map((strategy) => {
     const eligiblePool = eligiblePoolFor(strategy, pool)
     const potential =
       solve(eligiblePool, borders, strategy.weights, {
@@ -340,29 +347,21 @@ export function evaluateStrategyInventory(
         0,
       ),
     )
-    const coverage =
-      enteredBorders > 0 ? matchingBorders / enteredBorders : 0
     const rollAffinity = Math.max(0, borderScore) / weightScale
+    const libraryScore = scoreBoard(
+      potentialBoard,
+      emptyBorders(),
+      charts,
+      strategy.weights,
+      opts,
+    ).total
     const libraryAffinity =
-      Math.max(0, potential?.reward ?? 0) / weightScale
+      Math.max(0, libraryScore) / weightScale
     const divineJackpot =
       hasDivineBorder && strategy.id === 'divine-border-rares'
     const equipmentJackpot =
       hasNoEquipment && strategy.id === 'milky-meatfish'
     const jackpot = divineJackpot || equipmentJackpot
-    const jackpotBoost = divineJackpot
-      ? 2_000
-      : equipmentJackpot
-        ? 20
-        : 0
-    const rankScore =
-      jackpotBoost +
-      (readiness.ready ? 100 : 0) +
-      readiness.ratio * 20 +
-      libraryAffinity * 20 +
-      rollAffinity * 30 +
-      coverage * 12 -
-      harmfulBorders * 0.5
 
     const reasons: string[] = [
       `Evaluated all ${eligiblePool.length} eligible imported charts; the best layout found is ${
@@ -409,7 +408,7 @@ export function evaluateStrategyInventory(
 
     return {
       strategy,
-      rankScore,
+      rankScore: 0,
       confidence: confidenceFor(
         jackpot,
         potentialAppraisal.fit,
@@ -419,8 +418,11 @@ export function evaluateStrategyInventory(
       status: potentialAppraisal.status,
       potentialAppraisal,
       potentialBoard,
-      potentialScore: potential?.reward ?? 0,
+      potentialScore: libraryScore,
       potentialValid: potential?.valid ?? false,
+      libraryFit: 0,
+      borderFit: 0,
+      combinedFit: 0,
       eligibleCharts: eligiblePool.length,
       jackpot,
       borderScore,
@@ -429,10 +431,73 @@ export function evaluateStrategyInventory(
       enteredBorders,
       readiness,
       reasons,
+      libraryAffinity,
+      rollAffinity,
+      equipmentJackpot,
     }
   })
 
-  evaluations.sort((a, b) => b.rankScore - a.rankScore)
+  const maxLibraryAffinity = Math.max(
+    EPSILON,
+    ...rawEvaluations.map((evaluation) => evaluation.libraryAffinity),
+  )
+  const maxRollAffinity = Math.max(
+    EPSILON,
+    ...rawEvaluations.map((evaluation) => evaluation.rollAffinity),
+  )
+  const borderWeight = 0.5 * Math.min(1, enteredBorders / 12)
+  const libraryWeight = 1 - borderWeight
+
+  const evaluations: StrategyInventorySuggestion[] = rawEvaluations.map(
+    (raw) => {
+      const {
+        libraryAffinity,
+        rollAffinity,
+        equipmentJackpot,
+        ...evaluation
+      } = raw
+      const libraryFit = clamp01(libraryAffinity / maxLibraryAffinity)
+      const borderFit = clamp01(
+        raw.potentialAppraisal.fit ??
+          rollAffinity / maxRollAffinity,
+      )
+      const combinedFit =
+        libraryFit * libraryWeight + borderFit * borderWeight
+      const rankScore = raw.readiness.ready
+        ? combinedFit
+        : raw.readiness.ratio * 0.5 +
+          combinedFit * 0.4 +
+          (equipmentJackpot ? 0.1 : 0)
+
+      return {
+        ...evaluation,
+        rankScore,
+        libraryFit,
+        borderFit,
+        combinedFit,
+        reasons: [
+          `Combined match: ${Math.round(
+            combinedFit * 100,
+          )}% (${Math.round(libraryFit * 100)}% charts, ${Math.round(
+            borderFit * 100,
+          )}% borders).`,
+          ...raw.reasons,
+        ],
+      }
+    },
+  )
+
+  evaluations.sort((a, b) => {
+    const aDivine =
+      a.strategy.id === 'divine-border-rares' && a.jackpot
+    const bDivine =
+      b.strategy.id === 'divine-border-rares' && b.jackpot
+    if (aDivine !== bDivine) return aDivine ? -1 : 1
+    if (a.readiness.ready !== b.readiness.ready) {
+      return a.readiness.ready ? -1 : 1
+    }
+    return b.rankScore - a.rankScore
+  })
 
   return {
     suggestions: evaluations.slice(0, Math.max(0, limit)),

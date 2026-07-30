@@ -10,10 +10,10 @@ const fitLabel = {
   empty: 'NO ROLL DATA',
   incomplete: 'PARTIAL ROLL',
   unscored: 'NO WEIGHTED SIGNAL',
-  weak: 'WEAK BEST-FOUND FIT',
-  mixed: 'MIXED BEST-FOUND FIT',
-  strong: 'STRONG BEST-FOUND FIT',
-  excellent: 'EXCELLENT BEST-FOUND FIT',
+  weak: 'WEAK BORDER FIT',
+  mixed: 'MIXED BORDER FIT',
+  strong: 'STRONG BORDER FIT',
+  excellent: 'EXCELLENT BORDER FIT',
 } as const
 
 export function StrategySuggestions({ result, activeId, onSelect }: Props) {
@@ -26,7 +26,8 @@ export function StrategySuggestions({ result, activeId, onSelect }: Props) {
           </div>
           <div className="muted small-note suggestion-intro">
             Ranks the best layout each strategy can build from all imported
-            charts and the current border roll. The manual board is only a
+            charts together with the current border roll. Runnable strategies
+            rank ahead of incomplete ones; the manual board is only a
             diagnostic.
           </div>
         </div>
@@ -58,8 +59,8 @@ export function StrategySuggestions({ result, activeId, onSelect }: Props) {
                     {suggestion.jackpot
                       ? '🎰 JACKPOT'
                       : index === 0
-                        ? 'Best library strategy'
-                        : `#${index + 1} library match`}
+                        ? 'Best charts + border strategy'
+                        : `#${index + 1} combined match`}
                   </div>
                   <span className={`suggestion-confidence ${suggestion.confidence}`}>
                     {fitLabel[suggestion.status]}
@@ -69,22 +70,21 @@ export function StrategySuggestions({ result, activeId, onSelect }: Props) {
                 <div className="suggestion-tagline">{suggestion.strategy.tagline}</div>
                 <div className="suggestion-metrics">
                   <span>
-                    Library <strong>{suggestion.eligibleCharts} eligible</strong>
+                    Charts{' '}
+                    <strong>{Math.round(suggestion.libraryFit * 100)}%</strong>
                   </span>
                   <span>
-                    Requirements{' '}
+                    Borders{' '}
                     <strong>
-                      {suggestion.readiness.need === 0
-                        ? 'n/a'
-                        : `${suggestion.readiness.have}/${suggestion.readiness.need}`}
+                      {suggestion.enteredBorders === 0
+                        ? '—'
+                        : `${Math.round(suggestion.borderFit * 100)}%`}
                     </strong>
                   </span>
                   <span>
-                    Best-found fit{' '}
+                    Combined{' '}
                     <strong>
-                      {suggestion.fit === null
-                        ? '—'
-                        : `${Math.round(suggestion.fit * 100)}%`}
+                      {Math.round(suggestion.combinedFit * 100)}%
                     </strong>
                   </span>
                   <span>
@@ -96,9 +96,17 @@ export function StrategySuggestions({ result, activeId, onSelect }: Props) {
                     </strong>
                   </span>
                   <span>
-                    Borders{' '}
+                    Requirements{' '}
                     <strong>
-                      {suggestion.matchingBorders}/{suggestion.enteredBorders}
+                      {suggestion.readiness.need === 0
+                        ? 'n/a'
+                        : `${suggestion.readiness.have}/${suggestion.readiness.need}`}
+                    </strong>
+                  </span>
+                  <span>
+                    Library{' '}
+                    <strong>
+                      {suggestion.eligibleCharts} eligible
                     </strong>
                   </span>
                 </div>

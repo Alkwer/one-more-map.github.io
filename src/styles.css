@@ -416,14 +416,21 @@ button.primary:hover {
   opacity: 0.86;
 }
 .suggestion-metrics {
-  display: flex;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px 10px;
   margin-top: 6px;
   color: var(--muted);
   font-size: 10.5px;
 }
+.suggestion-metrics span {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
 .suggestion-metrics strong {
   color: var(--text);
+  display: block;
   font-weight: 400;
 }
 .suggestion-reasons {
@@ -2085,8 +2092,8 @@ textarea {
     flex-basis: 100%;
   }
   .suggestion-metrics {
-    flex-wrap: wrap;
-    gap: 4px 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 10px;
   }
   .border-appraisal-hero {
     grid-template-columns: 1fr;
