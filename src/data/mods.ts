@@ -146,7 +146,7 @@ export const BORDER_MODS: BorderModDef[] = [
   { id: 'b-exalt', short: '+1 Exalt Drop', text: 'Rare Monsters in adjacent Areas drop 1 additional Exalted Orbs', effects: [{ stat: 'currency', percent: 45 }] },
   { id: 'b-annul', short: '+1 Annul Drop', text: 'Rare Monsters in adjacent Areas drop 1 additional Orbs of Annulment', effects: [{ stat: 'currency', percent: 25 }] },
   { id: 'b-chaos', short: '+1 Chaos Drop', text: 'Rare Monsters in adjacent Areas drop 1 additional Chaos Orbs', effects: [{ stat: 'currency', percent: 15 }] },
-  { id: 'b-vaal', short: '+1 Vaal Drop', text: 'Rare Monsters in adjacent Areas drop 1 additional Vaal Orbs', effects: [{ stat: 'currency', percent: 10 }] },
+  { id: 'b-vaal', short: '+1 Vaal Drop', text: 'Rare Monsters in adjacent Areas drop an additional Vaal Orb', effects: [{ stat: 'currency', percent: 10 }] },
   { id: 'b-gcp', short: '+1 GCP Drop', text: "Rare Monsters in adjacent Areas drop 1 additional Gemcutter's Prisms", effects: [{ stat: 'currency', percent: 12 }] },
   { id: 'b-chrome', short: '+1 Chromatic Drop', text: 'Rare Monsters in adjacent Areas drop 1 additional Chromatic Orbs', effects: [{ stat: 'currency', percent: 3 }] },
   { id: 'b-regret', short: '+1 Regret Drop', text: 'Rare Monsters in adjacent Areas drop 1 additional Orbs of Regret', effects: [{ stat: 'currency', percent: 8 }] },

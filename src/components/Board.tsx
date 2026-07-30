@@ -31,6 +31,7 @@ function BorderSelect({
   value,
   onChange,
   seg,
+  vertical,
 }: {
   value: string | null
   onChange: (id: string | null) => void
@@ -52,7 +53,7 @@ function BorderSelect({
 
   return (
     <span
-      className={`bslot ${mod ? 'filled' : ''}`}
+      className={`bslot ${vertical ? 'bslot-vertical' : ''} ${mod ? 'filled' : ''}`}
       title={mod?.text ?? 'Border segment: click to search'}
       onClick={() => {
         setQ('')

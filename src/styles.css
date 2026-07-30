@@ -1111,6 +1111,16 @@ textarea {
   justify-self: center;
   cursor: pointer;
 }
+.bslot-vertical {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  padding-inline: 4px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+  line-height: 1.1;
+}
 .bslot:not(.filled) {
   border-color: var(--border);
 }
