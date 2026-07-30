@@ -198,6 +198,13 @@ const ahkImporter = fs.readFileSync(
 )
 assert.match(ahkImporter, /TryCreateFromUserProfileLanguages/)
 assert.match(ahkImporter, /AvailableRecognizerLanguages/)
+assert.match(ahkImporter, /Invoke-OcrFile \$Path \$engine/)
+assert.match(
+  ahkImporter,
+  /Windows OCR returned no text after filtered and unfiltered scans/,
+)
+assert.match(ahkImporter, /BorderOcrAttempts := 2/)
+assert.match(ahkImporter, /Retrying empty OCR scan/)
 assert.doesNotMatch(
   ahkImporter,
   /throw 'Windows OCR is unavailable for English \(United States\)\.'/,
