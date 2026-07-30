@@ -21,6 +21,8 @@ const options = {
   adjacencyMode: 'physical',
   adjacentAffectsSelf: false,
   disabledMods: new Set(),
+  mode: 'any',
+  allowRotation: false,
 }
 
 const chart = (uid, modIds = [], name = `Chart ${uid}`) => ({
@@ -62,7 +64,11 @@ const emptyBorders = () => Array(12).fill(null)
   assert.equal(result.hasEvidence, true)
   assert.equal(result.suggestions[0].strategy.id, 'milky-meatfish')
   assert.equal(result.suggestions[0].jackpot, true)
-  assert.match(result.suggestions[0].reasons[0], /cannot drop Equipment/)
+  assert.ok(
+    result.suggestions[0].reasons.some((reason) =>
+      /cannot drop Equipment/.test(reason),
+    ),
+  )
 }
 
 // A Magic-monster border gives the Ethereal strategy a direct signal even
@@ -84,4 +90,73 @@ const emptyBorders = () => Array(12).fill(null)
   assert.equal(result.hasEvidence, false)
 }
 
-console.log('Strategy suggestions regression: jackpots, roll affinity and empty state passed')
+// Strategy discovery must use every imported chart, not only charts already
+// arranged on the manual board. Replacing the whole board with junk changes
+// only current-board diagnostics, never the library ranking or best-found fit.
+{
+  const pieces = [
+    chart('star-1', ['adj-star-1']),
+    chart('star-2', ['adj-star-2']),
+    chart('pantheon', ['adj-pantheon']),
+    chart('pillar-1', [], 'Sea-Pillar Alpha'),
+    chart('pillar-2', [], 'Sea-Pillar Beta'),
+    chart('lantern-1', ['adj-lantern']),
+    chart('lantern-2', ['adj-lantern']),
+    chart('possess', ['voy-possess']),
+    chart('no-equipment', ['voy-noequip']),
+  ]
+  const junk = Array.from({ length: 9 }, (_, index) =>
+    chart(`junk-${index}`),
+  )
+  const pool = [...pieces, ...junk]
+  const charts = new Map(pool.map((entry) => [entry.uid, entry]))
+  const borders = Array(12).fill('b-mag-3')
+  const pieceBoard = pieces.map((entry) => ({
+    chartUid: entry.uid,
+    rotation: 0,
+  }))
+  const junkBoard = junk.map((entry) => ({
+    chartUid: entry.uid,
+    rotation: 0,
+  }))
+
+  const withPiecesPlaced = suggestStrategies(
+    pieceBoard,
+    borders,
+    charts,
+    pool,
+    options,
+  )
+  const withPiecesUnplaced = suggestStrategies(
+    junkBoard,
+    borders,
+    charts,
+    pool,
+    options,
+  )
+
+  assert.equal(
+    withPiecesUnplaced.suggestions[0].strategy.id,
+    'milky-meatfish',
+  )
+  assert.deepEqual(
+    withPiecesPlaced.evaluations.map((entry) => entry.strategy.id),
+    withPiecesUnplaced.evaluations.map((entry) => entry.strategy.id),
+  )
+  assert.deepEqual(
+    withPiecesPlaced.evaluations.map((entry) => entry.rankScore),
+    withPiecesUnplaced.evaluations.map((entry) => entry.rankScore),
+  )
+  assert.deepEqual(
+    withPiecesPlaced.evaluations.map((entry) => entry.fit),
+    withPiecesUnplaced.evaluations.map((entry) => entry.fit),
+  )
+  assert.notEqual(
+    withPiecesPlaced.suggestions[0].currentFit,
+    withPiecesUnplaced.suggestions[0].currentFit,
+  )
+}
+
+console.log(
+  'Strategy suggestions regression: jackpots, inventory ranking, roll affinity and board independence passed',
+)

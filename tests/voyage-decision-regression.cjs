@@ -17,19 +17,8 @@ require.extensions['.ts'] = (module, filename) => {
 
 const {
   ABSOLUTE_PLAYABLE_FIT,
-  STRATEGY_SWITCH_DELTA,
   decideVoyage,
 } = require('../src/logic/voyageDecision.ts')
-
-const appraisal = ({
-  fit = 0.2,
-  placedCharts = 9,
-  enteredBorders = 12,
-} = {}) => ({
-  fit,
-  placedCharts,
-  enteredBorders,
-})
 
 const candidate = ({
   id,
@@ -53,45 +42,50 @@ const candidate = ({
 const decide = ({
   evaluations,
   activeStrategyId = 'active',
-  activeFit = 0.2,
-  rerollsUsed = 0,
-  placedCharts = 9,
+  availableCharts = 25,
   enteredBorders = 12,
+  rerollsUsed = 0,
 }) =>
   decideVoyage({
     evaluations,
     activeStrategyId,
-    activeAppraisal: appraisal({
-      fit: activeFit,
-      placedCharts,
-      enteredBorders,
-    }),
+    availableCharts,
+    enteredBorders,
     rerollsUsed,
   })
 
 assert.equal(ABSOLUTE_PLAYABLE_FIT, 0.5)
-assert.equal(STRATEGY_SWITCH_DELTA, 0.1)
 
-// A weak active strategy cannot hide a ready, strong alternative.
+// Inventory rank, not the manually active strategy, chooses the recommendation.
 {
   const decision = decide({
     evaluations: [
-      candidate({ id: 'active', name: 'Active Strategy', fit: 0.2 }),
-      candidate({ id: 'alternative', name: 'Ready Alternative', fit: 0.82 }),
+      candidate({
+        id: 'active',
+        name: 'Active Strategy',
+        fit: 0.9,
+        rankScore: 1,
+      }),
+      candidate({
+        id: 'alternative',
+        name: 'Best Library Strategy',
+        fit: 0.82,
+        rankScore: 10,
+      }),
     ],
   })
 
   assert.equal(decision.kind, 'switch')
   assert.equal(decision.strategyId, 'alternative')
-  assert.match(decision.label, /^SWITCH TO: Ready Alternative$/)
+  assert.match(decision.label, /^SWITCH TO: Best Library Strategy$/)
   assert.equal(decision.action.strategyId, 'alternative')
+  assert.match(decision.reason, /all 25 imported charts/)
 }
 
-// Winning the relative ranking is not enough without absolute compatibility.
+// Winning the inventory ranking is not enough without absolute roll fit.
 {
   const decision = decide({
     activeStrategyId: null,
-    activeFit: 0.1,
     evaluations: [
       candidate({
         id: 'relative-winner',
@@ -107,11 +101,10 @@ assert.equal(STRATEGY_SWITCH_DELTA, 0.1)
   assert.doesNotMatch(decision.label, /PLAY|SWITCH/)
 }
 
-// Strong roll evidence with missing required pieces must never become PLAY.
+// Strong roll evidence with missing library pieces must never become PLAY.
 {
   const decision = decide({
     evaluations: [
-      candidate({ id: 'active', fit: 0.15 }),
       candidate({
         id: 'missing',
         name: 'Missing Pieces',
@@ -152,7 +145,7 @@ assert.equal(STRATEGY_SWITCH_DELTA, 0.1)
   assert.match(decision.reason, /not a quality endorsement/)
 }
 
-// A ready Divine jackpot overrides incomplete board data and selects its strategy.
+// A ready Divine jackpot overrides incomplete border entry and selects its strategy.
 {
   const decision = decide({
     evaluations: [
@@ -162,10 +155,9 @@ assert.equal(STRATEGY_SWITCH_DELTA, 0.1)
         name: 'Divine Border Rares',
         fit: null,
         jackpot: true,
+        rankScore: 2_000,
       }),
     ],
-    activeFit: null,
-    placedCharts: 0,
     enteredBorders: 1,
   })
 
@@ -185,11 +177,10 @@ assert.equal(STRATEGY_SWITCH_DELTA, 0.1)
         ready: false,
         missing: ['1× Sea-Pillar'],
         jackpot: true,
+        rankScore: 2_000,
       }),
     ],
     activeStrategyId: 'divine-border-rares',
-    activeFit: null,
-    placedCharts: 0,
     enteredBorders: 1,
   })
 
@@ -198,46 +189,59 @@ assert.equal(STRATEGY_SWITCH_DELTA, 0.1)
   assert.doesNotMatch(decision.label, /PLAY/)
 }
 
-// Without a jackpot, incomplete data cannot produce a play/reroll command.
+// Strategy discovery works before layout; only missing border-roll data blocks
+// the final play/reroll command.
 {
   const decision = decide({
-    evaluations: [candidate({ id: 'active', fit: 0.9 })],
-    activeFit: 0.9,
-    placedCharts: 8,
+    evaluations: [
+      candidate({
+        id: 'library-best',
+        name: 'Library Best',
+        fit: 0.9,
+        rankScore: 10,
+      }),
+    ],
+    activeStrategyId: null,
     enteredBorders: 11,
   })
 
   assert.equal(decision.kind, 'needs-data')
-  assert.equal(decision.label, 'COMPLETE THE BOARD')
+  assert.equal(decision.label, 'ENTER ALL BORDERS')
+  assert.equal(decision.strategyId, 'library-best')
+  assert.equal(decision.action.strategyId, 'library-best')
 }
 
-// A small relative improvement does not churn the active strategy.
-{
-  const decision = decide({
-    evaluations: [
-      candidate({ id: 'active', name: 'Active Strategy', fit: 0.7 }),
-      candidate({ id: 'alternative', fit: 0.75 }),
-    ],
-    activeFit: 0.7,
-  })
-
-  assert.equal(decision.kind, 'play')
-  assert.equal(decision.strategyId, 'active')
-}
-
-// Manual weights remain a named, valid active context.
+// With no active strategy, the best library strategy is still recommended.
 {
   const decision = decide({
     activeStrategyId: null,
-    activeFit: 0.7,
-    evaluations: [candidate({ id: 'curated', fit: 0.65 })],
+    evaluations: [
+      candidate({
+        id: 'curated',
+        name: 'Curated Strategy',
+        fit: 0.7,
+        rankScore: 10,
+      }),
+    ],
   })
 
-  assert.equal(decision.kind, 'play')
-  assert.equal(decision.strategyName, 'Manual weights')
-  assert.equal(decision.label, 'PLAY: Manual weights')
+  assert.equal(decision.kind, 'switch')
+  assert.equal(decision.strategyName, 'Curated Strategy')
+  assert.equal(decision.action.strategyId, 'curated')
+}
+
+// No imported inventory means there is no strategy recommendation yet.
+{
+  const decision = decide({
+    activeStrategyId: null,
+    availableCharts: 0,
+    evaluations: [],
+  })
+
+  assert.equal(decision.kind, 'needs-data')
+  assert.equal(decision.label, 'IMPORT CHARTS')
 }
 
 console.log(
-  'Voyage decision regression: readiness, alternatives, costs, incomplete data and Divine handling passed',
+  'Voyage decision regression: inventory ranking, readiness, costs, incomplete roll data and Divine handling passed',
 )

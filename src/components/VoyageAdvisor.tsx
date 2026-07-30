@@ -17,13 +17,14 @@ const toneFor = (decision: VoyageDecision) => {
 }
 
 const contextLabelFor = (decision: VoyageDecision) => {
-  if (decision.kind === 'stop') return 'Best runnable context'
-  if (decision.kind === 'reroll') return 'Best ready context'
-  if (decision.kind === 'play' || decision.kind === 'switch') {
-    return 'Recommended strategy'
+  if (decision.kind === 'stop' || decision.kind === 'reroll') {
+    return 'Best ready library strategy'
   }
-  if (decision.kind === 'wait') return 'Strategy being preserved'
-  return 'Evaluated context'
+  if (decision.kind === 'play' || decision.kind === 'switch') {
+    return 'Best strategy from library'
+  }
+  if (decision.kind === 'wait') return 'Strategy worth preserving'
+  return 'Best strategy from library'
 }
 
 export function VoyageAdvisor({
@@ -60,13 +61,13 @@ export function VoyageAdvisor({
 
         <div className="voyage-context">
           <span>{contextLabelFor(decision)}</span>
-          <strong>{decision.strategyName ?? 'No comparable strategy'}</strong>
+          <strong>{decision.strategyName ?? 'Import charts to compare'}</strong>
           {fitPercent === null ? (
-            <small>Complete the board to measure absolute fit.</small>
+            <small>Enter the border roll to measure best-found fit.</small>
           ) : (
             <div className="voyage-fit-summary">
               <div>
-                <span>Absolute fit</span>
+                <span>Best-found roll fit</span>
                 <strong>{fitPercent}%</strong>
               </div>
               <div>

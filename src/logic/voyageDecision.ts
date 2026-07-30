@@ -1,4 +1,3 @@
-import type { BorderAppraisal } from './borderAppraisal'
 import {
   KEEP_FIT_LINES,
   REROLL_COSTS,
@@ -8,7 +7,6 @@ import {
 import type { StrategySuggestion } from './strategySuggestions'
 
 export const ABSOLUTE_PLAYABLE_FIT = 0.5
-export const STRATEGY_SWITCH_DELTA = 0.1
 
 export type VoyageDecisionKind =
   | 'needs-data'
@@ -42,14 +40,16 @@ export interface VoyageDecision {
 }
 
 export interface VoyageDecisionInput {
+  /** Inventory-ranked evaluations; their order must not depend on the manual board. */
   evaluations: StrategySuggestion[]
   activeStrategyId: string | null
-  activeAppraisal: BorderAppraisal
+  availableCharts: number
+  enteredBorders: number
   rerollsUsed: number
 }
 
 interface DecisionCandidate {
-  strategyId: string | null
+  strategyId: string
   strategyName: string
   fit: number | null
   ready: boolean
@@ -63,7 +63,9 @@ const percent = (fit: number | null) =>
 
 const sulphur = (value: number) => value.toLocaleString('en-US')
 
-const candidateFrom = (evaluation: StrategySuggestion): DecisionCandidate => ({
+const candidateFrom = (
+  evaluation: StrategySuggestion,
+): DecisionCandidate => ({
   strategyId: evaluation.strategy.id,
   strategyName: evaluation.strategy.name,
   fit: evaluation.fit,
@@ -73,8 +75,17 @@ const candidateFrom = (evaluation: StrategySuggestion): DecisionCandidate => ({
   jackpot: evaluation.jackpot,
 })
 
-const compareCandidates = (a: DecisionCandidate, b: DecisionCandidate) =>
-  (b.fit ?? -1) - (a.fit ?? -1) || b.rankScore - a.rankScore
+const actionFor = (
+  activeStrategyId: string | null,
+  candidate: DecisionCandidate,
+): VoyageDecisionAction | null =>
+  activeStrategyId === candidate.strategyId
+    ? null
+    : {
+        kind: 'select-strategy',
+        label: `Activate ${candidate.strategyName}`,
+        strategyId: candidate.strategyId,
+      }
 
 const hasFit = (candidate: DecisionCandidate, line: number) =>
   candidate.fit !== null && candidate.fit >= line
@@ -96,24 +107,13 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     decisionFitLine,
   }
 
-  const curated = input.evaluations.map(candidateFrom)
-  const activeCurated = input.activeStrategyId
-    ? curated.find((candidate) => candidate.strategyId === input.activeStrategyId) ?? null
-    : null
-  const active: DecisionCandidate =
-    activeCurated ?? {
-      strategyId: null,
-      strategyName: 'Manual weights',
-      fit: input.activeAppraisal.fit,
-      ready: true,
-      missing: [],
-      rankScore: Number.NEGATIVE_INFINITY,
-      jackpot: false,
-    }
+  const ranked = input.evaluations
+    .map(candidateFrom)
+    .sort((a, b) => b.rankScore - a.rankScore)
 
-  // A Divine border is the one result that remains actionable before the
-  // board is complete. It must never be lost to an ordinary reroll decision.
-  const divine = curated.find(
+  // A Divine border remains the single exception that can be acted on before
+  // every border is entered. Never lose it to an ordinary reroll prompt.
+  const divine = ranked.find(
     (candidate) =>
       candidate.strategyId === 'divine-border-rares' && candidate.jackpot,
   )
@@ -123,7 +123,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
         ...base,
         kind: 'wait',
         label: `WAIT — missing pieces for ${divine.strategyName}`,
-        reason: `Preserve the Divine border. ${divine.strategyName} still needs ${divine.missing.join(
+        reason: `Preserve the Divine border. Across all ${input.availableCharts} imported charts, ${divine.strategyName} still needs ${divine.missing.join(
           ', ',
         )}.`,
         strategyId: divine.strategyId,
@@ -141,170 +141,111 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
       label: alreadyActive
         ? `PLAY: ${divine.strategyName}`
         : `SWITCH TO: ${divine.strategyName}`,
-      reason:
-        'A +1 Divine Orb border is present and every declared strategy requirement is available. Preserve the roll and build around it.',
+      reason: `A +1 Divine Orb border is present and all required pieces are available across the ${input.availableCharts} imported charts. Preserve the roll and build the recommended layout.`,
       strategyId: divine.strategyId,
       strategyName: divine.strategyName,
       fit: divine.fit,
       missing: [],
-      action: alreadyActive
-        ? null
-        : {
-            kind: 'select-strategy',
-            label: `Activate ${divine.strategyName}`,
-            strategyId: divine.strategyId!,
-          },
+      action: actionFor(input.activeStrategyId, divine),
     }
   }
 
-  if (
-    input.activeAppraisal.placedCharts < 9 ||
-    input.activeAppraisal.enteredBorders < 12
-  ) {
-    const chartsMissing = 9 - Math.min(9, input.activeAppraisal.placedCharts)
-    const bordersMissing = 12 - Math.min(12, input.activeAppraisal.enteredBorders)
-    return {
-      ...base,
-      kind: 'needs-data',
-      label: 'COMPLETE THE BOARD',
-      reason: `Need ${chartsMissing} more chart${chartsMissing === 1 ? '' : 's'} and ${bordersMissing} more border${bordersMissing === 1 ? '' : 's'} before issuing a play or reroll recommendation.`,
-      strategyId: active.strategyId,
-      strategyName: active.strategyName,
-      fit: active.fit,
-      missing: [],
-      action: null,
-    }
-  }
+  const bestReady = ranked.find((candidate) => candidate.ready) ?? null
+  const bestInventory = bestReady ?? ranked[0] ?? null
 
-  const availableContexts =
-    active.strategyId === null ? [active, ...curated] : curated
-  if (!availableContexts.some((candidate) => candidate.fit !== null)) {
+  if (!bestInventory || input.availableCharts === 0) {
     return {
       ...base,
       kind: 'needs-data',
-      label: 'NO WEIGHTED SIGNAL',
+      label: 'IMPORT CHARTS',
       reason:
-        'Neither the active context nor any curated strategy has a comparable weighted border value.',
-      strategyId: active.strategyId,
-      strategyName: active.strategyName,
+        'Import your available charts first. Strategy discovery evaluates the full library, not the manually arranged board.',
+      strategyId: null,
+      strategyName: null,
       fit: null,
       missing: [],
       action: null,
     }
   }
 
-  const playableAlternatives = curated
-    .filter(
-      (candidate) =>
-        candidate.strategyId !== active.strategyId &&
-        candidate.ready &&
-        hasFit(candidate, decisionFitLine),
-    )
-    .sort(compareCandidates)
-  const bestAlternative = playableAlternatives[0] ?? null
-  const activePlayable = active.ready && hasFit(active, decisionFitLine)
-
-  if (activePlayable) {
-    const shouldSwitch =
-      bestAlternative !== null &&
-      bestAlternative.fit !== null &&
-      active.fit !== null &&
-      bestAlternative.fit >= active.fit + STRATEGY_SWITCH_DELTA
-    if (shouldSwitch && bestAlternative) {
-      return {
-        ...base,
-        kind: 'switch',
-        label: `SWITCH TO: ${bestAlternative.strategyName}`,
-        reason: `${bestAlternative.strategyName} is ready and reaches ${percent(
-          bestAlternative.fit,
-        )}, at least ${Math.round(STRATEGY_SWITCH_DELTA * 100)} points above ${active.strategyName}.`,
-        strategyId: bestAlternative.strategyId,
-        strategyName: bestAlternative.strategyName,
-        fit: bestAlternative.fit,
-        missing: [],
-        action: {
-          kind: 'select-strategy',
-          label: `Activate ${bestAlternative.strategyName}`,
-          strategyId: bestAlternative.strategyId!,
-        },
-      }
-    }
-
-    return {
-      ...base,
-      kind: 'play',
-      label: `PLAY: ${active.strategyName}`,
-      reason: `${active.strategyName} is ready and its ${percent(
-        active.fit,
-      )} meets the ${Math.round(decisionFitLine * 100)}% decision line.`,
-      strategyId: active.strategyId,
-      strategyName: active.strategyName,
-      fit: active.fit,
-      missing: [],
-      action: null,
-    }
-  }
-
-  if (bestAlternative) {
-    return {
-      ...base,
-      kind: 'switch',
-      label: `SWITCH TO: ${bestAlternative.strategyName}`,
-      reason: `${active.strategyName} does not meet the decision line. ${bestAlternative.strategyName} is ready and reaches ${percent(
-        bestAlternative.fit,
-      )}.`,
-      strategyId: bestAlternative.strategyId,
-      strategyName: bestAlternative.strategyName,
-      fit: bestAlternative.fit,
-      missing: [],
-      action: {
-        kind: 'select-strategy',
-        label: `Activate ${bestAlternative.strategyName}`,
-        strategyId: bestAlternative.strategyId!,
-      },
-    }
-  }
-
-  const missingCandidate = curated
-    .filter(
-      (candidate) =>
-        !candidate.ready && hasFit(candidate, decisionFitLine),
-    )
-    .sort(compareCandidates)[0]
-  if (missingCandidate) {
+  if (!bestReady) {
     return {
       ...base,
       kind: 'wait',
-      label: `WAIT — missing pieces for ${missingCandidate.strategyName}`,
-      reason: `${missingCandidate.strategyName} reaches ${percent(
-        missingCandidate.fit,
-      )}, but cannot be played until you have ${missingCandidate.missing.join(', ')}.`,
-      strategyId: missingCandidate.strategyId,
-      strategyName: missingCandidate.strategyName,
-      fit: missingCandidate.fit,
-      missing: missingCandidate.missing,
+      label: `WAIT — missing pieces for ${bestInventory.strategyName}`,
+      reason: `${bestInventory.strategyName} is the strongest library match, but none of the curated strategies is runnable from all ${input.availableCharts} imported charts yet. Still needed: ${bestInventory.missing.join(
+        ', ',
+      )}.`,
+      strategyId: bestInventory.strategyId,
+      strategyName: bestInventory.strategyName,
+      fit: bestInventory.fit,
+      missing: bestInventory.missing,
       action: null,
     }
   }
 
-  const bestReady = availableContexts
-    .filter((candidate) => candidate.ready && candidate.fit !== null)
-    .sort(compareCandidates)[0]
-  const fit = bestReady?.fit ?? null
-  const context = bestReady?.strategyName ?? active.strategyName
-  const linePercent = Math.round(decisionFitLine * 100)
+  if (input.enteredBorders < 12) {
+    const bordersMissing = 12 - input.enteredBorders
+    return {
+      ...base,
+      kind: 'needs-data',
+      label: 'ENTER ALL BORDERS',
+      reason: `${bestReady.strategyName} is the best ready strategy across all ${input.availableCharts} imported charts. Enter ${bordersMissing} more border${
+        bordersMissing === 1 ? '' : 's'
+      } before issuing the play or reroll decision.`,
+      strategyId: bestReady.strategyId,
+      strategyName: bestReady.strategyName,
+      fit: bestReady.fit,
+      missing: [],
+      action: actionFor(input.activeStrategyId, bestReady),
+    }
+  }
 
+  if (bestReady.fit === null) {
+    return {
+      ...base,
+      kind: 'needs-data',
+      label: 'NO WEIGHTED ROLL SIGNAL',
+      reason: `${bestReady.strategyName} is the best strategy from the library, but the entered border roll has no comparable weighted value for the best layout found.`,
+      strategyId: bestReady.strategyId,
+      strategyName: bestReady.strategyName,
+      fit: null,
+      missing: [],
+      action: actionFor(input.activeStrategyId, bestReady),
+    }
+  }
+
+  if (hasFit(bestReady, decisionFitLine)) {
+    const alreadyActive = input.activeStrategyId === bestReady.strategyId
+    return {
+      ...base,
+      kind: alreadyActive ? 'play' : 'switch',
+      label: alreadyActive
+        ? `PLAY: ${bestReady.strategyName}`
+        : `SWITCH TO: ${bestReady.strategyName}`,
+      reason: `${bestReady.strategyName} is the best ready strategy across all ${input.availableCharts} imported charts. The best layout found reaches ${percent(
+        bestReady.fit,
+      )}, meeting the ${Math.round(decisionFitLine * 100)}% decision line.`,
+      strategyId: bestReady.strategyId,
+      strategyName: bestReady.strategyName,
+      fit: bestReady.fit,
+      missing: [],
+      action: actionFor(input.activeStrategyId, bestReady),
+    }
+  }
+
+  const linePercent = Math.round(decisionFitLine * 100)
   if (nextCost !== null && nextCost <= 12_000) {
     return {
       ...base,
       kind: 'reroll',
       label: `REROLL — next costs ${sulphur(nextCost)} Sulphur`,
-      reason: `The best ready option is ${context} at ${percent(
-        fit,
+      reason: `Across all ${input.availableCharts} imported charts, the best ready strategy is ${bestReady.strategyName}. The best layout found reaches ${percent(
+        bestReady.fit,
       )}, below the ${linePercent}% decision line while another roll is still inexpensive.`,
-      strategyId: bestReady?.strategyId ?? null,
-      strategyName: context,
-      fit,
+      strategyId: bestReady.strategyId,
+      strategyName: bestReady.strategyName,
+      fit: bestReady.fit,
       missing: [],
       action: null,
     }
@@ -318,12 +259,12 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     ...base,
     kind: 'stop',
     label: "DON'T PAY FOR ANOTHER REROLL",
-    reason: `${context} is only the best available context at ${percent(
-      fit,
+    reason: `${bestReady.strategyName} is the best ready strategy across all ${input.availableCharts} imported charts, but the best layout found reaches only ${percent(
+      bestReady.fit,
     )}; this is not a quality endorsement. ${costReason}`,
-    strategyId: bestReady?.strategyId ?? null,
-    strategyName: context,
-    fit,
+    strategyId: bestReady.strategyId,
+    strategyName: bestReady.strategyName,
+    fit: bestReady.fit,
     missing: [],
     action: null,
   }
