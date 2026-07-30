@@ -1,3 +1,5 @@
+import type { ChartData, Edges } from '../src/types'
+
 const MOD_SETS = [
   ['cm-quant-20', 'adj-star-1'],
   ['cm-sulph-30', 'adj-star-2'],
@@ -9,7 +11,7 @@ const MOD_SETS = [
   ['cm-pack-18', 'voy-quant-1'],
 ]
 
-const EDGES = [
+const EDGES: Edges[] = [
   [true, true, true, true],
   [true, false, true, false],
   [false, true, false, true],
@@ -18,7 +20,7 @@ const EDGES = [
   [true, true, true, false],
 ]
 
-function createPerformanceFixture(count = 25) {
+export function createPerformanceFixture(count = 25): ChartData[] {
   return Array.from({ length: count }, (_, index) => ({
     uid: `performance-chart-${index + 1}`,
     name:
@@ -26,9 +28,7 @@ function createPerformanceFixture(count = 25) {
         ? `Sea-Pillar Performance ${index + 1}`
         : `Performance Chart ${index + 1}`,
     level: 83,
-    edges: [...EDGES[index % EDGES.length]],
+    edges: [...EDGES[index % EDGES.length]] as Edges,
     modIds: [...MOD_SETS[index % MOD_SETS.length]],
   }))
 }
-
-module.exports = { createPerformanceFixture }

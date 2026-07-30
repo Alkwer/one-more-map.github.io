@@ -1,21 +1,10 @@
-const assert = require('node:assert/strict')
-const fs = require('node:fs')
-const ts = require('typescript')
-
-require.extensions['.ts'] = (module, filename) => {
-  const source = fs.readFileSync(filename, 'utf8')
-  const output = ts.transpileModule(source, {
-    compilerOptions: {
-      esModuleInterop: true,
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022,
-    },
-    fileName: filename,
-  }).outputText
-  module._compile(output, filename)
-}
-
-const { suggestStrategies } = require('../src/logic/strategySuggestions.ts')
+import assert from 'node:assert/strict'
+import { describe, it } from 'vitest'
+import type { Board, Borders, ChartData } from '../src/types'
+import {
+  suggestStrategies,
+  type StrategyEvaluationOptions,
+} from '../src/logic/strategySuggestions'
 
 const options = {
   adjacencyMode: 'physical',
@@ -23,9 +12,13 @@ const options = {
   disabledMods: new Set(),
   mode: 'any',
   allowRotation: false,
-}
+} satisfies StrategyEvaluationOptions
 
-const chart = (uid, modIds = [], name = `Chart ${uid}`) => ({
+const chart = (
+  uid: string,
+  modIds: string[] = [],
+  name = `Chart ${uid}`,
+): ChartData => ({
   uid,
   name,
   level: 83,
@@ -33,12 +26,13 @@ const chart = (uid, modIds = [], name = `Chart ${uid}`) => ({
   modIds,
 })
 
-const emptyBoard = () => Array(9).fill(null)
-const emptyBorders = () => Array(12).fill(null)
+const emptyBoard = (): Board => Array(9).fill(null)
+const emptyBorders = (): Borders => Array(12).fill(null)
 
-// The Divine roll is an explicit jackpot and must outrank generic strategies
-// even before the player places charts on the board.
-{
+describe('strategy suggestion regressions', () => {
+  it('prioritizes the Divine border jackpot without a placed board', () => {
+    // The Divine roll is an explicit jackpot and must outrank generic strategies
+    // even before the player places charts on the board.
   const borders = emptyBorders()
   borders[0] = 'b-divine'
   const result = suggestStrategies(emptyBoard(), borders, new Map(), [], options)
@@ -47,11 +41,11 @@ const emptyBorders = () => Array(12).fill(null)
   assert.equal(result.suggestions[0].jackpot, true)
   assert.equal(result.suggestions[0].confidence, 'high')
   assert.equal(result.suggestions[0].matchingBorders, 1)
-}
+  })
 
-// "Cannot drop Equipment" is the Meatfish library jackpot and remains useful
-// evidence even when no border roll has been entered yet.
-{
+  it('uses the Meatfish library jackpot without a border roll', () => {
+    // "Cannot drop Equipment" is the Meatfish library jackpot and remains useful
+    // evidence even when no border roll has been entered yet.
   const keeper = chart('keeper', ['voy-noequip'])
   const result = suggestStrategies(
     emptyBoard(),
@@ -69,11 +63,9 @@ const emptyBorders = () => Array(12).fill(null)
       /cannot drop Equipment/.test(reason),
     ),
   )
-}
+  })
 
-// A Magic-monster border gives the Ethereal strategy a direct signal even
-// before a layout exists, proving the ranking is based on the roll itself.
-{
+  it('ranks Ethereal from a Magic-monster border signal', () => {
   const borders = emptyBorders()
   borders[4] = 'b-minmagic'
   const result = suggestStrategies(emptyBoard(), borders, new Map(), [], options)
@@ -81,18 +73,14 @@ const emptyBorders = () => Array(12).fill(null)
   assert.equal(result.suggestions[0].strategy.id, 'milky-ethereal')
   assert.equal(result.suggestions[0].matchingBorders, 1)
   assert.ok(result.suggestions[0].borderScore > 0)
-}
+  })
 
-// With no roll, layout, or jackpot piece, the UI should ask for evidence
-// instead of presenting an arbitrary recommendation as meaningful.
-{
+  it('does not invent evidence for an empty state', () => {
   const result = suggestStrategies(emptyBoard(), emptyBorders(), new Map(), [], options)
   assert.equal(result.hasEvidence, false)
-}
+  })
 
-// A strong border affinity cannot promote an incomplete recipe above a
-// runnable strategy.
-{
+  it('does not promote an incomplete recipe over a runnable strategy', () => {
   const pool = Array.from({ length: 9 }, (_, index) =>
     chart(`ready-filler-${index}`),
   )
@@ -114,12 +102,12 @@ const emptyBorders = () => Array(12).fill(null)
     ).readiness.ready,
     false,
   )
-}
+  })
 
-// Strategy discovery must use every imported chart, not only charts already
-// arranged on the manual board. Replacing the whole board with junk changes
-// only current-board diagnostics, never the library ranking or best-found fit.
-{
+  it('ranks from the full imported library instead of the manual board', () => {
+    // Strategy discovery must use every imported chart, not only charts already
+    // arranged on the manual board. Replacing the whole board with junk changes
+    // only current-board diagnostics, never the library ranking or best-found fit.
   const pieces = [
     // Include a manual explicit so magnitude borders create a legitimate
     // current-board diagnostic difference without amplifying the implicit.
@@ -187,12 +175,12 @@ const emptyBorders = () => Array(12).fill(null)
     withPiecesPlaced.suggestions[0].currentFit,
     withPiecesUnplaced.suggestions[0].currentFit,
   )
-}
+  })
 
-// With the same complete chart library, the border roll must be able to change
-// the winner between runnable strategies. Rare-monster borders favor Meatfish,
-// while quantity-per-connection borders favor Speedrun Strongboxes.
-{
+  it('lets the border roll change the winner between runnable strategies', () => {
+    // With the same complete chart library, the border roll must be able to change
+    // the winner between runnable strategies. Rare-monster borders favor Meatfish,
+    // while quantity-per-connection borders favor Speedrun Strongboxes.
   const meatfishPieces = [
     chart('border-star-1', ['adj-star-1']),
     chart('border-star-2', ['adj-star-2']),
@@ -234,8 +222,5 @@ const emptyBorders = () => Array(12).fill(null)
     rareResult.suggestions[0].strategy.id,
     quantityResult.suggestions[0].strategy.id,
   )
-}
-
-console.log(
-  'Strategy suggestions regression: jackpots, inventory ranking, border-driven strategy changes and board independence passed',
-)
+  })
+})
