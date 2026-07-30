@@ -64,7 +64,7 @@ const CURRENT_BORDER_TOOLTIPS = [
     'Rare Monsters in adjacent Areas drop 1 additional Orbs of Annulment',
   ],
   ['b-chaos', 'Rare Monsters in adjacent Areas drop 1 additional Chaos Orbs'],
-  ['b-vaal', 'Rare Monsters in adjacent Areas drop 1 additional Vaal Orbs'],
+  ['b-vaal', 'Rare Monsters in adjacent Areas drop an additional Vaal Orb'],
   [
     'b-gcp',
     "Rare Monsters in adjacent Areas drop 1 additional Gemcutter's Prisms",
