@@ -2,7 +2,7 @@ import { borderModById, voyageModById } from '../data/mods'
 import type { Board, Borders, ChartData, ModEffect, Stat, Weights } from '../types'
 import { ALL_STATS, borderTouches } from '../types'
 import { rotateEdges } from './connectivity'
-import { borderRewardKey, voyageRewardKey } from './rewards'
+import { borderRewardKey, chartRewardKey, voyageRewardKey } from './rewards'
 
 /** an effect tagged with the reward-type key it should be weighted under */
 type Tagged = ModEffect & { reward: string }
@@ -109,13 +109,19 @@ export function scoreBoard(
     const chart = charts.get(p.chartUid)
     if (!chart) return
     const mag = 1 + tileMagnitude[i] / 100
+    const hasImportedRewards = !!chart.rewards?.length
     for (const modId of chart.modIds) {
       if (opts.disabledMods?.has(modId)) continue
       const mod = voyageModById.get(modId)
       if (!mod) continue
+      // Imported header rewards are the authoritative aggregate of a chart's
+      // explicit modifiers. Self mod ids are only the manual-entry fallback.
+      if (mod.scope === 'self' && hasImportedRewards) continue
       const reward = voyageRewardKey(mod)
-      // magnitude + connection scaling apply to the chart's own mods
-      let scale = mag
+      // Explicit magnitude applies only to self-scope chart modifiers.
+      // Connection scaling remains independent because it may belong to an
+      // adjacent or Voyage-wide implicit.
+      let scale = mod.scope === 'self' ? mag : 1
       if (mod.scaling === 'connections') scale *= connCount[i]
       else if (mod.scaling === 'inverse-connections') scale *= 4 - connCount[i]
       const effects: Tagged[] = mod.effects.map((e) => ({
@@ -127,9 +133,13 @@ export function scoreBoard(
       else if (mod.scope === 'global') globalEffects.push(...effects)
       else for (const n of adjacentTargets(i)) tileEffects[n].push(...effects)
     }
-    // Note: the chart's own header reward stats (chart.rewards) are shown in
-    // tooltips but deliberately NOT scored - a chart is valued by its
-    // adjacent/voyage implicit, not its local sub-stats.
+    for (const effect of chart.rewards ?? []) {
+      tileEffects[i].push({
+        ...effect,
+        percent: effect.percent * mag,
+        reward: chartRewardKey(effect.stat),
+      })
+    }
   })
 
   borders.forEach((id, seg) => {
