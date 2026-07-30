@@ -31,8 +31,9 @@ npm run build    # tsc --noEmit + production build (must pass before a PR)
 
 - Keep canonical mod ids and shape names internal; map localized text onto
   them at the parser boundary.
-- Reject unknown shapes with a clear reason (see `ParseResult.rejected`)
-  rather than guessing a layout.
+- Import unknown shapes as unresolved with a clear reason (see
+  `ParseResult.unresolved`) rather than guessing a layout. Unresolved charts
+  must stay out of solver inputs until the user confirms a canonical shape.
 - Please include clipboard fixtures (sample copied item text) for any language
   you add, so parser changes can be checked against real client output.
 

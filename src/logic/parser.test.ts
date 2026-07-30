@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import type { ChartData, Edges } from '../types'
+import { emptyBorders } from '../types'
 import englishChart from './__fixtures__/charted.en.txt?raw'
 import koreanChart from './__fixtures__/charted.ko.txt?raw'
 import { isChartClipboardText, parseChartText } from './parser'
+import { solve } from './solver'
 
 function parseOnlyChart(text: string): ChartData {
   const result = parseChartText(text)
   expect(result.rejected).toEqual([])
+  expect(result.unresolved).toEqual([])
   expect(result.charts).toHaveLength(1)
   return result.charts[0]
 }
@@ -86,6 +89,21 @@ describe('parseChartText', () => {
     },
   )
 
+  it.each([
+    ['Crossroads', 'Crossing'],
+    ['Cross', 'Crossing'],
+  ])('maps the English %s alias to %s', (alias, canonical) => {
+    const chart = parseOnlyChart(
+      englishChart.replace('Chart Shape: Corner', `Chart Shape: ${alias}`),
+    )
+
+    expect(chart).toMatchObject({
+      shape: canonical,
+      edges: [true, true, true, true],
+      shapeResolved: true,
+    })
+  })
+
   it('imports mixed English and Korean CRLF clipboard batches', () => {
     const mixed = `\uFEFF${englishChart.trim()}\n${koreanChart.trim()}`.replace(/\n/g, '\r\n')
     const result = parseChartText(mixed)
@@ -109,24 +127,81 @@ describe('parseChartText', () => {
     expect(result.rejected).toEqual([{ name: '해병 갑옷', reason: 'not a Chart item' }])
   })
 
-  it('rejects an unknown shape without blocking valid items in the same batch', () => {
+  it('quarantines an unknown shape without blocking valid items in the same batch', () => {
     const unknownShape = koreanChart.replace('해도 형태: 접점', '해도 형태: 소용돌이')
     const result = parseChartText(`${unknownShape}\n${englishChart}`)
 
-    expect(result.charts).toHaveLength(1)
-    expect(result.charts[0].name).toBe('Armoured Coral Reef Chart of Ice')
-    expect(result.rejected).toEqual([
-      { name: '해병 고역 산호 암초 해도', reason: 'unknown 해도 형태: 소용돌이' },
+    expect(result.rejected).toEqual([])
+    expect(result.charts).toHaveLength(2)
+    expect(result.charts[0]).toMatchObject({
+      name: '해병 고역 산호 암초 해도',
+      edges: [false, false, false, false],
+      shapeResolved: false,
+      shapeInput: '소용돌이',
+    })
+    expect(result.charts[1].name).toBe('Armoured Coral Reef Chart of Ice')
+    expect(result.unresolved).toEqual([
+      {
+        uid: result.charts[0].uid,
+        name: '해병 고역 산호 암초 해도',
+        reason: 'unknown 해도 형태: 소용돌이',
+      },
     ])
   })
 
-  it('rejects a missing shape instead of guessing a connector layout', () => {
+  it('quarantines a missing shape instead of guessing a connector layout', () => {
     const result = parseChartText(koreanChart.replace(/^해도 형태: 접점\r?\n/m, ''))
 
-    expect(result.charts).toEqual([])
-    expect(result.rejected).toEqual([
-      { name: '해병 고역 산호 암초 해도', reason: 'missing 해도 형태' },
+    expect(result.rejected).toEqual([])
+    expect(result.charts).toHaveLength(1)
+    expect(result.charts[0]).toMatchObject({
+      edges: [false, false, false, false],
+      shapeResolved: false,
+    })
+    expect(result.charts[0].shape).toBeUndefined()
+    expect(result.unresolved).toEqual([
+      {
+        uid: result.charts[0].uid,
+        name: '해병 고역 산호 암초 해도',
+        reason: 'missing 해도 형태',
+      },
     ])
+  })
+
+  it.each([
+    ['Junctoin', 'misspelled'],
+    ['Spiral', 'newly introduced'],
+  ])('quarantines a %s English shape (%s input)', (shapeName) => {
+    const result = parseChartText(
+      englishChart.replace('Chart Shape: Corner', `Chart Shape: ${shapeName}`),
+    )
+
+    expect(result.rejected).toEqual([])
+    expect(result.charts[0]).toMatchObject({
+      shapeResolved: false,
+      shapeInput: shapeName,
+      edges: [false, false, false, false],
+    })
+    expect(result.unresolved[0]).toMatchObject({
+      name: 'Armoured Coral Reef Chart of Ice',
+      reason: `unknown Chart Shape: ${shapeName}`,
+    })
+  })
+
+  it('keeps unresolved shapes out of strict solver inputs', () => {
+    const result = parseChartText(
+      englishChart.replace('Chart Shape: Corner', 'Chart Shape: Spiral'),
+    )
+
+    expect(
+      solve(result.charts, emptyBorders(), {}, {
+        mode: 'strict',
+        allowRotation: true,
+        adjacencyMode: 'physical',
+        adjacentAffectsSelf: false,
+        topK: 1,
+      }),
+    ).toEqual([])
   })
 
   it('preserves the existing English uncharted rejection', () => {

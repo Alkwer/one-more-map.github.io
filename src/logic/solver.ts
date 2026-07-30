@@ -1,6 +1,7 @@
 import type { Board, Borders, ChartData, ConnectivityMode, Edges, Placement, Weights } from '../types'
 import { borderTouches } from '../types'
 import type { PositionRule } from '../data/strategies'
+import { isChartShapeResolved } from './chartShapes'
 import { checkConnectivity, rotateEdges } from './connectivity'
 import { scoreBoard, type ScoreOptions } from './scoring'
 
@@ -182,8 +183,10 @@ export function solve(
   weights: Weights,
   opts: SolverOptions,
 ): SolverResult[] {
-  const charts = new Map(pool.map((c) => [c.uid, c]))
-  if (pool.length === 0) return []
+  const eligiblePool =
+    opts.mode === 'strict' ? pool.filter(isChartShapeResolved) : pool
+  const charts = new Map(eligiblePool.map((c) => [c.uid, c]))
+  if (eligiblePool.length === 0) return []
 
   const CAP = Math.max(opts.topK * 4, 20)
   let top: SolverResult[] = []
@@ -212,10 +215,10 @@ export function solve(
     if (top.length > CAP) top = top.slice(0, CAP)
   }
 
-  if (pool.length <= 9 && !opts.allowRotation && !opts.forceHeuristic) {
-    exactSearch(pool, record)
+  if (eligiblePool.length <= 9 && !opts.allowRotation && !opts.forceHeuristic) {
+    exactSearch(eligiblePool, record)
   } else {
-    hillClimb(pool, borders, charts, weights, opts, record)
+    hillClimb(eligiblePool, borders, charts, weights, opts, record)
   }
 
   return top.slice(0, opts.topK)

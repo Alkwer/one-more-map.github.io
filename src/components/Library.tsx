@@ -1,5 +1,11 @@
 import { useMemo, useState } from 'react'
 import { VOYAGE_MODS, voyageModById } from '../data/mods'
+import {
+  CHART_SHAPES,
+  chartShapeForEdges,
+  edgesForChartShape,
+  isChartShapeResolved,
+} from '../logic/chartShapes'
 import { chartRewardKey, voyageRewardKey } from '../logic/rewards'
 import { newUid } from '../logic/parser'
 import type { Board, ChartData, Edges, Weights } from '../types'
@@ -54,8 +60,19 @@ function ChartEditor({ chart, onUpdate }: { chart: ChartData; onUpdate: (c: Char
   const toggleEdge = (i: number) => {
     const edges = [...chart.edges] as Edges
     edges[i] = !edges[i]
-    onUpdate({ ...chart, edges })
+    const shape = chartShapeForEdges(edges)
+    onUpdate({
+      ...chart,
+      edges,
+      shape,
+      shapeResolved: !!shape,
+      shapeInput: shape ? undefined : chart.shapeInput,
+    })
   }
+  const shapeResolved = isChartShapeResolved(chart)
+  const selectedShape = shapeResolved
+    ? chartShapeForEdges(chart.edges) ?? chart.shape ?? ''
+    : ''
   return (
     <div className="chart-editor" onClick={(e) => e.stopPropagation()}>
       <div className="row">
@@ -123,6 +140,40 @@ function ChartEditor({ chart, onUpdate }: { chart: ChartData; onUpdate: (c: Char
           </>
         )
       })()}
+      <div className={`shape-confirmation ${shapeResolved ? '' : 'unresolved'}`}>
+        {!shapeResolved && (
+          <div className="shape-warning">
+            Shape confirmation required
+            {chart.shapeInput ? ` · imported as "${chart.shapeInput}"` : ' · shape was missing'}
+          </div>
+        )}
+        <label>
+          Chart shape
+          <select
+            value={selectedShape}
+            onChange={(e) => {
+              const shape = e.target.value as ChartData['shape']
+              if (!shape) return
+              onUpdate({
+                ...chart,
+                shape,
+                edges: edgesForChartShape(shape),
+                shapeResolved: true,
+                shapeInput: undefined,
+              })
+            }}
+          >
+            <option value="" disabled>
+              Choose shape…
+            </option>
+            {CHART_SHAPES.map((shape) => (
+              <option key={shape} value={shape}>
+                {shape}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
       <div className="row edges-row">
         <span className="muted">Connectors:</span>
         {EDGE_LABELS.map((l, i) => (
@@ -168,6 +219,8 @@ export function Library(props: Props) {
       level: 80,
       edges: [true, true, true, true],
       modIds: [],
+      shape: 'Crossing',
+      shapeResolved: true,
     }
     props.onAdd([chart])
     setEditing(chart.uid)
@@ -240,11 +293,22 @@ export function Library(props: Props) {
       {view === 'grid' && (
         <div className="chart-grid">
           {visible.map((c) => {
+            const unresolvedShape = !isChartShapeResolved(c)
             const mods = c.modIds.map((id) => voyageModById.get(id)).filter(Boolean)
             // lead with the implicit (adjacent/voyage) - it's the strategic mod
             const mod = mods.find((m) => m!.scope !== 'self') ?? mods[0] ?? null
             const val = displayValue(c, props.weights, props.disabledMods)
             const lines = [
+              ...(unresolvedShape
+                ? [
+                    {
+                      text: `Shape confirmation required${
+                        c.shapeInput ? `: ${c.shapeInput}` : ''
+                      }`,
+                      cls: 'bad',
+                    },
+                  ]
+                : []),
               { text: `Area Level: ${c.level}${c.shape ? ` · ${c.shape}` : ''}`, cls: 'muted' },
               ...(c.rewards ?? []).map((e) => ({
                 text: `+${e.percent}% ${STAT_LABELS[e.stat]}`,
@@ -257,11 +321,20 @@ export function Library(props: Props) {
             return (
               <div
                 key={c.uid}
-                className={`chart-sq ${props.selected === c.uid ? 'selected' : ''} ${onBoard.has(c.uid) ? 'on-board' : ''} ${mod ? `sscope-${mod.scope}` : ''}`}
-                onClick={() => props.onSelect(c.uid)}
+                className={`chart-sq ${unresolvedShape ? 'unresolved-shape' : ''} ${props.selected === c.uid ? 'selected' : ''} ${onBoard.has(c.uid) ? 'on-board' : ''} ${mod ? `sscope-${mod.scope}` : ''}`}
+                onClick={() => {
+                  if (unresolvedShape) {
+                    setViewPersist('list')
+                    setEditing(c.uid)
+                    return
+                  }
+                  props.onSelect(c.uid)
+                }}
                 {...tooltipProps({ title: c.name, lines })}
               >
-                {mod?.short ? (
+                {unresolvedShape ? (
+                  <span className="sq-shape-warning">Confirm shape</span>
+                ) : mod?.short ? (
                   <span className={`sq-reward-text scope-${mod.scope}`}>
                     <span className="sq-shortname">{mod.short}</span>
                   </span>
@@ -277,7 +350,7 @@ export function Library(props: Props) {
                 ) : (
                   <EdgeGlyph edges={c.edges} size={26} />
                 )}
-                {mod && (
+                {mod && !unresolvedShape && (
                   <span className="sq-shape">
                     <EdgeGlyph edges={c.edges} size={15} />
                   </span>
@@ -302,18 +375,32 @@ export function Library(props: Props) {
       {view === 'list' && (
       <div className="chart-list">
         {visible.map((c) => {
+          const unresolvedShape = !isChartShapeResolved(c)
           const allMods = c.modIds.map((id) => voyageModById.get(id)).filter(Boolean)
           const mod = allMods.find((m) => m!.scope !== 'self') ?? allMods[0] ?? null
           return (
             <div
               key={c.uid}
-              className={`chart-card ${props.selected === c.uid ? 'selected' : ''} ${onBoard.has(c.uid) ? 'on-board' : ''}`}
-              onClick={() => props.onSelect(c.uid)}
+              className={`chart-card ${unresolvedShape ? 'unresolved-shape' : ''} ${props.selected === c.uid ? 'selected' : ''} ${onBoard.has(c.uid) ? 'on-board' : ''}`}
+              onClick={() => {
+                if (unresolvedShape) {
+                  setEditing(c.uid)
+                  return
+                }
+                props.onSelect(c.uid)
+              }}
             >
               <div className="chart-card-head">
-                <EdgeGlyph edges={c.edges} />
+                {unresolvedShape ? (
+                  <span className="shape-alert" aria-label="Shape confirmation required">
+                    !
+                  </span>
+                ) : (
+                  <EdgeGlyph edges={c.edges} />
+                )}
                 <span className="chart-name">{c.name}</span>
                 <span className="chart-level">lvl {c.level}</span>
+                {unresolvedShape && <span className="badge bad">needs shape</span>}
                 {onBoard.has(c.uid) && <span className="badge">on board</span>}
                 <span className="spacer" />
                 <button
