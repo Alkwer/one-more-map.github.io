@@ -320,6 +320,45 @@ function Await-Result {
     return $task.Result
 }
 
+function New-OcrEngine {
+    # Prefer an installed English recognizer because Path of Exile tooltips
+    # are English. Do not require en-US specifically: many Windows installs
+    # only have en-GB, Polish, or another Latin-script OCR language.
+    $available = @([Windows.Media.Ocr.OcrEngine]::AvailableRecognizerLanguages)
+    $english = @($available | Where-Object {
+        $_.LanguageTag -eq 'en-US' -or $_.LanguageTag -like 'en-*'
+    } | Sort-Object {
+        if ($_.LanguageTag -eq 'en-US') { 0 } else { 1 }
+    })
+
+    foreach ($language in $english) {
+        $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromLanguage($language)
+        if ($null -ne $engine) {
+            return $engine
+        }
+    }
+
+    # Fall back to the Windows profile language (for example pl-PL). The
+    # border matcher tolerates small OCR errors, and Latin-script recognizers
+    # can still read the English tooltip text well enough for matching.
+    $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
+    if ($null -ne $engine) {
+        return $engine
+    }
+
+    # A profile language may not be in the installed OCR list. Use any
+    # recognizer as a final fallback rather than rejecting a usable setup.
+    foreach ($language in $available) {
+        $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromLanguage($language)
+        if ($null -ne $engine) {
+            return $engine
+        }
+    }
+
+    throw ('Windows OCR has no installed language. Open an elevated Command Prompt and run: ' +
+        'DISM /Online /Add-Capability /CapabilityName:Language.OCR~~~en-US~0.0.1.0')
+}
+
 function Read-OcrLines {
     param([Parameter(Mandatory = $true)][string]$Path)
     $preparedPath = Join-Path $env:TEMP "voyage-ocr-filtered-$PID-$([Guid]::NewGuid().ToString('N')).png"
@@ -332,11 +371,7 @@ function Read-OcrLines {
             $decoder = Await-Result ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($stream)) ([Windows.Graphics.Imaging.BitmapDecoder])
             $bitmap = Await-Result ($decoder.GetSoftwareBitmapAsync()) ([Windows.Graphics.Imaging.SoftwareBitmap])
             try {
-                $language = [Windows.Globalization.Language]::new('en-US')
-                $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromLanguage($language)
-                if ($null -eq $engine) {
-                    throw 'Windows OCR is unavailable for English (United States).'
-                }
+                $engine = New-OcrEngine
                 $result = Await-Result ($engine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
                 $lines = @($result.Lines | ForEach-Object { $_.Text })
                 if ($lines.Count -gt 0) { return $lines -join [Environment]::NewLine }

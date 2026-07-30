@@ -190,4 +190,17 @@ const noisyRarePerConnection = parseBorderOcrPayload(
 )
 assert.equal(noisyRarePerConnection.matches[0]?.id, 'b-rareconn-1')
 
+// Windows installations often only have their display-language OCR pack.
+// Keep the importer from regressing to a hard dependency on en-US.
+const ahkImporter = fs.readFileSync(
+  require.resolve('../public/voyage-import.ahk'),
+  'utf8',
+)
+assert.match(ahkImporter, /TryCreateFromUserProfileLanguages/)
+assert.match(ahkImporter, /AvailableRecognizerLanguages/)
+assert.doesNotMatch(
+  ahkImporter,
+  /throw 'Windows OCR is unavailable for English \(United States\)\.'/,
+)
+
 console.log('Border OCR regression: 64/64 current tooltips matched')
