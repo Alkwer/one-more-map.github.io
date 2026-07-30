@@ -17,6 +17,13 @@ export interface SolverOptions extends ScoreOptions {
   strategyLayout?: Edges[]
   /** per-cell cost of deviating from strategyLayout (default strict) */
   strategyLayoutPenalty?: number
+  /** use the heuristic path even for pools that would normally be exhaustive */
+  forceHeuristic?: boolean
+  /** optional bounded search budget for lightweight background evaluations */
+  searchRestarts?: number
+  searchIterations?: number
+  /** deterministic seed; omitted for the interactive solver's varied searches */
+  seed?: number
 }
 
 /** heavy per-cell penalty: an exact-layout strategy treats deviation as broken */
@@ -175,7 +182,7 @@ export function solve(
     if (top.length > CAP) top = top.slice(0, CAP)
   }
 
-  if (pool.length <= 9 && !opts.allowRotation) {
+  if (pool.length <= 9 && !opts.allowRotation && !opts.forceHeuristic) {
     exactSearch(pool, record)
   } else {
     hillClimb(pool, borders, charts, weights, opts, record)
@@ -221,15 +228,32 @@ function hillClimb(
   // strategies need more exploration: seeded restarts vary piece rotations,
   // and the climb has to reshape the board around the lucky combinations
   const hasStrategy = !!(opts.strategyRules || opts.strategyLayout)
-  const RESTARTS = hasStrategy ? 60 : 40
-  const ITERS = hasStrategy ? 5000 : 4000
+  const RESTARTS = opts.searchRestarts ?? (hasStrategy ? 60 : 40)
+  const ITERS = opts.searchIterations ?? (hasStrategy ? 5000 : 4000)
   const rotMax = opts.allowRotation ? 4 : 1
+  const random =
+    opts.seed === undefined
+      ? Math.random
+      : (() => {
+          let state = opts.seed! >>> 0
+          return () => {
+            state += 0x6d2b79f5
+            let value = state
+            value = Math.imul(value ^ (value >>> 15), value | 1)
+            value ^= value + Math.imul(value ^ (value >>> 7), value | 61)
+            return ((value ^ (value >>> 14)) >>> 0) / 4_294_967_296
+          }
+        })()
 
   const evalScore = (b: Board) => evaluate(b, borders, charts, weights, opts).score
 
   for (let r = 0; r < RESTARTS; r++) {
     // random initial: shuffle pool, take up to 9
-    const shuffled = [...pool].sort(() => Math.random() - 0.5)
+    const shuffled = [...pool]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(random() * (i + 1))
+      ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
     const board: Board = Array(9).fill(null)
 
     // strategy-seeded restarts (every other one): pre-place matching charts on
@@ -258,7 +282,7 @@ function hillClimb(
             const rot =
               shaped && target
                 ? rotationFor(pick.edges, target, rotMax)!
-                : Math.floor(Math.random() * rotMax)
+                : Math.floor(random() * rotMax)
             board[cell] = { chartUid: pick.uid, rotation: rot }
           }
         }
@@ -288,19 +312,19 @@ function hillClimb(
     let ri = 0
     for (let i = 0; i < 9 && ri < remaining.length; i++) {
       if (board[i]) continue
-      board[i] = { chartUid: remaining[ri++].uid, rotation: Math.floor(Math.random() * rotMax) }
+      board[i] = { chartUid: remaining[ri++].uid, rotation: Math.floor(random() * rotMax) }
     }
     const unused = remaining.slice(ri)
     let score = evalScore(board)
 
     for (let it = 0; it < ITERS; it++) {
-      const move = Math.random()
+      const move = random()
       let undo: (() => void) | null = null
 
       if (move < 0.5) {
         // swap two cells
-        const a = Math.floor(Math.random() * 9)
-        const b = Math.floor(Math.random() * 9)
+        const a = Math.floor(random() * 9)
+        const b = Math.floor(random() * 9)
         if (a === b) continue
         const pa = board[a]
         const pb = board[b]
@@ -312,11 +336,11 @@ function hillClimb(
         }
       } else if (move < 0.75 && unused.length > 0) {
         // replace a placed chart with an unused one
-        const cell = Math.floor(Math.random() * 9)
-        const ui = Math.floor(Math.random() * unused.length)
+        const cell = Math.floor(random() * 9)
+        const ui = Math.floor(random() * unused.length)
         const prev = board[cell]
         const incoming = unused[ui]
-        board[cell] = { chartUid: incoming.uid, rotation: Math.floor(Math.random() * rotMax) }
+        board[cell] = { chartUid: incoming.uid, rotation: Math.floor(random() * rotMax) }
         if (prev) unused[ui] = charts.get(prev.chartUid)!
         else unused.splice(ui, 1)
         undo = () => {
@@ -326,11 +350,11 @@ function hillClimb(
         }
       } else if (opts.allowRotation) {
         // rotate a placed chart
-        const cell = Math.floor(Math.random() * 9)
+        const cell = Math.floor(random() * 9)
         const p = board[cell]
         if (!p) continue
         const prevRot = p.rotation
-        p.rotation = (p.rotation + 1 + Math.floor(Math.random() * 3)) % 4
+        p.rotation = (p.rotation + 1 + Math.floor(random() * 3)) % 4
         undo = () => {
           p.rotation = prevRot
         }

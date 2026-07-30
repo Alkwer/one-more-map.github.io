@@ -16,7 +16,10 @@ import { strategyById } from './data/strategies'
 import { StrategiesPanel } from './components/StrategiesPanel'
 import { scoreBoard } from './logic/scoring'
 import { appraiseBorders } from './logic/borderAppraisal'
-import { suggestStrategies } from './logic/strategySuggestions'
+import {
+  evaluateCurrentBoardStrategies,
+  evaluateStrategyInventory,
+} from './logic/strategySuggestions'
 import { checkConnectivity } from './logic/connectivity'
 import { clampRerollsUsed } from './logic/rerollAdvice'
 import { decideVoyage } from './logic/voyageDecision'
@@ -106,16 +109,39 @@ export default function App() {
     () => scoreBoard(state.board, state.borders, chartMap, effectiveWeights, scoreOptions),
     [state.board, state.borders, chartMap, effectiveWeights, scoreOptions],
   )
-  const strategySuggestions = useMemo(
+  const strategyEvaluationOptions = useMemo(
+    () => ({
+      ...scoreOptions,
+      mode: state.mode,
+      allowRotation: state.allowRotation,
+    }),
+    [scoreOptions, state.mode, state.allowRotation],
+  )
+  const strategyInventory = useMemo(
     () =>
-      suggestStrategies(
-        state.board,
+      evaluateStrategyInventory(
         state.borders,
         chartMap,
         state.pool,
+        strategyEvaluationOptions,
+      ),
+    [
+      state.borders,
+      chartMap,
+      state.pool,
+      strategyEvaluationOptions,
+    ],
+  )
+  const strategySuggestions = useMemo(
+    () =>
+      evaluateCurrentBoardStrategies(
+        strategyInventory,
+        state.board,
+        state.borders,
+        chartMap,
         scoreOptions,
-    ),
-    [state.board, state.borders, chartMap, state.pool, scoreOptions],
+      ),
+    [strategyInventory, state.board, state.borders, chartMap, scoreOptions],
   )
   const activeStrategyEvaluation = activeStrategy
     ? strategySuggestions.evaluations.find(
@@ -146,13 +172,15 @@ export default function App() {
       decideVoyage({
         evaluations: strategySuggestions.evaluations,
         activeStrategyId: activeStrategy?.id ?? null,
-        activeAppraisal: borderAppraisal,
+        availableCharts: strategySuggestions.availableCharts,
+        enteredBorders: strategySuggestions.enteredBorders,
         rerollsUsed: state.borderRerollsUsed,
       }),
     [
       strategySuggestions.evaluations,
+      strategySuggestions.availableCharts,
+      strategySuggestions.enteredBorders,
       activeStrategy?.id,
-      borderAppraisal,
       state.borderRerollsUsed,
     ],
   )
@@ -661,8 +689,8 @@ export default function App() {
           <div className="diagnostics-heading">
             <div className="panel-title">Diagnostics</div>
             <div>
-              Relative compatibility and strategy requirements explain the
-              recommendation above; they do not replace it.
+              Library potential, strategy requirements, and current-board fit
+              explain the recommendation above; they do not replace it.
             </div>
           </div>
           <StrategySuggestions

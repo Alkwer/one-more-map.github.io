@@ -1,6 +1,12 @@
 import { borderModById } from '../data/mods'
 import { STRATEGIES, type StrategyDef } from '../data/strategies'
-import type { Board, Borders, ChartData, Weights } from '../types'
+import type {
+  Board,
+  Borders,
+  ChartData,
+  ConnectivityMode,
+  Weights,
+} from '../types'
 import { borderTouches, emptyBorders } from '../types'
 import {
   appraiseBorders,
@@ -9,10 +15,18 @@ import {
 } from './borderAppraisal'
 import { borderRewardKey } from './rewards'
 import { scoreBoard, type ScoreOptions } from './scoring'
+import { solve } from './solver'
 
 const EPSILON = 1e-9
+const POTENTIAL_SEARCH_RESTARTS = 12
+const POTENTIAL_SEARCH_ITERATIONS = 900
 
 export type SuggestionConfidence = 'low' | 'medium' | 'high'
+
+export interface StrategyEvaluationOptions extends ScoreOptions {
+  mode: ConnectivityMode
+  allowRotation: boolean
+}
 
 export interface StrategyReadiness {
   ready: boolean
@@ -30,13 +44,18 @@ export interface StrategyRequirementReadiness {
   missing: number
 }
 
-export interface StrategySuggestion {
+export interface StrategyInventorySuggestion {
   strategy: StrategyDef
   rankScore: number
   confidence: SuggestionConfidence
+  /** Fit of the current border roll on the best layout found in the library. */
   fit: number | null
   status: BorderAppraisalStatus
-  appraisal: BorderAppraisal
+  potentialAppraisal: BorderAppraisal
+  potentialBoard: Board
+  potentialScore: number
+  potentialValid: boolean
+  eligibleCharts: number
   jackpot: boolean
   borderScore: number
   matchingBorders: number
@@ -46,12 +65,28 @@ export interface StrategySuggestion {
   reasons: string[]
 }
 
+export interface StrategySuggestion extends StrategyInventorySuggestion {
+  /** Current manually arranged board, retained only as a diagnostic. */
+  appraisal: BorderAppraisal
+  currentFit: number | null
+  currentStatus: BorderAppraisalStatus
+}
+
+export interface StrategyInventoryResult {
+  suggestions: StrategyInventorySuggestion[]
+  evaluations: StrategyInventorySuggestion[]
+  enteredBorders: number
+  availableCharts: number
+  hasEvidence: boolean
+}
+
 export interface StrategySuggestionResult {
-  /** Top relative matches shown in the diagnostic suggestions panel. */
+  /** Top library matches shown in the diagnostic suggestions panel. */
   suggestions: StrategySuggestion[]
   /** Every strategy evaluation, used by the canonical Voyage decision. */
   evaluations: StrategySuggestion[]
   enteredBorders: number
+  availableCharts: number
   placedCharts: number
   hasEvidence: boolean
 }
@@ -117,11 +152,37 @@ export function strategyReadiness(
   }
 }
 
+function eligiblePoolFor(strategy: StrategyDef, pool: ChartData[]): ChartData[] {
+  const reserveModIds = strategy.reserveModIds
+  const reserveNames = strategy.reserveNames
+  return pool.filter(
+    (chart) =>
+      !(reserveModIds?.length &&
+        chart.modIds.some((id) => reserveModIds.includes(id))) &&
+      !(reserveNames?.length &&
+        reserveNames.some((name) =>
+          chart.name.toLowerCase().includes(name.toLowerCase()),
+        )),
+  )
+}
+
+function stableSeed(value: string): number {
+  let hash = 2_166_136_261
+  for (let index = 0; index < value.length; index++) {
+    hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 16_777_619)
+  }
+  return hash >>> 0
+}
+
 function directBorderContribution(modId: string, weights: Weights): number {
   const mod = borderModById.get(modId)
   if (!mod) return 0
   const weight = weights[borderRewardKey(mod)] ?? 0
-  return mod.effects.reduce((sum, effect) => sum + (effect.percent / 100) * weight, 0)
+  return mod.effects.reduce(
+    (sum, effect) => sum + (effect.percent / 100) * weight,
+    0,
+  )
 }
 
 function borderContributions(
@@ -137,14 +198,12 @@ function borderContributions(
   return borders.flatMap((modId, segment) => {
     if (!modId || opts.disabledMods?.has(modId)) return []
 
-    // Once a chart is placed, use the full contextual score so magnitude and
-    // per-connection modifiers are judged correctly. Before placement, direct
-    // effects still provide an early strategy signal from the roll itself.
     let contribution = directBorderContribution(modId, weights)
     if (board[borderTouches(segment)]) {
       const isolated = emptyBorders()
       isolated[segment] = modId
-      contribution = scoreBoard(board, isolated, charts, weights, opts).total - base
+      contribution =
+        scoreBoard(board, isolated, charts, weights, opts).total - base
     }
 
     return [{ segment, modId, contribution }]
@@ -156,7 +215,9 @@ function uniqueTopBorderLabels(
 ): string[] {
   const seen = new Set<string>()
   const labels: string[] = []
-  for (const entry of [...contributions].sort((a, b) => b.contribution - a.contribution)) {
+  for (const entry of [...contributions].sort(
+    (a, b) => b.contribution - a.contribution,
+  )) {
     if (entry.contribution <= EPSILON) break
     const mod = borderModById.get(entry.modId)
     const label = mod?.short ?? mod?.text
@@ -184,44 +245,88 @@ function confidenceFor(
   return 'low'
 }
 
+function addRunnableRequirements(
+  readiness: StrategyReadiness,
+  eligibleCharts: number,
+  potentialValid: boolean,
+): StrategyReadiness {
+  const missing = [...readiness.missing]
+  const capacityRatio = Math.min(1, eligibleCharts / 9)
+  const layoutRatio = eligibleCharts >= 9 && !potentialValid ? 0.75 : 1
+  if (eligibleCharts < 9) {
+    missing.push(
+      `${9 - eligibleCharts}× additional eligible chart${
+        9 - eligibleCharts === 1 ? '' : 's'
+      } for a full voyage`,
+    )
+  } else if (!potentialValid) {
+    missing.push('a runnable connector layout from the available chart shapes')
+  }
+  return {
+    ...readiness,
+    ready: missing.length === 0,
+    ratio: readiness.ratio * capacityRatio * layoutRatio,
+    missing,
+  }
+}
+
 /**
- * Rank curated strategies against the currently entered border roll, placed
- * chart layout, and declared library requirements.
- *
- * This is a deterministic compatibility ranking, not a reroll EV calculation:
- * no border-roll probabilities are known yet.
+ * Rank strategies from the complete imported chart library and current border
+ * roll. The current manual board is deliberately absent from this function.
  */
-export function suggestStrategies(
-  board: Board,
+export function evaluateStrategyInventory(
   borders: Borders,
   charts: Map<string, ChartData>,
   pool: ChartData[],
-  opts: ScoreOptions,
+  opts: StrategyEvaluationOptions,
   limit = 3,
-): StrategySuggestionResult {
+): StrategyInventoryResult {
   const enteredBorders = borders.filter(Boolean).length
-  const placedCharts = board.filter(Boolean).length
-  const hasNoEquipment = pool.some((chart) => chart.modIds.includes('voy-noequip'))
+  const hasNoEquipment = pool.some((chart) =>
+    chart.modIds.includes('voy-noequip'),
+  )
   const hasDivineBorder =
     borders.includes('b-divine') && !opts.disabledMods?.has('b-divine')
 
   const evaluations = STRATEGIES.map((strategy) => {
-    const readiness = strategyReadiness(strategy, pool, borders)
-    const appraisal = appraiseBorders(
-      board,
+    const eligiblePool = eligiblePoolFor(strategy, pool)
+    const potential =
+      solve(eligiblePool, borders, strategy.weights, {
+        ...opts,
+        topK: 1,
+        strategyRules: strategy.rules,
+        strategyLayout: strategy.layout,
+        strategyLayoutPenalty: strategy.layoutPenalty,
+        forceHeuristic: true,
+        searchRestarts: POTENTIAL_SEARCH_RESTARTS,
+        searchIterations: POTENTIAL_SEARCH_ITERATIONS,
+        seed: stableSeed(strategy.id),
+      })[0] ?? null
+    const potentialBoard =
+      potential?.board ?? (Array(9).fill(null) as Board)
+    const readiness = addRunnableRequirements(
+      strategyReadiness(strategy, pool, borders),
+      eligiblePool.length,
+      potential?.valid ?? false,
+    )
+    const potentialAppraisal = appraiseBorders(
+      potentialBoard,
       borders,
       charts,
       strategy.weights,
       opts,
     )
     const contributions = borderContributions(
-      board,
+      potentialBoard,
       borders,
       charts,
       strategy.weights,
       opts,
     )
-    const borderScore = contributions.reduce((sum, entry) => sum + entry.contribution, 0)
+    const borderScore = contributions.reduce(
+      (sum, entry) => sum + entry.contribution,
+      0,
+    )
     const matchingBorders = contributions.filter(
       (entry) => entry.contribution > EPSILON,
     ).length
@@ -230,33 +335,40 @@ export function suggestStrategies(
     ).length
     const weightScale = Math.max(
       1,
-      Object.values(strategy.weights).reduce((sum, weight) => sum + Math.max(0, weight), 0),
+      Object.values(strategy.weights).reduce(
+        (sum, weight) => sum + Math.max(0, weight),
+        0,
+      ),
     )
-    const boardScore = scoreBoard(
-      board,
-      emptyBorders(),
-      charts,
-      strategy.weights,
-      opts,
-    ).total
-    const coverage = enteredBorders > 0 ? matchingBorders / enteredBorders : 0
+    const coverage =
+      enteredBorders > 0 ? matchingBorders / enteredBorders : 0
     const rollAffinity = Math.max(0, borderScore) / weightScale
-    const boardAffinity = Math.max(0, boardScore) / weightScale
-    const divineJackpot = hasDivineBorder && strategy.id === 'divine-border-rares'
-    const equipmentJackpot = hasNoEquipment && strategy.id === 'milky-meatfish'
+    const libraryAffinity =
+      Math.max(0, potential?.reward ?? 0) / weightScale
+    const divineJackpot =
+      hasDivineBorder && strategy.id === 'divine-border-rares'
+    const equipmentJackpot =
+      hasNoEquipment && strategy.id === 'milky-meatfish'
     const jackpot = divineJackpot || equipmentJackpot
-    const jackpotBoost = divineJackpot ? 2_000 : equipmentJackpot ? 1_000 : 0
-    const evidence =
-      rollAffinity * 30 +
-      coverage * 12 +
-      boardAffinity * 2 -
-      harmfulBorders * 0.5
+    const jackpotBoost = divineJackpot
+      ? 2_000
+      : equipmentJackpot
+        ? 20
+        : 0
     const rankScore =
       jackpotBoost +
-      evidence * (0.65 + readiness.ratio * 0.35) +
-      (readiness.ready ? 1 : 0)
+      (readiness.ready ? 100 : 0) +
+      readiness.ratio * 20 +
+      libraryAffinity * 20 +
+      rollAffinity * 30 +
+      coverage * 12 -
+      harmfulBorders * 0.5
 
-    const reasons: string[] = []
+    const reasons: string[] = [
+      `Evaluated all ${eligiblePool.length} eligible imported charts; the best layout found is ${
+        potential?.valid ? 'runnable' : 'not connector-complete'
+      }.`,
+    ]
     if (divineJackpot) {
       reasons.push(
         'Divine-drop border detected — this build is designed to feed rare monsters into it.',
@@ -271,16 +383,22 @@ export function suggestStrategies(
     const borderLabels = uniqueTopBorderLabels(contributions)
     if (borderLabels.length > 0) {
       reasons.push(
-        `${matchingBorders}/${enteredBorders} entered borders support it, led by ${borderLabels.join(' and ')}.`,
+        `${matchingBorders}/${enteredBorders} entered borders support the best layout found, led by ${borderLabels.join(
+          ' and ',
+        )}.`,
       )
     } else if (enteredBorders > 0) {
-      reasons.push('The current border roll has little direct support for this strategy.')
+      reasons.push(
+        'The current border roll has little direct support for this strategy.',
+      )
     }
 
-    if (readiness.need === 0) {
+    if (readiness.need === 0 && readiness.ready) {
       reasons.push('No special chart pieces are required.')
     } else if (readiness.ready) {
-      reasons.push(`All ${readiness.need} declared chart/border requirements are available.`)
+      reasons.push(
+        `All ${readiness.need} declared chart/border requirements are available.`,
+      )
     } else {
       reasons.push(
         `Library readiness: ${readiness.have}/${readiness.need}; still missing ${readiness.missing
@@ -292,10 +410,18 @@ export function suggestStrategies(
     return {
       strategy,
       rankScore,
-      confidence: confidenceFor(jackpot, appraisal.fit, appraisal.status),
-      fit: appraisal.fit,
-      status: appraisal.status,
-      appraisal,
+      confidence: confidenceFor(
+        jackpot,
+        potentialAppraisal.fit,
+        potentialAppraisal.status,
+      ),
+      fit: potentialAppraisal.fit,
+      status: potentialAppraisal.status,
+      potentialAppraisal,
+      potentialBoard,
+      potentialScore: potential?.reward ?? 0,
+      potentialValid: potential?.valid ?? false,
+      eligibleCharts: eligiblePool.length,
       jackpot,
       borderScore,
       matchingBorders,
@@ -312,7 +438,81 @@ export function suggestStrategies(
     suggestions: evaluations.slice(0, Math.max(0, limit)),
     evaluations,
     enteredBorders,
-    placedCharts,
-    hasEvidence: enteredBorders > 0 || placedCharts > 0 || hasNoEquipment,
+    availableCharts: pool.length,
+    hasEvidence: enteredBorders > 0 || pool.length > 0,
   }
+}
+
+/**
+ * Attach diagnostics for the current manual board without changing inventory
+ * ranking, best-found fit, or the canonical strategy recommendation.
+ */
+export function evaluateCurrentBoardStrategies(
+  inventory: StrategyInventoryResult,
+  board: Board,
+  borders: Borders,
+  charts: Map<string, ChartData>,
+  opts: ScoreOptions,
+): StrategySuggestionResult {
+  const attach = (
+    suggestion: StrategyInventorySuggestion,
+  ): StrategySuggestion => {
+    const appraisal = appraiseBorders(
+      board,
+      borders,
+      charts,
+      suggestion.strategy.weights,
+      opts,
+    )
+    return {
+      ...suggestion,
+      appraisal,
+      currentFit: appraisal.fit,
+      currentStatus: appraisal.status,
+    }
+  }
+  const byId = new Map(
+    inventory.evaluations.map((suggestion) => [
+      suggestion.strategy.id,
+      attach(suggestion),
+    ]),
+  )
+  const evaluations = inventory.evaluations.map(
+    (suggestion) => byId.get(suggestion.strategy.id)!,
+  )
+
+  return {
+    suggestions: inventory.suggestions.map(
+      (suggestion) => byId.get(suggestion.strategy.id)!,
+    ),
+    evaluations,
+    enteredBorders: inventory.enteredBorders,
+    availableCharts: inventory.availableCharts,
+    placedCharts: board.filter(Boolean).length,
+    hasEvidence: inventory.hasEvidence,
+  }
+}
+
+export function suggestStrategies(
+  board: Board,
+  borders: Borders,
+  charts: Map<string, ChartData>,
+  pool: ChartData[],
+  opts: StrategyEvaluationOptions,
+  limit = 3,
+): StrategySuggestionResult {
+  const inventory = evaluateStrategyInventory(
+    borders,
+    charts,
+    pool,
+    opts,
+    limit,
+  )
+  return evaluateCurrentBoardStrategies(
+    inventory,
+    board,
+    borders,
+    charts,
+    opts,
+  )
 }
