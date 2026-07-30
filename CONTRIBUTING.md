@@ -1,44 +1,87 @@
 # Contributing
 
-Contributions are welcome - localization patches especially. By contributing
-you agree your work is released under the repository's MIT license.
+Contributions are welcome, especially parser fixtures and localization patches.
+By contributing, you agree that your work is released under the repository's
+MIT license.
 
-## Dev setup
+## Development setup
+
+Use Node.js 24 (the CI version) and npm:
 
 ```bash
-npm install
-npm run dev      # Vite dev server on http://localhost:5173
-npm run build    # tsc --noEmit + production build (must pass before a PR)
+npm ci
+npm run dev
 ```
 
-## Where things live
+Before opening a pull request, run the same quality gate as CI:
 
-- `src/logic/parser.ts` - clipboard chart-text importer. Item detection
-  (`Item Class: Chart`), header reward stats (`HEADER_STATS` regexes), chart
-  shapes (`SHAPE_EDGES`), and the fuzzy implicit-mod matcher (`matchImplicit`).
-  Localization hooks belong here: alternate header/shape tables per language,
-  detected from the pasted text.
-- `src/data/mods.ts` - canonical voyage/border modifier definitions. Mod `id`s
-  are the stable keys used by scoring, strategies and saved state - do not
-  change them; add localized alias text instead.
-- `src/components/ImportPanel.tsx` - paste box + the global Ctrl+V handler
-  (currently gated on `/Item Class:\s*Chart/i` - a localization patch should
-  extend that detection).
-- `src/logic/scoring.ts`, `src/logic/solver.ts` - solver internals; a parsing/
-  localization PR should not need to touch these.
+```bash
+npm run validate
+```
 
-## Localization notes
+`validate` runs TypeScript checking, the Vitest suite, ESLint, Prettier's format
+check, and the production build. Run `npm run bench:solver` as well when changing
+the solver or scoring hot path. The full command reference is in
+[README.md](README.md#commands).
 
-- Keep canonical mod ids and shape names internal; map localized text onto
-  them at the parser boundary.
-- Import unknown shapes as unresolved with a clear reason (see
-  `ParseResult.unresolved`) rather than guessing a layout. Unresolved charts
-  must stay out of solver inputs until the user confirms a canonical shape.
-- Please include clipboard fixtures (sample copied item text) for any language
-  you add, so parser changes can be checked against real client output.
+## Architecture
 
-## PRs
+- `src/App.tsx` owns the top-level application state and composes the major
+  screens.
+- `src/components/` contains the board, chart library, importer, solver controls,
+  border appraiser, voyage advisor, and strategy UI.
+- `src/types.ts` defines the shared chart, board, modifier, scoring, and solver
+  contracts.
+- `src/data/mods.ts` and `src/data/strategies.ts` contain canonical game modifier
+  and strategy definitions. Their IDs are persistent storage keys; do not rename
+  existing IDs without a migration.
+- `src/logic/parser.ts`, `regex.ts`, and `chartShapes.ts` convert clipboard text
+  into canonical chart data. Real client samples belong in
+  `src/logic/__fixtures__/`.
+- `src/logic/scoring.ts`, `connectivity.ts`, and `solver.ts` evaluate boards and
+  search for layouts. The exhaustive and approximate search paths must obey the
+  same connector and reachability rules.
+- `src/logic/solverWorkerClient.ts`, `solverWorkerProtocol.ts`, and
+  `src/workers/solver.worker.ts` keep expensive searches off the UI thread and
+  define the worker boundary.
+- `src/logic/borderAppraisal.ts`, `rerollAdvice.ts`, and `voyageDecision.ts`
+  provide decision-support heuristics. They must not describe unknown roll
+  probabilities as expected value.
+- `src/logic/storage.ts` owns browser persistence and migrations.
+- `public/voyage-import.ahk` is the optional Windows chart-copy and border-OCR
+  helper. Its user instructions live in [docs/windows-ocr.md](docs/windows-ocr.md).
+- `benchmarks/` contains the solver performance fixture and benchmark.
+- `.github/workflows/deploy.yml` is the pull-request quality gate and GitHub Pages
+  deployment.
 
-Fork, branch, and open a pull request against `main`. Merges to `main`
-auto-deploy to the public site via GitHub Actions, so PRs should build clean
-(`npm run build`) and describe how they were tested.
+Tests live next to the modules they cover. Add a focused regression test when
+changing parsing, storage, worker behavior, scoring, connectivity, or solver
+search.
+
+## Data and model changes
+
+- Separate confirmed mechanics, app heuristics, and unknown behavior in code,
+  labels, and documentation. Update [RESEARCH.md](RESEARCH.md) when new evidence
+  changes that boundary.
+- Preserve canonical modifier IDs and shape names. Map localized text to them at
+  the parser boundary.
+- Import unknown shapes as unresolved with a clear reason rather than guessing a
+  layout. Unresolved charts must stay out of solver inputs until the user selects
+  a canonical shape.
+- Include clipboard fixtures for every parser format or language added. Extend
+  the importer detection in `src/components/ImportPanel.tsx` when the localized
+  item-class line differs.
+- Keep benchmark fixtures deterministic. Document intentional score or search
+  tradeoffs in the pull request.
+
+## Pull requests
+
+1. Branch from an up-to-date `main` and keep the change focused.
+2. Install from the lockfile with `npm ci`.
+3. Make the change and add or update tests and documentation.
+4. Run `npm run validate` and any relevant solver benchmark or manual check.
+5. Describe the user-visible effect, model assumptions, and verification in the
+   pull request.
+
+Pull requests run the quality job but do not deploy. A merge to `main` deploys
+only after that same quality gate succeeds.

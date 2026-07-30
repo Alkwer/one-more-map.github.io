@@ -1,6 +1,23 @@
-# Allflame Voyage Solver - Scoping Notes (2026-07-24, pre-launch)
+# Allflame Voyage Solver - Mechanics and Modeling Notes
 
-## BORDER REROLL RESEARCH (2026-07-30)
+Last reviewed: **2026-07-30**.
+
+This document separates live observations from model assumptions and unresolved
+questions. Historical preview notes are retained only where they explain the
+project's design; current live evidence takes precedence.
+
+Confidence labels:
+
+- **Confirmed** — supported by current client data, official material, or direct
+  live observation.
+- **Strongly supported** — repeated live reports or UI wording agree, but the
+  rule is not officially documented.
+- **Heuristic** — an explicit app-level scoring or search choice, not a claimed
+  game rule.
+- **Unknown** — available public data and observations do not answer the
+  question.
+
+## Border reroll research
 
 ### Result
 
@@ -8,13 +25,6 @@ Research is sufficient to model the **Sulphur cost curve**, but not yet to
 calculate a defensible reroll EV. The game data exposes the border-mod pool and
 reroll constants, but it does **not** expose border selection weights, tier
 eligibility by Voyage level, duplicate rules, or independence between slots.
-
-Confidence labels used below:
-
-- **Confirmed** — current 3.29.0.4.2 client data and independent live reports agree.
-- **Strongly supported** — repeated live reports/UI wording agree, but GGG has not
-  documented the rule.
-- **Unknown** — neither the public client data nor official notes answer it.
 
 ### Reroll mechanics and cost
 
@@ -136,7 +146,7 @@ of assumed.
   https://www.reddit.com/r/pathofexile/comments/1v79vww/list_of_issues_with_current_league_mechanic/
   https://www.reddit.com/r/pathofexile/comments/1v74hcz/ive_solved_voyages_theyre_good_but_maybe_theres/
 
-## LAUNCH-DAY CONFIRMATIONS (from poewiki.net/wiki/Voyage, 2026-07-24)
+## Confirmed live mechanics
 
 - Board is **3×3** ✓. Border has **12 segments (2 per corner, 1 per middle edge)**
   called **Corruption Currents**, rerolled each Voyage ✓ (corner tiles get 2, center 0 ✓).
@@ -149,9 +159,13 @@ of assumed.
 - **One portal, one attempt** per Voyage. Loot is "Dredge" (unusable until sent to
   surface via Allflame Capsule, 60 slots, one send each).
 - Dead Man's Sulphur: from lanterns near green-coral corpses; non-tradeable currency.
-- Wiki 3.29 item icons NOT uploaded yet (red links) - AI-generated icons remain until then.
 
-## From ZiggyD's early hands-on video (youtu.be/BUhy78_RgF0 @ ~21:00, 2026-07-24)
+## Historical preview evidence
+
+The following observations came from ZiggyD's early hands-on video
+(`youtu.be/BUhy78_RgF0`, around 21:00, 2026-07-24). They informed the initial
+implementation; the confirmed live sections above and below supersede them if
+they conflict.
 
 - **Chart item tooltip anatomy** (seen on "Armoured Coral Forest Chart of Power" -
   magic-rarity naming): Area Level 47 · Item Quantity: +20% · **Gold Found: +70%** ·
@@ -173,7 +187,7 @@ of assumed.
 - On-screen note: GGG has been **buffing adjacency and border modifiers** since the
   preview build - expect live numbers to be higher than preview footage.
 
-## CONFIRMED real chart item format (from pasted charts, 2026-07-25)
+## Confirmed chart item format
 
 - `Item Class: Chart` (not "Lost Charts"). Rarity: Magic. Name on line after Rarity.
 - Header block after `Area Level:` lists aggregated reward "quality" stats:
@@ -194,9 +208,9 @@ of assumed.
 - Deepwater area type ("Seafloor Ridges", "Abyssal Plain", "Undersea Groves") appears
   in the header but isn't scored.
 
-## Open questions on reward math (verify in game)
+## Scoring assumptions and unknowns
 
-- **Stacking rules are undocumented.** Model now assumes additive stacking within
+- **Heuristic:** stacking rules are undocumented. The model assumes additive stacking within
   an area ("increased" convention); the rewards panel reports average bonus per area.
 - **Start square is bottom-left** (confirmed in-game). The game allows a
   locally valid but disconnected Voyage to start; only the component containing
@@ -209,7 +223,7 @@ of assumed.
   VoyageModDef (effect × connection count, or × (4 − connections)). No real mod
   texts known yet - wire them in as they're found.
 
-League: **Path of Exile 3.29 - Curse of the Allflame** (launches July 24, 2026).
+League: **Path of Exile 3.29 - Curse of the Allflame**, launched July 24, 2026.
 
 ## The mechanic (solver-relevant parts)
 
@@ -251,33 +265,34 @@ League: **Path of Exile 3.29 - Curse of the Allflame** (launches July 24, 2026).
 Given: your pool of N charted charts (each with connector shape + modifier + area
 level + content type) and the current 12 border modifiers.
 
-Find: the choice of 9 charts and their arrangement that maximizes expected value,
-subject to the connector-matching constraint.
+Find: the choice of 9 charts and their arrangement that maximizes a
+**user-weighted utility score**, subject to connector matching and the selected
+reachability rule. The score is not currency expected value because reward prices,
+drop distributions, and border-roll probabilities are not known.
 
-Search space is tiny by solver standards: 9! = 362,880 arrangements per chosen set;
-even with chart selection from a pool of ~30 it's brute-forceable with basic pruning
-(connectivity check first, then score). A simple scoring model (user-weighted: currency
-vs scarabs vs sulphur vs rares) + exhaustive/branch-and-bound search will be instant in
-the browser. No fancy algorithm needed - the hard part is **data model + import UX**.
+The implementation has two search paths:
 
-Key strategic insight from reveal coverage: put strong global/self-mod charts in the
-**center** (it gets no border mods), and put charts you want border-amplified in
-**corners** (2 border mods each).
+- **Exact:** exhaustive search for pools of at most 9 charts when rotation is
+  disabled.
+- **Heuristic:** seeded hill climbing with restarts for larger pools or rotational
+  searches. It is deterministic for the same input and seed but does not claim a
+  globally optimal result.
 
-## Importer feasibility (must verify on launch day)
+The frequently useful corner/center advice is also heuristic: corners receive two
+border effects while the center receives none, but the best placement depends on
+the current borders, chart modifiers, connectors, and selected weights.
 
-1. **Charts are inventory items** → almost certainly Ctrl+C copyable as standard PoE
-   item text (like maps). An importer can parse pasted chart text. **Verify format
-   day one.**
-2. **Board border mods** are UI-only. Two precedents:
-   - PoE1 Incursion: hovering the Temple of Atzoatl UI + Ctrl+C copied the whole
-     temple layout as text → maybe the Voyage Board supports the same. **Check
-     Ctrl+C over the Voyage Board UI day one.**
-   - If not: manual entry from a dropdown of known border mods (only 12 slots,
-     modest mod pool - fine UX), or OCR later.
-3. No official API for league UI state; Client.txt logs won't have this.
+## Importer status
 
-## Prior art
+- **Confirmed:** Charted Charts are copyable as standard `Ctrl+C` item text. The
+  parser has live English and Korean fixtures, preserves unmatched lines, and
+  rejects uncharted charts whose hidden modifier cannot be scored.
+- Border modifiers remain UI-only. The app supports manual entry, while the
+  optional Windows helper reads the 12 tooltips with local OCR. See
+  [docs/windows-ocr.md](docs/windows-ocr.md).
+- No official API is known for reading the current Voyage Board state.
+
+## Historical prior art
 
 - **sulozor.github.io/#/atziri-temple** (PoE2 Atziri temple planner): manual
   drag-and-drop planner, live "active bonuses" panel, saved layouts, shareable
@@ -286,29 +301,33 @@ Key strategic insight from reveal coverage: put strong global/self-mod charts in
   a solver** - our edge is auto-solve + import.
 - Tetriszocker.github.io/atziri-temple-editor - another manual planner.
 
-## Proposed build
+## Current implementation
 
-Static SPA (React or Svelte + TypeScript, gh-pages/Netlify deployable - no backend):
+A static React + TypeScript SPA deployed to GitHub Pages with no backend:
 
-1. **Data layer**: chart + border-mod definitions (JSON), filled in from launch-day
-   data; community will datamine mod lists quickly (poedb/poewiki).
-2. **Importer**: paste-parse chart item text; paste board text if Ctrl+C works,
-   else quick-pick UI for the 12 border mods.
-3. **Board UI**: 3×3 grid + 12 border slots, drag-and-drop, live score/bonus panel
-   (sulozor-style).
-4. **Solver**: user weights for reward types → exhaustive search with connectivity
-   pruning → show top-k arrangements with score breakdown.
-5. **Share/save**: layout state in URL, localStorage saved layouts.
+1. **Data layer:** canonical chart, voyage-modifier, border-modifier, and strategy
+   definitions with stable persisted IDs.
+2. **Importer:** clipboard parsing for Charted Charts, manual border entry, and an
+   optional Windows OCR bridge.
+3. **Board UI:** 3×3 board, 12 border slots, rotation, validity/reachability
+   feedback, score breakdown, and voyage advice.
+4. **Solver:** exact search for the bounded non-rotational case and seeded
+   approximate search otherwise, both running behind a Web Worker boundary.
+5. **Share/save:** URL state, browser persistence, and JSON import/export.
+6. **Quality/deployment:** tests, typecheck, ESLint, Prettier, production build,
+   performance benchmark, and GitHub Pages deployment.
 
-## Launch-day checklist (blockers, ~day 1)
+## Remaining research checklist
 
-- [ ] Ctrl+C a Lost Chart and a Charted Chart → capture exact item text format
-- [ ] Ctrl+C over the Voyage Board UI → does it export anything?
-- [x] Confirm connector rules: charts rotate; all 9 slots are filled; local edges
-      must match for launch, while disconnected components remain unreachable from
-      the bottom-left start.
-- [ ] Collect the border modifier pool + whether weights/tiers vary by area level
-- [ ] Confirm chart modifier pool + scopes (self/adjacent/global) from poedb/patch notes
+- [x] Capture live Charted Chart item text and parser fixtures.
+- [x] Confirm chart rotation, local connector matching, and bottom-left
+      reachability behavior.
+- [x] Collect the current public border-modifier records.
+- [ ] Confirm the paid-reroll cap and exact counter-reset event in the live UI.
+- [ ] Collect unbiased natural and paid-reroll samples to estimate weights, tier
+      gates, duplicate rules, and slot independence.
+- [ ] Add live fixtures for additional client languages and newly observed chart
+      modifier text.
 
 ## Sources
 
