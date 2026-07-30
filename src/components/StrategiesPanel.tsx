@@ -137,6 +137,17 @@ export function StrategiesPanel({ activeId, pool, borders, onSelect }: Props) {
                 ) : (
                   <span className="strat-source">{s.source.label}</span>
                 )}
+                {s.extraLinks?.map((l) => (
+                  <a
+                    key={l.url}
+                    className="strat-source strat-extra-link"
+                    href={l.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    🔗 {l.label}
+                  </a>
+                ))}
               </div>
             )}
             {(isActive || isOpen) && s.searchRegex && <RegexRow regex={s.searchRegex} />}
