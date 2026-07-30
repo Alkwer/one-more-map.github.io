@@ -358,36 +358,38 @@ export function BoardView(props: Props) {
         </button>
         <button onClick={clearBorders}>Clear borders</button>
       </div>
-      <div className="board-grid">
-        <div className="corner" />
-        {border(0)}
-        {border(1)}
-        {border(2)}
-        <div className="corner" />
+      <div className="board-scroll">
+        <div className="board-grid">
+          <div className="corner" />
+          {border(0)}
+          {border(1)}
+          {border(2)}
+          <div className="corner" />
 
-        {border(9, true)}
-        {tile(0)}
-        {tile(1)}
-        {tile(2)}
-        {border(3, true)}
+          {border(9, true)}
+          {tile(0)}
+          {tile(1)}
+          {tile(2)}
+          {border(3, true)}
 
-        {border(10, true)}
-        {tile(3)}
-        {tile(4)}
-        {tile(5)}
-        {border(4, true)}
+          {border(10, true)}
+          {tile(3)}
+          {tile(4)}
+          {tile(5)}
+          {border(4, true)}
 
-        {border(11, true)}
-        {tile(6)}
-        {tile(7)}
-        {tile(8)}
-        {border(5, true)}
+          {border(11, true)}
+          {tile(6)}
+          {tile(7)}
+          {tile(8)}
+          {border(5, true)}
 
-        <div className="corner" />
-        {border(6)}
-        {border(7)}
-        {border(8)}
-        <div className="corner" />
+          <div className="corner" />
+          {border(6)}
+          {border(7)}
+          {border(8)}
+          <div className="corner" />
+        </div>
       </div>
       <div className="board-hint">
         Corners get 2 border mods, edges 1, center 0. Click a library chart then a cell to

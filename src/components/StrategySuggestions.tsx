@@ -6,10 +6,14 @@ interface Props {
   onSelect: (id: string) => void
 }
 
-const confidenceLabel = {
-  low: 'LOW SIGNAL',
-  medium: 'GOOD MATCH',
-  high: 'HIGH CONFIDENCE',
+const fitLabel = {
+  empty: 'NO ROLL DATA',
+  incomplete: 'PARTIAL EVIDENCE',
+  unscored: 'NO WEIGHTED SIGNAL',
+  weak: 'WEAK ABSOLUTE FIT',
+  mixed: 'MIXED ABSOLUTE FIT',
+  strong: 'STRONG ABSOLUTE FIT',
+  excellent: 'EXCELLENT ABSOLUTE FIT',
 } as const
 
 export function StrategySuggestions({ result, activeId, onSelect }: Props) {
@@ -18,10 +22,11 @@ export function StrategySuggestions({ result, activeId, onSelect }: Props) {
       <div className="suggestion-heading">
         <div>
           <div className="panel-title" id="strategy-suggestions-title">
-            Suggested for this roll
+            Strategy compatibility
           </div>
           <div className="muted small-note suggestion-intro">
-            Ranked from current borders, placed charts and pieces in your library.
+            Diagnostic ranking against each strategy&apos;s own weights. Absolute
+            fit and readiness are shown separately.
           </div>
         </div>
         {result.enteredBorders > 0 && (
@@ -48,10 +53,14 @@ export function StrategySuggestions({ result, activeId, onSelect }: Props) {
               >
                 <div className="suggestion-card-head">
                   <div className="suggestion-rank">
-                    {suggestion.jackpot ? '🎰 JACKPOT' : index === 0 ? '#1 BEST MATCH' : `#${index + 1}`}
+                    {suggestion.jackpot
+                      ? '🎰 JACKPOT'
+                      : index === 0
+                        ? 'Best relative compatibility'
+                        : `#${index + 1} relative`}
                   </div>
                   <span className={`suggestion-confidence ${suggestion.confidence}`}>
-                    {confidenceLabel[suggestion.confidence]}
+                    {fitLabel[suggestion.status]}
                   </span>
                 </div>
                 <div className="suggestion-name">{suggestion.strategy.name}</div>
@@ -68,6 +77,14 @@ export function StrategySuggestions({ result, activeId, onSelect }: Props) {
                         : `${suggestion.readiness.have}/${suggestion.readiness.need}`}
                     </strong>
                   </span>
+                  <span>
+                    Absolute fit{' '}
+                    <strong>
+                      {suggestion.fit === null
+                        ? '—'
+                        : `${Math.round(suggestion.fit * 100)}%`}
+                    </strong>
+                  </span>
                 </div>
                 {index === 0 && (
                   <ul className="suggestion-reasons">
@@ -81,7 +98,7 @@ export function StrategySuggestions({ result, activeId, onSelect }: Props) {
                   disabled={isActive}
                   onClick={() => onSelect(suggestion.strategy.id)}
                 >
-                  {isActive ? '✓ Strategy active' : 'Use this strategy'}
+                  {isActive ? '✓ Strategy active' : 'Set active strategy'}
                 </button>
               </article>
             )
@@ -90,7 +107,8 @@ export function StrategySuggestions({ result, activeId, onSelect }: Props) {
       )}
 
       <div className="suggestion-disclaimer">
-        Compatibility only — keep/reroll EV needs real roll probabilities.
+        Diagnostic only — the recommendation above is the single play/reroll
+        decision.
       </div>
     </section>
   )

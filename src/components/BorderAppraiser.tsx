@@ -8,6 +8,7 @@ import { ALL_STATS, STAT_LABELS } from '../types'
 
 interface Props {
   appraisal: BorderAppraisal
+  contextLabel: string
 }
 
 const STATUS_LABEL: Record<BorderAppraisalStatus, string> = {
@@ -62,7 +63,7 @@ function SegmentRow({ segment, compact = false }: { segment: BorderSegmentApprai
   )
 }
 
-export function BorderAppraiser({ appraisal }: Props) {
+export function BorderAppraiser({ appraisal, contextLabel }: Props) {
   const top = [...appraisal.segments]
     .filter((segment) => segment.active && segment.contribution > 0)
     .sort((a, b) => b.contribution - a.contribution)
@@ -78,10 +79,10 @@ export function BorderAppraiser({ appraisal }: Props) {
       <div className="border-appraiser-head">
         <div>
           <div id="border-appraiser-title" className="panel-title">
-            Border Roll Appraiser
+            Border Fit Diagnostic
           </div>
           <div className="muted border-appraiser-subtitle">
-            Contextual value for this layout and your current reward weights
+            {contextLabel}
           </div>
         </div>
         <span className={`border-fit-badge ${appraisal.status}`}>
