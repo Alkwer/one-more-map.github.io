@@ -1,0 +1,245 @@
+import { borderModById } from '../data/mods'
+import type { Borders } from '../types'
+
+export const BORDER_ROLL_SAMPLE_SCHEMA = 'allflame-border-roll/v1' as const
+export const BORDER_ROLL_DATASET_SCHEMA = 'allflame-border-roll-dataset/v1' as const
+
+const STORE_VERSION = 1
+const STORAGE_KEY = 'allflame-border-roll-research'
+const SUBMISSION_URL = 'https://github.com/one-more-map/one-more-map.github.io/issues/new'
+
+export type OrderedBorderIds = [
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+]
+
+export interface BorderRollSample {
+  schema: typeof BORDER_ROLL_SAMPLE_SCHEMA
+  sampleId: string
+  /** Groups the natural board and every paid reroll from the same Voyage. */
+  sequenceId: string
+  capturedAt: string
+  gamePatch: string
+  voyageLevel: number
+  generation: 'natural' | 'paid-reroll'
+  /** Zero is the natural board; one and above are paid rerolls in order. */
+  rerollIndex: number
+  /** The next reroll price visible while this board was on screen, if any. */
+  displayedNextRerollCost: number | null
+  /** Clockwise UI order: top, right, bottom, left; three slots per side. */
+  borderModIds: OrderedBorderIds
+}
+
+export interface BorderResearchStore {
+  version: typeof STORE_VERSION
+  activeSequenceId: string
+  samples: BorderRollSample[]
+}
+
+interface CreateSampleInput {
+  sequenceId: string
+  gamePatch: string
+  voyageLevel: number
+  rerollIndex: number
+  displayedNextRerollCost: number | null
+  borders: Borders
+  capturedAt?: string
+}
+
+export type CreateSampleResult =
+  { ok: true; sample: BorderRollSample } | { ok: false; message: string }
+
+export type AddSampleResult =
+  | { status: 'added'; store: BorderResearchStore }
+  | { status: 'duplicate'; store: BorderResearchStore }
+  | { status: 'conflict'; store: BorderResearchStore }
+
+function createId(prefix: string): string {
+  const id =
+    globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return `${prefix}-${id}`
+}
+
+export function createBorderResearchStore(): BorderResearchStore {
+  return {
+    version: STORE_VERSION,
+    activeSequenceId: createId('voyage'),
+    samples: [],
+  }
+}
+
+export function startBorderRollSequence(store: BorderResearchStore): BorderResearchStore {
+  return { ...store, activeSequenceId: createId('voyage') }
+}
+
+function completeBorders(borders: Borders): OrderedBorderIds | null {
+  if (borders.length !== 12 || borders.some((id) => !id || !borderModById.has(id))) return null
+  return [...borders] as OrderedBorderIds
+}
+
+export function createBorderRollSample(input: CreateSampleInput): CreateSampleResult {
+  const gamePatch = input.gamePatch.trim()
+  if (!gamePatch || gamePatch.length > 32) {
+    return { ok: false, message: 'Enter the current game patch (for example 3.29.0).' }
+  }
+  if (!Number.isInteger(input.voyageLevel) || input.voyageLevel < 1 || input.voyageLevel > 100) {
+    return { ok: false, message: 'Voyage level must be a whole number from 1 to 100.' }
+  }
+  if (!Number.isInteger(input.rerollIndex) || input.rerollIndex < 0 || input.rerollIndex > 20) {
+    return { ok: false, message: 'Reroll number must be a whole number from 0 to 20.' }
+  }
+  if (
+    input.displayedNextRerollCost !== null &&
+    (!Number.isInteger(input.displayedNextRerollCost) || input.displayedNextRerollCost < 0)
+  ) {
+    return { ok: false, message: 'Displayed cost must be a non-negative whole number or blank.' }
+  }
+  const borderModIds = completeBorders(input.borders)
+  if (!borderModIds) {
+    return { ok: false, message: 'Import or enter all 12 recognised border modifiers first.' }
+  }
+  if (!input.sequenceId.trim()) {
+    return { ok: false, message: 'Start a Voyage sequence before recording a roll.' }
+  }
+
+  return {
+    ok: true,
+    sample: {
+      schema: BORDER_ROLL_SAMPLE_SCHEMA,
+      sampleId: createId('roll'),
+      sequenceId: input.sequenceId,
+      capturedAt: input.capturedAt ?? new Date().toISOString(),
+      gamePatch,
+      voyageLevel: input.voyageLevel,
+      generation: input.rerollIndex === 0 ? 'natural' : 'paid-reroll',
+      rerollIndex: input.rerollIndex,
+      displayedNextRerollCost: input.displayedNextRerollCost,
+      borderModIds,
+    },
+  }
+}
+
+const sameBorders = (left: OrderedBorderIds, right: OrderedBorderIds) =>
+  left.every((id, index) => id === right[index])
+
+export function addBorderRollSample(
+  store: BorderResearchStore,
+  sample: BorderRollSample,
+): AddSampleResult {
+  const existing = store.samples.find(
+    (item) => item.sequenceId === sample.sequenceId && item.rerollIndex === sample.rerollIndex,
+  )
+  if (existing) {
+    return {
+      status: sameBorders(existing.borderModIds, sample.borderModIds) ? 'duplicate' : 'conflict',
+      store,
+    }
+  }
+  return { status: 'added', store: { ...store, samples: [...store.samples, sample] } }
+}
+
+export function removeBorderRollSample(
+  store: BorderResearchStore,
+  sampleId: string,
+): BorderResearchStore {
+  return { ...store, samples: store.samples.filter((sample) => sample.sampleId !== sampleId) }
+}
+
+function isStoredSample(value: unknown): value is BorderRollSample {
+  if (!value || typeof value !== 'object') return false
+  const sample = value as Partial<BorderRollSample>
+  return (
+    sample.schema === BORDER_ROLL_SAMPLE_SCHEMA &&
+    typeof sample.sampleId === 'string' &&
+    sample.sampleId.length > 0 &&
+    typeof sample.sequenceId === 'string' &&
+    sample.sequenceId.length > 0 &&
+    typeof sample.capturedAt === 'string' &&
+    Number.isFinite(Date.parse(sample.capturedAt)) &&
+    typeof sample.gamePatch === 'string' &&
+    sample.gamePatch.trim().length > 0 &&
+    sample.gamePatch.length <= 32 &&
+    typeof sample.voyageLevel === 'number' &&
+    Number.isInteger(sample.voyageLevel) &&
+    sample.voyageLevel >= 1 &&
+    sample.voyageLevel <= 100 &&
+    (sample.generation === 'natural' || sample.generation === 'paid-reroll') &&
+    typeof sample.rerollIndex === 'number' &&
+    Number.isInteger(sample.rerollIndex) &&
+    sample.rerollIndex >= 0 &&
+    sample.rerollIndex <= 20 &&
+    sample.generation === (sample.rerollIndex === 0 ? 'natural' : 'paid-reroll') &&
+    (sample.displayedNextRerollCost === null ||
+      (typeof sample.displayedNextRerollCost === 'number' &&
+        Number.isInteger(sample.displayedNextRerollCost) &&
+        sample.displayedNextRerollCost >= 0)) &&
+    Array.isArray(sample.borderModIds) &&
+    completeBorders(sample.borderModIds as Borders) !== null
+  )
+}
+
+export function loadBorderResearch(): BorderResearchStore {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return createBorderResearchStore()
+    const value = JSON.parse(raw) as Partial<BorderResearchStore>
+    if (
+      value.version !== STORE_VERSION ||
+      typeof value.activeSequenceId !== 'string' ||
+      !Array.isArray(value.samples) ||
+      !value.samples.every(isStoredSample)
+    ) {
+      return createBorderResearchStore()
+    }
+    return value as BorderResearchStore
+  } catch {
+    return createBorderResearchStore()
+  }
+}
+
+export function saveBorderResearch(store: BorderResearchStore): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store))
+  } catch {
+    /* storage full or unavailable */
+  }
+}
+
+export function serializeBorderRollDataset(
+  samples: BorderRollSample[],
+  exportedAt = new Date().toISOString(),
+): string {
+  return JSON.stringify(
+    {
+      schema: BORDER_ROLL_DATASET_SCHEMA,
+      exportedAt,
+      sampleCount: samples.length,
+      samples,
+    },
+    null,
+    2,
+  )
+}
+
+export function buildBorderRollSubmissionUrl(sample: BorderRollSample): string {
+  const title = `[data] Border roll ${sample.gamePatch} level ${sample.voyageLevel}`
+  const body = [
+    'I captured this full roll without selecting only good or unusual outcomes.',
+    '',
+    '```json',
+    JSON.stringify(sample, null, 2),
+    '```',
+  ].join('\n')
+  const query = new URLSearchParams({ title, body })
+  return `${SUBMISSION_URL}?${query.toString()}`
+}

@@ -2,6 +2,7 @@ import { Buffer } from 'node:buffer'
 import AxeBuilder from '@axe-core/playwright'
 import {
   APP_PATH,
+  COMPLETE_DIVINE_BORDER_PAYLOAD,
   DIVINE_BORDER_PAYLOAD,
   ENGLISH_CHART,
   KOREAN_CHART,
@@ -86,6 +87,37 @@ test('globally imports English, Korean, and border clipboard payloads', async ({
   await expect
     .poll(() => workerUrls.some((url) => /\/assets\/solver\.worker-[^/]+\.js$/.test(url)))
     .toBe(true)
+})
+
+test('records only complete border rolls and keeps Voyage sequences distinct', async ({
+  appPage,
+}) => {
+  await openApp(appPage)
+
+  const research = appPage.locator('details.roll-research')
+  await research.getByText(/Contribute border-roll data/).click()
+  await expect(research.getByRole('button', { name: 'Save current roll' })).toBeDisabled()
+
+  await pasteText(appPage, COMPLETE_DIVINE_BORDER_PAYLOAD)
+  await research.getByLabel('Voyage level').fill('83')
+  await expect(research.getByText('✓ All 12 borders ready')).toBeVisible()
+  await research.getByRole('button', { name: 'Save current roll' }).click()
+  await expect(research.getByText(/Saved complete roll: 12 modifiers/)).toBeVisible()
+  await expect(research.getByText(/Contribute border-roll data \(1 saved\)/)).toBeVisible()
+
+  await research.getByRole('button', { name: 'Save current roll' }).click()
+  await expect(research.getByText(/already saved/)).toBeVisible()
+
+  await research.getByRole('button', { name: 'Start next Voyage' }).click()
+  await research.getByRole('button', { name: 'Save current roll' }).click()
+  await expect(research.getByText(/Contribute border-roll data \(2 saved\)/)).toBeVisible()
+  await expectNoAccessibilityViolations(appPage)
+
+  const stored = await appPage.evaluate(() =>
+    JSON.parse(localStorage.getItem('allflame-border-roll-research') ?? '{}'),
+  )
+  expect(stored.samples).toHaveLength(2)
+  expect(stored.samples[0].sequenceId).not.toBe(stored.samples[1].sequenceId)
 })
 
 test('recovers an unknown shape and places it on the board with the keyboard', async ({
