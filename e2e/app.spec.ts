@@ -87,7 +87,7 @@ test('globally imports English, Korean, and border clipboard payloads', async ({
   ).toBeVisible()
 
   await pasteText(appPage, REROLL_COST_PAYLOAD)
-  await expect(appPage.getByText('1/5', { exact: true })).toBeVisible()
+  await expect(appPage.getByText('3/5', { exact: true })).toBeVisible()
   await expect(appPage.getByRole('button', { name: 'Decrease rerolls used' })).toBeEnabled()
   await expect
     .poll(() => workerUrls.some((url) => /\/assets\/solver\.worker-[^/]+\.js$/.test(url)))

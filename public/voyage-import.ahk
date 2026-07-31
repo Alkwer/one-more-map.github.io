@@ -587,6 +587,7 @@ ScanRerollCost() {
         Sleep 30
         block := RunOcrHelper(arguments)
         if RegExMatch(block, "i)Border\s+Modifiers?\s+Reroll\s+Cost")
+            && RegExMatch(block, "i)(?:3|6|12|24|48)[\s,.]*[0o]{3}")
             break
     }
     return block
