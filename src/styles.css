@@ -224,6 +224,16 @@ button,
   font-size: 13px;
   letter-spacing: 0.5px;
 }
+
+button:focus-visible,
+.file-btn:focus-within,
+.chart-sq:focus-visible,
+.chart-card:focus-visible,
+.tile:focus-visible,
+.bslot:focus-visible {
+  outline: 2px solid var(--gold-bright);
+  outline-offset: 2px;
+}
 button:hover,
 .file-btn:hover {
   color: var(--gold-bright);

@@ -1,6 +1,8 @@
 dist/
 coverage/
 staging/
+playwright-report/
+test-results/
 node_modules/
 .codex-remote-attachments/
 package-lock.json

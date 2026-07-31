@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type KeyboardEvent } from 'react'
 import { BORDER_MODS, borderModById, voyageModById } from '../data/mods'
 import { rotateEdges } from '../logic/connectivity'
 import { buildSingleChartSearch } from '../logic/regex'
@@ -28,6 +28,13 @@ interface Props {
   sequenceActive?: boolean
 }
 
+function activateWithKeyboard(event: KeyboardEvent<HTMLElement>, activate: () => void) {
+  if (event.target !== event.currentTarget) return
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  activate()
+}
+
 function BorderSelect({
   value,
   onChange,
@@ -51,15 +58,22 @@ function BorderSelect({
     onChange(id)
     setOpen(false)
   }
+  const openPicker = () => {
+    setQ('')
+    setOpen(true)
+  }
 
   return (
     <span
       className={`bslot ${vertical ? 'bslot-vertical' : ''} ${mod ? 'filled' : ''}`}
       title={mod?.text ?? 'Border segment: click to search'}
-      onClick={() => {
-        setQ('')
-        setOpen(true)
-      }}
+      role="button"
+      tabIndex={0}
+      aria-label={`Border segment ${seg + 1}: ${mod?.text ?? 'No border'}`}
+      aria-expanded={open}
+      aria-haspopup="dialog"
+      onClick={openPicker}
+      onKeyDown={(event) => activateWithKeyboard(event, openPicker)}
     >
       {mod ? (
         <span>
@@ -119,6 +133,7 @@ function BorderSelect({
 type EdgeStatus = 'none' | 'connected' | 'open' | 'mismatch'
 
 function Tile({
+  cellIndex,
   placement,
   chart,
   score,
@@ -132,6 +147,7 @@ function Tile({
   onRotate,
   onTogglePreserve,
 }: {
+  cellIndex: number
   placement: Placement | null
   chart: ChartData | null
   score: number
@@ -153,7 +169,15 @@ function Tile({
   ) : null
   if (!placement || !chart) {
     return (
-      <div className={`tile empty ${placing ? 'placing' : ''}`} onClick={onClick}>
+      <div
+        className={`tile empty ${placing ? 'placing' : ''}`}
+        role="button"
+        tabIndex={0}
+        aria-label={`Board cell ${cellIndex + 1}${isStart ? ' (start)' : ''}: empty`}
+        aria-pressed={selected}
+        onClick={onClick}
+        onKeyDown={(event) => activateWithKeyboard(event, onClick)}
+      >
         {startBadge}
         {placing ? 'place here' : ''}
       </div>
@@ -181,7 +205,12 @@ function Tile({
   return (
     <div
       className={`tile ${selected ? 'selected' : ''} ${highlighted ? 'highlighted' : ''} ${chart.preserved ? 'preserved' : ''} ${primary ? `tscope-${primary.scope}` : ''}`}
+      role="button"
+      tabIndex={0}
+      aria-label={`Board cell ${cellIndex + 1}${isStart ? ' (start)' : ''}: ${chart.name}`}
+      aria-pressed={selected}
       onClick={onClick}
+      onKeyDown={(event) => activateWithKeyboard(event, onClick)}
       {...tt}
     >
       {(['n', 'e', 's', 'w'] as const).map((d, i) =>
@@ -318,6 +347,7 @@ export function BoardView(props: Props) {
     return (
       <Tile
         key={i}
+        cellIndex={i}
         placement={p}
         chart={p ? (charts.get(p.chartUid) ?? null) : null}
         score={props.perTile[i]}

@@ -7,14 +7,19 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --exclude tests/performance/**",
+    "test": "vitest run --exclude \"tests/performance/**\" --exclude \"e2e/**\"",
     "test:performance": "vitest run tests/performance/solver-performance-budget.test.ts",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "validate": "npm run typecheck && npm test && npm run lint && npm run format:check && npm run build",
     "bench:solver": "vitest bench --run benchmarks/solver-performance.bench.ts",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "stage:pages": "node scripts/stage-pages.mjs",
+    "build:pages": "npm run build && npm run stage:pages",
+    "preview:pages": "vite preview --outDir staging",
+    "test:e2e": "npm run build:pages && playwright test",
+    "test:e2e:ui": "npm run build:pages && playwright test --ui"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -22,6 +27,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^24.13.3",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^6.0.5",
