@@ -23,8 +23,10 @@ Confidence labels:
 
 Research is sufficient to model the **Sulphur cost curve**, but not yet to
 calculate a defensible reroll EV. The game data exposes the border-mod pool and
-reroll constants, but it does **not** expose border selection weights, tier
-eligibility by Voyage level, duplicate rules, or independence between slots.
+reroll constants, but it does **not** expose border selection weights, duplicate
+rules, or independence between slots. Border modifiers are present before any
+charts are placed, so the levels of subsequently placed charts cannot determine
+border-mod eligibility.
 
 ### Reroll mechanics and cost
 
@@ -83,8 +85,8 @@ One community comment gives `75k` for five rerolls, but its written sequence is
   canonical tooltip texts to remain unique.
 - The 66 records include explicit tier variants (for example 16/24/32% pack
   size and 50/75/100% more currency), but all tiers still report required level
-  1. Tier selection must therefore be controlled by separate Voyage logic or
-     server-side data, not the public mod-level field.
+  1. Tier selection must therefore be controlled by other game logic or
+     server-side data, not the public mod-level field or chart levels chosen later.
 - `DeepwaterBalancePerLevel.datc64` and the other public `Deepwater*.datc64`
   tables inspected do not expose a border weight/tier table. Some patch bundles
   returned 404 in the community data viewer, so this is **not proof that no such
@@ -98,12 +100,11 @@ One community comment gives `75k` for five rerolls, but its written sequence is
 Still unknown:
 
 1. Weight of each family and tier.
-2. How Voyage/chart area level changes tier eligibility or magnitude.
-3. Whether the 12 slots are independent.
-4. Whether duplicate modifiers can occur on one board and, if so, without limit.
-5. Whether paid rerolls use the same distribution as a newly generated board.
-6. Whether the third reroll constant really enforces a five-reroll cap.
-7. Precisely when the doubling counter resets.
+2. Whether the 12 slots are independent.
+3. Whether duplicate modifiers can occur on one board and, if so, without limit.
+4. Whether paid rerolls use the same distribution as a newly generated board.
+5. Whether the third reroll constant really enforces a five-reroll cap.
+6. Precisely when the doubling counter resets.
 
 ### Consequence for the suggested feature
 
@@ -128,8 +129,8 @@ Capture natural boards and paid rerolls without discarding bad outcomes. For
 each observation store:
 
 ```text
-patch, voyage/board level, natural-or-paid, reroll index, displayed cost,
-12 ordered border modifier IDs/texts
+patch, natural-or-paid, reroll index, displayed cost, 12 ordered border
+modifier IDs/texts
 ```
 
 The first validation batch should answer mechanics, not estimate rare-mod EV:
@@ -138,8 +139,7 @@ The first validation batch should answer mechanics, not estimate rare-mod EV:
    scope, and displayed costs.
 2. Complete/start the next Voyage and record the first displayed reroll cost.
 3. Check whether a single board can contain duplicate IDs/families.
-4. Repeat at low, mid, and endgame chart levels and compare which tier variants
-   appear.
+4. Compare natural boards with paid rerolls before combining their samples.
 
 Only after those checks should a larger unbiased sample be used to estimate
 weights. Every board contributes 12 observations, but slots from one board

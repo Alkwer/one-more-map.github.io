@@ -32,10 +32,9 @@ The project separates observed game mechanics from app-level assumptions:
 - **Solver heuristics:** user-defined reward weights, strategy rankings,
   appraiser thresholds, and the approximate search used for larger pools.
   Scores are utility scores for comparing layouts, not currency expected value.
-- **Still unknown:** border selection weights, tier eligibility, duplicate and
-  independence rules, the paid-reroll distribution, and the exact reset/cap
-  behavior. The app does not present a uniform random simulation as a proven
-  in-game probability model.
+- **Still unknown:** border selection weights, duplicate and independence rules,
+  the paid-reroll distribution, and the exact reset/cap behavior. The app does
+  not present a uniform random simulation as a proven in-game probability model.
 
 See [RESEARCH.md](RESEARCH.md) for the evidence, assumptions, and remaining
 research questions.

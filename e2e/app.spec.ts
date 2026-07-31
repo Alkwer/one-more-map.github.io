@@ -104,7 +104,7 @@ test('records only complete border rolls and keeps Voyage sequences distinct', a
   await expect(research.getByRole('button', { name: 'Save current roll' })).toBeDisabled()
 
   await pasteText(appPage, COMPLETE_DIVINE_BORDER_PAYLOAD)
-  await research.getByLabel('Voyage level').fill('83')
+  await expect(research.getByLabel('Voyage level')).toHaveCount(0)
   await expect(research.getByText('✓ All 12 borders ready')).toBeVisible()
   await research.getByRole('button', { name: 'Save current roll' }).click()
   await expect(research.getByText(/Saved complete roll: 12 modifiers/)).toBeVisible()
@@ -122,6 +122,8 @@ test('records only complete border rolls and keeps Voyage sequences distinct', a
     JSON.parse(localStorage.getItem('allflame-border-roll-research') ?? '{}'),
   )
   expect(stored.samples).toHaveLength(2)
+  expect(stored.version).toBe(2)
+  expect(stored.samples[0]).not.toHaveProperty('voyageLevel')
   expect(stored.samples[0].sequenceId).not.toBe(stored.samples[1].sequenceId)
 })
 

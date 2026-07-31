@@ -1,10 +1,12 @@
 import { borderModById } from '../data/mods'
 import type { Borders } from '../types'
 
-export const BORDER_ROLL_SAMPLE_SCHEMA = 'allflame-border-roll/v1' as const
-export const BORDER_ROLL_DATASET_SCHEMA = 'allflame-border-roll-dataset/v1' as const
+export const BORDER_ROLL_SAMPLE_SCHEMA = 'allflame-border-roll/v2' as const
+export const BORDER_ROLL_DATASET_SCHEMA = 'allflame-border-roll-dataset/v2' as const
 
-const STORE_VERSION = 1
+const LEGACY_SAMPLE_SCHEMA = 'allflame-border-roll/v1' as const
+const LEGACY_STORE_VERSION = 1
+const STORE_VERSION = 2
 const STORAGE_KEY = 'allflame-border-roll-research'
 const SUBMISSION_URL = 'https://github.com/one-more-map/one-more-map.github.io/issues/new'
 
@@ -30,7 +32,6 @@ export interface BorderRollSample {
   sequenceId: string
   capturedAt: string
   gamePatch: string
-  voyageLevel: number
   generation: 'natural' | 'paid-reroll'
   /** Zero is the natural board; one and above are paid rerolls in order. */
   rerollIndex: number
@@ -49,7 +50,6 @@ export interface BorderResearchStore {
 interface CreateSampleInput {
   sequenceId: string
   gamePatch: string
-  voyageLevel: number
   rerollIndex: number
   displayedNextRerollCost: number | null
   borders: Borders
@@ -92,9 +92,6 @@ export function createBorderRollSample(input: CreateSampleInput): CreateSampleRe
   if (!gamePatch || gamePatch.length > 32) {
     return { ok: false, message: 'Enter the current game patch (for example 3.29.0).' }
   }
-  if (!Number.isInteger(input.voyageLevel) || input.voyageLevel < 1 || input.voyageLevel > 100) {
-    return { ok: false, message: 'Voyage level must be a whole number from 1 to 100.' }
-  }
   if (!Number.isInteger(input.rerollIndex) || input.rerollIndex < 0 || input.rerollIndex > 20) {
     return { ok: false, message: 'Reroll number must be a whole number from 0 to 20.' }
   }
@@ -120,7 +117,6 @@ export function createBorderRollSample(input: CreateSampleInput): CreateSampleRe
       sequenceId: input.sequenceId,
       capturedAt: input.capturedAt ?? new Date().toISOString(),
       gamePatch,
-      voyageLevel: input.voyageLevel,
       generation: input.rerollIndex === 0 ? 'natural' : 'paid-reroll',
       rerollIndex: input.rerollIndex,
       displayedNextRerollCost: input.displayedNextRerollCost,
@@ -169,10 +165,6 @@ function isStoredSample(value: unknown): value is BorderRollSample {
     typeof sample.gamePatch === 'string' &&
     sample.gamePatch.trim().length > 0 &&
     sample.gamePatch.length <= 32 &&
-    typeof sample.voyageLevel === 'number' &&
-    Number.isInteger(sample.voyageLevel) &&
-    sample.voyageLevel >= 1 &&
-    sample.voyageLevel <= 100 &&
     (sample.generation === 'natural' || sample.generation === 'paid-reroll') &&
     typeof sample.rerollIndex === 'number' &&
     Number.isInteger(sample.rerollIndex) &&
@@ -188,20 +180,74 @@ function isStoredSample(value: unknown): value is BorderRollSample {
   )
 }
 
+interface LegacyBorderRollSample extends Omit<BorderRollSample, 'schema'> {
+  schema: typeof LEGACY_SAMPLE_SCHEMA
+  voyageLevel: number
+}
+
+function isLegacyStoredSample(value: unknown): value is LegacyBorderRollSample {
+  if (!value || typeof value !== 'object') return false
+  const sample = value as Partial<LegacyBorderRollSample>
+  if (
+    sample.schema !== LEGACY_SAMPLE_SCHEMA ||
+    typeof sample.voyageLevel !== 'number' ||
+    !Number.isInteger(sample.voyageLevel) ||
+    sample.voyageLevel < 1 ||
+    sample.voyageLevel > 100
+  ) {
+    return false
+  }
+  const currentFields = { ...sample }
+  delete currentFields.voyageLevel
+  return isStoredSample({ ...currentFields, schema: BORDER_ROLL_SAMPLE_SCHEMA })
+}
+
+function migrateLegacySample(sample: LegacyBorderRollSample): BorderRollSample {
+  return {
+    schema: BORDER_ROLL_SAMPLE_SCHEMA,
+    sampleId: sample.sampleId,
+    sequenceId: sample.sequenceId,
+    capturedAt: sample.capturedAt,
+    gamePatch: sample.gamePatch,
+    generation: sample.generation,
+    rerollIndex: sample.rerollIndex,
+    displayedNextRerollCost: sample.displayedNextRerollCost,
+    borderModIds: sample.borderModIds,
+  }
+}
+
 export function loadBorderResearch(): BorderResearchStore {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return createBorderResearchStore()
-    const value = JSON.parse(raw) as Partial<BorderResearchStore>
-    if (
-      value.version !== STORE_VERSION ||
-      typeof value.activeSequenceId !== 'string' ||
-      !Array.isArray(value.samples) ||
-      !value.samples.every(isStoredSample)
-    ) {
-      return createBorderResearchStore()
+    const value = JSON.parse(raw) as {
+      version?: unknown
+      activeSequenceId?: unknown
+      samples?: unknown
     }
-    return value as BorderResearchStore
+    if (
+      value.version === STORE_VERSION &&
+      typeof value.activeSequenceId === 'string' &&
+      Array.isArray(value.samples) &&
+      value.samples.every(isStoredSample)
+    ) {
+      return value as BorderResearchStore
+    }
+    if (
+      value.version === LEGACY_STORE_VERSION &&
+      typeof value.activeSequenceId === 'string' &&
+      Array.isArray(value.samples) &&
+      value.samples.every(isLegacyStoredSample)
+    ) {
+      const migrated: BorderResearchStore = {
+        version: STORE_VERSION,
+        activeSequenceId: value.activeSequenceId,
+        samples: value.samples.map(migrateLegacySample),
+      }
+      saveBorderResearch(migrated)
+      return migrated
+    }
+    return createBorderResearchStore()
   } catch {
     return createBorderResearchStore()
   }
@@ -232,7 +278,7 @@ export function serializeBorderRollDataset(
 }
 
 export function buildBorderRollSubmissionUrl(sample: BorderRollSample): string {
-  const title = `[data] Border roll ${sample.gamePatch} level ${sample.voyageLevel}`
+  const title = `[data] Border roll ${sample.gamePatch}`
   const body = [
     'I captured this full roll without selecting only good or unusual outcomes.',
     '',

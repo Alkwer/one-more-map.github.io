@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { BORDER_MODS } from '../data/mods'
 import type { Borders } from '../types'
 import {
@@ -8,6 +8,7 @@ import {
   buildBorderRollSubmissionUrl,
   createBorderResearchStore,
   createBorderRollSample,
+  loadBorderResearch,
   serializeBorderRollDataset,
 } from './borderRollResearch'
 
@@ -18,7 +19,6 @@ function sample(overrides: Partial<Parameters<typeof createBorderRollSample>[0]>
   const result = createBorderRollSample({
     sequenceId: 'voyage-test',
     gamePatch: '3.29.0',
-    voyageLevel: 83,
     rerollIndex: 0,
     displayedNextRerollCost: 3000,
     borders: completeBorders(),
@@ -43,7 +43,7 @@ describe('border roll research samples', () => {
     expect(result.borderModIds).toHaveLength(12)
   })
 
-  it('rejects incomplete boards and invalid metadata', () => {
+  it('rejects incomplete boards', () => {
     const incomplete = completeBorders()
     incomplete[4] = null
 
@@ -51,22 +51,41 @@ describe('border roll research samples', () => {
       createBorderRollSample({
         sequenceId: 'voyage-test',
         gamePatch: '3.29',
-        voyageLevel: 83,
         rerollIndex: 0,
         displayedNextRerollCost: 3000,
         borders: incomplete,
       }),
     ).toMatchObject({ ok: false, message: expect.stringContaining('all 12') })
-    expect(
-      createBorderRollSample({
-        sequenceId: 'voyage-test',
-        gamePatch: '3.29',
-        voyageLevel: 0,
-        rerollIndex: 0,
-        displayedNextRerollCost: 3000,
-        borders: completeBorders(),
-      }),
-    ).toMatchObject({ ok: false, message: expect.stringContaining('Voyage level') })
+  })
+
+  it('migrates stored v1 samples without the post-roll Voyage level', () => {
+    const current = sample()
+    const legacySample = {
+      ...current,
+      schema: 'allflame-border-roll/v1',
+      voyageLevel: 83,
+    }
+    const setItem = vi.fn()
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn(() =>
+        JSON.stringify({
+          version: 1,
+          activeSequenceId: 'voyage-test',
+          samples: [legacySample],
+        }),
+      ),
+      setItem,
+    })
+
+    try {
+      const migrated = loadBorderResearch()
+      expect(migrated.version).toBe(2)
+      expect(migrated.samples[0]).not.toHaveProperty('voyageLevel')
+      expect(migrated.samples[0].schema).toBe(BORDER_ROLL_SAMPLE_SCHEMA)
+      expect(JSON.parse(setItem.mock.calls[0][1]).samples[0]).not.toHaveProperty('voyageLevel')
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('keeps one observation per roll index in a Voyage sequence', () => {
