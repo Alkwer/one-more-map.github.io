@@ -16,7 +16,6 @@ import type { Borders } from '../types'
 interface Props {
   borders: Borders
   rerollsUsed: number
-  suggestedLevel: number | null
 }
 
 const asOptionalInteger = (value: string): number | null => {
@@ -25,12 +24,11 @@ const asOptionalInteger = (value: string): number | null => {
   return Number.isInteger(parsed) ? parsed : Number.NaN
 }
 
-export function BorderRollResearch({ borders, rerollsUsed, suggestedLevel }: Props) {
+export function BorderRollResearch({ borders, rerollsUsed }: Props) {
   const [store, setStore] = useState<BorderResearchStore>(loadBorderResearch)
   const [gamePatch, setGamePatch] = useState(
     () => store.samples[store.samples.length - 1]?.gamePatch ?? '3.29',
   )
-  const [voyageLevel, setVoyageLevel] = useState(() => suggestedLevel?.toString() ?? '')
   const [rerollIndex, setRerollIndex] = useState(() => rerollsUsed.toString())
   const [displayedCost, setDisplayedCost] = useState(
     () => REROLL_COSTS[rerollsUsed]?.toString() ?? '',
@@ -38,10 +36,6 @@ export function BorderRollResearch({ borders, rerollsUsed, suggestedLevel }: Pro
   const [message, setMessage] = useState('')
 
   const missingBorders = useMemo(() => borders.filter((id) => id === null).length, [borders])
-
-  useEffect(() => {
-    if (!voyageLevel && suggestedLevel) setVoyageLevel(suggestedLevel.toString())
-  }, [suggestedLevel, voyageLevel])
 
   useEffect(() => {
     setRerollIndex(rerollsUsed.toString())
@@ -57,7 +51,6 @@ export function BorderRollResearch({ borders, rerollsUsed, suggestedLevel }: Pro
     const result = createBorderRollSample({
       sequenceId: store.activeSequenceId,
       gamePatch,
-      voyageLevel: Number(voyageLevel),
       rerollIndex: rerollIndex.trim() ? Number(rerollIndex) : Number.NaN,
       displayedNextRerollCost: asOptionalInteger(displayedCost),
       borders,
@@ -119,17 +112,6 @@ export function BorderRollResearch({ borders, rerollsUsed, suggestedLevel }: Pro
             maxLength={32}
             placeholder="3.29.0"
             onChange={(event) => setGamePatch(event.target.value)}
-          />
-        </label>
-        <label>
-          Voyage level
-          <input
-            inputMode="numeric"
-            min={1}
-            max={100}
-            type="number"
-            value={voyageLevel}
-            onChange={(event) => setVoyageLevel(event.target.value)}
           />
         </label>
         <label>
@@ -200,7 +182,6 @@ export function BorderRollResearch({ borders, rerollsUsed, suggestedLevel }: Pro
           {recentSamples.map((sample) => (
             <li key={sample.sampleId}>
               <span>
-                L{sample.voyageLevel} ·{' '}
                 {sample.generation === 'natural' ? 'natural' : `reroll ${sample.rerollIndex}`} ·{' '}
                 {sample.gamePatch}
               </span>

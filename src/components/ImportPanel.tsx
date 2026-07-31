@@ -17,13 +17,6 @@ interface Props {
 export function ImportPanel({ onImport, state, onLoadState }: Props) {
   const [text, setText] = useState('')
   const [msg, setMsg] = useState('')
-  const placedUids = new Set(
-    state.board.flatMap((placement) => (placement ? [placement.chartUid] : [])),
-  )
-  const placedLevels = state.pool
-    .filter((chart) => placedUids.has(chart.uid))
-    .map((chart) => chart.level)
-  const suggestedVoyageLevel = placedLevels.length > 0 ? Math.max(...placedLevels) : null
 
   const doParse = useCallback(
     (raw?: string) => {
@@ -298,11 +291,7 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
         </p>
       </details>
 
-      <BorderRollResearch
-        borders={state.borders}
-        rerollsUsed={state.borderRerollsUsed}
-        suggestedLevel={suggestedVoyageLevel}
-      />
+      <BorderRollResearch borders={state.borders} rerollsUsed={state.borderRerollsUsed} />
     </section>
   )
 }
