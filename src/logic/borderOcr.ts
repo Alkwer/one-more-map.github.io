@@ -66,24 +66,32 @@ const rerollsUsedByCost = new Map<number, number>(
 )
 
 function matchRerollCost(raw: string): { cost: number; rerollsUsed: number } | null {
-  for (const candidate of candidateLines(raw)) {
-    const match = candidate.match(/\bborder\s+modifiers?\s+reroll\s+cost\b(.*)$/)
-    if (!match) continue
+  const hasTooltipLabel = candidateLines(raw).some((candidate) =>
+    /\bborder\s+modifiers?\s+reroll\s+cost\b/.test(candidate),
+  )
+  if (!hasTooltipLabel) return null
 
-    const tokens = match[1].trim().split(' ').filter(Boolean).slice(0, 3)
+  const tokens = normalizeBorderOcrText(raw).split(' ').filter(Boolean)
+  const matchedCosts = new Set<number>()
+  for (let start = 0; start < tokens.length; start++) {
     let digits = ''
-    for (const token of tokens) {
+    for (const token of tokens.slice(start, start + 3)) {
       // Windows OCR sometimes reads zeroes as the letter O in a spaced
       // thousands value (for example, "6 OOO"). Only normalize tokens that
       // otherwise look numeric, then accept one of the five known costs.
       if (!/^[0-9oil]+$/.test(token)) break
       digits += token.replace(/[oil]/g, (character) => (character === 'o' ? '0' : '1'))
       const cost = Number.parseInt(digits, 10)
-      const rerollsUsed = rerollsUsedByCost.get(cost)
-      if (rerollsUsed !== undefined) return { cost, rerollsUsed }
+      if (rerollsUsedByCost.has(cost)) matchedCosts.add(cost)
     }
   }
-  return null
+
+  // Full-window OCR can interleave unrelated UI numbers with the tooltip.
+  // Accept one unambiguous known cost anywhere in this dedicated block, but
+  // preserve the current counter rather than guessing when two costs appear.
+  if (matchedCosts.size !== 1) return null
+  const [cost] = matchedCosts
+  return { cost, rerollsUsed: rerollsUsedByCost.get(cost)! }
 }
 
 interface Match {

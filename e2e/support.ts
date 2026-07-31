@@ -21,7 +21,13 @@ Rare Monsters adjacent in Areas drop 1 additional Divine Orbs
 === END VOYAGE BORDER ===`
 
 export const REROLL_COST_PAYLOAD = `=== VOYAGE REROLL COST ===
-Border Modifiers Reroll Cost: 6 000
+GUILD STASH
+Border Modifiers Reroll Cost:
+Area Modifiers
+Life 4 114/4 114
+L:71 L:81 L:83
+24 ooo
+Mana 81/1 307
 === END VOYAGE REROLL COST ===`
 
 export const COMPLETE_DIVINE_BORDER_PAYLOAD = Array.from(
