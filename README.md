@@ -19,6 +19,8 @@ Exile 3.29 _Curse of the Allflame_.
   URL state.
 - Includes an optional Windows AutoHotkey helper for copying charts and reading
   border tooltips with local Windows OCR.
+- Records complete, opt-in border-roll samples locally for community research,
+  with versioned JSON export and a reviewed GitHub submission flow.
 
 ## What the model can and cannot claim
 
@@ -100,6 +102,11 @@ Border modifiers can be entered manually. On Windows, the optional
 the 12 visible border tooltips. It requires AutoHotkey v2, a Windows OCR language
 capability, a visible unscrolled Voyage Board, and Path of Exile in Windowed or
 Windowed Fullscreen mode.
+
+The importer also includes an opt-in **Contribute border-roll data** panel. Its
+capture protocol and privacy-preserving sample schema are documented in
+[docs/border-roll-data.md](docs/border-roll-data.md). Record every complete board,
+not only notable outcomes, so the resulting frequency estimates are not biased.
 
 ## Architecture
 

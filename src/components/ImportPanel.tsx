@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ALL_GOOD_MODS_REGEX } from '../data/strategies'
+import { BorderRollResearch } from './BorderRollResearch'
 import { generateDemoCharts } from '../logic/demo'
 import { parseBorderOcrPayload } from '../logic/borderOcr'
 import { isChartClipboardText, parseChartText } from '../logic/parser'
@@ -16,6 +17,13 @@ interface Props {
 export function ImportPanel({ onImport, state, onLoadState }: Props) {
   const [text, setText] = useState('')
   const [msg, setMsg] = useState('')
+  const placedUids = new Set(
+    state.board.flatMap((placement) => (placement ? [placement.chartUid] : [])),
+  )
+  const placedLevels = state.pool
+    .filter((chart) => placedUids.has(chart.uid))
+    .map((chart) => chart.level)
+  const suggestedVoyageLevel = placedLevels.length > 0 ? Math.max(...placedLevels) : null
 
   const doParse = useCallback(
     (raw?: string) => {
@@ -274,6 +282,12 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
           reach the game. Don't touch the mouse or keyboard while it's running.
         </p>
       </details>
+
+      <BorderRollResearch
+        borders={state.borders}
+        rerollsUsed={state.borderRerollsUsed}
+        suggestedLevel={suggestedVoyageLevel}
+      />
     </section>
   )
 }

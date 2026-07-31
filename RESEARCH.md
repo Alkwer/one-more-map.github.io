@@ -118,6 +118,12 @@ Still unknown:
 
 ### Minimal in-game data collection needed
 
+The app now includes an opt-in local capture log for this protocol. It accepts
+only complete 12-border samples, groups a natural board and its paid rerolls by
+Voyage sequence, and exports the versioned format described in
+`docs/border-roll-data.md`. Submission remains explicit because the static app
+has no collection backend.
+
 Capture natural boards and paid rerolls without discarding bad outcomes. For
 each observation store:
 

@@ -20,6 +20,13 @@ export const DIVINE_BORDER_PAYLOAD = `=== VOYAGE BORDER 0 ===
 Rare Monsters adjacent in Areas drop 1 additional Divine Orbs
 === END VOYAGE BORDER ===`
 
+export const COMPLETE_DIVINE_BORDER_PAYLOAD = Array.from(
+  { length: 12 },
+  (_, index) => `=== VOYAGE BORDER ${index} ===
+Rare Monsters adjacent in Areas drop 1 additional Divine Orbs
+=== END VOYAGE BORDER ===`,
+).join('\n')
+
 export function makeCrossingChartBatch(count: number): string {
   return Array.from({ length: count }, (_, index) =>
     ENGLISH_CHART.replace(

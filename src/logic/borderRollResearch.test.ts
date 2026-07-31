@@ -1,0 +1,99 @@
+import { describe, expect, it } from 'vitest'
+import { BORDER_MODS } from '../data/mods'
+import type { Borders } from '../types'
+import {
+  addBorderRollSample,
+  BORDER_ROLL_DATASET_SCHEMA,
+  BORDER_ROLL_SAMPLE_SCHEMA,
+  buildBorderRollSubmissionUrl,
+  createBorderResearchStore,
+  createBorderRollSample,
+  serializeBorderRollDataset,
+} from './borderRollResearch'
+
+const completeBorders = (): Borders =>
+  Array.from({ length: 12 }, (_, index) => BORDER_MODS[index % BORDER_MODS.length].id)
+
+function sample(overrides: Partial<Parameters<typeof createBorderRollSample>[0]> = {}) {
+  const result = createBorderRollSample({
+    sequenceId: 'voyage-test',
+    gamePatch: '3.29.0',
+    voyageLevel: 83,
+    rerollIndex: 0,
+    displayedNextRerollCost: 3000,
+    borders: completeBorders(),
+    capturedAt: '2026-07-31T12:00:00.000Z',
+    ...overrides,
+  })
+  if (!result.ok) throw new Error(result.message)
+  return result.sample
+}
+
+describe('border roll research samples', () => {
+  it('records a complete ordered natural roll', () => {
+    const result = sample()
+
+    expect(result).toMatchObject({
+      schema: BORDER_ROLL_SAMPLE_SCHEMA,
+      sequenceId: 'voyage-test',
+      generation: 'natural',
+      rerollIndex: 0,
+      displayedNextRerollCost: 3000,
+    })
+    expect(result.borderModIds).toHaveLength(12)
+  })
+
+  it('rejects incomplete boards and invalid metadata', () => {
+    const incomplete = completeBorders()
+    incomplete[4] = null
+
+    expect(
+      createBorderRollSample({
+        sequenceId: 'voyage-test',
+        gamePatch: '3.29',
+        voyageLevel: 83,
+        rerollIndex: 0,
+        displayedNextRerollCost: 3000,
+        borders: incomplete,
+      }),
+    ).toMatchObject({ ok: false, message: expect.stringContaining('all 12') })
+    expect(
+      createBorderRollSample({
+        sequenceId: 'voyage-test',
+        gamePatch: '3.29',
+        voyageLevel: 0,
+        rerollIndex: 0,
+        displayedNextRerollCost: 3000,
+        borders: completeBorders(),
+      }),
+    ).toMatchObject({ ok: false, message: expect.stringContaining('Voyage level') })
+  })
+
+  it('keeps one observation per roll index in a Voyage sequence', () => {
+    const store = { ...createBorderResearchStore(), activeSequenceId: 'voyage-test' }
+    const first = sample()
+    const added = addBorderRollSample(store, first)
+    expect(added.status).toBe('added')
+
+    expect(addBorderRollSample(added.store, sample()).status).toBe('duplicate')
+    const changedBorders = completeBorders()
+    changedBorders[0] = BORDER_MODS[BORDER_MODS.length - 1].id
+    expect(addBorderRollSample(added.store, sample({ borders: changedBorders })).status).toBe(
+      'conflict',
+    )
+  })
+
+  it('exports a versioned dataset and a pre-filled submission link', () => {
+    const roll = sample({ rerollIndex: 1, displayedNextRerollCost: 6000 })
+    const dataset = JSON.parse(serializeBorderRollDataset([roll], '2026-07-31T13:00:00.000Z'))
+
+    expect(dataset).toMatchObject({
+      schema: BORDER_ROLL_DATASET_SCHEMA,
+      sampleCount: 1,
+      samples: [{ generation: 'paid-reroll', rerollIndex: 1 }],
+    })
+    const url = new URL(buildBorderRollSubmissionUrl(roll))
+    expect(url.hostname).toBe('github.com')
+    expect(url.searchParams.get('body')).toContain(roll.sampleId)
+  })
+})

@@ -830,6 +830,56 @@ button.primary:hover {
   color: var(--gold-bright);
 }
 
+.roll-research-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 10px;
+  margin: 10px 0;
+}
+.roll-research-grid label {
+  display: grid;
+  gap: 3px;
+  color: var(--gold-dim);
+  font-size: 12px;
+}
+.field-hint {
+  color: var(--muted);
+  font-size: 10px;
+}
+.roll-research-status {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 8px 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.sample-ready {
+  color: var(--voyage-line, #5fe3c0);
+}
+.sample-incomplete {
+  color: #d89a73;
+}
+.roll-research-actions {
+  flex-wrap: wrap;
+}
+.roll-sample-list {
+  margin: 10px 0 4px;
+  padding-left: 20px;
+  font-size: 11px;
+}
+.roll-sample-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.roll-sample-list button {
+  padding: 3px 7px;
+  font-size: 10px;
+}
+
 input,
 select,
 textarea {
