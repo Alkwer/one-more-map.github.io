@@ -67,6 +67,10 @@ body.theme-harvest .library,
 body.theme-harvest .import-panel,
 body.theme-harvest .solver,
 body.theme-harvest .board-wrap,
+body.theme-harvest .border-appraiser,
+body.theme-harvest .voyage-advisor,
+body.theme-harvest .strategy-suggestions,
+body.theme-harvest .strategies,
 body.theme-harvest .score-panel {
   background: #fff;
   border: 2px solid #000;
@@ -93,6 +97,7 @@ body.theme-harvest .board-title {
 body.theme-harvest .library > .panel-title {
   background: #e619e6; /* Wild */
 }
+
 body.theme-harvest .board-title {
   background: #f4b400; /* Vivid */
   color: #202124;
@@ -454,4 +459,18 @@ body.theme-harvest .chart-card.selected {
 body.theme-harvest header .tag {
   border: 2px solid #f4b400;
   font-weight: 700;
+}
+
+body.theme-harvest button:focus-visible,
+body.theme-harvest .file-btn:focus-within,
+body.theme-harvest .chart-sq-main:focus-visible,
+body.theme-harvest .chart-card-main:focus-visible,
+body.theme-harvest .tile-select:focus-visible,
+body.theme-harvest .bslot:focus-visible,
+body.theme-harvest input:focus,
+body.theme-harvest select:focus,
+body.theme-harvest textarea:focus {
+  outline: 3px solid #000;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px #fff;
 }

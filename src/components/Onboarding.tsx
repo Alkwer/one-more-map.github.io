@@ -30,14 +30,14 @@ export function Onboarding({ onClose, onDemo }: Props) {
   return (
     <div className="onboard-backdrop" onClick={onClose}>
       <div className="onboard" onClick={(e) => e.stopPropagation()}>
-        <div className="panel-title">Plan your Voyage</div>
+        <h2 className="panel-title">Plan your Voyage</h2>
         <p className="onboard-intro">
           Build the most valuable 3×3 Voyage from your charted Charts, solved automatically around
           connector shapes, adjacency, and border rolls.
         </p>
         {STEPS.map((s) => (
           <div key={s.title} className="onboard-step">
-            <div className="onboard-step-title">{s.title}</div>
+            <h3 className="onboard-step-title">{s.title}</h3>
             <div className="onboard-step-body">{s.body}</div>
           </div>
         ))}

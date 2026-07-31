@@ -86,9 +86,9 @@ export function BorderAppraiser({ appraisal, contextLabel }: Props) {
     <section className="border-appraiser" aria-labelledby="border-appraiser-title">
       <div className="border-appraiser-head">
         <div>
-          <div id="border-appraiser-title" className="panel-title">
+          <h3 id="border-appraiser-title" className="panel-title">
             Border Fit Diagnostic
-          </div>
+          </h3>
           <div className="muted border-appraiser-subtitle">{contextLabel}</div>
         </div>
         <span className={`border-fit-badge ${appraisal.status}`}>
@@ -137,7 +137,7 @@ export function BorderAppraiser({ appraisal, contextLabel }: Props) {
 
       {top.length > 0 ? (
         <>
-          <div className="panel-title small">Strongest current matches</div>
+          <h4 className="panel-title small">Strongest current matches</h4>
           <div className="border-appraisal-list top">
             {top.map((segment) => (
               <SegmentRow key={segment.segment} segment={segment} compact />

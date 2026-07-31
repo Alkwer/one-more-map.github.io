@@ -29,9 +29,9 @@ export function StrategySuggestions({
     <section className="strategy-suggestions" aria-labelledby="strategy-suggestions-title">
       <div className="suggestion-heading">
         <div>
-          <div className="panel-title" id="strategy-suggestions-title">
+          <h3 className="panel-title" id="strategy-suggestions-title">
             Strategy compatibility
-          </div>
+          </h3>
           <div className="muted small-note suggestion-intro">
             Ranks the best layout each strategy can build from all imported charts together with the
             current border roll. Runnable strategies rank ahead of incomplete ones; the manual board

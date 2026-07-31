@@ -1,4 +1,4 @@
-import { useMemo, useState, type KeyboardEvent } from 'react'
+import { useMemo, useState } from 'react'
 import { VOYAGE_MODS, voyageModById } from '../data/mods'
 import {
   CHART_SHAPES,
@@ -56,13 +56,6 @@ export function displayValue(chart: ChartData, weights: Weights, disabled: Set<s
 
 const EDGE_LABELS = ['N', 'E', 'S', 'W'] as const
 
-function activateWithKeyboard(event: KeyboardEvent<HTMLElement>, activate: () => void) {
-  if (event.target !== event.currentTarget) return
-  if (event.key !== 'Enter' && event.key !== ' ') return
-  event.preventDefault()
-  activate()
-}
-
 function ChartEditor({ chart, onUpdate }: { chart: ChartData; onUpdate: (c: ChartData) => void }) {
   const toggleEdge = (i: number) => {
     const edges = [...chart.edges] as Edges
@@ -82,6 +75,7 @@ function ChartEditor({ chart, onUpdate }: { chart: ChartData; onUpdate: (c: Char
     <div className="chart-editor" onClick={(e) => e.stopPropagation()}>
       <div className="row">
         <input
+          aria-label="Chart name"
           value={chart.name}
           onChange={(e) => onUpdate({ ...chart, name: e.target.value })}
           placeholder="Chart name"
@@ -89,6 +83,7 @@ function ChartEditor({ chart, onUpdate }: { chart: ChartData; onUpdate: (c: Char
         <input
           type="number"
           className="lvl"
+          aria-label="Chart area level"
           value={chart.level}
           min={1}
           max={100}
@@ -107,6 +102,7 @@ function ChartEditor({ chart, onUpdate }: { chart: ChartData; onUpdate: (c: Char
             {[0, 1].map((slot) => (
               <select
                 key={slot}
+                aria-label={`Area modifier ${slot + 1}`}
                 value={selfIds[slot] ?? ''}
                 onChange={(e) => {
                   const next = [selfIds[0] ?? '', selfIds[1] ?? '']
@@ -123,6 +119,7 @@ function ChartEditor({ chart, onUpdate }: { chart: ChartData; onUpdate: (c: Char
               </select>
             ))}
             <select
+              aria-label="Implicit modifier"
               value={implicitId}
               onChange={(e) => commit(selfIds[0] ?? '', selfIds[1] ?? '', e.target.value)}
             >
@@ -183,8 +180,11 @@ function ChartEditor({ chart, onUpdate }: { chart: ChartData; onUpdate: (c: Char
         <span className="muted">Connectors:</span>
         {EDGE_LABELS.map((l, i) => (
           <button
+            type="button"
             key={l}
             className={`edge-btn ${chart.edges[i] ? 'on' : ''}`}
+            aria-label={`${l} connector`}
+            aria-pressed={chart.edges[i]}
             onClick={() => toggleEdge(i)}
           >
             {l}
@@ -251,15 +251,19 @@ export function Library(props: Props) {
   }, [props.pool, props.weights, props.disabledMods, query, sort])
 
   return (
-    <div className="library">
+    <section className="library" aria-labelledby="chart-library-title">
       <div className="panel-title">
-        Chart Library{' '}
-        <span className="muted">
-          ({query ? `${visible.length}/` : ''}
-          {props.pool.length})
-        </span>
+        <h2 id="chart-library-title" className="panel-title-heading">
+          Chart Library{' '}
+          <span className="muted">
+            ({query ? `${visible.length}/` : ''}
+            {props.pool.length})
+          </span>
+        </h2>
         <span className="spacer" />
-        <button onClick={addBlank}>+ Add chart</button>
+        <button type="button" onClick={addBlank}>
+          + Add chart
+        </button>
         {props.pool.length > 0 && (
           <button
             className="clear-charts"
@@ -273,16 +277,23 @@ export function Library(props: Props) {
       {props.pool.length > 0 && (
         <div className="library-tools">
           <input
+            aria-label="Filter charts by name or modifier"
             placeholder="Filter by name or mod…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <select value={sort} onChange={(e) => setSort(e.target.value as SortMode)}>
+          <select
+            aria-label="Sort charts"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortMode)}
+          >
             <option value="value">Best value</option>
             <option value="level">Highest level</option>
             <option value="name">Name</option>
           </select>
           <button
+            type="button"
+            aria-label={view === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
             title={view === 'grid' ? 'List view (edit charts)' : 'Grid view'}
             onClick={() => setViewPersist(view === 'grid' ? 'list' : 'grid')}
           >
@@ -294,7 +305,7 @@ export function Library(props: Props) {
         <div className="muted pad">No charts yet. Add manually or paste from the game below.</div>
       )}
       {view === 'grid' && (
-        <div className="chart-grid">
+        <div className="chart-grid" role="group" aria-label="Charts">
           {visible.map((c) => {
             const unresolvedShape = !isChartShapeResolved(c)
             const mods = c.modIds.map((id) => voyageModById.get(id)).filter(Boolean)
@@ -331,48 +342,51 @@ export function Library(props: Props) {
               <div
                 key={c.uid}
                 className={`chart-sq ${unresolvedShape ? 'unresolved-shape' : ''} ${props.selected === c.uid ? 'selected' : ''} ${onBoard.has(c.uid) ? 'on-board' : ''} ${mod ? `sscope-${mod.scope}` : ''}`}
-                role="button"
-                tabIndex={0}
-                aria-label={
-                  unresolvedShape ? `Confirm shape for ${c.name}` : `Select ${c.name} for placement`
-                }
-                aria-pressed={!unresolvedShape && props.selected === c.uid}
-                onClick={activate}
-                onKeyDown={(event) => activateWithKeyboard(event, activate)}
-                {...tooltipProps({ title: c.name, lines })}
               >
-                {unresolvedShape ? (
-                  <span className="sq-shape-warning">Confirm shape</span>
-                ) : mod?.short ? (
-                  <span className={`sq-reward-text scope-${mod.scope}`}>
-                    <span className="sq-shortname">{mod.short}</span>
-                  </span>
-                ) : mod?.effects[0] ? (
-                  <span className={`sq-reward-text scope-${mod.scope}`}>
-                    <span className="sq-pct">+{mod.effects[0].percent}%</span>
-                    <span className="sq-statname">{STAT_SHORT[mod.effects[0].stat]}</span>
-                  </span>
-                ) : c.implicitText ? (
-                  <span className="sq-reward-text scope-global">
-                    <span className="sq-shortname sq-rawimplicit">{c.implicitText}</span>
-                  </span>
-                ) : (
-                  <EdgeGlyph edges={c.edges} size={26} />
-                )}
-                {mod && !unresolvedShape && (
-                  <span className="sq-shape">
-                    <EdgeGlyph edges={c.edges} size={15} />
-                  </span>
-                )}
-                <span className="sq-val">{val}</span>
-                <span className="sq-lvl">L:{c.level}</span>
                 <button
+                  type="button"
+                  className="chart-sq-main"
+                  aria-label={
+                    unresolvedShape
+                      ? `Confirm shape for ${c.name}`
+                      : `Select ${c.name} for placement`
+                  }
+                  aria-pressed={!unresolvedShape && props.selected === c.uid}
+                  onClick={activate}
+                  {...tooltipProps({ title: c.name, lines })}
+                >
+                  {unresolvedShape ? (
+                    <span className="sq-shape-warning">Confirm shape</span>
+                  ) : mod?.short ? (
+                    <span className={`sq-reward-text scope-${mod.scope}`}>
+                      <span className="sq-shortname">{mod.short}</span>
+                    </span>
+                  ) : mod?.effects[0] ? (
+                    <span className={`sq-reward-text scope-${mod.scope}`}>
+                      <span className="sq-pct">+{mod.effects[0].percent}%</span>
+                      <span className="sq-statname">{STAT_SHORT[mod.effects[0].stat]}</span>
+                    </span>
+                  ) : c.implicitText ? (
+                    <span className="sq-reward-text scope-global">
+                      <span className="sq-shortname sq-rawimplicit">{c.implicitText}</span>
+                    </span>
+                  ) : (
+                    <EdgeGlyph edges={c.edges} size={26} />
+                  )}
+                  {mod && !unresolvedShape && (
+                    <span className="sq-shape">
+                      <EdgeGlyph edges={c.edges} size={15} />
+                    </span>
+                  )}
+                  <span className="sq-val">{val}</span>
+                  <span className="sq-lvl">L:{c.level}</span>
+                </button>
+                <button
+                  type="button"
                   className="sq-del"
+                  aria-label={`Delete ${c.name}`}
                   title="Delete"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    props.onRemove(c.uid)
-                  }}
+                  onClick={() => props.onRemove(c.uid)}
                 >
                   ✕
                 </button>
@@ -382,7 +396,7 @@ export function Library(props: Props) {
         </div>
       )}
       {view === 'list' && (
-        <div className="chart-list">
+        <div className="chart-list" role="group" aria-label="Charts">
           {visible.map((c) => {
             const unresolvedShape = !isChartShapeResolved(c)
             const allMods = c.modIds.map((id) => voyageModById.get(id)).filter(Boolean)
@@ -398,71 +412,79 @@ export function Library(props: Props) {
               <div
                 key={c.uid}
                 className={`chart-card ${unresolvedShape ? 'unresolved-shape' : ''} ${props.selected === c.uid ? 'selected' : ''} ${onBoard.has(c.uid) ? 'on-board' : ''}`}
-                role="button"
-                tabIndex={0}
-                aria-label={
-                  unresolvedShape ? `Confirm shape for ${c.name}` : `Select ${c.name} for placement`
-                }
-                aria-pressed={!unresolvedShape && props.selected === c.uid}
-                onClick={activate}
-                onKeyDown={(event) => activateWithKeyboard(event, activate)}
               >
-                <div className="chart-card-head">
-                  {unresolvedShape ? (
-                    <span className="shape-alert" aria-label="Shape confirmation required">
-                      !
+                <button
+                  type="button"
+                  className="chart-card-main"
+                  aria-label={
+                    unresolvedShape
+                      ? `Confirm shape for ${c.name}`
+                      : `Select ${c.name} for placement`
+                  }
+                  aria-pressed={!unresolvedShape && props.selected === c.uid}
+                  onClick={activate}
+                >
+                  <span className="chart-card-head">
+                    {unresolvedShape ? (
+                      <span className="shape-alert" aria-label="Shape confirmation required">
+                        !
+                      </span>
+                    ) : (
+                      <EdgeGlyph edges={c.edges} />
+                    )}
+                    <span className="chart-name">{c.name}</span>
+                    <span className="chart-level">lvl {c.level}</span>
+                    {unresolvedShape && <span className="badge bad">needs shape</span>}
+                    {onBoard.has(c.uid) && <span className="badge">on board</span>}
+                  </span>
+                  {mod && (
+                    <span
+                      className={`chart-mod scope-${mod.scope}`}
+                      {...tooltipProps({
+                        title: c.name,
+                        lines: [
+                          { text: `Area Level: ${c.level}`, cls: 'muted' },
+                          ...allMods.map((m) => ({ text: m!.text, cls: `scope-${m!.scope}` })),
+                        ],
+                      })}
+                    >
+                      {allMods.map((m) => (
+                        <span key={m!.id} className={`chart-mod-line scope-${m!.scope}`}>
+                          {m!.text}
+                        </span>
+                      ))}
                     </span>
-                  ) : (
-                    <EdgeGlyph edges={c.edges} />
                   )}
-                  <span className="chart-name">{c.name}</span>
-                  <span className="chart-level">lvl {c.level}</span>
-                  {unresolvedShape && <span className="badge bad">needs shape</span>}
-                  {onBoard.has(c.uid) && <span className="badge">on board</span>}
-                  <span className="spacer" />
+                </button>
+                <div
+                  className="chart-card-actions"
+                  role="group"
+                  aria-label={`Actions for ${c.name}`}
+                >
                   <button
+                    type="button"
+                    aria-label={`${editing === c.uid ? 'Close editor for' : 'Edit'} ${c.name}`}
                     title="Edit"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setEditing(editing === c.uid ? null : c.uid)
-                    }}
+                    aria-expanded={editing === c.uid}
+                    onClick={() => setEditing(editing === c.uid ? null : c.uid)}
                   >
                     ✎
                   </button>
                   <button
+                    type="button"
+                    aria-label={`Delete ${c.name}`}
                     title="Delete"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      props.onRemove(c.uid)
-                    }}
+                    onClick={() => props.onRemove(c.uid)}
                   >
                     ✕
                   </button>
                 </div>
-                {mod && (
-                  <div
-                    className={`chart-mod scope-${mod.scope}`}
-                    {...tooltipProps({
-                      title: c.name,
-                      lines: [
-                        { text: `Area Level: ${c.level}`, cls: 'muted' },
-                        ...allMods.map((m) => ({ text: m!.text, cls: `scope-${m!.scope}` })),
-                      ],
-                    })}
-                  >
-                    {allMods.map((m) => (
-                      <div key={m!.id} className={`scope-${m!.scope}`}>
-                        {m!.text}
-                      </div>
-                    ))}
-                  </div>
-                )}
                 {editing === c.uid && <ChartEditor chart={c} onUpdate={props.onUpdate} />}
               </div>
             )
           })}
         </div>
       )}
-    </div>
+    </section>
   )
 }
