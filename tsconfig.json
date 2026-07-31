@@ -7,10 +7,11 @@
     "jsx": "react-jsx",
     "strict": true,
     "skipLibCheck": true,
+    "types": ["node"],
     "noEmit": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "useDefineForClassFields": true
   },
-  "include": ["src"]
+  "include": ["src", "e2e", "playwright.config.ts"]
 }

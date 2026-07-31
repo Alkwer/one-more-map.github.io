@@ -6,7 +6,14 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
 export default defineConfig(
-  globalIgnores(['dist/', 'coverage/', 'staging/', '.codex-remote-attachments/']),
+  globalIgnores([
+    'dist/',
+    'coverage/',
+    'staging/',
+    'playwright-report/',
+    'test-results/',
+    '.codex-remote-attachments/',
+  ]),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, tseslint.configs.recommended],
@@ -33,9 +40,15 @@ export default defineConfig(
     },
   },
   {
-    files: ['tests/**/*.ts', 'benchmarks/**/*.ts', 'vite.config.ts'],
+    files: [
+      'tests/**/*.ts',
+      'e2e/**/*.ts',
+      'benchmarks/**/*.ts',
+      'playwright.config.ts',
+      'vite.config.ts',
+    ],
     languageOptions: {
-      globals: globals.node,
+      globals: { ...globals.node, ...globals.browser },
     },
   },
   {

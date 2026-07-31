@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type KeyboardEvent } from 'react'
 import { VOYAGE_MODS, voyageModById } from '../data/mods'
 import {
   CHART_SHAPES,
@@ -55,6 +55,13 @@ export function displayValue(chart: ChartData, weights: Weights, disabled: Set<s
 }
 
 const EDGE_LABELS = ['N', 'E', 'S', 'W'] as const
+
+function activateWithKeyboard(event: KeyboardEvent<HTMLElement>, activate: () => void) {
+  if (event.target !== event.currentTarget) return
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  activate()
+}
 
 function ChartEditor({ chart, onUpdate }: { chart: ChartData; onUpdate: (c: ChartData) => void }) {
   const toggleEdge = (i: number) => {
@@ -312,18 +319,26 @@ export function Library(props: Props) {
               { text: `Weighted value: ${val}`, cls: 'val' },
               ...(onBoard.has(c.uid) ? [{ text: 'Currently on the board', cls: 'muted' }] : []),
             ]
+            const activate = () => {
+              if (unresolvedShape) {
+                setViewPersist('list')
+                setEditing(c.uid)
+                return
+              }
+              props.onSelect(c.uid)
+            }
             return (
               <div
                 key={c.uid}
                 className={`chart-sq ${unresolvedShape ? 'unresolved-shape' : ''} ${props.selected === c.uid ? 'selected' : ''} ${onBoard.has(c.uid) ? 'on-board' : ''} ${mod ? `sscope-${mod.scope}` : ''}`}
-                onClick={() => {
-                  if (unresolvedShape) {
-                    setViewPersist('list')
-                    setEditing(c.uid)
-                    return
-                  }
-                  props.onSelect(c.uid)
-                }}
+                role="button"
+                tabIndex={0}
+                aria-label={
+                  unresolvedShape ? `Confirm shape for ${c.name}` : `Select ${c.name} for placement`
+                }
+                aria-pressed={!unresolvedShape && props.selected === c.uid}
+                onClick={activate}
+                onKeyDown={(event) => activateWithKeyboard(event, activate)}
                 {...tooltipProps({ title: c.name, lines })}
               >
                 {unresolvedShape ? (
@@ -372,17 +387,25 @@ export function Library(props: Props) {
             const unresolvedShape = !isChartShapeResolved(c)
             const allMods = c.modIds.map((id) => voyageModById.get(id)).filter(Boolean)
             const mod = allMods.find((m) => m!.scope !== 'self') ?? allMods[0] ?? null
+            const activate = () => {
+              if (unresolvedShape) {
+                setEditing(c.uid)
+                return
+              }
+              props.onSelect(c.uid)
+            }
             return (
               <div
                 key={c.uid}
                 className={`chart-card ${unresolvedShape ? 'unresolved-shape' : ''} ${props.selected === c.uid ? 'selected' : ''} ${onBoard.has(c.uid) ? 'on-board' : ''}`}
-                onClick={() => {
-                  if (unresolvedShape) {
-                    setEditing(c.uid)
-                    return
-                  }
-                  props.onSelect(c.uid)
-                }}
+                role="button"
+                tabIndex={0}
+                aria-label={
+                  unresolvedShape ? `Confirm shape for ${c.name}` : `Select ${c.name} for placement`
+                }
+                aria-pressed={!unresolvedShape && props.selected === c.uid}
+                onClick={activate}
+                onKeyDown={(event) => activateWithKeyboard(event, activate)}
               >
                 <div className="chart-card-head">
                   {unresolvedShape ? (

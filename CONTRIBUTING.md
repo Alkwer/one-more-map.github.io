@@ -19,6 +19,16 @@ Before opening a pull request, run the same quality gate as CI:
 npm run validate
 ```
 
+For browser, Web Worker, import/export, or GitHub Pages path changes, also run:
+
+```bash
+npx playwright install chromium
+npm run test:e2e
+```
+
+This builds the Pages-style `staging/` tree, including the root redirect, and
+runs the deterministic Chromium smoke suite against that production artifact.
+
 `validate` runs TypeScript checking, the Vitest suite, ESLint, Prettier's format
 check, and the production build. When changing the solver or scoring hot path,
 also run `npm run test:performance` and `npm run bench:solver`. The benchmark
