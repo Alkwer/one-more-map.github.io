@@ -24,7 +24,9 @@ const contextLabelFor = (decision: VoyageDecision) => {
   if (decision.kind === 'play' || decision.kind === 'switch') {
     return 'Best strategy for charts + border roll'
   }
-  if (decision.kind === 'wait') return 'Strategy worth preserving'
+  if (decision.kind === 'wait') {
+    return decision.preserveRoll ? 'Strategy worth preserving' : 'Closest incomplete strategy'
+  }
   return 'Best strategy for charts + border roll'
 }
 

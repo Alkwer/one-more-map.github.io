@@ -59,6 +59,7 @@ export function StrategySuggestions({
         <div className="suggestion-list">
           {result.suggestions.map((suggestion, index) => {
             const isActive = activeId === suggestion.strategy.id
+            const requiresReroll = suggestion.requiredBorderStatus === 'missing'
             return (
               <article
                 className={`suggestion-card ${index === 0 ? 'best' : ''} ${
@@ -74,8 +75,12 @@ export function StrategySuggestions({
                         ? 'Best charts + border strategy'
                         : `#${index + 1} combined match`}
                   </div>
-                  <span className={`suggestion-confidence ${suggestion.confidence}`}>
-                    {fitLabel[suggestion.status]}
+                  <span
+                    className={`suggestion-confidence ${
+                      requiresReroll ? 'weak' : suggestion.confidence
+                    }`}
+                  >
+                    {requiresReroll ? 'REQUIRES REROLL' : fitLabel[suggestion.status]}
                   </span>
                 </div>
                 <div className="suggestion-name">{suggestion.strategy.name}</div>

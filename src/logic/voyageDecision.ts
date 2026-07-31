@@ -1,5 +1,5 @@
 import { KEEP_FIT_LINES, REROLL_COSTS, clampRerollsUsed, sulphurSpentAfter } from './rerollAdvice'
-import type { StrategySuggestion } from './strategySuggestions'
+import type { RequiredBorderStatus, StrategySuggestion } from './strategySuggestions'
 
 export const ABSOLUTE_PLAYABLE_FIT = 0.5
 
@@ -26,6 +26,7 @@ export interface VoyageDecision {
   nextCost: number | null
   keepFitLine: number | null
   decisionFitLine: number
+  preserveRoll: boolean
 }
 
 export interface VoyageDecisionInput {
@@ -45,6 +46,7 @@ interface DecisionCandidate {
   missing: string[]
   rankScore: number
   jackpot: boolean
+  requiredBorderStatus: RequiredBorderStatus
 }
 
 const percent = (fit: number | null) =>
@@ -60,6 +62,7 @@ const candidateFrom = (evaluation: StrategySuggestion): DecisionCandidate => ({
   missing: evaluation.readiness.missing,
   rankScore: evaluation.rankScore,
   jackpot: evaluation.jackpot,
+  requiredBorderStatus: evaluation.requiredBorderStatus ?? 'not-required',
 })
 
 const actionFor = (
@@ -89,9 +92,17 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     nextCost,
     keepFitLine,
     decisionFitLine,
+    preserveRoll: false,
   }
 
-  const ranked = input.evaluations.map(candidateFrom).sort((a, b) => b.rankScore - a.rankScore)
+  const ranked = input.evaluations.map(candidateFrom).sort((a, b) => {
+    const aMissingRequiredBorder = a.requiredBorderStatus === 'missing'
+    const bMissingRequiredBorder = b.requiredBorderStatus === 'missing'
+    if (aMissingRequiredBorder !== bMissingRequiredBorder) {
+      return aMissingRequiredBorder ? 1 : -1
+    }
+    return b.rankScore - a.rankScore
+  })
 
   // A Divine border remains the single exception that can be acted on before
   // every border is entered. Never lose it to an ordinary reroll prompt.
@@ -112,6 +123,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
         fit: divine.fit,
         missing: divine.missing,
         action: null,
+        preserveRoll: true,
       }
     }
 
@@ -129,7 +141,9 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     }
   }
 
-  const bestReady = ranked.find((candidate) => candidate.ready) ?? null
+  const bestReady =
+    ranked.find((candidate) => candidate.ready && candidate.requiredBorderStatus !== 'missing') ??
+    null
   const bestInventory = bestReady ?? ranked[0] ?? null
 
   if (!bestInventory || input.availableCharts === 0) {
