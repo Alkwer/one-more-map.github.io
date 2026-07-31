@@ -31,12 +31,13 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
       const borderOcr = parseBorderOcrPayload(source)
       const { charts, rejected, unresolved } = parseChartText(borderOcr.chartText)
       const notCharted = rejected.filter((r) => r.reason.startsWith('not charted'))
-      if (charts.length === 0 && rejected.length === 0 && borderOcr.blockCount === 0) {
+      const hasOcrPayload = borderOcr.blockCount > 0 || borderOcr.rerollCostBlockCount > 0
+      if (charts.length === 0 && rejected.length === 0 && !hasOcrPayload) {
         setMsg('No items recognised. Is this Ctrl+C item text?')
         return
       }
 
-      if (borderOcr.blockCount > 0) {
+      if (hasOcrPayload) {
         // A complete importer sweep is a snapshot of all 12 current rolls.
         // Start clean so an OCR miss cannot leave a stale modifier from an
         // earlier run and masquerade as a wrongly recognized border.
@@ -46,11 +47,12 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
           ...state,
           pool: charts.length > 0 ? [...state.pool, ...charts] : state.pool,
           borders,
+          borderRerollsUsed: borderOcr.rerollCost?.rerollsUsed ?? state.borderRerollsUsed,
         })
       } else if (charts.length > 0) {
         onImport(charts)
       }
-      if (charts.length > 0 || borderOcr.blockCount > 0) {
+      if (charts.length > 0 || hasOcrPayload) {
         setText('')
       }
 
@@ -70,6 +72,13 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
             borderOcr.blockCount === 1 ? '' : 's'
           }`,
         )
+      }
+      if (borderOcr.rerollCost) {
+        parts.push(
+          `reroll cost ${borderOcr.rerollCost.cost.toLocaleString('en-US')} (${borderOcr.rerollCost.rerollsUsed}/5 used)`,
+        )
+      } else if (borderOcr.rerollCostBlockCount > 0) {
+        parts.push('OCR could not match the border reroll cost')
       }
       if (notCharted.length)
         parts.push(
@@ -99,7 +108,7 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
       const clip = e.clipboardData?.getData('text') ?? ''
-      if (!isChartClipboardText(clip) && !/===\s*VOYAGE BORDER/i.test(clip)) return
+      if (!isChartClipboardText(clip) && !/===\s*VOYAGE (?:BORDER|REROLL COST)/i.test(clip)) return
       e.preventDefault()
       doParse(clip)
     }
@@ -267,6 +276,11 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
             Press <kbd>Ctrl+F4</kbd> to preview the saved positions without running OCR.
           </li>
           <li>
+            Hover the <strong>compass-shaped border reroll button</strong> so its cost tooltip is
+            visible, then press <kbd>Ctrl+F7</kbd>. This lets each scan read the next reroll cost
+            and synchronize the solver's reroll counter automatically.
+          </li>
+          <li>
             For chart import, hover the <strong>top-left</strong> chart and press <kbd>F7</kbd>;
             hover the <strong>bottom-right</strong> cell of the chart grid and press <kbd>F8</kbd>.
             (Edit GridCols/GridRows if your panel isn't 6×10.)
@@ -274,7 +288,8 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
           <li>
             <kbd>F9</kbd> copies the charts, scans the 12 borders, and imports both ·{' '}
             <kbd>Ctrl+F9</kbd> refreshes only the 12 borders after a reroll, without rescanning
-            charts · <kbd>F10</kbd> aborts. Border OCR can take around 15–30 seconds on a 4K screen.
+            charts, and also reads the calibrated reroll-cost tooltip · <kbd>F10</kbd> aborts.
+            Border OCR can take around 15–30 seconds on a 4K screen.
           </li>
         </ol>
         <p className="muted small">

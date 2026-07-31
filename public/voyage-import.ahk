@@ -11,9 +11,10 @@ CoordMode "ToolTip", "Screen"
 ;  Three phases:
 ;    Phase 1 - stays in PoE, hovers every cell and Ctrl+C's it, appending
 ;              each chart's text into one buffer (no window switching).
-;    Phase 2 - hovers the 12 board-border modifiers. A temporary PowerShell
-;              helper captures the PoE window and reads each tooltip with the
-;              Windows OCR engine. Screenshots never leave the PC.
+;    Phase 2 - hovers the 12 board-border modifiers and the optional reroll
+;              button. A temporary PowerShell helper captures the PoE window
+;              and reads each tooltip with the Windows OCR engine. Screenshots
+;              never leave the PC.
 ;    Phase 3 - switches to the browser ONCE and pastes the whole buffer;
 ;              the solver parses and imports every chart from that one paste.
 ;    Empty cells copy nothing and are skipped.
@@ -40,6 +41,11 @@ CoordMode "ToolTip", "Screen"
 ;   - Press Ctrl+F4 to preview every saved point slowly without running OCR.
 ;   Exact points override the F5/F6 rectangle until F5 or F6 is used again.
 ;
+;  CALIBRATE THE REROLL COST (optional; saved to voyage-import.ini)
+;   - Hover the compass-shaped border reroll button and press Ctrl+F7.
+;   The helper will then read its cost and keep the solver's reroll counter
+;   synchronized on every F9 / Ctrl+F9 scan.
+;
 ;  CALIBRATE THE CHART GRID (once; saved to voyage-import.ini)
 ;   - Hover the CENTRE of the TOP-LEFT chart, press  F7.
 ;   - Hover the CENTRE of the BOTTOM-RIGHT cell of the 6-wide grid
@@ -49,6 +55,7 @@ CoordMode "ToolTip", "Screen"
 ;  RUN
 ;   F9      = import charts + board borders
 ;   Ctrl+F9 = refresh only the 12 board borders (use after a reroll)
+;             and the reroll cost when Ctrl+F7 was calibrated
 ;   F10     = abort at any time
 ;
 ;  If PoE is running as administrator, run this script as admin too,
@@ -66,6 +73,7 @@ GridRows := 10   ; rows to sweep (overshooting is fine - empty cells skip)
 ActivateDelay := 60    ; ms after focusing a window (paid only ~twice total now)
 HoverDelay    := 28    ; ms for PoE to register the cursor before Ctrl+C
 BorderHoverDelay := 250 ; ms for a border tooltip to appear before OCR capture
+RerollHoverDelay := 350 ; ms for the reroll-cost tooltip to appear
 BorderOcrAttempts := 2  ; retry once when both filtered and unfiltered OCR are empty
 BorderPreviewDelay := 900 ; ms per point during the Ctrl+F4 visual preview
 PasteDelay    := 90    ; ms after the single big paste
@@ -84,6 +92,8 @@ BorderTLx := IniRead(IniFile, "board", "TopLeftX", "0") + 0
 BorderTLy := IniRead(IniFile, "board", "TopY", "0") + 0
 BorderBRx := IniRead(IniFile, "board", "BottomRightX", "0") + 0
 BorderBRy := IniRead(IniFile, "board", "BottomY", "0") + 0
+RerollX := IniRead(IniFile, "board", "RerollX", "0") + 0
+RerollY := IniRead(IniFile, "board", "RerollY", "0") + 0
 ExactBorderPoints := []
 Loop 12 {
     exactX := IniRead(IniFile, "board-exact", "Point" A_Index "X", "0") + 0
@@ -133,6 +143,11 @@ BoardCalibrated() {
     global BorderTLx, BorderTLy, BorderBRx, BorderBRy
     return ExactBordersCalibrated()
         || (BorderTLx != 0 && BorderTLy != 0 && BorderBRx > BorderTLx && BorderBRy > BorderTLy)
+}
+
+RerollCostCalibrated() {
+    global RerollX, RerollY
+    return RerollX != 0 && RerollY != 0
 }
 
 BorderPointLabel(index) {
@@ -189,6 +204,7 @@ param(
     [int]$WindowWidth = 0,
     [int]$WindowHeight = 0,
     [string]$ImagePath = '',
+    [switch]$RerollCost,
     [Parameter(Mandatory = $true)][string]$OutputPath)
 
 $ErrorActionPreference = 'Stop'
@@ -385,12 +401,23 @@ function Invoke-OcrFile {
 }
 
 function Read-OcrLines {
-    param([Parameter(Mandatory = $true)][string]$Path)
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [switch]$Unfiltered)
+
+    $engine = New-OcrEngine
+    if ($Unfiltered) {
+        $text = Invoke-OcrFile $Path $engine
+        if ([string]::IsNullOrWhiteSpace($text)) {
+            throw 'Windows OCR returned no text from the unfiltered reroll-cost scan.'
+        }
+        return $text
+    }
+
     $preparedPath = Join-Path $env:TEMP "voyage-ocr-filtered-$PID-$([Guid]::NewGuid().ToString('N')).png"
     [VoyageOcrImage]::Prepare($Path, $preparedPath)
 
     try {
-        $engine = New-OcrEngine
         $text = Invoke-OcrFile $preparedPath $engine
 
         # The lavender-only mask can occasionally be empty even though the
@@ -418,11 +445,25 @@ function Add-Block {
     [void]$Builder.AppendLine('=== END VOYAGE BORDER ===')
 }
 
+function Add-RerollCostBlock {
+    param(
+        [Parameter(Mandatory = $true)][System.Text.StringBuilder]$Builder,
+        [Parameter(Mandatory = $true)][string]$Text)
+    [void]$Builder.AppendLine('=== VOYAGE REROLL COST ===')
+    [void]$Builder.AppendLine($Text)
+    [void]$Builder.AppendLine('=== END VOYAGE REROLL COST ===')
+}
+
 $builder = [System.Text.StringBuilder]::new()
 if ($ImagePath) {
-    Add-Block $builder 0 (Read-OcrLines $ImagePath)
+    $text = Read-OcrLines $ImagePath -Unfiltered:$RerollCost
+    if ($RerollCost) {
+        Add-RerollCostBlock $builder $text
+    } else {
+        Add-Block $builder 0 $text
+    }
 } else {
-    if ($Index -lt 0 -or $WindowWidth -le 0 -or $WindowHeight -le 0) {
+    if (($Index -lt 0 -and -not $RerollCost) -or $WindowWidth -le 0 -or $WindowHeight -le 0) {
         throw 'Invalid Path of Exile window size.'
     }
     $png = Join-Path $env:TEMP "voyage-border-$PID-$Index.png"
@@ -436,9 +477,18 @@ if ($ImagePath) {
             $graphics.Dispose()
             $image.Dispose()
         }
-        Add-Block $builder $Index (Read-OcrLines $png)
+        $text = Read-OcrLines $png -Unfiltered:$RerollCost
+        if ($RerollCost) {
+            Add-RerollCostBlock $builder $text
+        } else {
+            Add-Block $builder $Index $text
+        }
     } catch {
-        Add-Block $builder $Index ("OCR ERROR: " + $_.Exception.Message)
+        if ($RerollCost) {
+            Add-RerollCostBlock $builder ("OCR ERROR: " + $_.Exception.Message)
+        } else {
+            Add-Block $builder $Index ("OCR ERROR: " + $_.Exception.Message)
+        }
     } finally {
         Remove-Item -LiteralPath $png -Force -ErrorAction SilentlyContinue
     }
@@ -515,6 +565,33 @@ ScanBorders() {
     return result
 }
 
+ScanRerollCost() {
+    global PoeWinTitle, RerollX, RerollY, RerollHoverDelay, BorderOcrAttempts, Running
+    if !RerollCostCalibrated()
+        return ""
+
+    WinGetPos &winX, &winY, &winW, &winH, PoeWinTitle
+    arguments := "-RerollCost"
+        . " -WindowLeft " winX " -WindowTop " winY
+        . " -WindowWidth " winW " -WindowHeight " winH
+    block := ""
+    Loop BorderOcrAttempts {
+        if !Running
+            break
+        attempt := A_Index
+        ToolTip "Reading border reroll cost..."
+            . (attempt > 1 ? "`nRetrying tooltip OCR..." : "")
+        MouseMove RerollX, RerollY, 0
+        Sleep RerollHoverDelay + (attempt - 1) * 200
+        ToolTip()
+        Sleep 30
+        block := RunOcrHelper(arguments)
+        if RegExMatch(block, "i)Border\s+Modifiers?\s+Reroll\s+Cost")
+            break
+    }
+    return block
+}
+
 PasteIntoSolver(payload, failureMessage) {
     global BrowserWinTitle, ActivateDelay, PasteDelay, Running
     if (payload = "")
@@ -536,9 +613,13 @@ PasteIntoSolver(payload, failureMessage) {
 }
 
 ; Developer smoke-test: run the embedded Windows OCR helper against an image.
-if A_Args.Length >= 2 && A_Args[1] = "--ocr-file" {
+if A_Args.Length >= 2
+    && (A_Args[1] = "--ocr-file" || A_Args[1] = "--ocr-reroll-cost-file") {
     quote := Chr(34)
-    result := RunOcrHelper("-ImagePath " quote A_Args[2] quote, false)
+    arguments := "-ImagePath " quote A_Args[2] quote
+    if A_Args[1] = "--ocr-reroll-cost-file"
+        arguments .= " -RerollCost"
+    result := RunOcrHelper(arguments, false)
     FileAppend result, "*", "UTF-8"
     ExitApp
 }
@@ -633,11 +714,30 @@ F6:: {
         Sleep BorderPreviewDelay
     }
 
+    if Running && RerollCostCalibrated() {
+        MouseMove RerollX, RerollY, 0
+        ToolTip "Reroll-cost preview"
+            . "`nThe cost tooltip should now be visible."
+            . "`n(F10 to abort)", 20, 20
+        Sleep BorderPreviewDelay
+    }
+
     completed := Running
     Running := false
     ToolTip()
     if completed
         Flash "Border preview complete. No OCR was run.", 3500
+}
+
+; ---- Ctrl+F7: capture the border-reroll button ----
+^F7:: {
+    global
+    MouseGetPos &x, &y
+    RerollX := x, RerollY := y
+    IniWrite RerollX, IniFile, "board", "RerollX"
+    IniWrite RerollY, IniFile, "board", "RerollY"
+    Flash "Border reroll button set: " RerollX ", " RerollY
+        . "`nIts tooltip cost will be read during F9 / Ctrl+F9.", 4000
 }
 
 ; ---- F7 / F8: capture the grid corners ----
@@ -705,19 +805,30 @@ F10:: {
     borderBlob := ScanBorders()
     if !Running
         return
-    if (borderBlob = "") {
+    rerollCostBlob := ScanRerollCost()
+    if !Running
+        return
+    if (borderBlob = "" && rerollCostBlob = "") {
         Running := false
-        Flash "Border OCR returned no data. Try Ctrl+F9 again.", 4000
+        Flash "Border and reroll-cost OCR returned no data. Try Ctrl+F9 again.", 4000
         return
     }
+
+    payload := borderBlob
+    if (payload != "" && rerollCostBlob != "")
+        payload .= "`n"
+    payload .= rerollCostBlob
     if !PasteIntoSolver(
-        borderBlob,
-        "Read 12 borders but couldn't focus the browser to paste."
+        payload,
+        "Read the borders but couldn't focus the browser to paste."
     )
         return
 
     Running := false
-    Flash "Done. Refreshed 12 borders; charts were not rescanned.", 5000
+    costNote := RerollCostCalibrated()
+        ? (rerollCostBlob != "" ? " + reroll cost" : " (reroll-cost OCR failed)")
+        : " (reroll cost skipped: calibrate Ctrl+F7)"
+    Flash "Done. Refreshed 12 borders" costNote "; charts were not rescanned.", 5000
 }
 
 ; ---- F9: the real import sweep ----
@@ -737,7 +848,7 @@ F9:: {
     }
 
     Running := true
-    copied := 0, skipped := 0, blob := "", borderBlob := "", seen := Map()
+    copied := 0, skipped := 0, blob := "", borderBlob := "", rerollCostBlob := "", seen := Map()
 
     ; ---- Phase 1: copy every chart while staying in PoE ----
     WinActivate PoeWinTitle
@@ -779,20 +890,25 @@ F9:: {
         }
     }
 
-    ; ---- Phase 2: OCR the 12 board-border modifier tooltips ----
+    ; ---- Phase 2: OCR the 12 borders and the optional reroll-cost tooltip ----
     if Running && BoardCalibrated() {
         ToolTip "Reading 12 board borders with Windows OCR..."
             . "`nThis can take 15-30 seconds on a 4K screen."
             . "`n(F10 to abort)"
         borderBlob := ScanBorders()
     }
+    if Running && RerollCostCalibrated()
+        rerollCostBlob := ScanRerollCost()
 
     ; ---- Phase 3: one switch, one paste of the whole batch ----
-    if Running && (copied > 0 || borderBlob != "") {
+    if Running && (copied > 0 || borderBlob != "" || rerollCostBlob != "") {
         payload := blob
         if (payload != "" && borderBlob != "")
             payload .= "`n"
         payload .= borderBlob
+        if (payload != "" && rerollCostBlob != "")
+            payload .= "`n"
+        payload .= rerollCostBlob
         if !PasteIntoSolver(
             payload,
             "Copied " copied " charts but couldn't focus the browser to paste."
@@ -804,6 +920,9 @@ F9:: {
     borderNote := BoardCalibrated()
         ? (borderBlob != "" ? " + 12 border OCR scans" : " (border OCR failed)")
         : " (borders skipped: calibrate F5/F6)"
-    Flash "Done. Sent " copied " charts" borderNote
+    costNote := RerollCostCalibrated()
+        ? (rerollCostBlob != "" ? " + reroll cost" : " (reroll-cost OCR failed)")
+        : " (reroll cost skipped: calibrate Ctrl+F7)"
+    Flash "Done. Sent " copied " charts" borderNote costNote
         . "; skipped " skipped " empty/dup cells.", 6000
 }

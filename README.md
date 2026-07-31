@@ -99,9 +99,9 @@ been revealed.
 
 Border modifiers can be entered manually. On Windows, the optional
 [AutoHotkey OCR helper](docs/windows-ocr.md) can automate chart copying and read
-the 12 visible border tooltips. It requires AutoHotkey v2, a Windows OCR language
-capability, a visible unscrolled Voyage Board, and Path of Exile in Windowed or
-Windowed Fullscreen mode.
+the 12 visible border tooltips plus the next border-reroll cost. It requires
+AutoHotkey v2, a Windows OCR language capability, a visible unscrolled Voyage
+Board, and Path of Exile in Windowed or Windowed Fullscreen mode.
 
 The importer also includes an opt-in **Contribute border-roll data** panel. Its
 capture protocol and privacy-preserving sample schema are documented in

@@ -20,6 +20,10 @@ export const DIVINE_BORDER_PAYLOAD = `=== VOYAGE BORDER 0 ===
 Rare Monsters adjacent in Areas drop 1 additional Divine Orbs
 === END VOYAGE BORDER ===`
 
+export const REROLL_COST_PAYLOAD = `=== VOYAGE REROLL COST ===
+Border Modifiers Reroll Cost: 6 000
+=== END VOYAGE REROLL COST ===`
+
 export const COMPLETE_DIVINE_BORDER_PAYLOAD = Array.from(
   { length: 12 },
   (_, index) => `=== VOYAGE BORDER ${index} ===

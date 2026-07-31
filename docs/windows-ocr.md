@@ -1,9 +1,9 @@
 # Windows chart import and border OCR
 
 `public/voyage-import.ahk` is an optional Windows helper for the Allflame Voyage
-Solver. It copies Charted Charts from Path of Exile and reads the 12 visible
-Corruption Current tooltips with Windows Runtime OCR before pasting the combined
-text into the browser.
+Solver. It copies Charted Charts from Path of Exile, reads the 12 visible
+Corruption Current tooltips, and optionally reads the next border-reroll cost
+with Windows Runtime OCR before pasting the combined text into the browser.
 
 The web app and manual border entry do not require this helper.
 
@@ -73,6 +73,18 @@ For exact calibration, press `Ctrl+F5`, hover each prompted border-tooltip point
 and press `Ctrl+F6` for all 12 positions. Press `Ctrl+F4` to preview the stored
 points.
 
+### Reroll-cost calibration
+
+Hover the compass-shaped border reroll button until `Border Modifiers Reroll
+Cost` is visible, then press `Ctrl+F7`. This saves the hover point. During each
+later `F9` or `Ctrl+F9` scan, the helper moves the pointer to that button, waits
+for its tooltip, reads the displayed cost, and maps it to the solver's `Used`
+reroll count. The known next costs are 3,000, 6,000, 12,000, 24,000, and 48,000.
+
+This calibration is optional; without it, the existing reroll counter remains
+unchanged. `Ctrl+F4` also previews the saved reroll-button point after the 12
+border points.
+
 ### Chart-grid calibration
 
 - Hover the center of the top-left chart slot and press `F7`.
@@ -84,9 +96,11 @@ near the top of the script if the visible chart stash uses a different size.
 
 ## Run
 
-- `F9` copies the calibrated chart grid, reads all 12 border tooltips, activates
-  the solver tab, and pastes the combined payload.
-- `Ctrl+F9` reads and pastes only the borders, which is useful after a reroll.
+- `F9` copies the calibrated chart grid, reads all 12 border tooltips and the
+  calibrated reroll-cost tooltip, activates the solver tab, and pastes the
+  combined payload.
+- `Ctrl+F9` reads and pastes only the borders and reroll cost, which is useful
+  after a reroll.
 - `F10` aborts the current sweep.
 
 Do not move the mouse or type while a sweep is running. Chart copying uses the
@@ -110,6 +124,8 @@ export it or create a share URL.
   helper's privilege level to the game.
 - **Wrong border tooltip or missed text:** keep the board unscrolled, use exact
   calibration, and press `Ctrl+F4` to verify the 12 points.
+- **Reroll count does not update:** hover the reroll button until the cost is
+  visible, repeat `Ctrl+F7`, and use `Ctrl+F4` to preview the saved point.
 - **Wrong charts are copied:** repeat `F7` and `F8`; adjust `GridCols` or
   `GridRows` if necessary.
 - **The browser is not selected:** ensure the tab title contains

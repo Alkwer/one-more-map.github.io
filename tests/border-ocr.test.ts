@@ -160,7 +160,7 @@ describe('border OCR regressions', () => {
     assert.equal(noisyRarePerConnection.matches[0]?.id, 'b-rareconn-1')
   })
 
-  it('keeps the Windows importer language fallback and border-only refresh', () => {
+  it('keeps the Windows importer language fallback and board-only refresh', () => {
     // Windows installations often only have their display-language OCR pack.
     // Keep the importer from regressing to a hard dependency on en-US.
     const ahkImporter = readFileSync(
@@ -180,7 +180,12 @@ describe('border OCR regressions', () => {
     assert.ok(fullImportStart > borderRefreshStart, 'full F9 import hotkey is missing')
     const borderRefreshHotkey = ahkImporter.slice(borderRefreshStart, fullImportStart)
     assert.match(borderRefreshHotkey, /borderBlob := ScanBorders\(\)/)
-    assert.match(borderRefreshHotkey, /PasteIntoSolver\(\s*borderBlob/)
+    assert.match(borderRefreshHotkey, /rerollCostBlob := ScanRerollCost\(\)/)
+    assert.match(borderRefreshHotkey, /payload := borderBlob/)
+    assert.match(borderRefreshHotkey, /PasteIntoSolver\(\s*payload/)
+    assert.match(ahkImporter, /\^F7:: \{/)
+    assert.match(ahkImporter, /MouseMove RerollX, RerollY, 0/)
+    assert.match(ahkImporter, /-Unfiltered:\$RerollCost/)
     assert.doesNotMatch(borderRefreshHotkey, /CellPos|GridRows|GridCols|Send "\^c"/)
     assert.doesNotMatch(
       ahkImporter,
