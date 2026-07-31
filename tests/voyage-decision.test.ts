@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'vitest'
-import type { StrategySuggestion } from '../src/logic/strategySuggestions'
+import type { RequiredBorderStatus, StrategySuggestion } from '../src/logic/strategySuggestions'
 import {
   ABSOLUTE_PLAYABLE_FIT,
   decideVoyage,
@@ -15,6 +15,7 @@ interface CandidateOptions {
   missing?: string[]
   rankScore?: number
   jackpot?: boolean
+  requiredBorderStatus?: RequiredBorderStatus
 }
 
 const candidate = ({
@@ -25,6 +26,7 @@ const candidate = ({
   missing = [],
   rankScore = fit ?? 0,
   jackpot = false,
+  requiredBorderStatus = 'not-required',
 }: CandidateOptions): StrategySuggestion =>
   ({
     strategy: { id, name },
@@ -35,6 +37,7 @@ const candidate = ({
     },
     rankScore,
     jackpot,
+    requiredBorderStatus,
   }) as StrategySuggestion
 
 const decide = ({
@@ -117,6 +120,35 @@ describe('Voyage decision regressions', () => {
     assert.equal(decision.strategyId, 'missing')
     assert.match(decision.label, /Missing Pieces/)
     assert.deepEqual(decision.missing, ['2× Starfish', '1× Lantern'])
+    assert.equal(decision.preserveRoll, false)
+  })
+
+  it('does not preserve a strategy whose required border is absent', () => {
+    const decision = decide({
+      evaluations: [
+        candidate({
+          id: 'divine-border-rares',
+          name: 'Divine Border Rares',
+          fit: 0.01,
+          ready: false,
+          missing: ['1× Sea-Pillar', 'a "+1 Divine Orb" border roll'],
+          rankScore: 100,
+          requiredBorderStatus: 'missing',
+        }),
+        candidate({
+          id: 'milky-speedrun',
+          name: 'Speedrun Strongboxes',
+          fit: 0.08,
+          ready: false,
+          missing: ['1× additional eligible chart for a full voyage'],
+          rankScore: 1,
+        }),
+      ],
+    })
+
+    assert.equal(decision.kind, 'wait')
+    assert.equal(decision.strategyId, 'milky-speedrun')
+    assert.equal(decision.preserveRoll, false)
   })
 
   it('rerolls a weak early roll', () => {
@@ -171,6 +203,7 @@ describe('Voyage decision regressions', () => {
           ready: false,
           missing: ['1× Sea-Pillar'],
           jackpot: true,
+          requiredBorderStatus: 'met',
           rankScore: 2_000,
         }),
       ],
@@ -181,6 +214,7 @@ describe('Voyage decision regressions', () => {
     assert.equal(decision.kind, 'wait')
     assert.match(decision.label, /Divine Border Rares/)
     assert.doesNotMatch(decision.label, /PLAY/)
+    assert.equal(decision.preserveRoll, true)
   })
 
   it('blocks the final command only on missing border data', () => {

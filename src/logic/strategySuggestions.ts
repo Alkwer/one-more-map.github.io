@@ -17,6 +17,7 @@ const POTENTIAL_SEARCH_ITERATIONS = 900
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value))
 
 export type SuggestionConfidence = 'low' | 'medium' | 'high'
+export type RequiredBorderStatus = 'not-required' | 'unknown' | 'met' | 'missing'
 
 export interface StrategyEvaluationOptions extends ScoreOptions {
   mode: ConnectivityMode
@@ -61,6 +62,8 @@ export interface StrategyInventorySuggestion {
   combinedFit: number
   eligibleCharts: number
   jackpot: boolean
+  /** Whether the strategy's mandatory border is present on the completed current roll. */
+  requiredBorderStatus: RequiredBorderStatus
   borderScore: number
   matchingBorders: number
   harmfulBorders: number
@@ -329,6 +332,14 @@ export function evaluateStrategyInventory(
     const divineJackpot = hasDivineBorder && strategy.id === 'divine-border-rares'
     const equipmentJackpot = hasNoEquipment && strategy.id === 'milky-meatfish'
     const jackpot = divineJackpot || equipmentJackpot
+    const requiredBorderStatus: RequiredBorderStatus = !strategy.requiresBorderId
+      ? 'not-required'
+      : borders.includes(strategy.requiresBorderId.id) &&
+          !opts.disabledMods?.has(strategy.requiresBorderId.id)
+        ? 'met'
+        : enteredBorders < 12
+          ? 'unknown'
+          : 'missing'
 
     const reasons: string[] = [
       `Evaluated all ${eligiblePool.length} eligible imported charts; the best layout found is ${
@@ -347,6 +358,11 @@ export function evaluateStrategyInventory(
     if (equipmentJackpot) {
       reasons.push(
         'Your library contains a “Monsters cannot drop Equipment” chart, the key Meatfish multiplier.',
+      )
+    }
+    if (requiredBorderStatus === 'missing') {
+      reasons.push(
+        `The completed current roll does not contain ${strategy.requiresBorderId!.label}; this strategy requires a border reroll.`,
       )
     }
 
@@ -389,6 +405,7 @@ export function evaluateStrategyInventory(
       combinedFit: 0,
       eligibleCharts: eligiblePool.length,
       jackpot,
+      requiredBorderStatus,
       borderScore,
       matchingBorders,
       harmfulBorders,
@@ -440,6 +457,11 @@ export function evaluateStrategyInventory(
     const aDivine = a.strategy.id === 'divine-border-rares' && a.jackpot
     const bDivine = b.strategy.id === 'divine-border-rares' && b.jackpot
     if (aDivine !== bDivine) return aDivine ? -1 : 1
+    const aMissingRequiredBorder = a.requiredBorderStatus === 'missing'
+    const bMissingRequiredBorder = b.requiredBorderStatus === 'missing'
+    if (aMissingRequiredBorder !== bMissingRequiredBorder) {
+      return aMissingRequiredBorder ? 1 : -1
+    }
     if (a.readiness.ready !== b.readiness.ready) {
       return a.readiness.ready ? -1 : 1
     }

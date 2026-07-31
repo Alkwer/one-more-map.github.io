@@ -34,6 +34,24 @@ describe('strategy suggestion regressions', () => {
     assert.equal(result.suggestions[0].jackpot, true)
     assert.equal(result.suggestions[0].confidence, 'high')
     assert.equal(result.suggestions[0].matchingBorders, 1)
+    assert.equal(result.suggestions[0].requiredBorderStatus, 'met')
+  })
+
+  it('does not rank Divine Border Rares first when a complete roll lacks Divine', () => {
+    const pool = [
+      chart('divine-pillar', [], 'Sea-Pillar Alpha'),
+      ...Array.from({ length: 3 }, (_, index) => chart(`divine-box-${index}`, ['adj-box-3'])),
+      ...Array.from({ length: 5 }, (_, index) => chart(`divine-rare-${index}`, ['adj-rare-2'])),
+    ]
+    const charts = new Map(pool.map((entry) => [entry.uid, entry]))
+    const borders = Array(12).fill('b-rare-3')
+    const result = suggestStrategies(emptyBoard(), borders, charts, pool, options)
+    const divine = result.evaluations.find((entry) => entry.strategy.id === 'divine-border-rares')!
+
+    assert.equal(divine.requiredBorderStatus, 'missing')
+    assert.notEqual(result.evaluations[0].strategy.id, 'divine-border-rares')
+    assert.ok(divine.rankScore > result.evaluations[0].rankScore)
+    assert.ok(divine.reasons.some((reason) => /requires a border reroll/.test(reason)))
   })
 
   it('uses the Meatfish library jackpot without a border roll', () => {
