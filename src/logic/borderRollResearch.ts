@@ -8,7 +8,7 @@ const LEGACY_SAMPLE_SCHEMA = 'allflame-border-roll/v1' as const
 const LEGACY_STORE_VERSION = 1
 const STORE_VERSION = 2
 const STORAGE_KEY = 'allflame-border-roll-research'
-const SUBMISSION_URL = 'https://github.com/one-more-map/one-more-map.github.io/issues/new'
+const SUBMISSION_URL = 'https://github.com/Alkwer/one-more-map.github.io/issues/new'
 
 export type OrderedBorderIds = [
   string,
