@@ -1,9 +1,12 @@
 import { BORDER_MODS } from '../data/mods'
 import type { Borders } from '../types'
 import { emptyBorders } from '../types'
+import { REROLL_COSTS } from './rerollAdvice'
 
 const BORDER_BLOCK =
   /===\s*VOYAGE BORDER\s+(\d{1,2})\s*===\s*([\s\S]*?)===\s*END VOYAGE BORDER\s*===/gi
+const REROLL_COST_BLOCK =
+  /===\s*VOYAGE REROLL COST\s*===\s*([\s\S]*?)===\s*END VOYAGE REROLL COST\s*===/gi
 
 export const normalizeBorderOcrText = (text: string): string =>
   text
@@ -56,6 +59,31 @@ function candidateLines(raw: string): string[] {
     if (whole) candidates.add(whole)
   }
   return [...candidates]
+}
+
+const rerollsUsedByCost = new Map<number, number>(
+  REROLL_COSTS.map((cost, rerollsUsed) => [cost, rerollsUsed]),
+)
+
+function matchRerollCost(raw: string): { cost: number; rerollsUsed: number } | null {
+  for (const candidate of candidateLines(raw)) {
+    const match = candidate.match(/\bborder\s+modifiers?\s+reroll\s+cost\b(.*)$/)
+    if (!match) continue
+
+    const tokens = match[1].trim().split(' ').filter(Boolean).slice(0, 3)
+    let digits = ''
+    for (const token of tokens) {
+      // Windows OCR sometimes reads zeroes as the letter O in a spaced
+      // thousands value (for example, "6 OOO"). Only normalize tokens that
+      // otherwise look numeric, then accept one of the five known costs.
+      if (!/^[0-9oil]+$/.test(token)) break
+      digits += token.replace(/[oil]/g, (character) => (character === 'o' ? '0' : '1'))
+      const cost = Number.parseInt(digits, 10)
+      const rerollsUsed = rerollsUsedByCost.get(cost)
+      if (rerollsUsed !== undefined) return { cost, rerollsUsed }
+    }
+  }
+  return null
 }
 
 interface Match {
@@ -133,6 +161,12 @@ export interface BorderOcrMiss {
   raw: string
 }
 
+export interface BorderRerollCostMatch {
+  cost: number
+  rerollsUsed: number
+  raw: string
+}
+
 export interface BorderOcrParseResult {
   /** Clipboard payload with OCR blocks removed, ready for the chart parser. */
   chartText: string
@@ -141,6 +175,9 @@ export interface BorderOcrParseResult {
   matches: BorderOcrMatch[]
   misses: BorderOcrMiss[]
   blockCount: number
+  rerollCost: BorderRerollCostMatch | null
+  rerollCostBlockCount: number
+  rerollCostMisses: string[]
 }
 
 export function parseBorderOcrPayload(source: string): BorderOcrParseResult {
@@ -148,21 +185,41 @@ export function parseBorderOcrPayload(source: string): BorderOcrParseResult {
   const matches: BorderOcrMatch[] = []
   const misses: BorderOcrMiss[] = []
   let blockCount = 0
+  let rerollCost: BorderRerollCostMatch | null = null
+  let rerollCostBlockCount = 0
+  const rerollCostMisses: string[] = []
 
-  const chartText = source.replace(BORDER_BLOCK, (_block, indexText: string, raw: string) => {
-    blockCount++
-    const index = Number.parseInt(indexText, 10)
-    if (index < 0 || index >= 12) return '\n'
+  const chartText = source
+    .replace(REROLL_COST_BLOCK, (_block, raw: string) => {
+      rerollCostBlockCount++
+      const match = matchRerollCost(raw)
+      if (match) rerollCost = { ...match, raw: raw.trim() }
+      else rerollCostMisses.push(raw.trim())
+      return '\n'
+    })
+    .replace(BORDER_BLOCK, (_block, indexText: string, raw: string) => {
+      blockCount++
+      const index = Number.parseInt(indexText, 10)
+      if (index < 0 || index >= 12) return '\n'
 
-    const match = matchBorder(raw)
-    if (match) {
-      borders[index] = match.id
-      matches.push({ index, ...match })
-    } else {
-      misses.push({ index, raw: raw.trim() })
-    }
-    return '\n'
-  })
+      const match = matchBorder(raw)
+      if (match) {
+        borders[index] = match.id
+        matches.push({ index, ...match })
+      } else {
+        misses.push({ index, raw: raw.trim() })
+      }
+      return '\n'
+    })
 
-  return { chartText, borders, matches, misses, blockCount }
+  return {
+    chartText,
+    borders,
+    matches,
+    misses,
+    blockCount,
+    rerollCost,
+    rerollCostBlockCount,
+    rerollCostMisses,
+  }
 }
