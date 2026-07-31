@@ -2,8 +2,8 @@ import type { Board, Borders, ChartData, ConnectivityMode, Edges, Weights } from
 import { borderTouches } from '../types'
 import type { PositionRule } from '../data/strategies'
 import { isChartShapeResolved } from './chartShapes'
-import { checkConnectivity, rotateEdges } from './connectivity'
-import { scoreBoard, type ScoreOptions } from './scoring'
+import { analyzeConnectivity, rotateEdges, type ConnectivityResult } from './connectivity'
+import { prepareScoreTotal, scoreBoard, type ScoreOptions } from './scoring'
 
 export interface SolverOptions extends ScoreOptions {
   mode: ConnectivityMode
@@ -130,6 +130,31 @@ const VIOLATION_PENALTY = 10_000
 // per connection). Kept low so it never outweighs real reward differences.
 const CONNECTION_BONUS = 0.15
 
+function objectiveScore(
+  board: Board,
+  borders: Borders,
+  charts: Map<string, ChartData>,
+  opts: SolverOptions,
+  reward: number,
+  connectivity: ConnectivityResult,
+): number {
+  // filler mode wants the least valuable runnable board, so flip the reward term
+  // while keeping the runnable requirements (connections good, violations bad)
+  const rewardTerm = opts.minimizeReward ? -reward : reward
+  const strat = opts.strategyRules ? strategyBonus(board, charts, opts.strategyRules, borders) : 0
+  const layoutPen = opts.strategyLayout
+    ? layoutMisses(board, charts, opts.strategyLayout) *
+      (opts.strategyLayoutPenalty ?? LAYOUT_PENALTY)
+    : 0
+  return (
+    rewardTerm +
+    strat +
+    connectivity.connections * CONNECTION_BONUS -
+    layoutPen -
+    connectivity.violations * VIOLATION_PENALTY
+  )
+}
+
 function evaluate(
   board: Board,
   borders: Borders,
@@ -143,22 +168,10 @@ function evaluate(
   fullyReachable: boolean
   reward: number
 } {
-  const conn = checkConnectivity(board, charts, opts.mode)
-  const s = scoreBoard(board, borders, charts, weights, opts)
-  // filler mode wants the least valuable runnable board, so flip the reward term
-  // while keeping the runnable requirements (connections good, violations bad)
-  const rewardTerm = opts.minimizeReward ? -s.total : s.total
-  const strat = opts.strategyRules ? strategyBonus(board, charts, opts.strategyRules, borders) : 0
-  const layoutPen = opts.strategyLayout
-    ? layoutMisses(board, charts, opts.strategyLayout) *
-      (opts.strategyLayoutPenalty ?? LAYOUT_PENALTY)
-    : 0
-  const objective =
-    rewardTerm +
-    strat +
-    conn.connections * CONNECTION_BONUS -
-    layoutPen -
-    conn.violations * VIOLATION_PENALTY
+  const analysis = analyzeConnectivity(board, charts, opts.mode)
+  const conn = analysis.result
+  const s = scoreBoard(board, borders, charts, weights, opts, analysis)
+  const objective = objectiveScore(board, borders, charts, opts, s.total, conn)
   return {
     score: objective,
     valid: conn.valid,
@@ -277,7 +290,12 @@ function hillClimb(
           }
         })()
 
-  const evalScore = (b: Board) => evaluate(b, borders, charts, weights, opts).score
+  const scoreTotal = prepareScoreTotal(borders, charts, weights, opts)
+  const evalScore = (b: Board) => {
+    const connectivity = analyzeConnectivity(b, charts, opts.mode)
+    const reward = scoreTotal(b, connectivity)
+    return objectiveScore(b, borders, charts, opts, reward, connectivity.result)
+  }
 
   for (let r = 0; r < RESTARTS; r++) {
     // random initial: shuffle pool, take up to 9

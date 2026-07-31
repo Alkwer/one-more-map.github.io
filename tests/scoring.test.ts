@@ -2,8 +2,10 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'vitest'
 import type { Board, Borders, ChartData, ModEffect } from '../src/types'
 import { appraiseBorders } from '../src/logic/borderAppraisal'
+import { analyzeConnectivity } from '../src/logic/connectivity'
 import { chartRewardKey, DEFAULT_WEIGHTS } from '../src/logic/rewards'
-import { scoreBoard } from '../src/logic/scoring'
+import { prepareScoreTotal, scoreBoard, type ScoreOptions } from '../src/logic/scoring'
+import { createPerformanceFixture } from '../benchmarks/performance-fixture'
 
 const options = {
   adjacencyMode: 'physical',
@@ -112,5 +114,75 @@ describe('scoring regressions', () => {
     const withMagnitude = scoreBoard(board, bordersWith(1, 'b-mag-1'), charts, weights, options)
     assert.equal(base.total, 0.8)
     assert.equal(withMagnitude.total, base.total)
+  })
+
+  it('keeps the compiled hot-path total equivalent to the full score breakdown', () => {
+    const pool = createPerformanceFixture(14).map((entry, index) =>
+      index % 4 === 0
+        ? {
+            ...entry,
+            rewards: [
+              { stat: 'quantity' as const, percent: 30 + index },
+              { stat: 'packsize' as const, percent: 12 },
+            ],
+          }
+        : entry,
+    )
+    const charts = new Map(pool.map((entry) => [entry.uid, entry]))
+    const borders = [
+      'b-rare-3',
+      'b-quantconn-2',
+      'b-mag-3',
+      'b-minmagic',
+      null,
+      'b-rare-3',
+      'b-quantconn-2',
+      null,
+      'b-mag-3',
+      'b-minmagic',
+      null,
+      'b-rare-3',
+    ] satisfies Borders
+    const optionSets: ScoreOptions[] = [
+      { adjacencyMode: 'physical', adjacentAffectsSelf: false, disabledMods: new Set() },
+      { adjacencyMode: 'physical', adjacentAffectsSelf: true, disabledMods: new Set() },
+      { adjacencyMode: 'connected', adjacentAffectsSelf: false, disabledMods: new Set() },
+      {
+        adjacencyMode: 'connected',
+        adjacentAffectsSelf: true,
+        disabledMods: new Set(['adj-star-1', 'b-mag-3']),
+      },
+    ]
+    let randomState = 0x31c0ffee
+    const random = () => {
+      randomState = Math.imul(randomState ^ (randomState >>> 15), 1 | randomState)
+      randomState ^= randomState + Math.imul(randomState ^ (randomState >>> 7), 61 | randomState)
+      return ((randomState ^ (randomState >>> 14)) >>> 0) / 4_294_967_296
+    }
+
+    for (const scoreOptions of optionSets) {
+      const fastScore = prepareScoreTotal(borders, charts, DEFAULT_WEIGHTS, scoreOptions)
+      for (let sample = 0; sample < 30; sample++) {
+        const shuffled = [...pool].sort(() => random() - 0.5)
+        const board: Board = Array.from({ length: 9 }, (_, index) =>
+          random() < 0.12
+            ? null
+            : {
+                chartUid: shuffled[index].uid,
+                rotation: Math.floor(random() * 4),
+              },
+        )
+        const connectivity = analyzeConnectivity(board, charts, 'strict')
+        const full = scoreBoard(
+          board,
+          borders,
+          charts,
+          DEFAULT_WEIGHTS,
+          scoreOptions,
+          connectivity,
+        ).total
+        assertClose(fastScore(board, connectivity), full)
+      }
+    }
   })
 })

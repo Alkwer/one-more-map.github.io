@@ -8,13 +8,6 @@ export function rotateEdges(edges: Edges, r: number): Edges {
   return out
 }
 
-const DIRS = [
-  { dr: -1, dc: 0, edge: 0, opp: 2 }, // N
-  { dr: 0, dc: 1, edge: 1, opp: 3 }, // E
-  { dr: 1, dc: 0, edge: 2, opp: 0 }, // S
-  { dr: 0, dc: -1, edge: 3, opp: 1 }, // W
-]
-
 export interface ConnectivityResult {
   /** whether the selected solver rule accepts this layout */
   valid: boolean
@@ -35,6 +28,17 @@ export interface ConnectivityResult {
 }
 
 /**
+ * Connector data shared by the validity check and the scoring hot path.
+ * Keeping it together avoids rotating and walking the same board twice for
+ * every hill-climb candidate.
+ */
+export interface ConnectivityAnalysis {
+  result: ConnectivityResult
+  connectionCounts: number[]
+  connectedNeighbours: number[][]
+}
+
+/**
  * Check the connector rules for placed tiles.
  *
  * The game distinguishes two useful states:
@@ -49,60 +53,68 @@ export interface ConnectivityResult {
  *
  * 'any' mode ignores connectors entirely (experiment mode).
  */
-export function checkConnectivity(
+export function analyzeConnectivity(
   board: Board,
   charts: Map<string, ChartData>,
   mode: ConnectivityMode,
-): ConnectivityResult {
-  const placedIdx = board.map((p, i) => (p ? i : -1)).filter((i) => i >= 0)
-  const unfilled = 9 - placedIdx.length
-
-  const edgesAt = (i: number): Edges | null => {
-    const p = board[i]
-    if (!p) return null
-    const c = charts.get(p.chartUid)
-    if (!c) return null
-    return rotateEdges(c.edges, p.rotation)
+): ConnectivityAnalysis {
+  const placedIdx: number[] = []
+  const effectiveEdges: (Edges | null)[] = Array(9).fill(null)
+  for (let index = 0; index < 9; index++) {
+    const placement = board[index]
+    if (!placement) continue
+    placedIdx.push(index)
+    const chart = charts.get(placement.chartUid)
+    if (!chart) continue
+    effectiveEdges[index] = rotateEdges(chart.edges, placement.rotation)
   }
+  const unfilled = 9 - placedIdx.length
 
   // build the matched-connection graph and count mismatches
   let mismatches = 0
   let connections = 0
   const adj: number[][] = Array.from({ length: 9 }, () => [])
+  const connectionCounts: number[] = Array(9).fill(0)
   for (const i of placedIdx) {
-    const e = edgesAt(i)
-    if (!e) continue
+    const edges = effectiveEdges[i]
+    if (!edges) continue
     const r = Math.floor(i / 3)
     const c = i % 3
-    for (const d of DIRS) {
-      const nr = r + d.dr
-      const nc = c + d.dc
-      if (nr < 0 || nr > 2 || nc < 0 || nc > 2) continue // off-board rim: fine
-      const j = nr * 3 + nc
-      const ne = edgesAt(j)
-      if (!ne) continue // neighbour empty: penalised via unfilled, not here
-      if (e[d.edge] && ne[d.opp]) {
+
+    // Each internal pair is visited once: east, then south. Connectors on the
+    // outer rim remain legal, and empty neighbours are covered by `unfilled`.
+    const compare = (j: number, edge: number, opposite: number) => {
+      const neighbourEdges = effectiveEdges[j]
+      if (!neighbourEdges) return
+      if (edges[edge] && neighbourEdges[opposite]) {
         adj[i].push(j)
-        if (i < j) connections++
-      } else if (e[d.edge] !== ne[d.opp]) {
+        adj[j].push(i)
+        connectionCounts[i]++
+        connectionCounts[j]++
+        connections++
+      } else if (edges[edge] !== neighbourEdges[opposite]) {
         mismatches++
       }
     }
+
+    if (c < 2) compare(i + 1, 1, 3)
+    if (r < 2) compare(i + 3, 2, 0)
   }
-  mismatches /= 2 // each mismatched pair is seen from both tiles
 
   // reachability: flood-fill from the start square over matched connections
   let unreachable = placedIdx.length
   if (placedIdx.length > 0) {
-    const seen = new Set<number>()
+    const seen: boolean[] = Array(9).fill(false)
     const stack = board[START_CELL] ? [START_CELL] : []
+    let reached = 0
     while (stack.length) {
       const i = stack.pop()!
-      if (seen.has(i)) continue
-      seen.add(i)
-      for (const j of adj[i]) if (!seen.has(j)) stack.push(j)
+      if (seen[i]) continue
+      seen[i] = true
+      reached++
+      for (const j of adj[i]) if (!seen[j]) stack.push(j)
     }
-    unreachable = placedIdx.length - seen.size
+    unreachable = placedIdx.length - reached
   }
 
   const launchable = mismatches === 0 && unfilled === 0
@@ -110,13 +122,25 @@ export function checkConnectivity(
   const violations = mode === 'any' ? 0 : mismatches + unfilled + unreachable
   const valid = mode === 'any' || fullyReachable
   return {
-    valid,
-    launchable,
-    fullyReachable,
-    violations,
-    mismatches,
-    unfilled,
-    unreachable,
-    connections,
+    result: {
+      valid,
+      launchable,
+      fullyReachable,
+      violations,
+      mismatches,
+      unfilled,
+      unreachable,
+      connections,
+    },
+    connectionCounts,
+    connectedNeighbours: adj,
   }
+}
+
+export function checkConnectivity(
+  board: Board,
+  charts: Map<string, ChartData>,
+  mode: ConnectivityMode,
+): ConnectivityResult {
+  return analyzeConnectivity(board, charts, mode).result
 }
