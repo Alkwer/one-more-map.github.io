@@ -113,6 +113,7 @@ describe('border roll research samples', () => {
     })
     const url = new URL(buildBorderRollSubmissionUrl(roll))
     expect(url.hostname).toBe('github.com')
+    expect(url.pathname).toBe('/Alkwer/one-more-map.github.io/issues/new')
     expect(url.searchParams.get('body')).toContain(roll.sampleId)
   })
 })
