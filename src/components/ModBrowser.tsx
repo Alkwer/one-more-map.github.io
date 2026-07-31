@@ -60,7 +60,7 @@ export function ModBrowser({ disabled, onToggle, onBulk, onClose }: Props) {
     <div className="onboard-backdrop" onClick={onClose}>
       <div className="onboard modbrowser" onClick={(e) => e.stopPropagation()}>
         <div className="panel-title">
-          Chart Modifiers
+          <h2 className="panel-title-heading">Chart Modifiers</h2>
           <span className="spacer" />
           <button onClick={onClose}>Done</button>
         </div>
@@ -70,6 +70,7 @@ export function ModBrowser({ disabled, onToggle, onBulk, onClose }: Props) {
           {disabledCount > 0 ? ` (${disabledCount} off)` : ''}
         </p>
         <input
+          aria-label="Filter chart modifiers"
           placeholder="Filter modifiers…"
           value={q}
           onChange={(e) => setQ(e.target.value)}

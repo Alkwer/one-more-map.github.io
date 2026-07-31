@@ -440,7 +440,11 @@ export default function App() {
         </h1>
         <div className="header-right">
           <span className="tag">PoE 3.29: Curse of the Allflame</span>
-          <button title="How it works" onClick={() => setShowOnboarding(true)}>
+          <button
+            aria-label="Open how it works guide"
+            title="How it works"
+            onClick={() => setShowOnboarding(true)}
+          >
             ?
           </button>
           <button
@@ -451,6 +455,7 @@ export default function App() {
           </button>
           <button
             className="theme-link"
+            aria-label={harvestTheme ? 'Use the Allflame theme' : 'Use the Harvest theme'}
             title={
               harvestTheme
                 ? 'Back to the Allflame theme'
@@ -460,7 +465,12 @@ export default function App() {
           >
             {harvestTheme ? '🔥' : '🌱'}
           </button>
-          <button onClick={share}>{shareMsg || 'Share layout'}</button>
+          <button aria-label="Share layout" onClick={share}>
+            {shareMsg || 'Share layout'}
+          </button>
+          <span className="sr-only" role="status" aria-live="polite">
+            {shareMsg}
+          </span>
         </div>
       </header>
 
@@ -473,7 +483,7 @@ export default function App() {
       />
 
       <main>
-        <section className="col library-col">
+        <div className="col library-col">
           <Library
             pool={state.pool}
             board={state.board}
@@ -490,9 +500,9 @@ export default function App() {
             onClearCharts={clearCharts}
           />
           <ImportPanel onImport={addCharts} state={state} onLoadState={setState} />
-        </section>
+        </div>
 
-        <section className="col board-col">
+        <div className="col board-col">
           <BoardView
             board={state.board}
             borders={state.borders}
@@ -645,17 +655,23 @@ export default function App() {
             }
           />
 
-          <div className="score-panel">
+          <section className="score-panel" aria-labelledby="voyage-rewards-title">
             <div className="score-total">
-              Voyage Rewards <strong>{score.total.toFixed(1)}</strong>
+              <h2 id="voyage-rewards-title" className="score-title">
+                Voyage Rewards <strong>{score.total.toFixed(1)}</strong>
+              </h2>
               <span className="spacer" />
               <button
+                aria-label="Copy in-game chart search"
                 onClick={copySearch}
                 disabled={state.board.every((p) => !p)}
                 title="Copy a search string for the in-game chart inventory that highlights exactly the charts on this board"
               >
                 {searchMsg || '⌕ Copy in-game search'}
               </button>
+              <span className="sr-only" role="status" aria-live="polite">
+                {searchMsg}
+              </span>
             </div>
             <div className="muted small-note" style={{ marginTop: 0 }}>
               A relative score for comparing your layouts, based on your weights and estimated mod
@@ -679,7 +695,7 @@ export default function App() {
             )}
             {notables.length > 0 && (
               <>
-                <div className="panel-title small">Guaranteed & Notable</div>
+                <h3 className="panel-title small">Guaranteed & Notable</h3>
                 <div className="notable-list">
                   {notables.map((n) => (
                     <span key={n.label} className="notable-item" title={n.full}>
@@ -690,12 +706,14 @@ export default function App() {
                 </div>
               </>
             )}
-          </div>
-        </section>
+          </section>
+        </div>
 
-        <section className="col solver-col">
+        <section className="col solver-col" aria-labelledby="diagnostics-title">
           <div className="diagnostics-heading">
-            <div className="panel-title">Diagnostics</div>
+            <h2 id="diagnostics-title" className="panel-title">
+              Diagnostics
+            </h2>
             <div>
               Combined chart-library potential, border-roll fit, strategy requirements, and
               current-board fit explain the recommendation above; they do not replace it.

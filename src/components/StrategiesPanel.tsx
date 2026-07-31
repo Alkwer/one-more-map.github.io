@@ -74,11 +74,11 @@ export function StrategiesPanel({ activeId, pool, borders, onSelect }: Props) {
   const [expanded, setExpanded] = useState<string | null>(activeId)
 
   return (
-    <div className="strategies">
-      <div className="panel-title">
+    <section className="strategies" aria-labelledby="strategies-title">
+      <h3 id="strategies-title" className="panel-title">
         Strategies
         {activeId && <span className="strat-live-badge">ACTIVE</span>}
-      </div>
+      </h3>
       <div className="muted small-note" style={{ marginTop: 0 }}>
         Curated community strategies. Picking one overrides your reward weights and steers the
         solver until you switch it off.
@@ -148,6 +148,6 @@ export function StrategiesPanel({ activeId, pool, borders, onSelect }: Props) {
           </div>
         )
       })}
-    </div>
+    </section>
   )
 }

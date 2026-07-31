@@ -246,12 +246,15 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
   }
 
   return (
-    <div className="solver">
-      <div className="panel-title">Solver</div>
+    <section className="solver" aria-labelledby="solver-title">
+      <h3 id="solver-title" className="panel-title">
+        Solver
+      </h3>
 
       <div className="field">
-        <label>Connector rule</label>
+        <label htmlFor="connector-rule">Connector rule</label>
         <select
+          id="connector-rule"
           value={state.mode}
           onChange={(e) => onPatch({ mode: e.target.value as ConnectivityMode })}
         >
@@ -270,8 +273,9 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
       </label>
 
       <div className="field">
-        <label>Adjacent modifiers reach</label>
+        <label htmlFor="adjacency-mode">Adjacent modifiers reach</label>
         <select
+          id="adjacency-mode"
           value={state.adjacencyMode}
           onChange={(e) => onPatch({ adjacencyMode: e.target.value as AdjacencyMode })}
         >
@@ -315,6 +319,7 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
                     <span className="weight-label">{r.label}</span>
                     <input
                       type="range"
+                      aria-label={`${r.label} reward weight`}
                       min={0}
                       max={10}
                       step={1}
@@ -334,6 +339,14 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
           })}
         </div>
       </details>
+
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {busy
+          ? 'Solver is running'
+          : results.length > 0
+            ? `Solver finished with ${results.length} result${results.length === 1 ? '' : 's'}`
+            : solveNote}
+      </div>
 
       <button className="primary" onClick={run} disabled={busy || eligiblePool.length === 0}>
         {busy ? 'Solving…' : `Solve (${eligiblePool.length} charts)`}
@@ -361,14 +374,19 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
         <div className="muted small-note">Pool ≤ 9 charts → exhaustive search (optimal)</div>
       )}
 
-      <div className="panel-title small">Best-Charts Regex</div>
+      <h4 className="panel-title small">Best-Charts Regex</h4>
       <div className="muted small-note" style={{ marginTop: 0 }}>
         Paste into the in-game chart search to highlight charts worth taking, based on your weights
         above. No import needed. Experimental: the in-game search may or may not support this
         syntax, we'll see once live.
       </div>
       <div className="regex-row">
-        <input readOnly value={bestRegex.regex} onFocus={(e) => e.target.select()} />
+        <input
+          aria-label="Best charts regex"
+          readOnly
+          value={bestRegex.regex}
+          onFocus={(e) => e.target.select()}
+        />
         <button onClick={copyRegex}>{copied ? '✓' : 'Copy'}</button>
       </div>
       <div className="regex-meta">
@@ -387,8 +405,10 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
 
       {results.length > 0 && (
         <>
-          <div className="panel-title small">Results</div>
-          <div className="results">
+          <h4 id="solver-results-title" className="panel-title small">
+            Results
+          </h4>
+          <div className="results" aria-labelledby="solver-results-title">
             {results.map((r, i) => (
               <button
                 key={i}
@@ -406,6 +426,6 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
           </div>
         </>
       )}
-    </div>
+    </section>
   )
 }

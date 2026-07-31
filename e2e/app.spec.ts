@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer'
+import AxeBuilder from '@axe-core/playwright'
 import {
   APP_PATH,
   DIVINE_BORDER_PAYLOAD,
@@ -13,8 +14,46 @@ import {
   test,
 } from './support'
 
-const libraryHeading = (page: Parameters<typeof openApp>[0]) =>
-  page.locator('.library .panel-title').filter({ hasText: 'Chart Library' })
+type AppPage = Parameters<typeof openApp>[0]
+
+const libraryHeading = (page: AppPage) =>
+  page.getByRole('heading', { level: 2, name: /Chart Library/ })
+
+async function expectNoAccessibilityViolations(page: AppPage) {
+  const { violations } = await new AxeBuilder({ page }).analyze()
+  expect(
+    violations.map(({ id, impact, nodes }) => ({
+      id,
+      impact,
+      targets: nodes.map((node) => node.target.join(' ')),
+    })),
+  ).toEqual([])
+}
+
+test('exposes the primary screen structure and visible focus in both themes', async ({
+  appPage,
+}) => {
+  await openApp(appPage)
+
+  await expect(appPage.getByRole('main')).toBeVisible()
+  await expect(appPage.getByRole('heading', { level: 2, name: /Chart Library/ })).toBeVisible()
+  await expect(appPage.getByRole('heading', { level: 2, name: 'Import' })).toBeVisible()
+  await expect(appPage.getByRole('heading', { level: 2, name: 'Voyage Board' })).toBeVisible()
+  await expect(appPage.getByRole('heading', { level: 2, name: 'Diagnostics' })).toBeVisible()
+  await expectNoAccessibilityViolations(appPage)
+
+  const themeButton = appPage.locator('.theme-link')
+  await themeButton.focus()
+  await expect(themeButton).toHaveCSS('outline-color', 'rgb(231, 215, 171)')
+  await expect(themeButton).toHaveCSS('outline-width', '2px')
+
+  await themeButton.click()
+  await expect(appPage.locator('body')).toHaveClass(/theme-harvest/)
+  await themeButton.focus()
+  await expect(themeButton).toHaveCSS('outline-color', 'rgb(0, 0, 0)')
+  await expect(themeButton).toHaveCSS('outline-width', '3px')
+  await expect(themeButton).toHaveCSS('box-shadow', /rgb\(255, 255, 255\)/)
+})
 
 test('globally imports English, Korean, and border clipboard payloads', async ({ appPage }) => {
   const workerUrls: string[] = []
@@ -74,30 +113,65 @@ test('recovers an unknown shape and places it on the board with the keyboard', a
   await resolvedChart.focus()
   await appPage.keyboard.press('Enter')
 
-  const startCell = appPage.getByRole('button', { name: 'Board cell 7 (start): empty' })
+  const startCell = appPage.getByRole('button', {
+    name: 'Board cell 7, row 3, column 1, start: empty',
+  })
   await startCell.focus()
   await expect(startCell).toBeFocused()
   await appPage.keyboard.press('Enter')
 
   const placedCell = appPage.getByRole('button', {
-    name: 'Board cell 7 (start): Armoured Coral Reef Chart of Ice',
+    name: /Board cell 7, row 3, column 1, start: Armoured Coral Reef Chart of Ice; occupied/,
   })
   await expect(placedCell).toBeVisible()
   await expect(placedCell.locator('.path-bar.n')).toBeVisible()
   await expect(placedCell.locator('.path-bar.e')).toBeVisible()
 
-  await placedCell.getByTitle('Rotate').focus()
+  const preserveButton = appPage.getByRole('button', {
+    name: /Preserve Armoured Coral Reef Chart of Ice in row 3, column 1/,
+  })
+  await preserveButton.focus()
+  await appPage.keyboard.press('Space')
+  await expect(
+    appPage.getByRole('button', {
+      name: /Stop preserving Armoured Coral Reef Chart of Ice in row 3, column 1/,
+    }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  await expect(placedCell).toHaveAccessibleName(/; preserved$/)
+
+  const rotateButton = appPage.getByRole('button', {
+    name: /Rotate Armoured Coral Reef Chart of Ice in row 3, column 1; current rotation 0 degrees/,
+  })
+  await rotateButton.focus()
   await appPage.keyboard.press('Enter')
+  await expect(placedCell).toHaveAccessibleName(/rotation 90 degrees/)
   await expect(placedCell.locator('.path-bar.n')).toHaveCount(0)
   await expect(placedCell.locator('.path-bar.s')).toBeVisible()
 
   const firstBorder = appPage.getByRole('button', { name: 'Border segment 1: No border' })
   await firstBorder.focus()
+  await appPage.keyboard.press('Space')
+  const borderSearch = appPage.getByRole('textbox', { name: 'Search border modifiers' })
+  await expect(borderSearch).toBeFocused()
+  await expectNoAccessibilityViolations(appPage)
+  await appPage.keyboard.press('Escape')
+  await expect(firstBorder).toBeFocused()
+  await expect(appPage.getByRole('dialog')).toHaveCount(0)
+
   await appPage.keyboard.press('Enter')
-  await appPage.getByPlaceholder('Search border mods…').fill('Divine Orbs')
+  await borderSearch.fill('Divine Orbs')
   await appPage.keyboard.press('Enter')
+  const filledBorder = appPage.getByRole('button', { name: /Border segment 1: .*Divine Orbs/ })
+  await expect(filledBorder).toBeFocused()
+  await expect(filledBorder).toBeVisible()
+
+  const removeButton = appPage.getByRole('button', {
+    name: /Remove Armoured Coral Reef Chart of Ice from row 3, column 1/,
+  })
+  await removeButton.focus()
+  await appPage.keyboard.press('Space')
   await expect(
-    appPage.getByRole('button', { name: /Border segment 1: .*Divine Orbs/ }),
+    appPage.getByRole('button', { name: 'Board cell 7, row 3, column 1, start: empty' }),
   ).toBeVisible()
 })
 
@@ -141,29 +215,27 @@ test('cancels a stale solve, completes in the worker, and applies a result', asy
     .toBe(true)
   await firstResult.click()
 
-  const boardCells = appPage.locator('.tile[role="button"]')
+  const boardCells = appPage.locator('.tile-select')
   await expect(boardCells).toHaveCount(9)
   await expect
     .poll(async () => {
-      const labels = await boardCells.evaluateAll((cells) =>
-        cells.map((cell) => cell.getAttribute('aria-label')),
+      const names = await boardCells.evaluateAll((cells) =>
+        cells.map((cell) => cell.getAttribute('data-chart-name')),
       )
-      return labels.filter((label) => label?.endsWith(': empty')).length
+      return names.filter(Boolean).length
     })
-    .toBe(0)
+    .toBe(9)
 
   const firstCell = boardCells.nth(0)
   const secondCell = boardCells.nth(1)
-  const firstLabel = await firstCell.getAttribute('aria-label')
-  const secondLabel = await secondCell.getAttribute('aria-label')
-  const firstChartName = firstLabel!.replace(/^Board cell 1: /, '')
-  const secondChartName = secondLabel!.replace(/^Board cell 2: /, '')
+  const firstChartName = await firstCell.getAttribute('data-chart-name')
+  const secondChartName = await secondCell.getAttribute('data-chart-name')
   await firstCell.focus()
   await appPage.keyboard.press('Enter')
   await secondCell.focus()
   await appPage.keyboard.press('Enter')
-  await expect(firstCell).toHaveAttribute('aria-label', `Board cell 1: ${secondChartName}`)
-  await expect(secondCell).toHaveAttribute('aria-label', `Board cell 2: ${firstChartName}`)
+  await expect(firstCell).toHaveAttribute('data-chart-name', secondChartName!)
+  await expect(secondCell).toHaveAttribute('data-chart-name', firstChartName!)
 })
 
 test('round-trips JSON, reports invalid files, and reloads a share link', async ({
@@ -198,8 +270,9 @@ test('round-trips JSON, reports invalid files, and reloads a share link', async 
   await expect(appPage.getByText('State loaded from JSON', { exact: true })).toBeVisible()
   await expect(libraryHeading(appPage)).toContainText('(1)')
 
-  await appPage.getByRole('button', { name: 'Share layout' }).click()
-  await expect(appPage.getByRole('button', { name: 'Link copied!' })).toBeVisible()
+  const shareButton = appPage.getByRole('button', { name: 'Share layout' })
+  await shareButton.click()
+  await expect(shareButton).toContainText('Link copied!')
   const shareUrl = await appPage.evaluate(() => navigator.clipboard.readText())
   expect(shareUrl).toContain(`${ORIGIN}${APP_PATH}#`)
 

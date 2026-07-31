@@ -86,6 +86,9 @@ test gets isolated browser storage and deterministic fixtures. CI installs
 Chromium with its Linux dependencies, runs the suite on pull requests and pushes
 to `main`, and uploads the Playwright report for failed-run diagnosis.
 
+Keyboard behavior, automated axe coverage, and the manual screen-reader checklist
+are documented in [docs/accessibility.md](docs/accessibility.md).
+
 ## Importing charts and borders
 
 Paste one or more Charted Charts into the importer using their in-game `Ctrl+C`

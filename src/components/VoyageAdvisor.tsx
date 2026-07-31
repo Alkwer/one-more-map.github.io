@@ -44,9 +44,9 @@ export function VoyageAdvisor({
       >
         <div className="voyage-advisor-grid">
           <div className="voyage-decision">
-            <div id="voyage-advisor-title" className="panel-title">
+            <h2 id="voyage-advisor-title" className="panel-title">
               Voyage Recommendation
-            </div>
+            </h2>
             <div className="voyage-decision-label">
               {loading ? 'Analyzing strategies…' : 'Analysis unavailable'}
             </div>
@@ -72,9 +72,9 @@ export function VoyageAdvisor({
     >
       <div className="voyage-advisor-grid">
         <div className="voyage-decision">
-          <div id="voyage-advisor-title" className="panel-title">
+          <h2 id="voyage-advisor-title" className="panel-title">
             Voyage Recommendation
-          </div>
+          </h2>
           <div className="voyage-decision-label">{decision.label}</div>
           <div className="voyage-decision-reason">{decision.reason}</div>
           {action && (

@@ -133,9 +133,15 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
   }
 
   return (
-    <div className="import-panel">
-      <div className="panel-title">Import</div>
+    <section className="import-panel" aria-labelledby="import-title">
+      <h2 id="import-title" className="panel-title">
+        Import
+      </h2>
+      <label className="sr-only" htmlFor="chart-import-text">
+        Chart or border import text
+      </label>
       <textarea
+        id="chart-import-text"
         rows={5}
         placeholder={
           'Copy a chart in game (Ctrl+C), then press Ctrl+V anywhere on this page to import it. The Windows bulk importer also fills all 12 border modifiers with local OCR.'
@@ -175,7 +181,11 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
           Reset
         </button>
       </div>
-      {msg && <div className="muted pad">{msg}</div>}
+      {msg && (
+        <div className="muted pad" role="status" aria-live="polite" aria-atomic="true">
+          {msg}
+        </div>
+      )}
 
       <details className="ahk-help">
         <summary>🎲 Rolling & keeping charts (Milky's regexes)</summary>
@@ -185,15 +195,26 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
         </p>
         <div className="roll-regex-row">
           <span className="roll-regex-label">All good mods (keepers)</span>
-          <input readOnly value={ALL_GOOD_MODS_REGEX} onFocus={(e) => e.target.select()} />
+          <input
+            aria-label="All good modifiers keeper regex"
+            readOnly
+            value={ALL_GOOD_MODS_REGEX}
+            onFocus={(e) => e.target.select()}
+          />
         </div>
         <div className="roll-regex-row">
           <span className="roll-regex-label">120%+ quantity roll</span>
-          <input readOnly value={'"m q.*(1[2-9].|[2-9]..)%"'} onFocus={(e) => e.target.select()} />
+          <input
+            aria-label="120 percent or greater quantity regex"
+            readOnly
+            value={'"m q.*(1[2-9].|[2-9]..)%"'}
+            onFocus={(e) => e.target.select()}
+          />
         </div>
         <div className="roll-regex-row">
           <span className="roll-regex-label">75%+ sulphur (save for Filthscrabble)</span>
           <input
+            aria-label="75 percent or greater sulphur regex"
             readOnly
             value={'"sul.*(7[5-9]|[89].|\\d..)%"'}
             onFocus={(e) => e.target.select()}
@@ -253,6 +274,6 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
           reach the game. Don't touch the mouse or keyboard while it's running.
         </p>
       </details>
-    </div>
+    </section>
   )
 }
