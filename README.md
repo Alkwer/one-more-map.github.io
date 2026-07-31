@@ -51,21 +51,24 @@ The development server is available at `http://localhost:5173`.
 
 ## Commands
 
-| Command                | Purpose                                                        |
-| ---------------------- | -------------------------------------------------------------- |
-| `npm ci`               | Install the exact dependency versions from `package-lock.json` |
-| `npm run dev`          | Start the Vite development server                              |
-| `npm test`             | Run the Vitest test suite once                                 |
-| `npm run typecheck`    | Check TypeScript without emitting files                        |
-| `npm run lint`         | Run ESLint with zero warnings allowed                          |
-| `npm run format:check` | Check formatting with Prettier                                 |
-| `npm run format`       | Rewrite supported files with Prettier                          |
-| `npm run build`        | Create the production bundle in `dist/`                        |
-| `npm run preview`      | Serve the production bundle locally after a build              |
-| `npm run validate`     | Run typecheck, tests, lint, formatting, and production build   |
-| `npm run bench:solver` | Run the solver performance benchmark                           |
+| Command                    | Purpose                                                        |
+| -------------------------- | -------------------------------------------------------------- |
+| `npm ci`                   | Install the exact dependency versions from `package-lock.json` |
+| `npm run dev`              | Start the Vite development server                              |
+| `npm test`                 | Run the Vitest test suite once                                 |
+| `npm run test:performance` | Enforce the noise-tolerant solver latency budget               |
+| `npm run typecheck`        | Check TypeScript without emitting files                        |
+| `npm run lint`             | Run ESLint with zero warnings allowed                          |
+| `npm run format:check`     | Check formatting with Prettier                                 |
+| `npm run format`           | Rewrite supported files with Prettier                          |
+| `npm run build`            | Create the production bundle in `dist/`                        |
+| `npm run preview`          | Serve the production bundle locally after a build              |
+| `npm run validate`         | Run typecheck, tests, lint, formatting, and production build   |
+| `npm run bench:solver`     | Run the solver performance benchmark                           |
 
-Run `npm run validate` before opening a pull request.
+Run `npm run validate` before opening a pull request. The deterministic solver
+fixture, quality floor, reference environment, and current before/after timings
+are documented in [docs/solver-performance.md](docs/solver-performance.md).
 
 ## Importing charts and borders
 

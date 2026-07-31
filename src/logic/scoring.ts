@@ -1,7 +1,7 @@
 import { borderModById, voyageModById } from '../data/mods'
-import type { Board, Borders, ChartData, ModEffect, Stat, Weights } from '../types'
+import type { Board, Borders, ChartData, ModEffect, Scope, Stat, Weights } from '../types'
 import { ALL_STATS, borderTouches } from '../types'
-import { rotateEdges } from './connectivity'
+import { analyzeConnectivity, type ConnectivityAnalysis } from './connectivity'
 import { borderRewardKey, chartRewardKey, voyageRewardKey } from './rewards'
 
 /** an effect tagged with the reward-type key it should be weighted under */
@@ -45,12 +45,135 @@ export interface ScoreOptions {
 
 const DEFAULT_SCORE_OPTS: ScoreOptions = { adjacencyMode: 'physical', adjacentAffectsSelf: false }
 
+type ScoreConnectivity = Pick<ConnectivityAnalysis, 'connectionCounts' | 'connectedNeighbours'>
+
+interface CompiledChartEffect {
+  scope: Scope
+  value: number
+  scaling?: 'connections' | 'inverse-connections'
+}
+
+interface CompiledChartScore {
+  effects: CompiledChartEffect[]
+  importedValue: number
+}
+
+/**
+ * Compile all score inputs that do not change while a solver search is
+ * running. The returned evaluator calculates only the scalar objective used by
+ * hill climbing; UI breakdowns are still produced by scoreBoard for the small
+ * set of recorded results.
+ */
+export function prepareScoreTotal(
+  borders: Borders,
+  charts: Map<string, ChartData>,
+  weights: Weights,
+  opts: ScoreOptions = DEFAULT_SCORE_OPTS,
+): (board: Board, connectivity: ScoreConnectivity) => number {
+  const disabledMods = opts.disabledMods ?? new Set<string>()
+  const weightedValue = (effects: ModEffect[], reward: string): number => {
+    const weight = weights[reward] ?? 0
+    if (weight === 0) return 0
+    let value = 0
+    for (const effect of effects) value += (effect.percent / 100) * weight
+    return value
+  }
+
+  const tileMagnitude: number[] = Array(9).fill(0)
+  const borderValue: number[] = Array(9).fill(0)
+  const borderPerConnectionValue: number[] = Array(9).fill(0)
+  borders.forEach((id, segment) => {
+    if (!id || disabledMods.has(id)) return
+    const mod = borderModById.get(id)
+    if (!mod) return
+    const tile = borderTouches(segment)
+    if (mod.magnitude) tileMagnitude[tile] += mod.magnitude
+    const reward = borderRewardKey(mod)
+    borderValue[tile] += weightedValue(mod.effects, reward)
+    if (mod.perConnEffects) {
+      borderPerConnectionValue[tile] += weightedValue(mod.perConnEffects, reward)
+    }
+  })
+
+  const compiledCharts = new Map<string, CompiledChartScore>()
+  for (const chart of charts.values()) {
+    const hasImportedRewards = !!chart.rewards?.length
+    const effects: CompiledChartEffect[] = []
+    for (const modId of chart.modIds) {
+      if (disabledMods.has(modId)) continue
+      const mod = voyageModById.get(modId)
+      if (!mod || (mod.scope === 'self' && hasImportedRewards)) continue
+      const value = weightedValue(mod.effects, voyageRewardKey(mod))
+      if (value !== 0) {
+        effects.push({ scope: mod.scope, value, scaling: mod.scaling })
+      }
+    }
+
+    let importedValue = 0
+    for (const effect of chart.rewards ?? []) {
+      importedValue += (effect.percent / 100) * (weights[chartRewardKey(effect.stat)] ?? 0)
+    }
+    compiledCharts.set(chart.uid, { effects, importedValue })
+  }
+
+  return (board, connectivity) => {
+    const tileScores: number[] = Array(9).fill(0)
+    let globalScore = 0
+    let placedCount = 0
+
+    for (let index = 0; index < 9; index++) {
+      const placement = board[index]
+      if (!placement) continue
+      placedCount++
+      const chart = compiledCharts.get(placement.chartUid)
+      if (!chart) continue
+      const connectionCount = connectivity.connectionCounts[index]
+      const magnitude = 1 + tileMagnitude[index] / 100
+
+      for (const effect of chart.effects) {
+        let scale = effect.scope === 'self' ? magnitude : 1
+        if (effect.scaling === 'connections') scale *= connectionCount
+        else if (effect.scaling === 'inverse-connections') scale *= 4 - connectionCount
+        const value = effect.value * scale
+
+        if (effect.scope === 'self') {
+          tileScores[index] += value
+        } else if (effect.scope === 'global') {
+          globalScore += value
+        } else {
+          const neighbours =
+            opts.adjacencyMode === 'connected'
+              ? connectivity.connectedNeighbours[index]
+              : NEIGHBOURS[index]
+          for (const neighbour of neighbours) {
+            if (board[neighbour]) tileScores[neighbour] += value
+          }
+          if (opts.adjacentAffectsSelf) tileScores[index] += value
+        }
+      }
+
+      tileScores[index] += chart.importedValue * magnitude
+    }
+
+    let total = globalScore * placedCount
+    for (let index = 0; index < 9; index++) {
+      if (!board[index]) continue
+      total +=
+        tileScores[index] +
+        borderValue[index] +
+        borderPerConnectionValue[index] * connectivity.connectionCounts[index]
+    }
+    return total
+  }
+}
+
 export function scoreBoard(
   board: Board,
   borders: Borders,
   charts: Map<string, ChartData>,
   weights: Weights,
   opts: ScoreOptions = DEFAULT_SCORE_OPTS,
+  connectivity?: ScoreConnectivity,
 ): ScoreBreakdown {
   // border meta-mods: % increased magnitude of the touched chart's own mods
   const tileMagnitude: number[] = Array(9).fill(0)
@@ -60,38 +183,11 @@ export function scoreBoard(
     if (mod?.magnitude) tileMagnitude[borderTouches(seg)] += mod.magnitude
   })
 
-  // matched-connection count per tile (for mods that scale with connections)
-  const edgesAt = (i: number): [boolean, boolean, boolean, boolean] | null => {
-    const p = board[i]
-    if (!p) return null
-    const c = charts.get(p.chartUid)
-    return c ? rotateEdges(c.edges, p.rotation) : null
-  }
-  const connCount: number[] = Array(9).fill(0)
-  const connectedNeighbours: number[][] = Array.from({ length: 9 }, () => [])
-  board.forEach((_, i) => {
-    const e = edgesAt(i)
-    if (!e) return
-    const r = Math.floor(i / 3)
-    const col = i % 3
-    const dirs = [
-      { dr: -1, dc: 0, edge: 0, opp: 2 },
-      { dr: 0, dc: 1, edge: 1, opp: 3 },
-      { dr: 1, dc: 0, edge: 2, opp: 0 },
-      { dr: 0, dc: -1, edge: 3, opp: 1 },
-    ]
-    for (const d of dirs) {
-      const nr = r + d.dr
-      const nc = col + d.dc
-      if (nr < 0 || nr > 2 || nc < 0 || nc > 2) continue
-      const j = nr * 3 + nc
-      const ne = edgesAt(j)
-      if (e[d.edge] && ne?.[d.opp]) {
-        connCount[i]++
-        connectedNeighbours[i].push(j)
-      }
-    }
-  })
+  // Reuse connector analysis from the solver when available. Standalone
+  // scoring calls still compute the same data once through the shared helper.
+  const connectorState = connectivity ?? analyzeConnectivity(board, charts, 'any')
+  const connCount = connectorState.connectionCounts
+  const connectedNeighbours = connectorState.connectedNeighbours
 
   // which neighbours does an Adjacent mod on tile i reach?
   const adjacentTargets = (i: number): number[] => {

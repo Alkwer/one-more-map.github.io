@@ -1,4 +1,4 @@
-import type { ChartData, Edges } from '../src/types'
+import type { Borders, ChartData, Edges } from '../src/types'
 
 const MOD_SETS = [
   ['cm-quant-20', 'adj-star-1'],
@@ -31,4 +31,35 @@ export function createPerformanceFixture(count = 25): ChartData[] {
     edges: [...EDGES[index % EDGES.length]] as Edges,
     modIds: [...MOD_SETS[index % MOD_SETS.length]],
   }))
+}
+
+export const PERFORMANCE_SEED = 0x15c0ffee
+
+export function createPerformanceScenario(count = 25) {
+  const pool = createPerformanceFixture(count)
+  return {
+    pool,
+    charts: new Map(pool.map((chart) => [chart.uid, chart])),
+    borders: [
+      'b-rare-3',
+      'b-quantconn-2',
+      'b-mag-3',
+      'b-minmagic',
+      null,
+      'b-rare-3',
+      'b-quantconn-2',
+      null,
+      'b-mag-3',
+      'b-minmagic',
+      null,
+      'b-rare-3',
+    ] satisfies Borders,
+    commonOptions: {
+      mode: 'strict' as const,
+      allowRotation: true,
+      adjacencyMode: 'physical' as const,
+      adjacentAffectsSelf: false,
+      disabledMods: new Set<string>(),
+    },
+  }
 }

@@ -3,31 +3,9 @@ import { bench, describe } from 'vitest'
 import { DEFAULT_WEIGHTS } from '../src/logic/rewards'
 import { solve } from '../src/logic/solver'
 import { evaluateStrategyInventory } from '../src/logic/strategySuggestions'
-import { createPerformanceFixture } from './performance-fixture'
+import { createPerformanceScenario, PERFORMANCE_SEED } from './performance-fixture'
 
-const pool = createPerformanceFixture(25)
-const charts = new Map(pool.map((chart) => [chart.uid, chart]))
-const borders = [
-  'b-rare-3',
-  'b-quantconn-2',
-  'b-mag-3',
-  'b-minmagic',
-  null,
-  'b-rare-3',
-  'b-quantconn-2',
-  null,
-  'b-mag-3',
-  'b-minmagic',
-  null,
-  'b-rare-3',
-]
-const commonOptions = {
-  mode: 'strict',
-  allowRotation: true,
-  adjacencyMode: 'physical',
-  adjacentAffectsSelf: false,
-  disabledMods: new Set(),
-}
+const { pool, charts, borders, commonOptions } = createPerformanceScenario()
 
 function signature(value: unknown) {
   return JSON.stringify(value)
@@ -61,7 +39,7 @@ describe(`deterministic ${pool.length}-chart solver performance`, () => {
     solve(pool, borders, DEFAULT_WEIGHTS, {
       ...commonOptions,
       topK: 5,
-      seed: 0x15c0ffee,
+      seed: PERFORMANCE_SEED,
     }),
   )
 })
