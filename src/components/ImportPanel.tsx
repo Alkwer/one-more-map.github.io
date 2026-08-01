@@ -213,6 +213,10 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
             <kbd>F9</kbd> copies the charts, scans the 12 borders, and imports both ·{' '}
             <kbd>F10</kbd> aborts. Border OCR can take around 15–30 seconds on a 4K screen.
           </li>
+          <li>
+            Don't like the keys? Right-click (or double-click) the script's tray icon and choose{' '}
+            <em>Keybinds…</em> - every hotkey is rebindable and saved between sessions.
+          </li>
         </ol>
         <p className="muted small">
           If PoE runs as administrator, run the script as administrator too, or its keypresses

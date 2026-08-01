@@ -49,6 +49,8 @@ CoordMode "ToolTip", "Screen"
 ;  RUN
 ;   F9  = do the real import sweep
 ;   F10 = abort at any time
+;   All keys are rebindable: right-click (or double-click) the tray icon
+;   and choose "Keybinds...". Saved to voyage-import.ini.
 ;
 ;  If PoE is running as administrator, run this script as admin too,
 ;  or its keypresses won't reach the game. Don't touch the mouse or
@@ -108,6 +110,138 @@ CleanupOcr(*) {
     try FileDelete OcrOutput
 }
 OnExit CleanupOcr
+
+; ---------------- KEYBINDS ----------------
+; Every hotkey is rebindable: right-click the tray icon -> "Keybinds..."
+; (or double-click it). Choices are saved to voyage-import.ini [keys] and
+; applied immediately. Modifier syntax: ^ Ctrl, ! Alt, + Shift.
+KeyDefs := [
+    ["RunSweep",      "F9",  "Run import (charts + border OCR)"],
+    ["Abort",         "F10", "Abort"],
+    ["BorderTL",      "F5",  "Set border square top-left"],
+    ["BorderBR",      "F6",  "Set border square bottom-right"],
+    ["ExactStart",    "^F5", "Start exact border calibration"],
+    ["ExactSave",     "^F6", "Save exact border point"],
+    ["BorderPreview", "^F4", "Preview border points (no OCR)"],
+    ["GridTL",        "F7",  "Set chart grid top-left"],
+    ["GridBR",        "F8",  "Set chart grid bottom-right"],
+]
+KeyActions := Map(
+    "RunSweep", RunSweep,
+    "Abort", AbortAll,
+    "BorderTL", SetBorderTopLeft,
+    "BorderBR", SetBorderBottomRight,
+    "ExactStart", StartExactCalibration,
+    "ExactSave", SaveExactPoint,
+    "BorderPreview", PreviewBorders,
+    "GridTL", SetGridTopLeft,
+    "GridBR", SetGridBottomRight,
+)
+Keys := Map()
+for def in KeyDefs
+    Keys[def[1]] := IniRead(IniFile, "keys", def[1], def[2])
+RegisteredKeys := []
+
+/** human-readable form of an AHK hotkey string, e.g. "^F5" -> "Ctrl+F5" */
+KeyLabel(hk) {
+    label := ""
+    i := 1
+    while i <= StrLen(hk) {
+        c := SubStr(hk, i, 1)
+        if (c = "^")
+            label .= "Ctrl+"
+        else if (c = "!")
+            label .= "Alt+"
+        else if (c = "+")
+            label .= "Shift+"
+        else if (c = "#")
+            label .= "Win+"
+        else
+            break
+        i++
+    }
+    return label . SubStr(hk, i)
+}
+
+ApplyKeybinds() {
+    global KeyDefs, KeyActions, Keys, RegisteredKeys
+    for hk in RegisteredKeys
+        try Hotkey hk, "Off"
+    RegisteredKeys := []
+    for def in KeyDefs {
+        action := def[1]
+        try {
+            Hotkey Keys[action], KeyActions[action], "On"
+            RegisteredKeys.Push(Keys[action])
+        } catch {
+            ; invalid saved key: fall back to the default so nothing is lost
+            Keys[action] := def[2]
+            IniWrite def[2], IniFile, "keys", action
+            Hotkey def[2], KeyActions[action], "On"
+            RegisteredKeys.Push(def[2])
+        }
+    }
+}
+
+ShowKeybindGui(*) {
+    global KeyDefs, Keys, IniFile
+    static open := 0
+    if IsObject(open) {
+        open.Show()
+        return
+    }
+    kb := Gui("+AlwaysOnTop", "Voyage Importer - Keybinds")
+    kb.SetFont("s10")
+    kb.Add("Text", "xm w360", "Click a box and press the new key or combo, then Save."
+        . " Leave a box empty to keep its current key.")
+    controls := Map()
+    for def in KeyDefs {
+        kb.Add("Text", "xm w230 h22 +0x200", def[3])
+        ctl := kb.Add("Hotkey", "x+8 yp w120")
+        ctl.Value := Keys[def[1]]
+        controls[def[1]] := ctl
+    }
+    saveBtn := kb.Add("Button", "xm w120 Default", "Save")
+    resetBtn := kb.Add("Button", "x+8 w120", "Reset defaults")
+
+    DoSave(*) {
+        pending := Map()
+        for def in KeyDefs {
+            v := controls[def[1]].Value
+            pending[def[1]] := (v = "") ? Keys[def[1]] : v
+        }
+        ; refuse duplicate assignments - each action needs its own key
+        seen := Map()
+        for action, hk in pending {
+            if seen.Has(hk) {
+                MsgBox "Two actions share the key " KeyLabel(hk) ". Give each action its own key."
+                return
+            }
+            seen[hk] := action
+        }
+        for action, hk in pending {
+            Keys[action] := hk
+            IniWrite hk, IniFile, "keys", action
+        }
+        ApplyKeybinds()
+        kb.Hide()
+        Flash "Keybinds saved and applied.", 2500
+    }
+    DoReset(*) {
+        for def in KeyDefs
+            controls[def[1]].Value := def[2]
+    }
+    saveBtn.OnEvent("Click", DoSave)
+    resetBtn.OnEvent("Click", DoReset)
+    kb.OnEvent("Close", (*) => (kb.Hide(), true)) ; hide, don't destroy - reopened from the tray
+    open := kb
+    kb.Show()
+}
+
+A_TrayMenu.Insert("1&", "Keybinds...", ShowKeybindGui)
+A_TrayMenu.Default := "Keybinds..."
+ApplyKeybinds()
+; ------------------------------------------
 
 Flash(text, ms := 1400) {
     ToolTip text
@@ -522,8 +656,8 @@ if A_Args.Length >= 2 && A_Args[1] = "--ocr-file" {
     ExitApp
 }
 
-; ---- F5 / F6: capture the outer board-border rectangle ----
-F5:: {
+; ---- capture the outer board-border rectangle (default F5 / F6) ----
+SetBorderTopLeft(*) {
     global
     ClearExactBorderCalibration()
     MouseGetPos &x, &y
@@ -532,7 +666,7 @@ F5:: {
     IniWrite BorderTLy, IniFile, "board", "TopY"
     Flash "Top-left board border set: " BorderTLx ", " BorderTLy
 }
-F6:: {
+SetBorderBottomRight(*) {
     global
     ClearExactBorderCalibration()
     MouseGetPos &x, &y
@@ -542,20 +676,20 @@ F6:: {
     Flash "Bottom-right board border set: " BorderBRx ", " BorderBRy
 }
 
-; ---- Ctrl+F5 / Ctrl+F6: guided exact calibration of all 12 modifiers ----
-^F5:: {
+; ---- guided exact calibration of all 12 modifiers (default Ctrl+F5 / Ctrl+F6) ----
+StartExactCalibration(*) {
     global
     ClearExactBorderCalibration()
     ExactBorderNext := 1
     Flash "Exact border calibration started."
         . "`nHover 1/12: " BorderPointLabel(ExactBorderNext)
-        . "`nPress Ctrl+F6 to save it.", 5000
+        . "`nPress " KeyLabel(Keys["ExactSave"]) " to save it.", 5000
 }
 
-^F6:: {
+SaveExactPoint(*) {
     global
     if (ExactBorderNext < 1 || ExactBorderNext > 12) {
-        Flash "Press Ctrl+F5 first to start exact border calibration.", 3500
+        Flash "Press " KeyLabel(Keys["ExactStart"]) " first to start exact border calibration.", 3500
         return
     }
 
@@ -569,24 +703,24 @@ F6:: {
     if (ExactBorderNext > 12) {
         ExactBorderNext := 0
         Flash "Exact border calibration complete: 12/12."
-            . "`nPress Ctrl+F4 to preview or F9 to scan.", 5000
+            . "`nPress " KeyLabel(Keys["BorderPreview"]) " to preview or " KeyLabel(Keys["RunSweep"]) " to scan.", 5000
         return
     }
 
     Flash "Saved " savedIndex "/12: " BorderPointLabel(savedIndex)
         . "`nNext " ExactBorderNext "/12: " BorderPointLabel(ExactBorderNext)
-        . "`nHover it and press Ctrl+F6.", 5000
+        . "`nHover it and press " KeyLabel(Keys["ExactSave"]) ".", 5000
 }
 
-; ---- Ctrl+F4: preview border positions without OCR or clipboard changes ----
-^F4:: {
+; ---- preview border positions without OCR (default Ctrl+F4) ----
+PreviewBorders(*) {
     global
     if Running {
         Flash "A scan or preview is already running.", 2500
         return
     }
     if !BoardCalibrated() {
-        MsgBox "Calibrate borders first with F5/F6 or Ctrl+F5/Ctrl+F6."
+        MsgBox "Calibrate borders first with " KeyLabel(Keys["BorderTL"]) "/" KeyLabel(Keys["BorderBR"]) " or " KeyLabel(Keys["ExactStart"]) "/" KeyLabel(Keys["ExactSave"]) "."
         return
     }
     if !WinExist(PoeWinTitle) {
@@ -608,7 +742,7 @@ F6:: {
         MouseMove point[1], point[2], 0
         ToolTip "Border preview " index "/12"
             . "`n" BorderPointLabel(index)
-            . "`n(F10 to abort)", 20, 20
+            . "`n(" KeyLabel(Keys["Abort"]) " to abort)", 20, 20
         Sleep BorderPreviewDelay
     }
 
@@ -619,8 +753,8 @@ F6:: {
         Flash "Border preview complete. No OCR was run.", 3500
 }
 
-; ---- F7 / F8: capture the grid corners ----
-F7:: {
+; ---- capture the chart grid corners (default F7 / F8) ----
+SetGridTopLeft(*) {
     global
     MouseGetPos &x, &y
     TLx := x, TLy := y
@@ -628,7 +762,7 @@ F7:: {
     IniWrite TLy, IniFile, "grid", "TLy"
     Flash "Top-left set: " TLx ", " TLy
 }
-F8:: {
+SetGridBottomRight(*) {
     global
     MouseGetPos &x, &y
     BRx := x, BRy := y
@@ -637,8 +771,8 @@ F8:: {
     Flash "Bottom-right set: " BRx ", " BRy
 }
 
-; ---- F10: abort ----
-F10:: {
+; ---- abort (default F10) ----
+AbortAll(*) {
     global Running, OcrPid, ExactBorderNext
     Running := false
     ExactBorderNext := 0
@@ -649,8 +783,8 @@ F10:: {
     Flash "Aborting..."
 }
 
-; ---- F9: the real import sweep ----
-F9:: {
+; ---- the real import sweep (default F9) ----
+RunSweep(*) {
     global
     if !Calibrated() {
         MsgBox "Calibrate first (F7 top-left, F8 bottom-right)."
@@ -704,7 +838,7 @@ F9:: {
             copied++
             ToolTip "Copying... row " (r+1) " col " (c+1)
                 . "`ncharts " copied "   skipped " skipped
-                . "`n(F10 to abort)"
+                . "`n(" KeyLabel(Keys["Abort"]) " to abort)"
         }
     }
 
@@ -712,7 +846,7 @@ F9:: {
     if Running && BoardCalibrated() {
         ToolTip "Reading 12 board borders with Windows OCR..."
             . "`nThis can take 15-30 seconds on a 4K screen."
-            . "`n(F10 to abort)"
+            . "`n(" KeyLabel(Keys["Abort"]) " to abort)"
         borderBlob := ScanBorders()
     }
 
@@ -739,7 +873,7 @@ F9:: {
     Running := false
     borderNote := BoardCalibrated()
         ? (borderBlob != "" ? " + 12 border OCR scans" : " (border OCR failed)")
-        : " (borders skipped: calibrate F5/F6)"
+        : " (borders skipped: calibrate " KeyLabel(Keys["BorderTL"]) "/" KeyLabel(Keys["BorderBR"]) ")"
     Flash "Done. Sent " copied " charts" borderNote
         . "; skipped " skipped " empty/dup cells.", 6000
 }
