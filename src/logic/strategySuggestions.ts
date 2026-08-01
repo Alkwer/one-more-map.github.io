@@ -62,6 +62,8 @@ export interface StrategyInventorySuggestion {
   combinedFit: number
   eligibleCharts: number
   jackpot: boolean
+  /** A +1 Divine border is present for a strategy explicitly built around it. */
+  divineJackpot: boolean
   /** Whether the strategy's mandatory border is present on the completed current roll. */
   requiredBorderStatus: RequiredBorderStatus
   borderScore: number
@@ -111,6 +113,27 @@ function countMatchingCharts(
   ).length
 }
 
+const CORNER_TILES = new Set([0, 2, 6, 8])
+
+function requiredCountFor(
+  requirement: NonNullable<StrategyDef['requirements']>[number],
+  borders: Borders,
+): number {
+  const dynamic = requirement.countByBorderNeighbours
+  if (!dynamic) return requirement.count
+
+  let bestNeighbours = 0
+  borders.forEach((modId, segment) => {
+    if (modId !== dynamic.borderId) return
+    const tile = borderTouches(segment)
+    bestNeighbours = Math.max(bestNeighbours, CORNER_TILES.has(tile) ? 2 : 3)
+  })
+
+  if (bestNeighbours === 2) return dynamic.two
+  if (bestNeighbours === 3) return dynamic.three
+  return requirement.count
+}
+
 export function strategyReadiness(
   strategy: StrategyDef,
   pool: ChartData[],
@@ -123,16 +146,17 @@ export function strategyReadiness(
 
   for (const requirement of strategy.requirements ?? []) {
     const count = countMatchingCharts(requirement, pool)
-    have += Math.min(count, requirement.count)
-    need += requirement.count
+    const requiredCount = requiredCountFor(requirement, borders)
+    have += Math.min(count, requiredCount)
+    need += requiredCount
     requirements.push({
       label: requirement.label,
       have: count,
-      need: requirement.count,
-      missing: Math.max(0, requirement.count - count),
+      need: requiredCount,
+      missing: Math.max(0, requiredCount - count),
     })
-    if (count < requirement.count) {
-      missing.push(`${requirement.count - count}× ${requirement.label}`)
+    if (count < requiredCount) {
+      missing.push(`${requiredCount - count}× ${requirement.label}`)
     }
   }
 
@@ -332,7 +356,7 @@ export function evaluateStrategyInventory(
       opts,
     ).total
     const libraryAffinity = Math.max(0, libraryScore) / weightScale
-    const divineJackpot = hasDivineBorder && strategy.id === 'divine-border-rares'
+    const divineJackpot = hasDivineBorder && strategy.requiresBorderId?.id === 'b-divine'
     const equipmentJackpot = hasNoEquipment && strategy.id === 'milky-meatfish'
     const jackpot = divineJackpot || equipmentJackpot
     const requiredBorderStatus: RequiredBorderStatus = !strategy.requiresBorderId
@@ -408,6 +432,7 @@ export function evaluateStrategyInventory(
       combinedFit: 0,
       eligibleCharts: eligiblePool.length,
       jackpot,
+      divineJackpot,
       requiredBorderStatus,
       borderScore,
       matchingBorders,
@@ -457,8 +482,8 @@ export function evaluateStrategyInventory(
   })
 
   evaluations.sort((a, b) => {
-    const aDivine = a.strategy.id === 'divine-border-rares' && a.jackpot
-    const bDivine = b.strategy.id === 'divine-border-rares' && b.jackpot
+    const aDivine = a.divineJackpot
+    const bDivine = b.divineJackpot
     if (aDivine !== bDivine) return aDivine ? -1 : 1
     const aMissingRequiredBorder = a.requiredBorderStatus === 'missing'
     const bMissingRequiredBorder = b.requiredBorderStatus === 'missing'
@@ -472,7 +497,9 @@ export function evaluateStrategyInventory(
   })
 
   return {
-    suggestions: evaluations.slice(0, Math.max(0, limit)),
+    suggestions: evaluations
+      .filter((evaluation) => evaluation.strategy.autoRecommend !== false)
+      .slice(0, Math.max(0, limit)),
     evaluations,
     enteredBorders,
     availableCharts: pool.length,

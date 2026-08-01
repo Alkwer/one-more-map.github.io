@@ -141,7 +141,8 @@ export function StrategySuggestions({
       )}
 
       <div className="suggestion-disclaimer">
-        Diagnostic only — the recommendation above is the single play/reroll decision.
+        Diagnostic only — experimental strategies are excluded, and reroll guidance is not expected
+        value.
       </div>
     </section>
   )

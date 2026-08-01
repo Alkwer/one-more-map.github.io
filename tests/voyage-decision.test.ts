@@ -158,7 +158,7 @@ describe('Voyage decision regressions', () => {
 
     assert.equal(decision.kind, 'reroll')
     assert.equal(decision.nextCost, 3_000)
-    assert.equal(decision.label, 'REROLL — next costs 3,000 Sulphur')
+    assert.equal(decision.label, 'CONSIDER REROLL — next costs 3,000 Sulphur')
   })
 
   it('stops paying for an equally weak late roll', () => {
@@ -169,7 +169,7 @@ describe('Voyage decision regressions', () => {
 
     assert.equal(decision.kind, 'stop')
     assert.equal(decision.nextCost, 24_000)
-    assert.equal(decision.label, "DON'T PAY FOR ANOTHER REROLL")
+    assert.equal(decision.label, 'STOP REROLLING — KEEP THE CURRENT BOARD')
     assert.match(decision.reason, /not a quality endorsement/)
   })
 

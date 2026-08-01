@@ -138,6 +138,11 @@ export function StrategiesPanel({ activeId, pool, borders, onSelect }: Props) {
               </div>
             )}
             {(isActive || isOpen) && s.searchRegex && <RegexRow regex={s.searchRegex} />}
+            {(isActive || isOpen) && s.autoRecommend === false && (
+              <div className="muted small-note">
+                Experimental — available for manual use, excluded from automatic recommendations.
+              </div>
+            )}
             {(isActive || isOpen) && <Readiness strategy={s} pool={pool} borders={borders} />}
             <button
               className={`strat-use ${isActive ? 'on' : ''}`}

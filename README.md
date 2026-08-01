@@ -32,6 +32,9 @@ The project separates observed game mechanics from app-level assumptions:
 - **Solver heuristics:** user-defined reward weights, strategy rankings,
   appraiser thresholds, and the approximate search used for larger pools.
   Scores are utility scores for comparing layouts, not currency expected value.
+  Experimental strategies remain available for manual use but do not drive the
+  automatic recommendation. The default reroll prompt is limited to the 3k and
+  6k Sulphur steps as an explicit guardrail, not an optimal-stopping claim.
 - **Still unknown:** border selection weights, duplicate and independence rules,
   the paid-reroll distribution, and the exact reset/cap behavior. The app does
   not present a uniform random simulation as a proven in-game probability model.

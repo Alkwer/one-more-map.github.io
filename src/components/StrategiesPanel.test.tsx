@@ -44,7 +44,7 @@ describe('Korean clipboard aliases feed strategy readiness', () => {
     const html = renderStrategy('milky-speedrun', [diviner])
 
     expect(html).toContain('class="strat-ready"')
-    expect(html).toContain('1/1× Diviner’s / Operative’s / Message chart (centre)')
+    expect(html).toContain('1/1× Operative’s / Arcanist’s / Diviner’s / Message chart (centre)')
   })
 
   it('subtracts Korean Wisp and Golden Lantern charts from Magic Ethereal shortages', () => {
