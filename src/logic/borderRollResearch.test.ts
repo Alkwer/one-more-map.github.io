@@ -7,6 +7,7 @@ import {
   BORDER_ROLL_SAMPLE_SCHEMA,
   buildBorderRollSequenceSubmissionUrl,
   buildBorderRollSubmissionUrl,
+  createBorderRollDataset,
   createBorderResearchStore,
   createBorderRollSample,
   getBorderRollSequence,
@@ -131,6 +132,15 @@ describe('border roll research samples', () => {
     expect(url.hostname).toBe('github.com')
     expect(url.pathname).toBe('/Alkwer/one-more-map.github.io/issues/new')
     expect(url.searchParams.get('body')).toContain(roll.sampleId)
+  })
+
+  it('creates a dataset object for queued automatic delivery', () => {
+    expect(createBorderRollDataset([sample()], '2026-08-01T13:00:00.000Z')).toMatchObject({
+      schema: BORDER_ROLL_DATASET_SCHEMA,
+      exportedAt: '2026-08-01T13:00:00.000Z',
+      sampleCount: 1,
+      samples: [{ sequenceId: 'voyage-test' }],
+    })
   })
 
   it('submits one complete Voyage sequence as a dataset', () => {

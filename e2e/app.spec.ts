@@ -108,8 +108,7 @@ test('records only complete border rolls and keeps Voyage sequences distinct', a
   await expect(research.getByLabel('Roll number')).toHaveCount(0)
   await expect(research.getByLabel('Next cost shown')).toHaveCount(0)
   await expect(research.getByText('✓ All 12 borders ready')).toBeVisible()
-  await research.getByRole('button', { name: 'Save current roll' }).click()
-  await expect(research.getByText(/Saved natural board: 12 modifiers/)).toBeVisible()
+  await expect(research.getByText(/Auto-saved natural board/)).toBeVisible()
   await expect(research.getByText(/Contribute border-roll data \(1 saved\)/)).toBeVisible()
   await expect(research.getByRole('button', { name: 'Submit Voyage' })).toBeEnabled()
 
@@ -118,7 +117,8 @@ test('records only complete border rolls and keeps Voyage sequences distinct', a
   await expect(research.getByText(/Contribute border-roll data \(2 saved\)/)).toBeVisible()
 
   await research.getByRole('button', { name: 'Start next Voyage' }).click()
-  await research.getByRole('button', { name: 'Save current roll' }).click()
+  await pasteText(appPage, COMPLETE_DIVINE_BORDER_PAYLOAD)
+  await expect(research.getByText(/Auto-saved natural board/)).toBeVisible()
   await expect(research.getByText(/Contribute border-roll data \(3 saved\)/)).toBeVisible()
   await expectNoAccessibilityViolations(appPage)
 

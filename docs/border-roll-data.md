@@ -13,10 +13,13 @@ collects complete observed boards instead of treating the known pool as uniform.
 5. Submit only complete samples with all 12 modifiers recognised. Correct OCR
    misses before saving.
 
-The capture panel assigns roll numbers automatically. The first saved board in
-a Voyage is roll 0; each later save is the next paid reroll. The displayed next
-cost is derived from the confirmed cost curve when it is known. Start the next
-Voyage only when the game has generated a new natural board.
+Every complete 12/12 OCR paste is saved automatically. The reroll-cost scan
+identifies roll 0 and later paid rerolls; after the natural board, automatic
+capture skips a scan whose reroll cost was not recognised rather than guessing
+its position. `Save current roll` remains available to repair that case. The
+displayed next cost is derived from the confirmed cost curve when it is known.
+`Finish Voyage` closes the active sequence and starts the next one; use `Start
+next Voyage` manually only when abandoning or correcting a sequence.
 
 Do not submit only rare, strong, or surprising boards. That would measure what
 players choose to report rather than what the game rolls.
@@ -36,11 +39,11 @@ Each `allflame-border-roll/v2` record contains:
 The dataset export is a JSON document with schema
 `allflame-border-roll-dataset/v2`. It contains no screenshots, account names,
 character names, IP addresses, or browser identifiers. Samples remain in the
-browser until the user explicitly exports them or opens a pre-filled GitHub
-submission issue. A submission contains one complete Voyage sequence rather
-than an arbitrarily selected latest roll. The record itself has no account data;
-a submitted issue does show the contributor's GitHub username under GitHub's
-normal privacy terms.
+browser until the user explicitly exports or submits them, or enables automatic
+submission with a private limited key. A submission contains one complete
+Voyage sequence rather than an arbitrarily selected latest roll. The record
+itself has no account data. Manual issues show the contributor's GitHub username;
+automatic issues show the account used by the intake service.
 
 Legacy v1 browser samples are migrated to v2 automatically. V1 requested a
 Voyage level derived from charts placed after the border roll; v2 removes it
@@ -77,6 +80,34 @@ The bot comments with the result and applies exactly one processing label:
 
 Accepted comments include a SHA-256 digest of the normalized dataset. Edits and
 reopened data issues run validation again.
+
+## Optional automatic delivery
+
+Automatic delivery is disabled by default. A visitor without a private
+submission key behaves exactly as before and can only open the reviewed,
+pre-filled issue flow. When an authorised user enables it, `Finish Voyage` puts
+the complete active sequence into a durable browser outbox and starts the next
+sequence immediately. Network failures never block finishing a Voyage; the
+outbox retries on the next load or configuration change.
+
+The public GitHub Pages application sends the dataset to a separate Codex Sites
+endpoint. The browser holds only a revocable submission key whose sole purpose
+is authorising valid border-roll payloads. The GitHub credential is a server
+secret scoped to issue access for `Alkwer/one-more-map.github.io`; it is never
+embedded in the application. The endpoint:
+
+- accepts requests only from the configured GitHub Pages origin;
+- limits request size and requires the private key;
+- validates the v2 dataset, contiguous roll order, and all canonical modifier
+  IDs;
+- uses a SHA-256 digest and D1 uniqueness constraints to make retries
+  idempotent;
+- creates one GitHub issue, after which the existing issue workflow performs an
+  independent validation, labels the result, comments, and closes accepted
+  data.
+
+The intake database stores only the digest, sequence ID, processing status, and
+resulting issue number/URL. It does not retain the submitted JSON or OCR output.
 
 ## Canonical dataset
 

@@ -19,6 +19,7 @@ import {
 import { VoyageRewards } from './components/VoyageRewards'
 import { useAppChrome } from './hooks/useAppChrome'
 import { useBoardSelection } from './hooks/useBoardSelection'
+import { useBorderRollResearch } from './hooks/useBorderRollResearch'
 import { useVoyageAnalysis } from './hooks/useVoyageAnalysis'
 import { useVoyageWorkflows } from './hooks/useVoyageWorkflows'
 import { generateDemoCharts } from './logic/demo'
@@ -41,7 +42,13 @@ export default function App() {
   const chrome = useAppChrome(state)
   const analysis = useVoyageAnalysis(state)
   const selection = useBoardSelection(state.board, dispatch)
-  const workflows = useVoyageWorkflows(state, analysis.chartMap, dispatch)
+  const borderResearch = useBorderRollResearch()
+  const workflows = useVoyageWorkflows(
+    state,
+    analysis.chartMap,
+    dispatch,
+    borderResearch.finishVoyage,
+  )
   const saveTimer = useRef<number>()
 
   useEffect(() => {
@@ -120,6 +127,7 @@ export default function App() {
           <ImportPanel
             onImport={addCharts}
             state={state}
+            borderResearch={borderResearch}
             onLoadState={(loadedState) => dispatch({ type: 'replace', state: loadedState })}
           />
         </div>
