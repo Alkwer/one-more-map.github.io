@@ -34,21 +34,26 @@ describe('25-chart solver quality budget', () => {
         'milky-meatfish',
         'divine-border-rares',
         'alc-and-go',
-        'milky-ethereal',
         'cutedog-divine-boxes',
+        'milky-ethereal',
         'milky-speedrun',
       ],
     )
     const qualityFloor = new Map([
-      ['milky-meatfish', 298.88],
+      // Intentional recalibration: Lanterns are supporting rather than primary
+      // until monster-loot field reports are resolved.
+      ['milky-meatfish', 293.28],
       ['divine-border-rares', 200.4],
-      ['milky-ethereal', 12.28],
+      ['milky-ethereal', 10.02],
       ['cutedog-divine-boxes', 34.62],
     ])
     for (const evaluation of inventory.evaluations) {
       const minimum = qualityFloor.get(evaluation.strategy.id)
       if (minimum === undefined) continue
-      assert.ok(evaluation.potentialScore >= minimum - QUALITY_EPSILON)
+      assert.ok(
+        evaluation.potentialScore >= minimum - QUALITY_EPSILON,
+        `${evaluation.strategy.id} score ${evaluation.potentialScore} fell below ${minimum}`,
+      )
       assert.equal(evaluation.potentialLaunchable, true)
       assert.equal(evaluation.potentialFullyReachable, true)
     }

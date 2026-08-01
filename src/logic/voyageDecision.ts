@@ -1,4 +1,10 @@
-import { KEEP_FIT_LINES, REROLL_COSTS, clampRerollsUsed, sulphurSpentAfter } from './rerollAdvice'
+import {
+  DEFAULT_MAX_REROLL_COST,
+  KEEP_FIT_LINES,
+  REROLL_COSTS,
+  clampRerollsUsed,
+  sulphurSpentAfter,
+} from './rerollAdvice'
 import type { RequiredBorderStatus, StrategySuggestion } from './strategySuggestions'
 
 export const ABSOLUTE_PLAYABLE_FIT = 0.5
@@ -46,6 +52,7 @@ interface DecisionCandidate {
   missing: string[]
   rankScore: number
   jackpot: boolean
+  divineJackpot: boolean
   requiredBorderStatus: RequiredBorderStatus
 }
 
@@ -62,6 +69,12 @@ const candidateFrom = (evaluation: StrategySuggestion): DecisionCandidate => ({
   missing: evaluation.readiness.missing,
   rankScore: evaluation.rankScore,
   jackpot: evaluation.jackpot,
+  divineJackpot:
+    evaluation.divineJackpot ??
+    (evaluation.jackpot &&
+      (evaluation.strategy.requiresBorderId?.id === 'b-divine' ||
+        evaluation.strategy.id === 'divine-border-rares' ||
+        evaluation.strategy.id === 'cutedog-divine-boxes')),
   requiredBorderStatus: evaluation.requiredBorderStatus ?? 'not-required',
 })
 
@@ -95,20 +108,23 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     preserveRoll: false,
   }
 
-  const ranked = input.evaluations.map(candidateFrom).sort((a, b) => {
-    const aMissingRequiredBorder = a.requiredBorderStatus === 'missing'
-    const bMissingRequiredBorder = b.requiredBorderStatus === 'missing'
-    if (aMissingRequiredBorder !== bMissingRequiredBorder) {
-      return aMissingRequiredBorder ? 1 : -1
-    }
-    return b.rankScore - a.rankScore
-  })
+  const ranked = input.evaluations
+    .filter((evaluation) => evaluation.strategy.autoRecommend !== false)
+    .map(candidateFrom)
+    .sort((a, b) => {
+      const aMissingRequiredBorder = a.requiredBorderStatus === 'missing'
+      const bMissingRequiredBorder = b.requiredBorderStatus === 'missing'
+      if (aMissingRequiredBorder !== bMissingRequiredBorder) {
+        return aMissingRequiredBorder ? 1 : -1
+      }
+      return b.rankScore - a.rankScore
+    })
 
   // A Divine border remains the single exception that can be acted on before
   // every border is entered. Never lose it to an ordinary reroll prompt.
-  const divine = ranked.find(
-    (candidate) => candidate.strategyId === 'divine-border-rares' && candidate.jackpot,
-  )
+  const divineCandidates = ranked.filter((candidate) => candidate.divineJackpot)
+  const divine =
+    divineCandidates.find((candidate) => candidate.ready) ?? divineCandidates[0] ?? null
   if (divine) {
     if (!divine.ready) {
       return {
@@ -132,12 +148,13 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
       ...base,
       kind: alreadyActive ? 'play' : 'switch',
       label: alreadyActive ? `PLAY: ${divine.strategyName}` : `SWITCH TO: ${divine.strategyName}`,
-      reason: `A +1 Divine Orb border is present and all required pieces are available across the ${input.availableCharts} imported charts. Preserve the roll and build the recommended layout.`,
+      reason: `A +1 Divine Orb border is present. ${divine.strategyName} is the best ready Divine variant for the ${input.availableCharts} imported charts. Preserve the roll and build its border-aware layout.`,
       strategyId: divine.strategyId,
       strategyName: divine.strategyName,
       fit: divine.fit,
       missing: [],
       action: actionFor(input.activeStrategyId, divine),
+      preserveRoll: true,
     }
   }
 
@@ -228,14 +245,14 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
   }
 
   const linePercent = Math.round(decisionFitLine * 100)
-  if (nextCost !== null && nextCost <= 12_000) {
+  if (nextCost !== null && nextCost <= DEFAULT_MAX_REROLL_COST) {
     return {
       ...base,
       kind: 'reroll',
-      label: `REROLL — next costs ${sulphur(nextCost)} Sulphur`,
+      label: `CONSIDER REROLL — next costs ${sulphur(nextCost)} Sulphur`,
       reason: `After combining all ${input.availableCharts} imported charts with the current border roll, the best ready strategy is ${bestReady.strategyName}. The best layout found reaches ${percent(
         bestReady.fit,
-      )}, below the ${linePercent}% decision line while another roll is still inexpensive.`,
+      )}, below the ${linePercent}% decision line while the next roll remains inside the 3k/6k default guardrail. This is heuristic guidance because border probabilities remain unknown.`,
       strategyId: bestReady.strategyId,
       strategyName: bestReady.strategyName,
       fit: bestReady.fit,
@@ -246,12 +263,12 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
 
   const costReason =
     nextCost === null
-      ? 'The five-reroll cap is already reached.'
+      ? 'No further configured reroll remains.'
       : `Another attempt costs ${sulphur(nextCost)} Sulphur.`
   return {
     ...base,
     kind: 'stop',
-    label: "DON'T PAY FOR ANOTHER REROLL",
+    label: 'STOP REROLLING — KEEP THE CURRENT BOARD',
     reason: `${bestReady.strategyName} is the best ready strategy after combining all ${input.availableCharts} imported charts with the current border roll, but the best layout found reaches only ${percent(
       bestReady.fit,
     )}; this is not a quality endorsement. ${costReason}`,

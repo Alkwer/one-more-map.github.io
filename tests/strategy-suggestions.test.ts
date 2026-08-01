@@ -72,14 +72,16 @@ describe('strategy suggestion regressions', () => {
     assert.ok(result.suggestions[0].reasons.some((reason) => /cannot drop Equipment/.test(reason)))
   })
 
-  it('ranks Ethereal from a Magic-monster border signal', () => {
+  it('keeps Ethereal diagnostics without auto-recommending the experimental strategy', () => {
     const borders = emptyBorders()
     borders[4] = 'b-minmagic'
     const result = suggestStrategies(emptyBoard(), borders, new Map(), [], options)
+    const ethereal = result.evaluations.find((entry) => entry.strategy.id === 'milky-ethereal')!
 
-    assert.equal(result.suggestions[0].strategy.id, 'milky-ethereal')
-    assert.equal(result.suggestions[0].matchingBorders, 1)
-    assert.ok(result.suggestions[0].borderScore > 0)
+    assert.notEqual(result.suggestions[0].strategy.id, 'milky-ethereal')
+    assert.equal(ethereal.matchingBorders, 1)
+    assert.ok(ethereal.borderScore > 0)
+    assert.equal(ethereal.strategy.autoRecommend, false)
   })
 
   it('does not invent evidence for an empty state', () => {

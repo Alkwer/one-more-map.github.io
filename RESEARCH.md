@@ -1,6 +1,6 @@
 # Allflame Voyage Solver - Mechanics and Modeling Notes
 
-Last reviewed: **2026-07-30**.
+Last reviewed: **2026-08-01**.
 
 This document separates live observations from model assumptions and unresolved
 questions. Historical preview notes are retained only where they explain the
@@ -241,6 +241,64 @@ they conflict.
   connections. Modelled via `scaling: 'connections' | 'inverse-connections'` on
   VoyageModDef (effect × connection count, or × (4 − connections)). No real mod
   texts known yet - wire them in as they're found.
+
+## Strategy calibration after 3.29.1
+
+The curated strategies remain decision-support heuristics rather than profit or
+expected-value calculations. The following evidence changed the defaults after
+the initial strategy transcription:
+
+- **Confirmed:** patch 3.29.0b made Diviner's, Arcanist's, and Operative's
+  Strongboxes eligible to appear by default above area level 67, increased the
+  frequency and rewards of valuable scattered chests, made dead-end and
+  straight-line Charts less common, and added quantity to Golden Lanterns.
+- **Confirmed:** patch 3.29.1 allows Dredged currency to be used on Strongboxes
+  and added Sunken Opulence and Sunken Gems chests. These changes strengthen the
+  general Strongbox speedrun direction but do not establish currency-per-hour
+  ratios between Strongbox families.
+- **Strongly supported:** a `+1 Divine Orb` border should be preserved and the
+  touched tile should be fed with Rare Monsters. Current reports support both a
+  Sea-Pillars/Starfish approach and a Strongbox approach, but do not establish a
+  universal winner.
+- **Strongly supported:** a corner Divine tile has only two physical feeder
+  positions, while a middle-edge Divine tile has three. Strategy requirements
+  must therefore adapt to the rolled border position.
+- **Conflicting field evidence:** Strongboxes can be rolled with two rare-guard
+  modifiers, but reports disagree on whether every resulting rare consistently
+  receives the Divine-border drop. The app describes seven rares per box as a
+  potential maximum, not a guaranteed yield.
+- **Conflicting field evidence:** Golden Lantern quantity and rarity are visible
+  in character stats, but repeated reports describe little corresponding
+  monster loot. Lantern weights are reduced to a supporting role, and Magic
+  Ethereal is retained for manual experimentation but excluded from automatic
+  recommendations until better measurements or a game fix exists.
+
+App policy resulting from this evidence:
+
+1. Compare every ready strategy built around the Divine border; never hard-code
+   one creator's variant as the winner.
+2. Require 2 feeders plus 6 remaining Rare charts for a corner Divine tile, or
+   3 feeders plus 5 remaining Rare charts for a middle-edge tile.
+3. Count Arcanist's Strongboxes as a premium Speedrun centre option.
+4. Treat `Monsters cannot drop Equipment` as a required Meatfish piece;
+   Fracture remains a degraded manual fallback.
+5. Limit the default reroll suggestion to the 3,000 and 6,000 Sulphur steps.
+   This is a community-informed guardrail, not optimal stopping or EV.
+
+Strategy-calibration sources:
+
+- Official 3.29.0b notes:
+  https://www.pathofexile.com/forum/view-thread/3989412
+- Official 3.29.1 notes:
+  https://www.pathofexile.com/forum/view-thread/3991672
+- Current Voyage strategy discussion:
+  https://www.reddit.com/r/PathOfExileBuilds/comments/1v90lxh/voyage_strategies_discussion/
+- Current practical Chart/Voyage discussion:
+  https://www.reddit.com/r/PathOfExileBuilds/comments/1vcddgn/how_do_you_run_chartsvoyages/
+- Divine Voyage optimization reports:
+  https://www.reddit.com/r/pathofexile/comments/1v9qoh7/optimizing_divine_voyage/
+- Golden Lantern field reports:
+  https://www.reddit.com/r/pathofexile/comments/1vblw8w/golden_lanterns_are_irrelevant/
 
 League: **Path of Exile 3.29 - Curse of the Allflame**, launched July 24, 2026.
 

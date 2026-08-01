@@ -35,6 +35,9 @@ export interface StrategyDef {
   source: { label: string; url: string }
   /** the video's guidance, shown on the expanded card */
   guide: string[]
+  /** false keeps an experimental/reference strategy available for manual use
+   *  without allowing it to drive the canonical automatic recommendation */
+  autoRecommend?: boolean
   /** reward-weight override while active (unlisted rewards count as 0) */
   weights: Weights
   rules: PositionRule[]
@@ -59,6 +62,13 @@ export interface StrategyDef {
     nameMatch?: string
     areaTypes?: ChartAreaType[]
     count: number
+    /** adapt the required count to the number of physical neighbours around
+     *  the best currently rolled border tile (2 for a corner, 3 for an edge) */
+    countByBorderNeighbours?: {
+      borderId: string
+      two: number
+      three: number
+    }
     label: string
   }[]
   /** a border roll the strategy hinges on (readiness warns if not entered) */
@@ -101,6 +111,7 @@ const JUICE_PIECES = [
 
 const CENTER = [4]
 const EDGES = [1, 3, 5, 7]
+const ALL_CELLS = [0, 1, 2, 3, 4, 5, 6, 7, 8]
 
 // Milky's exact Meatfish board (from his planner, screenshotted 2026-07-28):
 // corners at 0/2/7... rendered as effective edges [N,E,S,W] per cell.
@@ -133,11 +144,13 @@ const ETHEREAL_LAYOUT: Edges[] = [
   [T, F, F, T], // 8 corner
 ]
 
-// the ONE chart Speedrun puts in the centre: Diviner's / Operative's boxes or
-// Messages in a Bottle (Arcanist's and generic boxes don't qualify)
+// the ONE chart Speedrun puts in the centre: premium typed Strongboxes or
+// Messages in a Bottle (generic Strongboxes don't qualify)
 const SPEEDRUN_CENTER_MODS = [
   'adj-divbox-1',
   'adj-divbox-2',
+  'adj-arcbox-1',
+  'adj-arcbox-2',
   'adj-opbox-1',
   'adj-opbox-2',
   'adj-msg-1',
@@ -193,7 +206,7 @@ export const STRATEGIES: StrategyDef[] = [
       url: 'https://www.youtube.com/watch?v=gVKQhYxeavk',
     },
     guide: [
-      'Put exactly ONE Operative’s chart in the CENTRE - it’s the best (a few divines of scarabs per run); Diviner’s or Message-in-a-Bottle are the consistent fallbacks.',
+      'Put exactly ONE premium Strongbox chart in the CENTRE. Operative’s is the scarab-first choice; Arcanist’s, Diviner’s and Message-in-a-Bottle are valuable fallbacks whose order depends on current prices.',
       'Roll charts to 110%+ Item Quantity BEFORE running them - they can’t be rolled after, and quantity scales the boxes.',
       'Put your highest Item Quantity charts on the four sides.',
       'Everything else is junk you don’t need for other strategies - corners just make the connectors line up.',
@@ -204,6 +217,7 @@ export const STRATEGIES: StrategyDef[] = [
     ],
     weights: {
       'adjacent:opbox': 10,
+      'adjacent:arcbox': 8,
       'adjacent:divbox': 7,
       'adjacent:msg': 7,
       'self:quant': 8,
@@ -224,6 +238,11 @@ export const STRATEGIES: StrategyDef[] = [
       { cells: CENTER, modIds: ['adj-opbox-1', 'adj-opbox-2'], bonus: 55 },
       {
         cells: CENTER,
+        modIds: ['adj-arcbox-1', 'adj-arcbox-2'],
+        bonus: 45,
+      },
+      {
+        cells: CENTER,
         modIds: ['adj-divbox-1', 'adj-divbox-2', 'adj-msg-1', 'adj-msg-2'],
         bonus: 40,
       },
@@ -237,11 +256,11 @@ export const STRATEGIES: StrategyDef[] = [
       {
         modIds: SPEEDRUN_CENTER_MODS,
         count: 1,
-        label: 'Diviner’s / Operative’s / Message chart (centre)',
+        label: 'Operative’s / Arcanist’s / Diviner’s / Message chart (centre)',
       },
     ],
     waitHint: 'Run manual boards until one drops.',
-    searchRegex: '"bottle|divine|oper"',
+    searchRegex: '"bottle|divine|arca|oper"',
   },
   {
     id: 'milky-meatfish',
@@ -254,14 +273,16 @@ export const STRATEGIES: StrategyDef[] = [
     guide: [
       'Milky’s full composition (his sheet): 2× Starfish, 1× Pantheon, 2× Sea-Pillars (corners), 2× Golden Lanterns, 1× Possessed Rares, 1× No-Equipment.',
       'Starfish always top- and bottom-middle; Pantheon only ever right-middle; Golden Lantern preferably centre - any chart shape.',
-      '"Monsters cannot drop Equipment" is the jackpot piece - Rares Fracture works as the fallback. Optionally swap Pantheon for 4k Wisps.',
+      '"Monsters cannot drop Equipment" is the jackpot piece and is required before the app calls the full strategy ready. Rares Fracture is a degraded manual fallback, not an equivalent replacement. Optionally swap Pantheon for 4k Wisps.',
       'Collect every lantern in the voyage: ≈280% Quantity, 840 Rarity. Kill all the giga-rares. Obtain Mageblood/Headhunter.',
       'Very risky, all-or-nothing - don’t water it down. Speedrun boxes until you have the pieces.',
     ],
     weights: {
       'adjacent:star': 10,
       'adjacent:pantheon': 10,
-      'adjacent:lantern': 10,
+      // Current field reports show the visible Lantern quantity/rarity buff but
+      // weak monster-loot returns. Keep it supportive until better data exists.
+      'adjacent:lantern': 3,
       'voyage:possess': 10,
       'voyage:fracture': 8,
       'voyage:rare': 8,
@@ -280,6 +301,9 @@ export const STRATEGIES: StrategyDef[] = [
       { cells: [5], modIds: ['adj-pantheon'], bonus: 80 },
       { cells: [0, 1, 2, 3, 4, 6, 7, 8], modIds: ['adj-pantheon'], bonus: -80 },
       { cells: [4], modIds: ['adj-lantern'], bonus: 40 },
+      // This global conversion piece has no numeric ModEffect, so explicitly
+      // keep it in the selected nine when the strategy is complete.
+      { cells: ALL_CELLS, modIds: ['voy-noequip'], bonus: 100 },
       // Sea-Pillars belong in the corners (their rain juices their own tile)
       { cells: [0, 2, 6, 8], nameMatch: 'pillar', areaTypes: ['sea-pillars'], bonus: 40 },
       {
@@ -309,11 +333,7 @@ export const STRATEGIES: StrategyDef[] = [
       },
       { modIds: ['adj-lantern'], count: 2, label: 'Golden Lantern chart' },
       { modIds: ['voy-possess'], count: 1, label: 'Possessed Rares chart' },
-      {
-        modIds: ['voy-noequip', 'voy-fracture'],
-        count: 1,
-        label: 'No-Equipment (or Fracture) chart',
-      },
+      { modIds: ['voy-noequip'], count: 1, label: 'No-Equipment chart' },
     ],
     waitHint: 'Speedrun Strongboxes in the meantime.',
     searchRegex: '"cannot|poss|lantern|pantheon"',
@@ -326,8 +346,11 @@ export const STRATEGIES: StrategyDef[] = [
       label: 'Milkybk_ - Allflame Buffs and My Strategy',
       url: 'https://www.youtube.com/watch?v=gVKQhYxeavk',
     },
+    // Kept for manual experimentation, but current field reports do not support
+    // letting it outrank the more repeatable Strongbox/Divine strategies.
+    autoRecommend: false,
     guide: [
-      '⚠ Field reports are underwhelming so far (Palsteron ran it: ~5 div) - Milky has moved to the rares build (Meatfish). Kept for reference.',
+      '⚠ Experimental reference strategy. Current field reports for Lantern/rarity stacking are underwhelming, so it is excluded from automatic recommendations.',
       'Builds Milky’s exact board layout: 3 Corners, 4 T-junctions, 1 Crossing, 1 Straight - 11 connections.',
       'Wisp charts on the four sides, Golden Lanterns on the corners, the Crossing chart dead centre.',
       'Instead of rares, go wide on magic monsters: All Monsters at least Magic + increased Magic Monsters.',
@@ -339,7 +362,7 @@ export const STRATEGIES: StrategyDef[] = [
       'voyage:minmagic': 10,
       'adjacent:magic': 9,
       'voyage:magic': 9,
-      'adjacent:lantern': 8,
+      'adjacent:lantern': 3,
       'border:minmagic': 8,
       'self:quant': 4,
       'self:pack': 3,
@@ -353,11 +376,21 @@ export const STRATEGIES: StrategyDef[] = [
         modIds: ['adj-magic-1', 'adj-magic-2', 'adj-wisps-1', 'adj-wisps-2'],
         bonus: 5,
       },
+      { cells: ALL_CELLS, modIds: ['voy-minmagic'], bonus: 80 },
+      { cells: ALL_CELLS, modIds: ['voy-noequip'], bonus: 100 },
     ],
     layout: ETHEREAL_LAYOUT,
+    layoutPenalty: 6,
     requirements: [
       { modIds: ['adj-wisps-1', 'adj-wisps-2'], count: 4, label: 'Wildwood Wisp chart' },
       { modIds: ['adj-lantern'], count: 3, label: 'Golden Lantern chart' },
+      { modIds: ['voy-minmagic'], count: 1, label: 'All Monsters at least Magic chart' },
+      { modIds: ['voy-noequip'], count: 1, label: 'No-Equipment chart' },
+      {
+        areaTypes: ['infested-bathyspheres'],
+        count: 1,
+        label: 'Infested Bathyspheres chart',
+      },
     ],
     waitHint: 'Speedrun Strongboxes in the meantime.',
   },
@@ -368,11 +401,11 @@ export const STRATEGIES: StrategyDef[] = [
       'Roll a Divine border, park a Sea-Pillar chart on it, and drown that tile in rares - every rare drops a Divine Orb.',
     source: { label: 'Milky’s strat', url: '' },
     guide: [
-      'Reroll borders with Dead Man’s Sulphur until you hit "+1 Divine Orb per Rare Monster" - this is one of the mechanic’s two real jackpots.',
+      'If you hit "+1 Divine Orb per Rare Monster", preserve the roll. The app only suggests the two cheap default rerolls (3k and 6k); the unknown roll distribution does not justify chasing it at any cost.',
       'Enter your borders on the board - the solver pins your Sea-Pillar chart to the Divine tile (its pillars rain extra rares into that exact area).',
-      'The treasure feeders are "+5 Strongboxes" adjacent charts: roll the boxes themselves for "Stream of Monsters" (+4 rares) and "of Rarity" (+3) - 7 rares per box, a Divine each. One +5 chart ≈ 35 Divines; three around the tile ≈ 105.',
+      'Use 2 feeder charts when the Divine tile is a corner and 3 when it is a middle edge tile. Strongboxes can be rolled for rare guards, but treat the maximum seven-rares outcome as potential rather than guaranteed live yield.',
       'Starfish charts also feed it if you’re short on Strongbox charts.',
-      '5× Increased Rare Monsters charts fill the rest - every rare on that tile is a Divine drop.',
+      'Fill the remaining 5-6 slots with Increased Rare Monsters charts; the exact count depends on whether the Divine tile has 3 or 2 neighbours.',
     ],
     weights: {
       'adjacent:rare': 10,
@@ -414,11 +447,13 @@ export const STRATEGIES: StrategyDef[] = [
       {
         modIds: ['adj-star-1', 'adj-star-2', 'adj-box-1', 'adj-box-2', 'adj-box-3'],
         count: 3,
-        label: 'Starfish or Strongbox chart',
+        countByBorderNeighbours: { borderId: 'b-divine', two: 2, three: 3 },
+        label: 'Starfish or Strongbox feeder chart',
       },
       {
         modIds: ['adj-rare-1', 'adj-rare-2', 'voy-rare'],
         count: 5,
+        countByBorderNeighbours: { borderId: 'b-divine', two: 6, three: 5 },
         label: 'Increased Rares chart',
       },
     ],
@@ -433,13 +468,13 @@ export const STRATEGIES: StrategyDef[] = [
     id: 'cutedog-divine-boxes',
     name: 'Divine Strongboxes',
     tagline:
-      'cutedog_’s Divine-border variant - Pelagic Abyss on the Divine tile, any strongboxes feeding it, 7 divines per rolled box.',
+      'cutedog_’s Divine-border variant - Pelagic Abyss on the Divine tile with strongboxes feeding potential rare guards into it.',
     source: { label: 'cutedog_ (Twitch)', url: 'https://www.twitch.tv/cutedog_' },
     guide: [
       'Needs the "+1 Divine Orb per Rare" border. Put a Pelagic Abyss chart with high % Pack Size on that exact tile.',
-      '3× strongbox adjacent charts (ANY type) beside the Divine tile - each box they shoot in is up to 7 guaranteed divines.',
-      'Roll the Strongboxes: "3 additional Rares" prefix = 3 divines, "Stream of Monsters" prefix = 4. Both on one box = 7, difficult to roll.',
-      'Every other tile: voyage-wide increased Rare Monsters.',
+      'Use 2 Strongbox charts beside a corner Divine tile or 3 beside a middle edge tile. Any Strongbox type can feed the target area.',
+      'Roll the Strongboxes for rare guards. The combined seven-rares outcome is difficult to roll and current field reports are not consistent enough to call every guard a guaranteed Divine.',
+      'Fill the remaining 5-6 tiles with voyage-wide increased Rare Monsters.',
       'Buy good charts cheap on trade (link below) - whisper "fastge". Use the 120%+ quantity regex when browsing.',
     ],
     weights: {
@@ -500,9 +535,15 @@ export const STRATEGIES: StrategyDef[] = [
           'adj-opbox-2',
         ],
         count: 3,
+        countByBorderNeighbours: { borderId: 'b-divine', two: 2, three: 3 },
         label: 'Strongbox adjacent chart (any type)',
       },
-      { modIds: ['voy-rare'], count: 5, label: 'Increased Rares (voyage) chart' },
+      {
+        modIds: ['voy-rare'],
+        count: 5,
+        countByBorderNeighbours: { borderId: 'b-divine', two: 6, three: 5 },
+        label: 'Increased Rares (voyage) chart',
+      },
     ],
     requiresBorderId: {
       id: 'b-divine',
