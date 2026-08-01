@@ -8,6 +8,7 @@ import { buildChartSearch, buildSingleChartSearch } from './logic/regex'
 import { ImportPanel } from './components/ImportPanel'
 import { Library } from './components/Library'
 import { SolverPanel } from './components/SolverPanel'
+import { SolveBar } from './components/SolveBar'
 import { borderModById, voyageModById } from './data/mods'
 import { strategyById } from './data/strategies'
 import { StrategiesPanel } from './components/StrategiesPanel'
@@ -83,6 +84,8 @@ export default function App() {
   const [selectedChart, setSelectedChart] = useState<string | null>(null)
   const [selectedCell, setSelectedCell] = useState<number | null>(null)
   const [results, setResults] = useState<SolverResult[]>([])
+  // which solver result is currently loaded on the board (highlights its card)
+  const [appliedIdx, setAppliedIdx] = useState<number | null>(null)
   const [shareMsg, setShareMsg] = useState('')
   const saveTimer = useRef<number>()
 
@@ -504,6 +507,24 @@ export default function App() {
             onCopySequence={startCopySeq}
             voyageMsg={voyageMsg}
             sequenceActive={!!copySeq || !!preserveConfirm}
+            solveSlot={
+              <SolveBar
+                state={state}
+                activeStrategy={activeStrategy}
+                results={results}
+                appliedIdx={appliedIdx}
+                onResults={(r) => {
+                  setResults(r)
+                  setAppliedIdx(null)
+                }}
+                onApply={(r, idx) => {
+                  patch({ board: r.board.map((p) => (p ? { ...p } : null)) })
+                  setAppliedIdx(idx)
+                  setSelectedCell(null)
+                  setSelectedChart(null)
+                }}
+              />
+            }
           />
 
           {copySeq && (
@@ -653,12 +674,9 @@ export default function App() {
             state={state}
             activeStrategy={activeStrategy}
             onPatch={patch}
-            results={results}
-            onResults={setResults}
-            onApply={(board) => {
-              patch({ board: board.map((p) => (p ? { ...p } : null)) })
-              setSelectedCell(null)
-              setSelectedChart(null)
+            onResults={(r) => {
+              setResults(r)
+              setAppliedIdx(null)
             }}
           />
         </section>

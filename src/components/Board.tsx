@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { BORDER_MODS, borderModById, voyageModById } from '../data/mods'
 import { rotateEdges } from '../logic/connectivity'
 import { buildSingleChartSearch } from '../logic/regex'
@@ -26,6 +26,8 @@ interface Props {
   voyageMsg: string
   /** a copy/preserve step-through is active - hide the action buttons to avoid confusion */
   sequenceActive?: boolean
+  /** the solve control, rendered front-and-centre above "Copy into game" */
+  solveSlot?: ReactNode
 }
 
 function BorderSelect({
@@ -394,6 +396,7 @@ export function BoardView(props: Props) {
         <span className="legend-item scope-adjacent">■ adjacent</span>
         <span className="legend-item scope-global">■ whole voyage</span>
       </div>
+      {!props.sequenceActive && props.solveSlot}
       {!props.sequenceActive && (
         <div className="voyage-finish">
           <button

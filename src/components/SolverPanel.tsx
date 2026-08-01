@@ -3,7 +3,7 @@ import { buildBestModRegex } from '../logic/regex'
 import { solve, type SolverResult } from '../logic/solver'
 import type { AppState } from '../logic/storage'
 import type { AdjacencyMode } from '../logic/scoring'
-import type { Board, ConnectivityMode } from '../types'
+import type { ConnectivityMode } from '../types'
 import { RARE_IMPLICITS } from '../data/strategies'
 import type { StrategyDef } from '../data/strategies'
 import { GROUP_LABEL, GROUP_ORDER, REWARD_TYPES } from '../logic/rewards'
@@ -17,12 +17,10 @@ interface Props {
   /** curated strategy currently overriding weights, or null for manual */
   activeStrategy: StrategyDef | null
   onPatch: (p: Partial<AppState>) => void
-  results: SolverResult[]
   onResults: (r: SolverResult[]) => void
-  onApply: (board: Board) => void
 }
 
-export function SolverPanel({ state, activeStrategy, onPatch, results, onResults, onApply }: Props) {
+export function SolverPanel({ state, activeStrategy, onPatch, onResults }: Props) {
   const [busy, setBusy] = useState(false)
   const [regexCap, setRegexCap] = useState(50)
   const [copied, setCopied] = useState(false)
@@ -42,75 +40,6 @@ export function SolverPanel({ state, activeStrategy, onPatch, results, onResults
     } catch {
       /* user can select the text manually */
     }
-  }
-
-  const run = () => {
-    setBusy(true)
-    setSolveNote('')
-    // let the UI paint the busy state before the (synchronous) solve
-    window.setTimeout(() => {
-      try {
-        // strategy reservations: hold back charts another strategy is saving for
-        const reserve = activeStrategy?.reserveModIds
-        const reserveAreaTypes = activeStrategy?.reserveAreaTypes
-        // locked charts sitting on the board are pinned to their exact cell -
-        // the solver arranges everything else around them (issue #9)
-        const locked = state.board.map((placement) => {
-          if (!placement) return null
-          const chart = state.pool.find((c) => c.uid === placement.chartUid)
-          return chart?.preserved ? { ...placement } : null
-        })
-        const lockedUids = new Set(locked.filter(Boolean).map((p) => p!.chartUid))
-        // rare-implicit charts are Divine-strategy fuel: everything else
-        // (manual mode included) leaves them in the library
-        const raresAllowed = activeStrategy?.allowRareImplicits ?? false
-        const isRareImplicit = (c: (typeof state.pool)[number]) =>
-          c.modIds.some((id) => (RARE_IMPLICITS as readonly string[]).includes(id))
-        const solvePool = state.pool.filter(
-          (c) =>
-            lockedUids.has(c.uid) ||
-            ((raresAllowed || !isRareImplicit(c)) &&
-              !(reserve?.length && c.modIds.some((id) => reserve.includes(id))) &&
-              !(
-                reserveAreaTypes?.length &&
-                c.areaType &&
-                reserveAreaTypes.includes(c.areaType)
-              )),
-        )
-        const raresHeld = raresAllowed
-          ? 0
-          : state.pool.filter((c) => !lockedUids.has(c.uid) && isRareImplicit(c)).length
-        const heldBack = state.pool.length - solvePool.length - raresHeld
-        const res = solve(solvePool, state.borders, weights, {
-          mode: state.mode,
-          allowRotation: state.allowRotation,
-          adjacencyMode: state.adjacencyMode,
-          adjacentAffectsSelf: state.adjacentAffectsSelf,
-          disabledMods: new Set(state.disabledMods),
-          topK: 5,
-          strategyRules: activeStrategy?.rules,
-          strategyLayout: activeStrategy?.layout,
-          strategyLayoutPenalty: activeStrategy?.layoutPenalty,
-          locked,
-        })
-        onResults(res)
-        const notes: string[] = []
-        const lockedCount = locked.filter(Boolean).length
-        if (lockedCount > 0)
-          notes.push(`${lockedCount} locked chart${lockedCount === 1 ? '' : 's'} kept in place.`)
-        if (raresHeld > 0)
-          notes.push(`${raresHeld} rare-implicit chart${raresHeld === 1 ? '' : 's'} saved for the Divine strategies.`)
-        if (heldBack > 0)
-          notes.push(`${heldBack} juice chart${heldBack === 1 ? '' : 's'} held back for Meatfish/Ethereal.`)
-        if (solvePool.length < 9)
-          notes.push(`Only ${solvePool.length} spare charts - not enough for a full board.`)
-        else if (res.length && !res[0].valid)
-          notes.push('No fully runnable layout from these charts - best partial shown.')
-        setSolveNote(notes.join(' '))
-      } finally {
-        setBusy(false)
-      }
-    }, 30)
   }
 
   // build a throwaway "filler" voyage from your lowest-value spare charts, holding
@@ -162,7 +91,7 @@ export function SolverPanel({ state, activeStrategy, onPatch, results, onResults
         onResults(res)
         setSolveNote(
           res[0]?.valid
-            ? 'Filler voyage: lowest-value runnable board from your spare charts (your best & locked charts untouched).'
+            ? 'Filler voyage: lowest-value runnable board from your spare charts (your best & locked charts untouched). Results are under the board.'
             : 'No runnable filler layout from your spare charts.',
         )
       } finally {
@@ -173,7 +102,7 @@ export function SolverPanel({ state, activeStrategy, onPatch, results, onResults
 
   return (
     <div className="solver">
-      <div className="panel-title">Solver</div>
+      <div className="panel-title">Solver Settings</div>
 
       <div className="field">
         <label>Connector rule</label>
@@ -259,23 +188,15 @@ export function SolverPanel({ state, activeStrategy, onPatch, results, onResults
         </div>
       </details>
 
-      <button className="primary" onClick={run} disabled={busy || state.pool.length === 0}>
-        {busy ? 'Solving…' : `Solve (${state.pool.length} charts)`}
-      </button>
       <button
         className="filler-btn"
         onClick={runFiller}
         disabled={busy || state.pool.length < 10}
         title="Build a throwaway voyage from your lowest-value spare charts, keeping your best and locked charts for a real run"
       >
-        🗑 Filler voyage (spare charts)
+        {busy ? 'Solving…' : '🗑 Filler voyage (spare charts)'}
       </button>
       {solveNote && <div className="muted small-note">{solveNote}</div>}
-      {state.pool.length > 9 || state.allowRotation ? (
-        <div className="muted small-note">Large pool / rotation → heuristic search (near-optimal)</div>
-      ) : (
-        <div className="muted small-note">Pool ≤ 9 charts → exhaustive search (optimal)</div>
-      )}
 
       <div className="panel-title small">Best-Charts Regex</div>
       <div className="muted small-note" style={{ marginTop: 0 }}>
@@ -300,24 +221,6 @@ export function SolverPanel({ state, activeStrategy, onPatch, results, onResults
           </select>
         </label>
       </div>
-
-      {results.length > 0 && (
-        <>
-          <div className="panel-title small">Results</div>
-          <div className="results">
-            {results.map((r, i) => (
-              <button key={i} className={`result ${r.valid ? '' : 'invalid'}`} onClick={() => onApply(r.board)}>
-                <span>#{i + 1}</span>
-                <span>{r.reward.toFixed(1)} pts</span>
-                {!r.valid && <span className="badge bad">not runnable</span>}
-              </button>
-            ))}
-          </div>
-          <div className="muted small-note">
-            Ranked by your weights and estimated mod values. Click a result to load it.
-          </div>
-        </>
-      )}
     </div>
   )
 }
