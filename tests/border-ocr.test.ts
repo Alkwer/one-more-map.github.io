@@ -59,7 +59,7 @@ const CURRENT_BORDER_TOOLTIPS = [
     'b-decks',
     'Basic Currency items dropped by Monsters in adjacent Areas will instead drop as Stacked Decks',
   ],
-  ['b-scarabdrop', 'Rare Monsters in adjacent Areas drop 1 additional Scarabs'],
+  ['b-scarabdrop', 'Rare Monsters in adjacent Areas drop an additional Scarab'],
   ['b-curr-1', '50% more Currency found in adjacent Areas'],
   ['b-curr-2', '75% more Currency found in adjacent Areas'],
   ['b-curr-3', '100% more Currency found in adjacent Areas'],

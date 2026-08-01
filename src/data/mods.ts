@@ -857,7 +857,7 @@ export const BORDER_MODS: BorderModDef[] = [
   {
     id: 'b-scarabdrop',
     short: '+1 Scarab Drop',
-    text: 'Rare Monsters in adjacent Areas drop 1 additional Scarabs',
+    text: 'Rare Monsters in adjacent Areas drop an additional Scarab',
     effects: [{ stat: 'scarabs', percent: 25 }],
   },
   {
