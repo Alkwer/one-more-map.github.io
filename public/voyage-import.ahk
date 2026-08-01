@@ -829,8 +829,7 @@ while ($true) {
         $parts = $line.Split('|')
         if ($parts[0] -ne 'capture' -or $parts.Count -lt 6) { continue }
         $idx = [int]$parts[1]
-        $block = Get-BorderBlock -Index $idx -Left ([int]$parts[2]) -Top ([int]$parts[3]) `
-            -Width ([int]$parts[4]) -Height ([int]$parts[5]) -Engine $engine
+        $block = Get-BorderBlock -Index $idx -Left ([int]$parts[2]) -Top ([int]$parts[3]) -Width ([int]$parts[4]) -Height ([int]$parts[5]) -Engine $engine
         Write-Atomic "$Session-res-$idx.txt" $block
     } catch {
         Start-Sleep -Milliseconds 60

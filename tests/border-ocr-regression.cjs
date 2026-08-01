@@ -210,4 +210,16 @@ assert.doesNotMatch(
   /throw 'Windows OCR is unavailable for English \(United States\)\.'/,
 )
 
+// The helper script is written to disk by AutoHotkey from a continuation
+// string - backtick is AHK's escape character, so any backtick in the
+// embedded PowerShell (e.g. a PS line continuation) is silently stripped at
+// runtime and corrupts the helper. This has broken border import once.
+const psStart = ahkImporter.indexOf('return "\n(\n')
+const psEnd = ahkImporter.indexOf('\n)"', psStart)
+assert.ok(psStart > -1 && psEnd > psStart, 'embedded PowerShell region not found')
+assert.ok(
+  !ahkImporter.slice(psStart, psEnd).includes('`'),
+  'embedded PowerShell must not contain backticks (AutoHotkey strips them when writing the helper)',
+)
+
 console.log('Border OCR regression: 64/64 current tooltips matched')
