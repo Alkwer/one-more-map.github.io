@@ -132,6 +132,8 @@ export interface VoyageModDef {
 export interface BorderModDef {
   id: string
   text: string
+  /** alternate live or legacy tooltip text accepted by the border OCR matcher */
+  aliases?: readonly string[]
   /** compact display label for the border pill */
   short?: string
   effects: ModEffect[]

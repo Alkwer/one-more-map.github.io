@@ -16,6 +16,7 @@ require.extensions['.ts'] = (module, filename) => {
 }
 
 const { parseBorderOcrPayload } = require('../src/logic/borderOcr.ts')
+const { BORDER_MODS } = require('../src/data/mods.ts')
 
 const CURRENT_BORDER_TOOLTIPS = [
   ['b-pack-1', '16% increased Pack Size in adjacent Areas'],
@@ -52,36 +53,36 @@ const CURRENT_BORDER_TOOLTIPS = [
   ],
   [
     'b-ancient',
-    'Rare Monsters in adjacent Areas drop 1 additional Ancient Orbs',
+    'Rare Monsters in adjacent Areas drop an additional Ancient Orb',
   ],
-  ['b-divine', 'Rare Monsters adjacent in Areas drop 1 additional Divine Orbs'],
+  ['b-divine', 'Rare Monsters in adjacent Areas drop an additional Divine Orb'],
   [
     'b-exalt',
-    'Rare Monsters in adjacent Areas drop 1 additional Exalted Orbs',
+    'Rare Monsters in adjacent Areas drop an additional Exalted Orb',
   ],
   [
     'b-annul',
-    'Rare Monsters in adjacent Areas drop 1 additional Orbs of Annulment',
+    'Rare Monsters in adjacent Areas drop an additional Orb of Annulment',
   ],
-  ['b-chaos', 'Rare Monsters in adjacent Areas drop 1 additional Chaos Orbs'],
-  ['b-vaal', 'Rare Monsters in adjacent Areas drop 1 additional Vaal Orbs'],
+  ['b-chaos', 'Rare Monsters in adjacent Areas drop an additional Chaos Orb'],
+  ['b-vaal', 'Rare Monsters in adjacent Areas drop an additional Vaal Orb'],
   [
     'b-gcp',
-    "Rare Monsters in adjacent Areas drop 1 additional Gemcutter's Prisms",
+    "Rare Monsters in adjacent Areas drop an additional Gemcutter's Prism",
   ],
   [
     'b-chrome',
-    'Rare Monsters in adjacent Areas drop 1 additional Chromatic Orbs',
+    'Rare Monsters in adjacent Areas drop an additional Chromatic Orb',
   ],
   [
     'b-regret',
-    'Rare Monsters in adjacent Areas drop 1 additional Orbs of Regret',
+    'Rare Monsters in adjacent Areas drop an additional Orb of Regret',
   ],
   [
     'b-blessed',
-    'Rare Monsters in adjacent Areas drop 1 additional Blessed Orbs',
+    'Rare Monsters in adjacent Areas drop an additional Blessed Orb',
   ],
-  ['b-regal', 'Rare Monsters in adjacent Areas drop 1 additional Regal Orbs'],
+  ['b-regal', 'Rare Monsters in adjacent Areas drop an additional Regal Orb'],
   [
     'b-support',
     'Rare Monsters in adjacent Areas have 20% chance to drop a Support Gem',
@@ -161,6 +162,20 @@ for (const [expectedId, tooltip] of CURRENT_BORDER_TOOLTIPS) {
   )
 }
 
+let legacyAliasCount = 0
+for (const mod of BORDER_MODS) {
+  for (const alias of mod.aliases ?? []) {
+    legacyAliasCount++
+    const result = parseBorderOcrPayload(block(alias))
+    assert.equal(
+      result.matches[0]?.id,
+      mod.id,
+      `${mod.id} alias was parsed as ${result.matches[0]?.id ?? 'MISS'}: ${alias}`,
+    )
+  }
+}
+assert.equal(legacyAliasCount, 12)
+
 const unknown = parseBorderOcrPayload(block('Adjacent Areas contain TotallyUnknownBoss'))
 assert.equal(unknown.matches.length, 0)
 assert.equal(unknown.misses.length, 1)
@@ -231,4 +246,4 @@ assert.ok(
   'embedded PowerShell must not contain backticks (AutoHotkey strips them when writing the helper)',
 )
 
-console.log('Border OCR regression: 64/64 current tooltips matched')
+console.log('Border OCR regression: 64/64 current tooltips and 12/12 aliases matched')
