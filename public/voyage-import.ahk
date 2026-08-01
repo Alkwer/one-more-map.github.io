@@ -343,7 +343,7 @@ WizardRender() {
     if (step["id"] = "border-exact")
         WizardHintCtl.Value := WizardExactHint()
     else if (step["wait"] != "")
-        WizardHintCtl.Value := "-> Waiting for " KeyLabel(Keys[step["wait"]]) " ... (auto-advances, or click Skip)"
+        WizardHintCtl.Value := "-> Waiting for " KeyLabel(Keys["WizardSet"]) " ... (auto-advances, or click Skip)"
     else if (step["id"] = "welcome")
         WizardUpdateStatus()
     else
