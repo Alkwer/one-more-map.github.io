@@ -47,7 +47,8 @@ CoordMode "ToolTip", "Screen"
 ;   - Set GridCols / GridRows below to match your panel.
 ;
 ;  RUN
-;   F9  = do the real import sweep
+;   F9  = do the real import sweep (charts + borders)
+;   Shift+F9 = import the 12 borders only (no chart copying)
 ;   F10 = abort at any time
 ;   All keys are rebindable: right-click (or double-click) the tray icon
 ;   and choose "Keybinds...". Saved to voyage-import.ini.
@@ -117,6 +118,7 @@ OnExit CleanupOcr
 ; applied immediately. Modifier syntax: ^ Ctrl, ! Alt, + Shift.
 KeyDefs := [
     ["RunSweep",      "F9",  "Run import (charts + border OCR)"],
+    ["BordersOnly",   "+F9", "Import borders only (OCR, no charts)"],
     ["Abort",         "F10", "Abort"],
     ["BorderTL",      "+F7", "Set border square top-left"],
     ["BorderBR",      "+F8", "Set border square bottom-right"],
@@ -128,6 +130,7 @@ KeyDefs := [
 ]
 KeyActions := Map(
     "RunSweep", RunSweep,
+    "BordersOnly", RunBordersOnly,
     "Abort", AbortAll,
     "BorderTL", SetBorderTopLeft,
     "BorderBR", SetBorderBottomRight,
@@ -781,6 +784,64 @@ AbortAll(*) {
         OcrPid := 0
     }
     Flash "Aborting..."
+}
+
+; ---- borders-only import: OCR the 12 borders, paste, done (default Shift+F9) ----
+RunBordersOnly(*) {
+    global
+    if Running {
+        Flash "A scan is already running.", 2500
+        return
+    }
+    if !BoardCalibrated() {
+        MsgBox "Calibrate borders first with " KeyLabel(Keys["BorderTL"]) "/" KeyLabel(Keys["BorderBR"])
+            . " or " KeyLabel(Keys["ExactStart"]) "/" KeyLabel(Keys["ExactSave"]) "."
+        return
+    }
+    if !WinExist(PoeWinTitle) {
+        MsgBox "Can't find the PoE window (" PoeWinTitle ")."
+        return
+    }
+    if !WinExist(BrowserWinTitle) {
+        MsgBox "Can't find a window titled '" BrowserWinTitle "'.`nOpen the solver and make it the active browser tab."
+        return
+    }
+
+    Running := true
+    WinActivate PoeWinTitle
+    if !WinWaitActive(PoeWinTitle, , 2) {
+        Running := false
+        Flash "Couldn't focus PoE.", 3000
+        return
+    }
+    Sleep ActivateDelay
+
+    ToolTip "Reading 12 board borders with Windows OCR..."
+        . "`nThis can take 15-30 seconds on a 4K screen."
+        . "`n(" KeyLabel(Keys["Abort"]) " to abort)"
+    borderBlob := ScanBorders()
+    ToolTip()
+
+    if (Running && borderBlob != "") {
+        A_Clipboard := borderBlob
+        ClipWait(1)
+        WinActivate BrowserWinTitle
+        if WinWaitActive(BrowserWinTitle, , 2) {
+            Sleep ActivateDelay
+            Send "^v"
+            Sleep PasteDelay
+        } else {
+            Running := false
+            Flash "Scanned the borders but couldn't focus the browser to paste.", 4000
+            return
+        }
+    }
+
+    completed := Running
+    Running := false
+    Flash completed
+        ? (borderBlob != "" ? "Done. Sent 12 border OCR scans." : "Border OCR returned nothing - check calibration.")
+        : "Aborted.", 5000
 }
 
 ; ---- the real import sweep (default F9) ----

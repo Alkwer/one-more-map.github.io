@@ -211,7 +211,8 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
           </li>
           <li>
             <kbd>F9</kbd> copies the charts, scans the 12 borders, and imports both ·{' '}
-            <kbd>F10</kbd> aborts. Border OCR can take around 15–30 seconds on a 4K screen.
+            <kbd>Shift+F9</kbd> imports just the borders · <kbd>F10</kbd> aborts. Border OCR can
+            take around 15–30 seconds on a 4K screen.
           </li>
           <li>
             Don't like the keys? Right-click (or double-click) the script's tray icon and choose{' '}
