@@ -55,11 +55,17 @@ export interface StrategyDef {
   requiresBorderId?: { id: string; label: string }
   /** what to do instead while pieces are missing */
   waitHint?: string
+  /** this strategy is allowed to place rare-implicit charts (Divine strats) */
+  allowRareImplicits?: boolean
   /** Milky's in-game search string highlighting this strategy's keeper charts */
   searchRegex?: string
   /** extra links shown on the card (trade searches, guides) */
   extraLinks?: { label: string; url: string }[]
 }
+
+/** rare-monster implicit charts are Divine-strategy fuel: nothing else may
+ *  use them (the solver holds them back everywhere except the Divine strats) */
+export const RARE_IMPLICITS = ['adj-rare-1', 'adj-rare-2', 'voy-rare'] as const
 
 /** Milky's master keeper regex - every mod worth saving, across all strats */
 export const ALL_GOOD_MODS_REGEX =
@@ -226,8 +232,6 @@ export const STRATEGIES: StrategyDef[] = [
       'adjacent:lantern': 10,
       'voyage:possess': 10,
       'voyage:fracture': 8,
-      'voyage:rare': 8,
-      'adjacent:rare': 6,
       'border:rare': 9,
       'self:quant': 4,
       'self:rarity': 3,
@@ -343,6 +347,7 @@ export const STRATEGIES: StrategyDef[] = [
     requiresBorderId: { id: 'b-divine', label: 'a "+1 Divine Orb" border roll (enter your borders)' },
     waitHint: 'Speedrun Strongboxes until the pieces and the Divine border line up.',
     searchRegex: '"rare monsters in all voy|strongbox"',
+    allowRareImplicits: true,
   },
   {
     id: 'cutedog-divine-boxes',
@@ -402,6 +407,7 @@ export const STRATEGIES: StrategyDef[] = [
     requiresBorderId: { id: 'b-divine', label: 'a "+1 Divine Orb" border roll (enter your borders)' },
     waitHint: 'Speedrun Strongboxes until the pieces and the Divine border line up.',
     searchRegex: '"m q.*(1[2-9].|[2-9]..)%"',
+    allowRareImplicits: true,
     extraLinks: [
       { label: 'Trade search: cheap good charts', url: 'https://www.pathofexile.com/trade/search/Allflame/9zRn7YLRHK' },
     ],

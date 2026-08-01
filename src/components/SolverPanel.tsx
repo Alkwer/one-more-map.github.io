@@ -4,6 +4,7 @@ import { solve, type SolverResult } from '../logic/solver'
 import type { AppState } from '../logic/storage'
 import type { AdjacencyMode } from '../logic/scoring'
 import type { Board, ConnectivityMode } from '../types'
+import { RARE_IMPLICITS } from '../data/strategies'
 import type { StrategyDef } from '../data/strategies'
 import { GROUP_LABEL, GROUP_ORDER, REWARD_TYPES } from '../logic/rewards'
 import { displayValue } from './Library'
@@ -60,14 +61,23 @@ export function SolverPanel({ state, activeStrategy, onPatch, results, onResults
           return chart?.preserved ? { ...placement } : null
         })
         const lockedUids = new Set(locked.filter(Boolean).map((p) => p!.chartUid))
+        // rare-implicit charts are Divine-strategy fuel: everything else
+        // (manual mode included) leaves them in the library
+        const raresAllowed = activeStrategy?.allowRareImplicits ?? false
+        const isRareImplicit = (c: (typeof state.pool)[number]) =>
+          c.modIds.some((id) => (RARE_IMPLICITS as readonly string[]).includes(id))
         const solvePool = state.pool.filter(
           (c) =>
             lockedUids.has(c.uid) ||
-            (!(reserve?.length && c.modIds.some((id) => reserve.includes(id))) &&
+            ((raresAllowed || !isRareImplicit(c)) &&
+              !(reserve?.length && c.modIds.some((id) => reserve.includes(id))) &&
               !(reserveNames?.length &&
                 reserveNames.some((n) => c.name.toLowerCase().includes(n.toLowerCase())))),
         )
-        const heldBack = state.pool.length - solvePool.length
+        const raresHeld = raresAllowed
+          ? 0
+          : state.pool.filter((c) => !lockedUids.has(c.uid) && isRareImplicit(c)).length
+        const heldBack = state.pool.length - solvePool.length - raresHeld
         const res = solve(solvePool, state.borders, weights, {
           mode: state.mode,
           allowRotation: state.allowRotation,
@@ -85,6 +95,8 @@ export function SolverPanel({ state, activeStrategy, onPatch, results, onResults
         const lockedCount = locked.filter(Boolean).length
         if (lockedCount > 0)
           notes.push(`${lockedCount} locked chart${lockedCount === 1 ? '' : 's'} kept in place.`)
+        if (raresHeld > 0)
+          notes.push(`${raresHeld} rare-implicit chart${raresHeld === 1 ? '' : 's'} saved for the Divine strategies.`)
         if (heldBack > 0)
           notes.push(`${heldBack} juice chart${heldBack === 1 ? '' : 's'} held back for Meatfish/Ethereal.`)
         if (solvePool.length < 9)
@@ -108,6 +120,12 @@ export function SolverPanel({ state, activeStrategy, onPatch, results, onResults
         const disabled = new Set(state.disabledMods)
         const keep = new Set<string>()
         state.pool.forEach((c) => c.preserved && keep.add(c.uid))
+        // rare-implicit charts are never filler - they're Divine-strategy fuel
+        state.pool.forEach(
+          (c) =>
+            c.modIds.some((id) => (RARE_IMPLICITS as readonly string[]).includes(id)) &&
+            keep.add(c.uid),
+        )
         ;[...state.pool]
           .sort((a, b) => displayValue(b, weights, disabled) - displayValue(a, weights, disabled))
           .slice(0, KEEP_BEST)
