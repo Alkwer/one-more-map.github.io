@@ -11,9 +11,20 @@ and export, and shared URL encoding. `state/appStateReducer.ts` owns pure transi
 existing shape. It must not read or write storage, schedule timers, access the clipboard, or run
 domain calculations.
 
-`App.tsx` initializes and saves the state, dispatches explicit transitions, coordinates transient
-workflows, and composes the major screens. Importing a complete state uses the reducer's explicit
-replacement action so storage and share compatibility remain unchanged.
+`App.tsx` initializes and saves the state, dispatches explicit transitions, and composes the major
+screens. `hooks/useVoyageAnalysis.ts` owns memoized derived scoring, connectivity, strategy,
+appraisal, and board-summary data without persisting it. `hooks/useBoardSelection.ts` coordinates
+library selection, placement, and cell swapping through explicit reducer actions.
+
+`hooks/useVoyageWorkflows.ts` owns the transient copy sequence and preserved-chart confirmation.
+The sequence order remains pure and tested in `state/copySequence.ts`; Voyage consumption remains
+an explicit reducer transition. `hooks/useAppChrome.ts` owns onboarding, theme, modifier-browser,
+and share-link UI state while retaining the existing storage keys. Importing a complete state still
+uses the reducer's explicit replacement action, so storage and share compatibility remain unchanged.
+
+`components/app/AppHeader.tsx`, `VoyageWorkflowPrompts.tsx`, `VoyageBoardStatus.tsx`, and
+`components/VoyageRewards.tsx` render the extracted summary and workflow surfaces without changing
+their DOM order, accessible names, or live regions.
 
 ## Board UI
 

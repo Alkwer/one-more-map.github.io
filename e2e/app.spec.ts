@@ -214,6 +214,50 @@ test('recovers an unknown shape and places it on the board with the keyboard', a
   ).toBeVisible()
 })
 
+test('steps through chart copying and preserves a confirmed Voyage survivor', async ({
+  appPage,
+}) => {
+  await openApp(appPage)
+  await pasteText(appPage, ENGLISH_CHART)
+  await pasteText(appPage, KOREAN_CHART)
+
+  await appPage
+    .getByRole('button', { name: 'Select Armoured Coral Reef Chart of Ice for placement' })
+    .click()
+  await appPage.getByRole('button', { name: 'Board cell 7, row 3, column 1, start: empty' }).click()
+  await appPage
+    .getByRole('button', { name: 'Select 해병 고역 산호 암초 해도 for placement' })
+    .click()
+  await appPage.getByRole('button', { name: 'Board cell 8, row 3, column 2: empty' }).click()
+
+  const preserveButton = appPage.getByRole('button', {
+    name: /Preserve Armoured Coral Reef Chart of Ice in row 3, column 1/,
+  })
+  await preserveButton.focus()
+  await appPage.keyboard.press('Space')
+  await appPage.getByRole('button', { name: /Copy into game/ }).click()
+  await expect(appPage.getByText(/Step 1 of 2/)).toBeVisible()
+  await appPage.getByRole('button', { name: /Copy & next/ }).click()
+  await expect(appPage.getByText(/Step 2 of 2/)).toBeVisible()
+  await appPage.getByRole('button', { name: /Copy last & finish/ }).click()
+  await expect(appPage.getByText(/Place into game in this order/)).toHaveCount(0)
+
+  await appPage.getByRole('button', { name: /Finish Voyage/ }).click()
+  await expect(appPage.getByText(/Preserved chart 1 of 1/)).toBeVisible()
+  await appPage.getByRole('button', { name: /Kept it/ }).click()
+
+  await expect(appPage.getByText('Voyage finished: consumed 1 chart, kept 1')).toBeVisible()
+  await expect(libraryHeading(appPage)).toContainText('(1)')
+  await expect(
+    appPage.getByRole('button', { name: 'Board cell 7, row 3, column 1, start: empty' }),
+  ).toBeVisible()
+  await expect(
+    appPage.getByRole('button', {
+      name: 'Select Armoured Coral Reef Chart of Ice for placement',
+    }),
+  ).toBeVisible()
+})
+
 test('cancels a stale solve, completes in the worker, and applies a result', async ({
   appPage,
 }) => {

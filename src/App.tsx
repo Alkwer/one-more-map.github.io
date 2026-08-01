@@ -1,47 +1,31 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { useEffect, useReducer, useRef } from 'react'
 import { BoardView } from './components/Board'
 import { BorderAppraiser } from './components/BorderAppraiser'
-import { ModBrowser } from './components/ModBrowser'
-import { Onboarding } from './components/Onboarding'
-import { VoyageAdvisor } from './components/VoyageAdvisor'
-import { TooltipLayer } from './components/Tooltip'
-import { generateDemoCharts } from './logic/demo'
-import { buildChartSearch, buildSingleChartSearch } from './logic/regex'
 import { ImportPanel } from './components/ImportPanel'
 import { Library } from './components/Library'
+import { ModBrowser } from './components/ModBrowser'
+import { Onboarding } from './components/Onboarding'
 import { SolverPanel } from './components/SolverPanel'
-import { StrategySuggestions } from './components/StrategySuggestions'
-import { borderModById, voyageModById } from './data/mods'
-import { strategyById } from './data/strategies'
 import { StrategiesPanel } from './components/StrategiesPanel'
-import { scoreBoard } from './logic/scoring'
-import { appraiseBorders } from './logic/borderAppraisal'
-import { evaluateCurrentBoardStrategies } from './logic/strategySuggestions'
-import { useStrategyInventory } from './hooks/useStrategyInventory'
-import { checkConnectivity } from './logic/connectivity'
-import { isChartShapeResolved } from './logic/chartShapes'
+import { StrategySuggestions } from './components/StrategySuggestions'
+import { TooltipLayer } from './components/Tooltip'
+import { VoyageAdvisor } from './components/VoyageAdvisor'
+import { AppHeader } from './components/app/AppHeader'
+import { VoyageBoardStatus } from './components/app/VoyageBoardStatus'
+import {
+  CopySequencePrompt,
+  PreserveConfirmationPrompt,
+} from './components/app/VoyageWorkflowPrompts'
+import { VoyageRewards } from './components/VoyageRewards'
+import { useAppChrome } from './hooks/useAppChrome'
+import { useBoardSelection } from './hooks/useBoardSelection'
+import { useVoyageAnalysis } from './hooks/useVoyageAnalysis'
+import { useVoyageWorkflows } from './hooks/useVoyageWorkflows'
+import { generateDemoCharts } from './logic/demo'
 import { clampRerollsUsed } from './logic/rerollAdvice'
-import { decideVoyage } from './logic/voyageDecision'
-import {
-  decodeShare,
-  defaultState,
-  encodeShare,
-  loadLocal,
-  saveLocal,
-  type AppState,
-} from './logic/storage'
-import { appStateReducer, summarizeVoyageFinish } from './state/appStateReducer'
-import {
-  advanceCopySequence,
-  currentCopyCell,
-  startCopySequence,
-  type CopySequenceState,
-} from './state/copySequence'
+import { decodeShare, defaultState, loadLocal, saveLocal, type AppState } from './logic/storage'
+import { appStateReducer } from './state/appStateReducer'
 import type { ChartData } from './types'
-import { ALL_STATS, STAT_LABELS, borderTouches } from './types'
-
-/** discrete/guaranteed effects (drops, spawns, conversions) rather than plain % scalars */
-const isNotable = (text: string) => !/^\d+% (increased|more|reduced) /i.test(text)
 
 function initialState(): AppState {
   const hash = window.location.hash.replace(/^#/, '')
@@ -54,193 +38,19 @@ function initialState(): AppState {
 
 export default function App() {
   const [state, dispatch] = useReducer(appStateReducer, undefined, initialState)
-  const [showOnboarding, setShowOnboarding] = useState<boolean>(() => {
-    try {
-      return !localStorage.getItem('onboarding-seen')
-    } catch {
-      return false
-    }
-  })
-  const closeOnboarding = () => {
-    setShowOnboarding(false)
-    try {
-      localStorage.setItem('onboarding-seen', '1')
-    } catch {
-      /* ignore */
-    }
-  }
-  const [showMods, setShowMods] = useState(false)
-  const [voyageMsg, setVoyageMsg] = useState('')
-  const [preserveConfirm, setPreserveConfirm] = useState<{
-    charts: ChartData[]
-    index: number
-    kept: string[]
-  } | null>(null)
-  // guided "copy into game": walk the board in the in-game Ctrl+click fill order
-  // (bottom-left, then right, then up a row): board cells 6,7,8, 3,4,5, 0,1,2
-  const [copySeq, setCopySeq] = useState<CopySequenceState | null>(null)
-  const [harvestTheme, setHarvestTheme] = useState(() =>
-    document.body.classList.contains('theme-harvest'),
-  )
-  const toggleTheme = () => {
-    const next = !harvestTheme
-    setHarvestTheme(next)
-    document.body.classList.toggle('theme-harvest', next)
-    try {
-      localStorage.setItem('theme', next ? 'harvest' : 'allflame')
-    } catch {
-      /* ignore */
-    }
-  }
-  const [selectedChart, setSelectedChart] = useState<string | null>(null)
-  const [selectedCell, setSelectedCell] = useState<number | null>(null)
-  const [shareMsg, setShareMsg] = useState('')
+  const chrome = useAppChrome(state)
+  const analysis = useVoyageAnalysis(state)
+  const selection = useBoardSelection(state.board, dispatch)
+  const workflows = useVoyageWorkflows(state, analysis.chartMap, dispatch)
   const saveTimer = useRef<number>()
 
-  // debounced autosave
   useEffect(() => {
     window.clearTimeout(saveTimer.current)
     saveTimer.current = window.setTimeout(() => saveLocal(state), 300)
   }, [state])
 
-  const chartMap = useMemo(() => new Map(state.pool.map((c) => [c.uid, c])), [state.pool])
-  const resolvedPool = useMemo(() => state.pool.filter(isChartShapeResolved), [state.pool])
-  const disabledSet = useMemo(() => new Set(state.disabledMods), [state.disabledMods])
-  // active curated strategy: while set, its weights override the manual sliders
-  const activeStrategy = state.strategyId ? (strategyById.get(state.strategyId) ?? null) : null
-  const effectiveWeights = activeStrategy ? activeStrategy.weights : state.weights
-  const scoreOptions = useMemo(
-    () => ({
-      adjacencyMode: state.adjacencyMode,
-      adjacentAffectsSelf: state.adjacentAffectsSelf,
-      disabledMods: disabledSet,
-    }),
-    [state.adjacencyMode, state.adjacentAffectsSelf, disabledSet],
-  )
-  const score = useMemo(
-    () => scoreBoard(state.board, state.borders, chartMap, effectiveWeights, scoreOptions),
-    [state.board, state.borders, chartMap, effectiveWeights, scoreOptions],
-  )
-  const strategyEvaluationOptions = useMemo(
-    () => ({
-      ...scoreOptions,
-      mode: state.mode,
-      allowRotation: state.allowRotation,
-    }),
-    [scoreOptions, state.mode, state.allowRotation],
-  )
-  const {
-    inventory: strategyInventory,
-    loading: strategyInventoryLoading,
-    error: strategyInventoryError,
-  } = useStrategyInventory(resolvedPool, state.borders, strategyEvaluationOptions)
-  const strategySuggestions = useMemo(
-    () =>
-      evaluateCurrentBoardStrategies(
-        strategyInventory,
-        state.board,
-        state.borders,
-        chartMap,
-        scoreOptions,
-      ),
-    [strategyInventory, state.board, state.borders, chartMap, scoreOptions],
-  )
-  const activeStrategyEvaluation = activeStrategy
-    ? (strategySuggestions.evaluations.find(
-        (evaluation) => evaluation.strategy.id === activeStrategy.id,
-      ) ?? null)
-    : null
-  const borderAppraisal = useMemo(
-    () =>
-      activeStrategyEvaluation?.appraisal ??
-      appraiseBorders(state.board, state.borders, chartMap, effectiveWeights, scoreOptions),
-    [
-      activeStrategyEvaluation,
-      state.board,
-      state.borders,
-      chartMap,
-      effectiveWeights,
-      scoreOptions,
-    ],
-  )
-  const voyageDecision = useMemo(
-    () =>
-      decideVoyage({
-        evaluations: strategySuggestions.evaluations,
-        activeStrategyId: activeStrategy?.id ?? null,
-        availableCharts: strategySuggestions.availableCharts,
-        enteredBorders: strategySuggestions.enteredBorders,
-        rerollsUsed: state.borderRerollsUsed,
-      }),
-    [
-      strategySuggestions.evaluations,
-      strategySuggestions.availableCharts,
-      strategySuggestions.enteredBorders,
-      activeStrategy?.id,
-      state.borderRerollsUsed,
-    ],
-  )
-  const conn = useMemo(
-    () => checkConnectivity(state.board, chartMap, state.mode),
-    [state.board, chartMap, state.mode],
-  )
-
-  // breakdown of the implicit mods currently on the board, by scope
-  const modCount = useMemo(() => {
-    let self = 0
-    let adjacent = 0
-    let global = 0
-    for (const p of state.board) {
-      if (!p) continue
-      const chart = chartMap.get(p.chartUid)
-      if (!chart) continue
-      for (const id of chart.modIds) {
-        const mod = voyageModById.get(id)
-        if (!mod) continue
-        if (mod.scope === 'adjacent') adjacent++
-        else if (mod.scope === 'global') global++
-        else self++
-      }
-    }
-    return { self, adjacent, global, total: self + adjacent + global }
-  }, [state.board, chartMap])
-
-  // guaranteed/notable effects active on this board, with counts
-  const notables = useMemo(() => {
-    const counts = new Map<string, { label: string; full: string; count: number }>()
-    const add = (key: string, label: string, full: string) => {
-      const cur = counts.get(key)
-      if (cur) cur.count++
-      else counts.set(key, { label, full, count: 1 })
-    }
-    state.borders.forEach((id, seg) => {
-      if (!id || !state.board[borderTouches(seg)]) return
-      const mod = borderModById.get(id)
-      if (mod && isNotable(mod.text)) add(mod.id, mod.short ?? mod.text, mod.text)
-    })
-    state.board.forEach((p) => {
-      if (!p) return
-      const chart = chartMap.get(p.chartUid)
-      if (!chart) return
-      for (const modId of chart.modIds) {
-        const mod = voyageModById.get(modId)
-        if (mod && isNotable(mod.text)) add(mod.id, mod.text, mod.text)
-      }
-    })
-    return [...counts.values()]
-  }, [state.borders, state.board, chartMap])
-
-  const patch = (p: Partial<AppState>) => dispatch({ type: 'patch', patch: p })
-
-  const toggleMod = (id: string, off: boolean) =>
-    dispatch({ type: 'mods/set-disabled', ids: [id], disabled: off })
-  const bulkMods = (ids: string[], off: boolean) =>
-    dispatch({ type: 'mods/set-disabled', ids, disabled: off })
-
+  const patch = (patchState: Partial<AppState>) => dispatch({ type: 'patch', patch: patchState })
   const addCharts = (charts: ChartData[]) => dispatch({ type: 'charts/add', charts })
-
-  const removeChart = (uid: string) => dispatch({ type: 'charts/remove', uid })
-
   const clearCharts = () => {
     if (
       !window.confirm(
@@ -249,188 +59,46 @@ export default function App() {
     )
       return
     dispatch({ type: 'charts/clear' })
-    setSelectedChart(null)
+    selection.clearChart()
   }
-
-  const updateChart = (chart: ChartData) => dispatch({ type: 'charts/update', chart })
-
-  const togglePreserve = (uid: string) => dispatch({ type: 'charts/toggle-preserved', uid })
-
-  // apply the voyage result: keep charts whose uid is in keptUids, consume the
-  // rest of the board; charts not on the board are untouched.
-  const commitFinish = (keptUids: Set<string>) => {
-    const { consumed, kept } = summarizeVoyageFinish(state, keptUids)
-    dispatch({ type: 'voyage/finish', keptUids: [...keptUids] })
-    setVoyageMsg(
-      `Voyage finished: consumed ${consumed} chart${consumed === 1 ? '' : 's'}` +
-        (kept ? `, kept ${kept}` : ''),
-    )
-    window.setTimeout(() => setVoyageMsg(''), 4000)
-    setPreserveConfirm(null)
-  }
-
-  const finishVoyage = () => {
-    const preserved = state.board
-      .filter(Boolean)
-      .map((p) => chartMap.get(p!.chartUid))
-      .filter((c): c is ChartData => !!c && !!c.preserved)
-    // no charts marked to keep -> consume everything on the board outright
-    if (preserved.length === 0) commitFinish(new Set())
-    else setPreserveConfirm({ charts: preserved, index: 0, kept: [] })
-  }
-
-  // the VERBATIM imported line comes first: the in-game search must match the
-  // game's own wording, and our stored mod texts can drift from it (issue #3)
-  const chartImplicit = (chart: ChartData): string =>
-    chart.implicitText ??
-    chart.modIds.map((id) => voyageModById.get(id)).find((m) => m && m.scope !== 'self')?.text ??
-    ''
-  const copyChartDetails = (chart: ChartData) => {
-    navigator.clipboard.writeText(buildSingleChartSearch(chart)).catch(() => {})
-  }
-  const startCopySeq = () => {
-    setCopySeq(startCopySequence(state.board))
-  }
-  // copy the current square's chart, then advance to the next fill position
-  const copyCurrentAndAdvance = () => {
-    if (!copySeq) return
-    const chart = chartMap.get(state.board[currentCopyCell(copySeq)]!.chartUid)
-    if (chart) copyChartDetails(chart)
-    setCopySeq(advanceCopySequence(copySeq))
-  }
-
-  // while stepping, Ctrl+C copies the current square and advances; Esc cancels
-  useEffect(() => {
-    if (!copySeq) return
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
-        e.preventDefault()
-        copyCurrentAndAdvance()
-      } else if (e.key === 'Escape') {
-        setCopySeq(null)
-      }
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [copySeq])
-
-  // step through each preserved chart, one at a time, its board tile highlighted
-  const decidePreserve = (survived: boolean) => {
-    if (!preserveConfirm) return
-    const { charts, index, kept } = preserveConfirm
-    const nextKept = survived ? [...kept, charts[index].uid] : kept
-    if (index + 1 >= charts.length) commitFinish(new Set(nextKept))
-    else setPreserveConfirm({ charts, index: index + 1, kept: nextKept })
-  }
-
-  const onCellClick = (i: number) => {
-    if (selectedChart) {
-      // place the selected library chart (removing it from any other cell)
-      dispatch({ type: 'board/place', cell: i, chartUid: selectedChart })
-      setSelectedChart(null)
-      setSelectedCell(null)
-      return
-    }
-    if (selectedCell === null) {
-      if (state.board[i]) setSelectedCell(i)
-      return
-    }
-    if (selectedCell === i) {
-      setSelectedCell(null)
-      return
-    }
-    // swap cells
-    dispatch({ type: 'board/swap', first: selectedCell, second: i })
-    setSelectedCell(null)
-  }
-
-  const [searchMsg, setSearchMsg] = useState('')
-  const copySearch = async () => {
-    const placed = state.board.filter(Boolean).map((p) => chartMap.get(p!.chartUid)?.name ?? '')
-    const others = state.pool
-      .filter((c) => !state.board.some((p) => p?.chartUid === c.uid))
-      .map((c) => c.name)
-    const str = buildChartSearch(placed.filter(Boolean), others)
-    try {
-      await navigator.clipboard.writeText(str)
-      setSearchMsg('Copied!')
-    } catch {
-      setSearchMsg(str)
-    }
-    window.setTimeout(() => setSearchMsg(''), 2500)
-  }
-
-  const share = async () => {
-    const url = `${location.origin}${location.pathname}#${encodeShare(state)}`
-    try {
-      await navigator.clipboard.writeText(url)
-      setShareMsg('Link copied!')
-    } catch {
-      window.location.hash = encodeShare(state)
-      setShareMsg('Link set in address bar')
-    }
-    window.setTimeout(() => setShareMsg(''), 2500)
-  }
+  const selectedBoardChart =
+    selection.selectedChart &&
+    state.board.some((placement) => placement?.chartUid === selection.selectedChart)
+      ? selection.selectedChart
+      : null
+  const highlightUid = workflows.sequenceActive ? workflows.highlightUid : selectedBoardChart
 
   return (
     <div className="app">
       <TooltipLayer />
-      {showOnboarding && (
-        <Onboarding onClose={closeOnboarding} onDemo={() => addCharts(generateDemoCharts(25))} />
-      )}
-      {showMods && (
-        <ModBrowser
-          disabled={disabledSet}
-          onToggle={toggleMod}
-          onBulk={bulkMods}
-          onClose={() => setShowMods(false)}
+      {chrome.showOnboarding && (
+        <Onboarding
+          onClose={chrome.closeOnboarding}
+          onDemo={() => addCharts(generateDemoCharts(25))}
         />
       )}
-      <header>
-        <h1>
-          Allflame <span className="accent">Voyage Solver</span>
-        </h1>
-        <div className="header-right">
-          <span className="tag">PoE 3.29: Curse of the Allflame</span>
-          <button
-            aria-label="Open how it works guide"
-            title="How it works"
-            onClick={() => setShowOnboarding(true)}
-          >
-            ?
-          </button>
-          <button
-            title="Browse all modifiers and switch off ones you don't want"
-            onClick={() => setShowMods(true)}
-          >
-            Mods{state.disabledMods.length > 0 ? ` (${state.disabledMods.length} off)` : ''}
-          </button>
-          <button
-            className="theme-link"
-            aria-label={harvestTheme ? 'Use the Allflame theme' : 'Use the Harvest theme'}
-            title={
-              harvestTheme
-                ? 'Back to the Allflame theme'
-                : 'Harvest Edition, like the old garden planner sheets'
-            }
-            onClick={toggleTheme}
-          >
-            {harvestTheme ? '🔥' : '🌱'}
-          </button>
-          <button aria-label="Share layout" onClick={share}>
-            {shareMsg || 'Share layout'}
-          </button>
-          <span className="sr-only" role="status" aria-live="polite">
-            {shareMsg}
-          </span>
-        </div>
-      </header>
+      {chrome.showMods && (
+        <ModBrowser
+          disabled={analysis.disabledSet}
+          onToggle={(id, disabled) => dispatch({ type: 'mods/set-disabled', ids: [id], disabled })}
+          onBulk={(ids, disabled) => dispatch({ type: 'mods/set-disabled', ids, disabled })}
+          onClose={chrome.closeMods}
+        />
+      )}
+      <AppHeader
+        disabledModCount={state.disabledMods.length}
+        harvestTheme={chrome.harvestTheme}
+        shareMessage={chrome.shareMessage}
+        onOpenOnboarding={chrome.openOnboarding}
+        onOpenMods={chrome.openMods}
+        onToggleTheme={chrome.toggleTheme}
+        onShare={chrome.share}
+      />
 
       <VoyageAdvisor
-        decision={voyageDecision}
-        loading={strategyInventoryLoading}
-        error={strategyInventoryError}
+        decision={analysis.voyageDecision}
+        loading={analysis.strategyInventoryLoading}
+        error={analysis.strategyInventoryError}
         onChangeRerolls={(value) => patch({ borderRerollsUsed: clampRerollsUsed(value) })}
         onSelectStrategy={(id) => patch({ strategyId: id })}
       />
@@ -440,16 +108,13 @@ export default function App() {
           <Library
             pool={state.pool}
             board={state.board}
-            weights={effectiveWeights}
-            disabledMods={disabledSet}
-            selected={selectedChart}
-            onSelect={(uid) => {
-              setSelectedChart((cur) => (cur === uid ? null : uid))
-              setSelectedCell(null)
-            }}
+            weights={analysis.effectiveWeights}
+            disabledMods={analysis.disabledSet}
+            selected={selection.selectedChart}
+            onSelect={selection.selectChart}
             onAdd={addCharts}
-            onRemove={removeChart}
-            onUpdate={updateChart}
+            onRemove={(uid) => dispatch({ type: 'charts/remove', uid })}
+            onUpdate={(chart) => dispatch({ type: 'charts/update', chart })}
             onClearCharts={clearCharts}
           />
           <ImportPanel
@@ -463,188 +128,65 @@ export default function App() {
           <BoardView
             board={state.board}
             borders={state.borders}
-            charts={chartMap}
-            perTile={score.perTile}
-            selectedCell={selectedCell}
-            highlightUid={
-              copySeq
-                ? (state.board[currentCopyCell(copySeq)]?.chartUid ?? null)
-                : preserveConfirm
-                  ? preserveConfirm.charts[preserveConfirm.index].uid
-                  : selectedChart && state.board.some((p) => p?.chartUid === selectedChart)
-                    ? selectedChart
-                    : null
-            }
+            charts={analysis.chartMap}
+            perTile={analysis.score.perTile}
+            selectedCell={selection.selectedCell}
+            highlightUid={highlightUid}
             strictMode={state.mode !== 'any'}
-            placingChart={selectedChart ? (chartMap.get(selectedChart) ?? null) : null}
-            onCellClick={onCellClick}
-            onRemove={(i) => dispatch({ type: 'board/remove', cell: i })}
-            onRotate={(i) => dispatch({ type: 'board/rotate', cell: i })}
-            onBorderChange={(seg, id) => dispatch({ type: 'borders/set', segment: seg, id })}
-            onTogglePreserve={togglePreserve}
-            onFinishVoyage={finishVoyage}
-            onCopySequence={startCopySeq}
-            voyageMsg={voyageMsg}
-            sequenceActive={!!copySeq || !!preserveConfirm}
+            placingChart={
+              selection.selectedChart
+                ? (analysis.chartMap.get(selection.selectedChart) ?? null)
+                : null
+            }
+            onCellClick={selection.onCellClick}
+            onRemove={(cell) => dispatch({ type: 'board/remove', cell })}
+            onRotate={(cell) => dispatch({ type: 'board/rotate', cell })}
+            onBorderChange={(segment, id) => dispatch({ type: 'borders/set', segment, id })}
+            onTogglePreserve={(uid) => dispatch({ type: 'charts/toggle-preserved', uid })}
+            onFinishVoyage={workflows.finishVoyage}
+            onCopySequence={workflows.startCopySequence}
+            voyageMsg={workflows.voyageMessage}
+            sequenceActive={workflows.sequenceActive}
           />
 
-          {copySeq && (
-            <div className="preserve-confirm copyseq">
-              <div className="pc-head">
-                Place into game in this order (its square is glowing). Copy pastes an in-game search
-                string; Ctrl+Left-click the chart it finds. They fill bottom-left first. Step{' '}
-                {copySeq.step + 1} of {copySeq.order.length}.
-              </div>
-              {(() => {
-                const c = chartMap.get(state.board[currentCopyCell(copySeq)]!.chartUid)
-                if (!c) return null
-                return (
-                  <>
-                    <div className="pc-name">{c.name}</div>
-                    <div className="pc-sub">
-                      {chartImplicit(c)}
-                      {c.shape ? ` · Shape: ${c.shape}` : ''}
-                    </div>
-                  </>
-                )
-              })()}
-              <div className="copyseq-actions">
-                <button className="copyseq-go" onClick={copyCurrentAndAdvance}>
-                  {copySeq.step + 1 >= copySeq.order.length
-                    ? '📋 Copy last & finish'
-                    : '📋 Copy & next'}
-                  <span className="copyseq-hint">or press Ctrl+C</span>
-                </button>
-                <button className="pc-lost" onClick={() => setCopySeq(null)}>
-                  Cancel
-                </button>
-              </div>
-            </div>
+          {workflows.copySequence && (
+            <CopySequencePrompt
+              sequence={workflows.copySequence}
+              board={state.board}
+              chartMap={analysis.chartMap}
+              onAdvance={workflows.copyCurrentAndAdvance}
+              onCancel={workflows.cancelCopySequence}
+            />
+          )}
+          {workflows.preserveConfirmation && (
+            <PreserveConfirmationPrompt
+              confirmation={workflows.preserveConfirmation}
+              onDecide={workflows.decidePreserve}
+            />
           )}
 
-          {preserveConfirm && (
-            <div className="preserve-confirm">
-              <div className="pc-head">
-                Preserved chart {preserveConfirm.index + 1} of {preserveConfirm.charts.length} (its
-                square is glowing). Did it actually survive the Voyage?
-              </div>
-              <div className="pc-name">{preserveConfirm.charts[preserveConfirm.index].name}</div>
-              <div className="pc-actions">
-                <button className="pc-kept" onClick={() => decidePreserve(true)}>
-                  ✓ Kept it
-                </button>
-                <button className="pc-lost" onClick={() => decidePreserve(false)}>
-                  ✕ Was consumed
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div
-            className={`conn-status ${
-              state.mode === 'any'
-                ? ''
-                : conn.fullyReachable
-                  ? 'ok'
-                  : conn.launchable
-                    ? 'warn'
-                    : 'bad'
-            }`}
-          >
-            {state.mode === 'any'
-              ? 'Connector rules ignored'
-              : conn.fullyReachable
-                ? '✓ All 9 charts reachable from the ⚓ start'
-                : conn.launchable
-                  ? `⚠ Voyage can start, but ${conn.unreachable} chart${
-                      conn.unreachable === 1 ? ' is' : 's are'
-                    } unreachable from the ⚓ start`
-                  : [
-                      conn.mismatches > 0
-                        ? `✗ ${conn.mismatches} connector mismatch${conn.mismatches === 1 ? '' : 'es'}`
-                        : null,
-                      conn.unfilled > 0
-                        ? `${conn.unfilled} empty square${conn.unfilled === 1 ? '' : 's'} (all 9 must be filled)`
-                        : null,
-                      conn.unreachable > 0
-                        ? `${conn.unreachable} chart${conn.unreachable === 1 ? '' : 's'} unreachable from the ⚓ start`
-                        : null,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-          </div>
-
-          {modCount.total > 0 && (
-            <div className="modcount">
-              <span className="modcount-title">Voyage Mod Count</span>
-              <span className="modcount-item scope-self">This area {modCount.self}</span>
-              <span className="modcount-item scope-adjacent">Adjacent {modCount.adjacent}</span>
-              <span className="modcount-item scope-global">Whole voyage {modCount.global}</span>
-              <span className="modcount-item modcount-conn">🔗 {conn.connections} connections</span>
-            </div>
-          )}
+          <VoyageBoardStatus
+            mode={state.mode}
+            connectivity={analysis.connectivity}
+            modCount={analysis.modCount}
+          />
 
           <BorderAppraiser
-            appraisal={borderAppraisal}
+            appraisal={analysis.borderAppraisal}
             contextLabel={
-              activeStrategy
-                ? `Fit for active strategy: ${activeStrategy.name}`
+              analysis.activeStrategy
+                ? `Fit for active strategy: ${analysis.activeStrategy.name}`
                 : 'Fit for manual reward weights'
             }
           />
 
-          <section className="score-panel" aria-labelledby="voyage-rewards-title">
-            <div className="score-total">
-              <h2 id="voyage-rewards-title" className="score-title">
-                Voyage Rewards <strong>{score.total.toFixed(1)}</strong>
-              </h2>
-              <span className="spacer" />
-              <button
-                aria-label="Copy in-game chart search"
-                onClick={copySearch}
-                disabled={state.board.every((p) => !p)}
-                title="Copy a search string for the in-game chart inventory that highlights exactly the charts on this board"
-              >
-                {searchMsg || '⌕ Copy in-game search'}
-              </button>
-              <span className="sr-only" role="status" aria-live="polite">
-                {searchMsg}
-              </span>
-            </div>
-            <div className="muted small-note" style={{ marginTop: 0 }}>
-              A relative score for comparing your layouts, based on your weights and estimated mod
-              values. Not exact loot value. See the actual contents below.
-            </div>
-            <div className="reward-grid">
-              {ALL_STATS.filter((s) => score.perStat[s] > 0)
-                .sort((a, b) => score.perStat[b] - score.perStat[a])
-                .map((s, i) => (
-                  <div key={s} className={`reward-card ${i === 0 ? 'best' : ''}`}>
-                    <div className="reward-value">+{Math.round(score.perStat[s] * 100)}%</div>
-                    <div className="reward-label">{STAT_LABELS[s]}</div>
-                  </div>
-                ))}
-              {ALL_STATS.every((s) => score.perStat[s] === 0) && (
-                <div className="muted">Place charts to see bonuses</div>
-              )}
-            </div>
-            {ALL_STATS.some((s) => score.perStat[s] > 0) && (
-              <div className="muted small-note">Average bonus per area across the Voyage.</div>
-            )}
-            {notables.length > 0 && (
-              <>
-                <h3 className="panel-title small">Guaranteed & Notable</h3>
-                <div className="notable-list">
-                  {notables.map((n) => (
-                    <span key={n.label} className="notable-item" title={n.full}>
-                      {n.label}
-                      {n.count > 1 ? ` ×${n.count}` : ''}
-                    </span>
-                  ))}
-                </div>
-              </>
-            )}
-          </section>
+          <VoyageRewards
+            score={analysis.score}
+            board={state.board}
+            pool={state.pool}
+            chartMap={analysis.chartMap}
+            notables={analysis.notables}
+          />
         </div>
 
         <section className="col solver-col" aria-labelledby="diagnostics-title">
@@ -658,27 +200,23 @@ export default function App() {
             </div>
           </div>
           <StrategySuggestions
-            result={strategySuggestions}
-            loading={strategyInventoryLoading}
-            error={strategyInventoryError}
+            result={analysis.strategySuggestions}
+            loading={analysis.strategyInventoryLoading}
+            error={analysis.strategyInventoryError}
             activeId={state.strategyId}
             onSelect={(id) => patch({ strategyId: id })}
           />
           <StrategiesPanel
             activeId={state.strategyId}
-            pool={resolvedPool}
+            pool={analysis.resolvedPool}
             borders={state.borders}
             onSelect={(id) => patch({ strategyId: id })}
           />
           <SolverPanel
             state={state}
-            activeStrategy={activeStrategy}
+            activeStrategy={analysis.activeStrategy}
             onPatch={patch}
-            onApply={(board) => {
-              dispatch({ type: 'board/apply', board })
-              setSelectedCell(null)
-              setSelectedChart(null)
-            }}
+            onApply={selection.applyBoard}
           />
         </section>
       </main>
