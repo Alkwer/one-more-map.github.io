@@ -291,7 +291,7 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
         </p>
       </details>
 
-      <BorderRollResearch borders={state.borders} rerollsUsed={state.borderRerollsUsed} />
+      <BorderRollResearch borders={state.borders} />
     </section>
   )
 }
