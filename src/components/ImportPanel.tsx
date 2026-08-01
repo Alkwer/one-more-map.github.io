@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 import { ALL_GOOD_MODS_REGEX } from '../data/strategies'
 import { BorderRollResearch } from './BorderRollResearch'
 import { generateDemoCharts } from '../logic/demo'
@@ -11,7 +12,7 @@ import type { ChartData } from '../types'
 interface Props {
   onImport: (charts: ChartData[]) => void
   state: AppState
-  onLoadState: (s: AppState) => void
+  onLoadState: Dispatch<SetStateAction<AppState>>
 }
 
 export function ImportPanel({ onImport, state, onLoadState }: Props) {
@@ -34,13 +35,15 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
         // A complete importer sweep is a snapshot of all 12 current rolls.
         // Start clean so an OCR miss cannot leave a stale modifier from an
         // earlier run and masquerade as a wrongly recognized border.
-        const borders = borderOcr.blockCount >= 12 ? [...borderOcr.borders] : [...state.borders]
-        for (const match of borderOcr.matches) borders[match.index] = match.id
-        onLoadState({
-          ...state,
-          pool: charts.length > 0 ? [...state.pool, ...charts] : state.pool,
-          borders,
-          borderRerollsUsed: borderOcr.rerollCost?.rerollsUsed ?? state.borderRerollsUsed,
+        onLoadState((current) => {
+          const borders = borderOcr.blockCount >= 12 ? [...borderOcr.borders] : [...current.borders]
+          for (const match of borderOcr.matches) borders[match.index] = match.id
+          return {
+            ...current,
+            pool: charts.length > 0 ? [...current.pool, ...charts] : current.pool,
+            borders,
+            borderRerollsUsed: borderOcr.rerollCost?.rerollsUsed ?? current.borderRerollsUsed,
+          }
         })
       } else if (charts.length > 0) {
         onImport(charts)
@@ -92,7 +95,7 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
       }
       setMsg(parts.join('; ') || 'Nothing imported')
     },
-    [onImport, onLoadState, state, text],
+    [onImport, onLoadState, text],
   )
 
   // Ctrl+V anywhere on the page: if the clipboard holds chart or border text, import
