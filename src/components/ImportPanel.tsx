@@ -6,15 +6,17 @@ import { parseBorderOcrPayload } from '../logic/borderOcr'
 import { isChartClipboardText, parseChartText } from '../logic/parser'
 import type { AppState } from '../logic/storage'
 import { decodeStateJson, defaultState, serializeState } from '../logic/storage'
+import type { BorderRollResearchController } from '../hooks/useBorderRollResearch'
 import type { ChartData } from '../types'
 
 interface Props {
   onImport: (charts: ChartData[]) => void
   state: AppState
+  borderResearch: BorderRollResearchController
   onLoadState: (state: AppState) => void
 }
 
-export function ImportPanel({ onImport, state, onLoadState }: Props) {
+export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Props) {
   const [text, setText] = useState('')
   const [msg, setMsg] = useState('')
 
@@ -25,6 +27,7 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
       const { charts, rejected, unresolved } = parseChartText(borderOcr.chartText)
       const notCharted = rejected.filter((r) => r.reason.startsWith('not charted'))
       const hasOcrPayload = borderOcr.blockCount > 0 || borderOcr.rerollCostBlockCount > 0
+      const parts: string[] = []
       if (charts.length === 0 && rejected.length === 0 && !hasOcrPayload) {
         setMsg('No items recognised. Is this Ctrl+C item text?')
         return
@@ -42,6 +45,10 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
           borders,
           borderRerollsUsed: borderOcr.rerollCost?.rerollsUsed ?? state.borderRerollsUsed,
         })
+        if (borderOcr.blockCount === 12 && borderOcr.matches.length === 12) {
+          const captureMessage = borderResearch.captureImportedRoll(borders, borderOcr.rerollCost)
+          if (captureMessage) parts.push(captureMessage)
+        }
       } else if (charts.length > 0) {
         onImport(charts)
       }
@@ -49,7 +56,6 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
         setText('')
       }
 
-      const parts: string[] = []
       if (charts.length)
         parts.push(`Imported ${charts.length} chart${charts.length === 1 ? '' : 's'}`)
       if (unresolved.length) {
@@ -92,7 +98,7 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
       }
       setMsg(parts.join('; ') || 'Nothing imported')
     },
-    [onImport, onLoadState, state, text],
+    [borderResearch, onImport, onLoadState, state, text],
   )
 
   // Ctrl+V anywhere on the page: if the clipboard holds chart or border text, import
@@ -291,7 +297,7 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
         </p>
       </details>
 
-      <BorderRollResearch borders={state.borders} />
+      <BorderRollResearch borders={state.borders} controller={borderResearch} />
     </section>
   )
 }

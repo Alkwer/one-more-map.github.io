@@ -20,6 +20,7 @@ export function useVoyageWorkflows(
   state: AppState,
   chartMap: Map<string, ChartData>,
   dispatch: Dispatch<AppStateAction>,
+  onCommitFinish?: () => string,
 ) {
   const [voyageMessage, setVoyageMessage] = useState('')
   const [preserveConfirmation, setPreserveConfirmation] = useState<PreserveConfirmation | null>(
@@ -30,15 +31,17 @@ export function useVoyageWorkflows(
   const commitFinish = useCallback(
     (keptUids: Set<string>) => {
       const { consumed, kept } = summarizeVoyageFinish(state, keptUids)
+      const borderSummary = onCommitFinish?.() ?? ''
       dispatch({ type: 'voyage/finish', keptUids: [...keptUids] })
       setVoyageMessage(
         `Voyage finished: consumed ${consumed} chart${consumed === 1 ? '' : 's'}` +
-          (kept ? `, kept ${kept}` : ''),
+          (kept ? `, kept ${kept}` : '') +
+          (borderSummary ? ` · ${borderSummary}` : ''),
       )
       window.setTimeout(() => setVoyageMessage(''), 4000)
       setPreserveConfirmation(null)
     },
-    [dispatch, state],
+    [dispatch, onCommitFinish, state],
   )
   const finishVoyage = useCallback(() => {
     const preserved = state.board

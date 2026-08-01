@@ -19,8 +19,9 @@ Exile 3.29 _Curse of the Allflame_.
   URL state.
 - Includes an optional Windows AutoHotkey helper for copying charts and reading
   border tooltips with local Windows OCR.
-- Records complete, opt-in border-roll samples locally for community research,
-  with versioned JSON export and a reviewed GitHub submission flow.
+- Automatically records complete 12/12 border OCR scans locally for community
+  research, with versioned JSON export and an opt-in reviewed GitHub submission
+  flow when a Voyage is finished.
 
 ## What the model can and cannot claim
 
@@ -109,9 +110,13 @@ The importer also includes an opt-in **Contribute border-roll data** panel. Its
 capture protocol and privacy-preserving sample schema are documented in
 [docs/border-roll-data.md](docs/border-roll-data.md). Record every complete board,
 not only notable outcomes, so the resulting frequency estimates are not biased.
-The panel submits one complete Voyage sequence; GitHub Actions validates,
-labels, and closes the issue, while a separate scheduled workflow prepares
-reviewable dataset-update pull requests.
+Complete OCR scans are saved into the active Voyage sequence automatically.
+`Finish Voyage` closes that sequence. Manual submission still opens a pre-filled
+GitHub issue; a separately configured private submission key can instead queue
+the issue automatically through the intake service. Automatic delivery is off
+by default, so other visitors keep their samples only in their own browser.
+GitHub Actions validates, labels, and closes submitted issues, while a separate
+scheduled workflow prepares reviewable dataset-update pull requests.
 
 ## Architecture
 
@@ -130,9 +135,12 @@ to GitHub Pages. The workflow is defined in
 
 ## Local data and privacy
 
-Saved charts and settings stay in browser `localStorage` unless they are
-explicitly exported or encoded into a share URL. The Windows helper performs OCR
-on the local machine; temporary screenshots and helper output are removed after
-each attempt or when the script exits.
+Saved charts, research samples, pending submissions, and the optional limited
+submission key stay in browser `localStorage`. They leave the browser only when
+explicitly exported, encoded into a share URL, manually submitted, or when the
+user has enabled automatic submission. The GitHub credential remains only in
+the intake service and is never sent to the browser. The Windows helper performs
+OCR on the local machine; temporary screenshots and helper output are removed
+after each attempt or when the script exits.
 
 Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -54,6 +54,18 @@ export interface BorderRollDataset {
   samples: BorderRollSample[]
 }
 
+export function createBorderRollDataset(
+  samples: BorderRollSample[],
+  exportedAt = new Date().toISOString(),
+): BorderRollDataset {
+  return {
+    schema: BORDER_ROLL_DATASET_SCHEMA,
+    exportedAt,
+    sampleCount: samples.length,
+    samples,
+  }
+}
+
 interface CreateSampleInput {
   sequenceId: string
   gamePatch: string
@@ -300,16 +312,7 @@ export function serializeBorderRollDataset(
   samples: BorderRollSample[],
   exportedAt = new Date().toISOString(),
 ): string {
-  return JSON.stringify(
-    {
-      schema: BORDER_ROLL_DATASET_SCHEMA,
-      exportedAt,
-      sampleCount: samples.length,
-      samples,
-    },
-    null,
-    2,
-  )
+  return JSON.stringify(createBorderRollDataset(samples, exportedAt), null, 2)
 }
 
 export function buildBorderRollSequenceSubmissionUrl(samples: BorderRollSample[]): string {

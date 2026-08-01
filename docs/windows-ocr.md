@@ -103,6 +103,12 @@ near the top of the script if the visible chart stash uses a different size.
   after a reroll.
 - `F10` aborts the current sweep.
 
+A complete 12/12 paste is also recorded automatically in the active research
+sequence. Scan the natural board and every paid reroll before changing it.
+Clicking `Finish Voyage` under the solver board then closes that sequence; if
+automatic submission has been explicitly enabled with a private key, the
+sequence is queued for delivery without another GitHub click.
+
 Do not move the mouse or type while a sweep is running. Chart copying uses the
 game's normal `Ctrl+C` item text; OCR is used only for border tooltips.
 

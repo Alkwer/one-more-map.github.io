@@ -3,6 +3,7 @@ dist/
 staging/
 playwright-report/
 test-results/
+.sites/
 
 # personal local tooling (not part of the site)
 *.ahk

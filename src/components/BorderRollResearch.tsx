@@ -1,80 +1,25 @@
-import { useMemo, useState } from 'react'
-import { REROLL_COSTS } from '../logic/rerollAdvice'
+import { useMemo } from 'react'
 import {
-  addBorderRollSample,
   buildBorderRollSequenceSubmissionUrl,
-  createBorderRollSample,
   getBorderRollSequence,
   isCompleteBorderRollSequence,
-  loadBorderResearch,
-  nextBorderRollIndex,
-  removeBorderRollSample,
-  saveBorderResearch,
   serializeBorderRollDataset,
-  startBorderRollSequence,
-  type BorderResearchStore,
 } from '../logic/borderRollResearch'
+import type { BorderRollResearchController } from '../hooks/useBorderRollResearch'
 import type { Borders } from '../types'
 
 interface Props {
   borders: Borders
+  controller: BorderRollResearchController
 }
 
-export function BorderRollResearch({ borders }: Props) {
-  const [store, setStore] = useState<BorderResearchStore>(loadBorderResearch)
-  const [gamePatch, setGamePatch] = useState(
-    () => store.samples[store.samples.length - 1]?.gamePatch ?? '3.29',
-  )
-  const [message, setMessage] = useState('')
-
+export function BorderRollResearch({ borders, controller }: Props) {
+  const { store } = controller
   const missingBorders = useMemo(() => borders.filter((id) => id === null).length, [borders])
-  const activeSamples = useMemo(
-    () => getBorderRollSequence(store.samples, store.activeSequenceId),
-    [store.activeSequenceId, store.samples],
-  )
-  const nextRollIndex = nextBorderRollIndex(activeSamples)
-  const displayedNextRerollCost = REROLL_COSTS[nextRollIndex] ?? null
   const sequences = useMemo(() => {
     const ids = [...new Set(store.samples.map((sample) => sample.sequenceId))]
     return ids.map((sequenceId) => getBorderRollSequence(store.samples, sequenceId)).reverse()
   }, [store.samples])
-
-  const commitStore = (next: BorderResearchStore) => {
-    setStore(next)
-    saveBorderResearch(next)
-  }
-
-  const record = () => {
-    const result = createBorderRollSample({
-      sequenceId: store.activeSequenceId,
-      gamePatch,
-      rerollIndex: nextRollIndex,
-      displayedNextRerollCost,
-      borders,
-    })
-    if (!result.ok) {
-      setMessage(result.message)
-      return
-    }
-    const added = addBorderRollSample(store, result.sample)
-    if (added.status === 'duplicate') {
-      setMessage('This roll is already saved in the current Voyage sequence.')
-      return
-    }
-    if (added.status === 'conflict') {
-      setMessage('Remove the conflicting saved roll before recording its correction.')
-      return
-    }
-    commitStore(added.store)
-    setMessage(
-      `Saved ${nextRollIndex === 0 ? 'natural board' : `paid reroll ${nextRollIndex}`}: 12 modifiers.`,
-    )
-  }
-
-  const nextSequence = () => {
-    commitStore(startBorderRollSequence(store))
-    setMessage('Started a new Voyage sequence. Record its natural board first.')
-  }
 
   const exportSamples = () => {
     const blob = new Blob([serializeBorderRollDataset(store.samples)], {
@@ -85,25 +30,24 @@ export function BorderRollResearch({ borders }: Props) {
     anchor.download = `allflame-border-rolls-${new Date().toISOString().slice(0, 10)}.json`
     anchor.click()
     URL.revokeObjectURL(anchor.href)
-    setMessage(`Exported ${store.samples.length} complete roll samples.`)
   }
 
   return (
     <details className="ahk-help roll-research">
       <summary>📊 Contribute border-roll data ({store.samples.length} saved)</summary>
       <p className="muted">
-        Start with the natural board, then save every paid reroll in order, including bad results.
-        The app assigns roll numbers and known next costs automatically.
+        Every complete 12/12 OCR scan is saved automatically. Scan the natural board and every paid
+        reroll; Finish Voyage closes the sequence and can submit it automatically.
       </p>
 
       <div className="roll-research-grid">
         <label>
           Game patch
           <input
-            value={gamePatch}
+            value={controller.gamePatch}
             maxLength={32}
             placeholder="3.29.0"
-            onChange={(event) => setGamePatch(event.target.value)}
+            onChange={(event) => controller.setGamePatch(event.target.value)}
           />
         </label>
       </div>
@@ -115,22 +59,54 @@ export function BorderRollResearch({ borders }: Props) {
             : `${missingBorders} borders still missing`}
         </span>
         <span>
-          Next: {nextRollIndex === 0 ? 'natural board' : `paid reroll ${nextRollIndex}`}
-          {displayedNextRerollCost === null
+          Next:{' '}
+          {controller.nextRollIndex === 0
+            ? 'natural board'
+            : `paid reroll ${controller.nextRollIndex}`}
+          {controller.displayedNextRerollCost === null
             ? ' · no known next cost'
-            : ` · next cost ${displayedNextRerollCost.toLocaleString('en-US')}`}
+            : ` · next cost ${controller.displayedNextRerollCost.toLocaleString('en-US')}`}
         </span>
         <span>Sequence {store.activeSequenceId.slice(-8)}</span>
       </div>
 
       <div className="import-actions roll-research-actions">
-        <button onClick={record} disabled={missingBorders > 0}>
+        <button onClick={() => controller.recordCurrentRoll(borders)} disabled={missingBorders > 0}>
           Save current roll
         </button>
-        <button onClick={nextSequence}>Start next Voyage</button>
+        <button onClick={controller.startNextSequence}>Start next Voyage</button>
         <button onClick={exportSamples} disabled={store.samples.length === 0}>
           Export dataset
         </button>
+      </div>
+
+      <div className="roll-research-grid">
+        <label className="roll-auto-submit">
+          <input
+            type="checkbox"
+            checked={controller.submissionStore.settings.enabled}
+            disabled={!controller.endpointConfigured}
+            onChange={(event) => controller.setAutoSubmitEnabled(event.target.checked)}
+          />
+          <span>Automatic submission on Finish Voyage</span>
+        </label>
+        <label>
+          Private submission key
+          <input
+            type="password"
+            autoComplete="off"
+            value={controller.submissionStore.settings.submissionKey}
+            disabled={!controller.endpointConfigured}
+            onChange={(event) => controller.setSubmissionKey(event.target.value)}
+          />
+        </label>
+      </div>
+      <div className="roll-research-status">
+        <span>
+          {controller.endpointConfigured
+            ? `${controller.submissionStore.queue.length} Voyage sequence${controller.submissionStore.queue.length === 1 ? '' : 's'} queued`
+            : 'Automatic submission service is not configured in this build'}
+        </span>
       </div>
 
       {store.samples.length > 0 && (
@@ -166,8 +142,7 @@ export function BorderRollResearch({ borders }: Props) {
                     <button
                       aria-label={`Remove ${sample.generation} sample captured ${sample.capturedAt}`}
                       onClick={() => {
-                        commitStore(removeBorderRollSample(store, sample.sampleId))
-                        setMessage('Removed the local sample.')
+                        controller.removeSample(sample.sampleId)
                       }}
                     >
                       Remove
@@ -180,15 +155,14 @@ export function BorderRollResearch({ borders }: Props) {
         </ol>
       )}
 
-      {message && (
+      {controller.message && (
         <div className="muted pad" role="status" aria-live="polite" aria-atomic="true">
-          {message}
+          {controller.message}
         </div>
       )}
       <p className="muted small">
-        “Submit Voyage” opens one pre-filled GitHub issue containing the complete sequence. A bot
-        validates, labels, and closes accepted submissions. The data has no account fields, but your
-        GitHub username remains visible on the issue.
+        Automatic submission is off by default. Without a private key, “Submit Voyage” still opens
+        one pre-filled GitHub issue. A bot validates, labels, and closes accepted submissions.
       </p>
     </details>
   )

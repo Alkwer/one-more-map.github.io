@@ -13,6 +13,7 @@ export default defineConfig(
     'playwright-report/',
     'test-results/',
     '.codex-remote-attachments/',
+    '.sites/',
   ]),
   {
     files: ['**/*.{ts,tsx}'],
