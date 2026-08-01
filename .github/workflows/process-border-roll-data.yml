@@ -1,0 +1,67 @@
+name: Process border-roll submission
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: border-roll-issue-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    if: startsWith(github.event.issue.title, '[data] Border roll') && !contains(github.event.issue.labels.*.name, 'border-roll:test')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Ensure processing labels exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create "border-roll:accepted" --color "1F883D" --description "Validated complete Voyage data" --force
+          gh label create "border-roll:partial" --color "BF8700" --description "Valid but incomplete Voyage sequence" --force
+          gh label create "border-roll:duplicate" --color "8250DF" --description "Already accepted sample IDs" --force
+          gh label create "border-roll:invalid" --color "CF222E" --description "Submission failed schema validation" --force
+          gh label create "border-roll:test" --color "6E7781" --description "Test submission excluded from research" --force
+
+      - name: Fetch accepted submissions for deduplication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue list --state all --label "border-roll:accepted" --limit 1000 --json number,body,labels > "$RUNNER_TEMP/accepted-border-roll-issues.json"
+
+      - id: validate
+        name: Validate and normalize issue JSON
+        run: |
+          node scripts/process-border-roll-issue.mjs \
+            --event "$GITHUB_EVENT_PATH" \
+            --accepted "$RUNNER_TEMP/accepted-border-roll-issues.json" \
+            --result "$RUNNER_TEMP/border-roll-result.json" \
+            --comment "$RUNNER_TEMP/border-roll-comment.md"
+
+      - name: Apply result to issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          RESULT_LABEL: ${{ steps.validate.outputs.label }}
+          SHOULD_CLOSE: ${{ steps.validate.outputs.close }}
+          CLOSE_REASON: ${{ steps.validate.outputs.reason }}
+        run: |
+          for label in "border-roll:accepted" "border-roll:partial" "border-roll:duplicate" "border-roll:invalid"; do
+            gh issue edit "$ISSUE_NUMBER" --remove-label "$label" >/dev/null 2>&1 || true
+          done
+          gh issue edit "$ISSUE_NUMBER" --add-label "$RESULT_LABEL"
+          gh issue comment "$ISSUE_NUMBER" --body-file "$RUNNER_TEMP/border-roll-comment.md"
+          if [ "$SHOULD_CLOSE" = "true" ]; then
+            gh issue close "$ISSUE_NUMBER" --reason "$CLOSE_REASON"
+          elif [ "${{ github.event.issue.state }}" = "closed" ]; then
+            gh issue reopen "$ISSUE_NUMBER"
+          fi

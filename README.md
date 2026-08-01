@@ -106,6 +106,9 @@ The importer also includes an opt-in **Contribute border-roll data** panel. Its
 capture protocol and privacy-preserving sample schema are documented in
 [docs/border-roll-data.md](docs/border-roll-data.md). Record every complete board,
 not only notable outcomes, so the resulting frequency estimates are not biased.
+The panel submits one complete Voyage sequence; GitHub Actions validates,
+labels, and closes the issue, while a separate scheduled workflow prepares
+reviewable dataset-update pull requests.
 
 ## Architecture
 

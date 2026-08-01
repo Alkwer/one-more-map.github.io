@@ -35,7 +35,7 @@ export interface BorderRollSample {
   generation: 'natural' | 'paid-reroll'
   /** Zero is the natural board; one and above are paid rerolls in order. */
   rerollIndex: number
-  /** The next reroll price visible while this board was on screen, if any. */
+  /** Known next reroll price for this step; legacy v2 samples may contain the observed display. */
   displayedNextRerollCost: number | null
   /** Clockwise UI order: top, right, bottom, left; three slots per side. */
   borderModIds: OrderedBorderIds
@@ -44,6 +44,13 @@ export interface BorderRollSample {
 export interface BorderResearchStore {
   version: typeof STORE_VERSION
   activeSequenceId: string
+  samples: BorderRollSample[]
+}
+
+export interface BorderRollDataset {
+  schema: typeof BORDER_ROLL_DATASET_SCHEMA
+  exportedAt: string
+  sampleCount: number
   samples: BorderRollSample[]
 }
 
@@ -149,6 +156,34 @@ export function removeBorderRollSample(
   sampleId: string,
 ): BorderResearchStore {
   return { ...store, samples: store.samples.filter((sample) => sample.sampleId !== sampleId) }
+}
+
+export function getBorderRollSequence(
+  samples: BorderRollSample[],
+  sequenceId: string,
+): BorderRollSample[] {
+  return samples
+    .filter((sample) => sample.sequenceId === sequenceId)
+    .sort((left, right) => left.rerollIndex - right.rerollIndex)
+}
+
+export function nextBorderRollIndex(samples: BorderRollSample[]): number {
+  const recorded = new Set(samples.map((sample) => sample.rerollIndex))
+  let index = 0
+  while (recorded.has(index)) index += 1
+  return index
+}
+
+export function isCompleteBorderRollSequence(samples: BorderRollSample[]): boolean {
+  if (samples.length === 0) return false
+  const ordered = [...samples].sort((left, right) => left.rerollIndex - right.rerollIndex)
+  const [{ sequenceId, gamePatch }] = ordered
+  return ordered.every(
+    (sample, index) =>
+      sample.sequenceId === sequenceId &&
+      sample.gamePatch === gamePatch &&
+      sample.rerollIndex === index,
+  )
 }
 
 function isStoredSample(value: unknown): value is BorderRollSample {
@@ -277,6 +312,24 @@ export function serializeBorderRollDataset(
   )
 }
 
+export function buildBorderRollSequenceSubmissionUrl(samples: BorderRollSample[]): string {
+  if (!isCompleteBorderRollSequence(samples)) {
+    throw new Error('A submission must contain one Voyage sequence starting at natural roll 0.')
+  }
+  const ordered = [...samples].sort((left, right) => left.rerollIndex - right.rerollIndex)
+  const title = `[data] Border roll sequence ${ordered[0].gamePatch}`
+  const body = [
+    'I captured the natural board before judging it and every paid reroll in order.',
+    '',
+    '```json',
+    serializeBorderRollDataset(ordered),
+    '```',
+  ].join('\n')
+  const query = new URLSearchParams({ title, body })
+  return `${SUBMISSION_URL}?${query.toString()}`
+}
+
+/** @deprecated New submissions should contain a complete Voyage sequence. */
 export function buildBorderRollSubmissionUrl(sample: BorderRollSample): string {
   const title = `[data] Border roll ${sample.gamePatch}`
   const body = [

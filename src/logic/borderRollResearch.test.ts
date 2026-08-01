@@ -5,10 +5,14 @@ import {
   addBorderRollSample,
   BORDER_ROLL_DATASET_SCHEMA,
   BORDER_ROLL_SAMPLE_SCHEMA,
+  buildBorderRollSequenceSubmissionUrl,
   buildBorderRollSubmissionUrl,
   createBorderResearchStore,
   createBorderRollSample,
+  getBorderRollSequence,
+  isCompleteBorderRollSequence,
   loadBorderResearch,
+  nextBorderRollIndex,
   serializeBorderRollDataset,
 } from './borderRollResearch'
 
@@ -102,6 +106,18 @@ describe('border roll research samples', () => {
     )
   })
 
+  it('orders a complete sequence and derives its next missing roll number', () => {
+    const natural = sample()
+    const reroll = sample({ rerollIndex: 1, displayedNextRerollCost: 6000 })
+    const sequence = getBorderRollSequence([reroll, natural], 'voyage-test')
+
+    expect(sequence.map(({ rerollIndex }) => rerollIndex)).toEqual([0, 1])
+    expect(nextBorderRollIndex(sequence)).toBe(2)
+    expect(nextBorderRollIndex([reroll])).toBe(0)
+    expect(isCompleteBorderRollSequence(sequence)).toBe(true)
+    expect(isCompleteBorderRollSequence([reroll])).toBe(false)
+  })
+
   it('exports a versioned dataset and a pre-filled submission link', () => {
     const roll = sample({ rerollIndex: 1, displayedNextRerollCost: 6000 })
     const dataset = JSON.parse(serializeBorderRollDataset([roll], '2026-07-31T13:00:00.000Z'))
@@ -115,5 +131,21 @@ describe('border roll research samples', () => {
     expect(url.hostname).toBe('github.com')
     expect(url.pathname).toBe('/Alkwer/one-more-map.github.io/issues/new')
     expect(url.searchParams.get('body')).toContain(roll.sampleId)
+  })
+
+  it('submits one complete Voyage sequence as a dataset', () => {
+    const natural = sample()
+    const reroll = sample({ rerollIndex: 1, displayedNextRerollCost: 6000 })
+    const url = new URL(buildBorderRollSequenceSubmissionUrl([reroll, natural]))
+    const body = url.searchParams.get('body') ?? ''
+    const payload = JSON.parse(body.match(/```json\n([\s\S]+)\n```/)?.[1] ?? '{}')
+
+    expect(url.pathname).toBe('/Alkwer/one-more-map.github.io/issues/new')
+    expect(url.searchParams.get('title')).toBe('[data] Border roll sequence 3.29.0')
+    expect(payload).toMatchObject({
+      schema: BORDER_ROLL_DATASET_SCHEMA,
+      sampleCount: 2,
+      samples: [{ rerollIndex: 0 }, { rerollIndex: 1 }],
+    })
   })
 })

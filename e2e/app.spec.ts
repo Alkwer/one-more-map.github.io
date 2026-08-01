@@ -105,26 +105,33 @@ test('records only complete border rolls and keeps Voyage sequences distinct', a
 
   await pasteText(appPage, COMPLETE_DIVINE_BORDER_PAYLOAD)
   await expect(research.getByLabel('Voyage level')).toHaveCount(0)
+  await expect(research.getByLabel('Roll number')).toHaveCount(0)
+  await expect(research.getByLabel('Next cost shown')).toHaveCount(0)
   await expect(research.getByText('✓ All 12 borders ready')).toBeVisible()
   await research.getByRole('button', { name: 'Save current roll' }).click()
-  await expect(research.getByText(/Saved complete roll: 12 modifiers/)).toBeVisible()
+  await expect(research.getByText(/Saved natural board: 12 modifiers/)).toBeVisible()
   await expect(research.getByText(/Contribute border-roll data \(1 saved\)/)).toBeVisible()
+  await expect(research.getByRole('button', { name: 'Submit Voyage' })).toBeEnabled()
 
   await research.getByRole('button', { name: 'Save current roll' }).click()
-  await expect(research.getByText(/already saved/)).toBeVisible()
+  await expect(research.getByText(/Saved paid reroll 1/)).toBeVisible()
+  await expect(research.getByText(/Contribute border-roll data \(2 saved\)/)).toBeVisible()
 
   await research.getByRole('button', { name: 'Start next Voyage' }).click()
   await research.getByRole('button', { name: 'Save current roll' }).click()
-  await expect(research.getByText(/Contribute border-roll data \(2 saved\)/)).toBeVisible()
+  await expect(research.getByText(/Contribute border-roll data \(3 saved\)/)).toBeVisible()
   await expectNoAccessibilityViolations(appPage)
 
   const stored = await appPage.evaluate(() =>
     JSON.parse(localStorage.getItem('allflame-border-roll-research') ?? '{}'),
   )
-  expect(stored.samples).toHaveLength(2)
+  expect(stored.samples).toHaveLength(3)
   expect(stored.version).toBe(2)
   expect(stored.samples[0]).not.toHaveProperty('voyageLevel')
-  expect(stored.samples[0].sequenceId).not.toBe(stored.samples[1].sequenceId)
+  expect(stored.samples[0].rerollIndex).toBe(0)
+  expect(stored.samples[1].rerollIndex).toBe(1)
+  expect(stored.samples[0].sequenceId).toBe(stored.samples[1].sequenceId)
+  expect(stored.samples[1].sequenceId).not.toBe(stored.samples[2].sequenceId)
 })
 
 test('recovers an unknown shape and places it on the board with the keyboard', async ({

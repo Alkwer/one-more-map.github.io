@@ -120,10 +120,13 @@ Still unknown:
 ### Minimal in-game data collection needed
 
 The app now includes an opt-in local capture log for this protocol. It accepts
-only complete 12-border samples, groups a natural board and its paid rerolls by
-Voyage sequence, and exports the versioned format described in
-`docs/border-roll-data.md`. Submission remains explicit because the static app
-has no collection backend.
+only complete 12-border samples, assigns roll indexes automatically, groups a
+natural board and its paid rerolls by Voyage sequence, and exports the versioned
+format described in `docs/border-roll-data.md`. Submission remains explicit
+because the static app has no collection backend. A GitHub issue workflow
+validates and closes submitted sequences, and a separate batch workflow creates
+reviewable dataset-update pull requests; issue input is never written directly
+to `main`.
 
 Capture natural boards and paid rerolls without discarding bad outcomes. For
 each observation store:

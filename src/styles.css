@@ -832,7 +832,7 @@ button.primary:hover {
 
 .roll-research-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px 10px;
   margin: 10px 0;
 }
@@ -878,6 +878,21 @@ button.primary:hover {
 .roll-sample-list button {
   padding: 3px 7px;
   font-size: 10px;
+}
+.roll-sample-list .roll-sequence {
+  display: block;
+  margin-bottom: 8px;
+}
+.roll-sequence-header,
+.roll-sequence > ol li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.roll-sequence > ol {
+  margin: 5px 0 0;
+  padding-left: 18px;
 }
 
 input,

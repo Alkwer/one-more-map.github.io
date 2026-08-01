@@ -1,0 +1,76 @@
+name: Build border-roll dataset
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: read
+  pull-requests: write
+
+concurrency:
+  group: border-roll-dataset
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Fetch accepted submissions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh label list --limit 1000 --json name --jq '.[].name' | grep -Fxq "border-roll:accepted"; then
+            gh issue list --state all --label "border-roll:accepted" --limit 1000 --json number,body,labels > "$RUNNER_TEMP/accepted-border-roll-issues.json"
+          else
+            echo "[]" > "$RUNNER_TEMP/accepted-border-roll-issues.json"
+          fi
+
+      - name: Build canonical dataset
+        run: |
+          node --test scripts/border-roll-data.node-test.mjs
+          node scripts/build-border-roll-dataset.mjs \
+            --input "$RUNNER_TEMP/accepted-border-roll-issues.json" \
+            --output data/border-rolls-v2.json
+
+      - id: changes
+        name: Detect dataset changes
+        shell: bash
+        run: |
+          if [ -n "$(git status --porcelain -- data/border-rolls-v2.json)" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open dataset update pull request
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          existing="$(gh pr list --state open --limit 100 --json url,headRefName --jq 'map(select(.headRefName | startswith("automation/border-roll-dataset-")))[0].url')"
+          if [ -n "$existing" ]; then
+            echo "An update PR is already open: $existing"
+            exit 0
+          fi
+          branch="automation/border-roll-dataset-${GITHUB_RUN_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add data/border-rolls-v2.json
+          git commit -m "Update border-roll research dataset"
+          git push origin "$branch"
+          gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "Update border-roll research dataset" \
+            --body "Automated, deterministic rebuild from closed issues labelled border-roll:accepted. The source samples were schema-validated and deduplicated before this PR was created."
