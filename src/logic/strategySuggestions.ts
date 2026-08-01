@@ -1,5 +1,9 @@
 import { borderModById } from '../data/mods'
-import { STRATEGIES, type StrategyDef } from '../data/strategies'
+import {
+  STRATEGIES,
+  type StrategyDef,
+  type StrategyReservationPreferences,
+} from '../data/strategies'
 import type { Board, Borders, ChartData, ConnectivityMode, Weights } from '../types'
 import { borderTouches, emptyBorders } from '../types'
 import {
@@ -10,6 +14,7 @@ import {
 import { borderRewardKey } from './rewards'
 import { scoreBoard, type ScoreOptions } from './scoring'
 import { solve } from './solver'
+import { selectStrategySolvePool } from './solverPoolSelection'
 
 const EPSILON = 1e-9
 const POTENTIAL_SEARCH_RESTARTS = 12
@@ -22,6 +27,7 @@ export type RequiredBorderStatus = 'not-required' | 'unknown' | 'met' | 'missing
 export interface StrategyEvaluationOptions extends ScoreOptions {
   mode: ConnectivityMode
   allowRotation: boolean
+  strategyReservations?: StrategyReservationPreferences
 }
 
 export interface StrategyReadiness {
@@ -183,21 +189,6 @@ export function strategyReadiness(
   }
 }
 
-function eligiblePoolFor(strategy: StrategyDef, pool: ChartData[]): ChartData[] {
-  const reserveModIds = strategy.reserveModIds
-  const reserveNames = strategy.reserveNames
-  const reserveAreaTypes = strategy.reserveAreaTypes
-  return pool.filter(
-    (chart) =>
-      !(reserveModIds?.length && chart.modIds.some((id) => reserveModIds.includes(id))) &&
-      !(
-        reserveNames?.length &&
-        reserveNames.some((name) => chart.name.toLowerCase().includes(name.toLowerCase()))
-      ) &&
-      !(reserveAreaTypes?.length && chart.areaType && reserveAreaTypes.includes(chart.areaType)),
-  )
-}
-
 function stableSeed(value: string): number {
   let hash = 2_166_136_261
   for (let index = 0; index < value.length; index++) {
@@ -307,7 +298,11 @@ export function evaluateStrategyInventory(
   const hasDivineBorder = borders.includes('b-divine') && !opts.disabledMods?.has('b-divine')
 
   const rawEvaluations = STRATEGIES.map((strategy) => {
-    const eligiblePool = eligiblePoolFor(strategy, pool)
+    const eligiblePool = selectStrategySolvePool(
+      pool,
+      strategy,
+      opts.strategyReservations,
+    ).solvePool
     const potential =
       solve(eligiblePool, borders, strategy.weights, {
         ...opts,

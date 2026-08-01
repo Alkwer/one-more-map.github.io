@@ -15,7 +15,62 @@ const chart = (uid: string, overrides: Partial<ChartData> = {}): ChartData => ({
 })
 
 describe('solver pool selection', () => {
-  it('holds back charts reserved by modifier, name, or canonical destination', () => {
+  const strategy = {
+    reservationGroups: [
+      {
+        id: 'divine' as const,
+        label: 'Divine strategies',
+        modIds: ['divine-mod'],
+        nameMatches: ['pelagic'],
+        areaTypes: ['sea-pillars' as const],
+      },
+      {
+        id: 'meatfish' as const,
+        label: 'Meatfish',
+        modIds: ['meatfish-mod'],
+      },
+      {
+        id: 'ethereal' as const,
+        label: 'Magic Ethereal',
+        modIds: ['ethereal-mod'],
+      },
+    ],
+  }
+
+  const eligiblePool = [
+    chart('ordinary'),
+    chart('divine-modifier', { modIds: ['divine-mod'] }),
+    chart('divine-name', { name: 'Pelagic Abyss Chart' }),
+    chart('divine-area', { areaType: 'sea-pillars' }),
+    chart('meatfish', { modIds: ['meatfish-mod'] }),
+    chart('ethereal', { modIds: ['ethereal-mod'] }),
+  ]
+
+  it('holds back only enabled reservation groups and reports why', () => {
+    expect(
+      selectStrategySolvePool(eligiblePool, strategy, {
+        divine: true,
+        meatfish: false,
+        ethereal: false,
+      }),
+    ).toEqual({
+      solvePool: [eligiblePool[0], eligiblePool[4], eligiblePool[5]],
+      heldBack: 3,
+      heldBackFor: ['Divine strategies'],
+    })
+  })
+
+  it('returns every eligible chart when all reservation groups are disabled', () => {
+    expect(
+      selectStrategySolvePool(eligiblePool, strategy, {
+        divine: false,
+        meatfish: false,
+        ethereal: false,
+      }),
+    ).toEqual({ solvePool: eligiblePool, heldBack: 0, heldBackFor: [] })
+  })
+
+  it('matches reservations by modifier, name, or canonical destination', () => {
     const eligiblePool = [
       chart('ordinary'),
       chart('modifier', { modIds: ['reserved-mod'] }),
@@ -25,11 +80,21 @@ describe('solver pool selection', () => {
 
     expect(
       selectStrategySolvePool(eligiblePool, {
-        reserveModIds: ['reserved-mod'],
-        reserveNames: ['ethereal paradise'],
-        reserveAreaTypes: ['sea-pillars'],
+        reservationGroups: [
+          {
+            id: 'divine',
+            label: 'Divine strategies',
+            modIds: ['reserved-mod'],
+            nameMatches: ['ethereal paradise'],
+            areaTypes: ['sea-pillars'],
+          },
+        ],
       }),
-    ).toEqual({ solvePool: [eligiblePool[0]], heldBack: 3 })
+    ).toEqual({
+      solvePool: [eligiblePool[0]],
+      heldBack: 3,
+      heldBackFor: ['Divine strategies'],
+    })
   })
 
   it('keeps the nine highest-value and every locked chart out of a filler pool', () => {

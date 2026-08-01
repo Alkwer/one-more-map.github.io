@@ -39,8 +39,9 @@ export function useVoyageAnalysis(state: AppState) {
       ...scoreOptions,
       mode: state.mode,
       allowRotation: state.allowRotation,
+      strategyReservations: state.strategyReservations,
     }),
-    [scoreOptions, state.mode, state.allowRotation],
+    [scoreOptions, state.mode, state.allowRotation, state.strategyReservations],
   )
   const {
     inventory: strategyInventory,

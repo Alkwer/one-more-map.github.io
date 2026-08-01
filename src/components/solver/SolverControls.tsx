@@ -1,4 +1,4 @@
-import type { StrategyDef } from '../../data/strategies'
+import { STRATEGY_RESERVATION_OPTIONS, type StrategyDef } from '../../data/strategies'
 import type { AdjacencyMode } from '../../logic/scoring'
 import type { AppState } from '../../logic/storage'
 import type { ConnectivityMode } from '../../types'
@@ -11,6 +11,11 @@ interface Props {
 }
 
 export function SolverControls({ state, activeStrategy, onPatch }: Props) {
+  const reservationGroups = activeStrategy?.reservationGroups ?? []
+  const availableReservations = STRATEGY_RESERVATION_OPTIONS.filter((option) =>
+    reservationGroups.some((reservation) => reservation.id === option.id),
+  )
+
   return (
     <>
       <div className="field">
@@ -60,6 +65,35 @@ export function SolverControls({ state, activeStrategy, onPatch }: Props) {
           ⚑ <strong>{activeStrategy.name}</strong> is steering the solver - your manual weights
           below are ignored while it's active.
         </div>
+      )}
+
+      {availableReservations.length > 0 && (
+        <fieldset className="strategy-reservations">
+          <legend>Protect charts for other strategies</legend>
+          {availableReservations.map((option) => (
+            <label className="check" key={option.id}>
+              <input
+                type="checkbox"
+                name="strategy-reservation"
+                value={option.id}
+                checked={state.strategyReservations[option.id]}
+                onChange={(event) =>
+                  onPatch({
+                    strategyReservations: {
+                      ...state.strategyReservations,
+                      [option.id]: event.target.checked,
+                    },
+                  })
+                }
+              />
+              {option.label}
+            </label>
+          ))}
+          <div className="muted small-note">
+            Enabled categories stay out of this solve pool. A chart shared by categories remains
+            protected while any matching category is enabled.
+          </div>
+        </fieldset>
       )}
 
       <RewardWeights

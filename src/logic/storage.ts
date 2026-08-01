@@ -1,6 +1,10 @@
 import type { AdjacencyMode } from './scoring'
 import { borderModById, voyageModById } from '../data/mods'
-import { strategyById } from '../data/strategies'
+import {
+  defaultStrategyReservations,
+  strategyById,
+  type StrategyReservationPreferences,
+} from '../data/strategies'
 import type {
   Board,
   Borders,
@@ -29,6 +33,8 @@ export interface AppState {
   disabledMods: string[]
   /** active curated strategy id (overrides weights + shapes the solver) or null */
   strategyId: string | null
+  /** keeper categories excluded from low-investment strategy solve pools */
+  strategyReservations: StrategyReservationPreferences
   /** paid border rerolls recorded for the current Voyage board (0–5 assumed cap) */
   borderRerollsUsed: number
 }
@@ -44,6 +50,7 @@ export const defaultState = (): AppState => ({
   adjacentAffectsSelf: false,
   disabledMods: [],
   strategyId: null,
+  strategyReservations: defaultStrategyReservations(),
   borderRerollsUsed: 0,
 })
 
@@ -339,6 +346,17 @@ function decodeStrategyId(value: unknown, warnings: string[]): string | null {
   return value
 }
 
+function decodeStrategyReservations(value: unknown): StrategyReservationPreferences {
+  const defaults = defaultStrategyReservations()
+  if (value === undefined) return defaults
+  if (!isRecord(value)) fail('strategyReservations must be an object')
+  return {
+    divine: optionalBoolean(value, 'divine', defaults.divine),
+    meatfish: optionalBoolean(value, 'meatfish', defaults.meatfish),
+    ethereal: optionalBoolean(value, 'ethereal', defaults.ethereal),
+  }
+}
+
 function decodeRerolls(value: unknown, warnings: string[]): number {
   if (value === undefined) return 0
   if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -441,6 +459,7 @@ export function decodeState(value: unknown): StateDecodeResult {
         ),
         disabledMods: decodeDisabledMods(value.disabledMods, warnings),
         strategyId: decodeStrategyId(value.strategyId, warnings),
+        strategyReservations: decodeStrategyReservations(value.strategyReservations),
         borderRerollsUsed: decodeRerolls(value.borderRerollsUsed, warnings),
       },
     }

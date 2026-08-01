@@ -115,3 +115,28 @@ describe('Divine strategy selection', () => {
     expect(decision.preserveRoll).toBe(true)
   })
 })
+
+describe('strategy reservation preferences', () => {
+  it('keeps automatic strategy evaluation aligned with the interactive solve pool', () => {
+    const pool = [
+      crossing('reserved-rare', ['voy-rare']),
+      ...Array.from({ length: 8 }, (_, index) => crossing(`ordinary-${index + 1}`, [])),
+    ]
+    const borders = emptyBorders()
+    const charts = new Map(pool.map((chart) => [chart.uid, chart]))
+    const protectedInventory = evaluateStrategyInventory(borders, charts, pool, options)
+    const unprotectedInventory = evaluateStrategyInventory(borders, charts, pool, {
+      ...options,
+      strategyReservations: { divine: false, meatfish: false, ethereal: true },
+    })
+
+    expect(
+      protectedInventory.evaluations.find((entry) => entry.strategy.id === 'alc-and-go')
+        ?.eligibleCharts,
+    ).toBe(8)
+    expect(
+      unprotectedInventory.evaluations.find((entry) => entry.strategy.id === 'alc-and-go')
+        ?.eligibleCharts,
+    ).toBe(9)
+  })
+})

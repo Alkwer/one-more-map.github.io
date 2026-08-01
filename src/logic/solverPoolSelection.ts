@@ -1,29 +1,53 @@
-import type { StrategyDef } from '../data/strategies'
+import {
+  defaultStrategyReservations,
+  type StrategyDef,
+  type StrategyReservationPreferences,
+} from '../data/strategies'
 import { displayChartValue } from './chartRanking'
 import type { ChartData, Weights } from '../types'
 
 export const KEEP_BEST_CHARTS = 9
 
-type StrategyReservations = Pick<StrategyDef, 'reserveModIds' | 'reserveNames' | 'reserveAreaTypes'>
+type StrategyReservations = Pick<StrategyDef, 'reservationGroups'>
+
+const matchesReservation = (
+  chart: ChartData,
+  reservation: NonNullable<StrategyDef['reservationGroups']>[number],
+): boolean => {
+  const modIds = reservation.modIds ?? []
+  const nameMatches = reservation.nameMatches ?? []
+  const areaTypes = reservation.areaTypes ?? []
+  return (
+    chart.modIds.some((id) => modIds.includes(id)) ||
+    nameMatches.some((name) => chart.name.toLowerCase().includes(name.toLowerCase())) ||
+    (!!chart.areaType && areaTypes.includes(chart.areaType))
+  )
+}
 
 export function selectStrategySolvePool(
   eligiblePool: ChartData[],
   strategy: StrategyReservations | null,
-): { solvePool: ChartData[]; heldBack: number } {
-  const reserveModIds = strategy?.reserveModIds
-  const reserveNames = strategy?.reserveNames
-  const reserveAreaTypes = strategy?.reserveAreaTypes
-  const solvePool = eligiblePool.filter(
-    (chart) =>
-      !(reserveModIds?.length && chart.modIds.some((id) => reserveModIds.includes(id))) &&
-      !(
-        reserveNames?.length &&
-        reserveNames.some((name) => chart.name.toLowerCase().includes(name.toLowerCase()))
-      ) &&
-      !(reserveAreaTypes?.length && chart.areaType && reserveAreaTypes.includes(chart.areaType)),
+  preferences: StrategyReservationPreferences = defaultStrategyReservations(),
+): { solvePool: ChartData[]; heldBack: number; heldBackFor: string[] } {
+  const matchedLabels = new Set<string>()
+  const enabledReservations = (strategy?.reservationGroups ?? []).filter(
+    (reservation) => preferences[reservation.id],
   )
+  const solvePool = eligiblePool.filter((chart) => {
+    const matched = enabledReservations.filter((reservation) =>
+      matchesReservation(chart, reservation),
+    )
+    matched.forEach((reservation) => matchedLabels.add(reservation.label))
+    return matched.length === 0
+  })
 
-  return { solvePool, heldBack: eligiblePool.length - solvePool.length }
+  return {
+    solvePool,
+    heldBack: eligiblePool.length - solvePool.length,
+    heldBackFor: enabledReservations
+      .filter((reservation) => matchedLabels.has(reservation.label))
+      .map((reservation) => reservation.label),
+  }
 }
 
 export function selectFillerPool(
