@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { REROLL_COSTS } from '../logic/rerollAdvice'
 import {
   addBorderRollSample,
-  buildBorderRollSubmissionUrl,
+  buildBorderRollSequenceSubmissionUrl,
   createBorderRollSample,
+  getBorderRollSequence,
+  isCompleteBorderRollSequence,
   loadBorderResearch,
+  nextBorderRollIndex,
   removeBorderRollSample,
   saveBorderResearch,
   serializeBorderRollDataset,
@@ -15,32 +18,26 @@ import type { Borders } from '../types'
 
 interface Props {
   borders: Borders
-  rerollsUsed: number
 }
 
-const asOptionalInteger = (value: string): number | null => {
-  if (!value.trim()) return null
-  const parsed = Number(value)
-  return Number.isInteger(parsed) ? parsed : Number.NaN
-}
-
-export function BorderRollResearch({ borders, rerollsUsed }: Props) {
+export function BorderRollResearch({ borders }: Props) {
   const [store, setStore] = useState<BorderResearchStore>(loadBorderResearch)
   const [gamePatch, setGamePatch] = useState(
     () => store.samples[store.samples.length - 1]?.gamePatch ?? '3.29',
   )
-  const [rerollIndex, setRerollIndex] = useState(() => rerollsUsed.toString())
-  const [displayedCost, setDisplayedCost] = useState(
-    () => REROLL_COSTS[rerollsUsed]?.toString() ?? '',
-  )
   const [message, setMessage] = useState('')
 
   const missingBorders = useMemo(() => borders.filter((id) => id === null).length, [borders])
-
-  useEffect(() => {
-    setRerollIndex(rerollsUsed.toString())
-    setDisplayedCost(REROLL_COSTS[rerollsUsed]?.toString() ?? '')
-  }, [rerollsUsed])
+  const activeSamples = useMemo(
+    () => getBorderRollSequence(store.samples, store.activeSequenceId),
+    [store.activeSequenceId, store.samples],
+  )
+  const nextRollIndex = nextBorderRollIndex(activeSamples)
+  const displayedNextRerollCost = REROLL_COSTS[nextRollIndex] ?? null
+  const sequences = useMemo(() => {
+    const ids = [...new Set(store.samples.map((sample) => sample.sequenceId))]
+    return ids.map((sequenceId) => getBorderRollSequence(store.samples, sequenceId)).reverse()
+  }, [store.samples])
 
   const commitStore = (next: BorderResearchStore) => {
     setStore(next)
@@ -51,8 +48,8 @@ export function BorderRollResearch({ borders, rerollsUsed }: Props) {
     const result = createBorderRollSample({
       sequenceId: store.activeSequenceId,
       gamePatch,
-      rerollIndex: rerollIndex.trim() ? Number(rerollIndex) : Number.NaN,
-      displayedNextRerollCost: asOptionalInteger(displayedCost),
+      rerollIndex: nextRollIndex,
+      displayedNextRerollCost,
       borders,
     })
     if (!result.ok) {
@@ -65,20 +62,18 @@ export function BorderRollResearch({ borders, rerollsUsed }: Props) {
       return
     }
     if (added.status === 'conflict') {
-      setMessage(
-        'That reroll number already has a different sample. Remove it to correct OCR, or start the next Voyage.',
-      )
+      setMessage('Remove the conflicting saved roll before recording its correction.')
       return
     }
     commitStore(added.store)
-    setMessage(`Saved complete roll: 12 modifiers, sample ${added.store.samples.length}.`)
+    setMessage(
+      `Saved ${nextRollIndex === 0 ? 'natural board' : `paid reroll ${nextRollIndex}`}: 12 modifiers.`,
+    )
   }
 
   const nextSequence = () => {
     commitStore(startBorderRollSequence(store))
-    setRerollIndex('0')
-    setDisplayedCost(REROLL_COSTS[0].toString())
-    setMessage('Started a new Voyage sequence. Record its natural board as roll 0.')
+    setMessage('Started a new Voyage sequence. Record its natural board first.')
   }
 
   const exportSamples = () => {
@@ -93,15 +88,12 @@ export function BorderRollResearch({ borders, rerollsUsed }: Props) {
     setMessage(`Exported ${store.samples.length} complete roll samples.`)
   }
 
-  const latest = store.samples[store.samples.length - 1]
-  const recentSamples = store.samples.slice(-3).reverse()
-
   return (
     <details className="ahk-help roll-research">
       <summary>📊 Contribute border-roll data ({store.samples.length} saved)</summary>
       <p className="muted">
-        Record every complete 12-modifier board, including bad rolls. Samples stay in this browser
-        until you explicitly export or submit one; no screenshots or account data are included.
+        Start with the natural board, then save every paid reroll in order, including bad results.
+        The app assigns roll numbers and known next costs automatically.
       </p>
 
       <div className="roll-research-grid">
@@ -114,39 +106,6 @@ export function BorderRollResearch({ borders, rerollsUsed }: Props) {
             onChange={(event) => setGamePatch(event.target.value)}
           />
         </label>
-        <label>
-          Roll number
-          <input
-            aria-describedby="roll-number-hint"
-            inputMode="numeric"
-            min={0}
-            max={20}
-            type="number"
-            value={rerollIndex}
-            onChange={(event) => {
-              const value = event.target.value
-              setRerollIndex(value)
-              const index = Number(value)
-              setDisplayedCost(
-                Number.isInteger(index) ? (REROLL_COSTS[index]?.toString() ?? '') : '',
-              )
-            }}
-          />
-          <span id="roll-number-hint" className="field-hint">
-            0 = natural, 1+ = paid
-          </span>
-        </label>
-        <label>
-          Next cost shown
-          <input
-            inputMode="numeric"
-            min={0}
-            type="number"
-            placeholder="blank at cap"
-            value={displayedCost}
-            onChange={(event) => setDisplayedCost(event.target.value)}
-          />
-        </label>
       </div>
 
       <div className="roll-research-status">
@@ -154,6 +113,12 @@ export function BorderRollResearch({ borders, rerollsUsed }: Props) {
           {missingBorders === 0
             ? '✓ All 12 borders ready'
             : `${missingBorders} borders still missing`}
+        </span>
+        <span>
+          Next: {nextRollIndex === 0 ? 'natural board' : `paid reroll ${nextRollIndex}`}
+          {displayedNextRerollCost === null
+            ? ' · no known next cost'
+            : ` · next cost ${displayedNextRerollCost.toLocaleString('en-US')}`}
         </span>
         <span>Sequence {store.activeSequenceId.slice(-8)}</span>
       </div>
@@ -166,34 +131,50 @@ export function BorderRollResearch({ borders, rerollsUsed }: Props) {
         <button onClick={exportSamples} disabled={store.samples.length === 0}>
           Export dataset
         </button>
-        <button
-          disabled={!latest}
-          onClick={() => {
-            if (latest)
-              window.open(buildBorderRollSubmissionUrl(latest), '_blank', 'noopener,noreferrer')
-          }}
-        >
-          Submit latest
-        </button>
       </div>
 
       {store.samples.length > 0 && (
-        <ol className="roll-sample-list" aria-label="Locally saved border roll samples">
-          {recentSamples.map((sample) => (
-            <li key={sample.sampleId}>
-              <span>
-                {sample.generation === 'natural' ? 'natural' : `reroll ${sample.rerollIndex}`} ·{' '}
-                {sample.gamePatch}
-              </span>
-              <button
-                aria-label={`Remove ${sample.generation} sample captured ${sample.capturedAt}`}
-                onClick={() => {
-                  commitStore(removeBorderRollSample(store, sample.sampleId))
-                  setMessage('Removed the local sample.')
-                }}
-              >
-                Remove
-              </button>
+        <ol className="roll-sample-list" aria-label="Locally saved Voyage sequences">
+          {sequences.map((sequence) => (
+            <li className="roll-sequence" key={sequence[0].sequenceId}>
+              <div className="roll-sequence-header">
+                <span>
+                  Voyage {sequence[0].sequenceId.slice(-8)} · {sequence.length}{' '}
+                  {sequence.length === 1 ? 'roll' : 'rolls'} · {sequence[0].gamePatch}
+                </span>
+                <button
+                  disabled={!isCompleteBorderRollSequence(sequence)}
+                  onClick={() =>
+                    window.open(
+                      buildBorderRollSequenceSubmissionUrl(sequence),
+                      '_blank',
+                      'noopener,noreferrer',
+                    )
+                  }
+                >
+                  Submit Voyage
+                </button>
+              </div>
+              <ol aria-label={`Rolls in Voyage ${sequence[0].sequenceId.slice(-8)}`}>
+                {sequence.map((sample) => (
+                  <li key={sample.sampleId}>
+                    <span>
+                      {sample.generation === 'natural'
+                        ? 'natural board'
+                        : `paid reroll ${sample.rerollIndex}`}
+                    </span>
+                    <button
+                      aria-label={`Remove ${sample.generation} sample captured ${sample.capturedAt}`}
+                      onClick={() => {
+                        commitStore(removeBorderRollSample(store, sample.sampleId))
+                        setMessage('Removed the local sample.')
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ol>
             </li>
           ))}
         </ol>
@@ -205,9 +186,9 @@ export function BorderRollResearch({ borders, rerollsUsed }: Props) {
         </div>
       )}
       <p className="muted small">
-        “Submit latest” opens a pre-filled GitHub issue for review. Keep natural boards and every
-        paid reroll in the same sequence so duplicate and independence rules can be tested. The
-        sample has no account data, but your GitHub username will be visible on the issue.
+        “Submit Voyage” opens one pre-filled GitHub issue containing the complete sequence. A bot
+        validates, labels, and closes accepted submissions. The data has no account fields, but your
+        GitHub username remains visible on the issue.
       </p>
     </details>
   )
