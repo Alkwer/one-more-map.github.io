@@ -29,21 +29,11 @@ CoordMode "ToolTip", "Screen"
 ;      focus is on the page (not the address bar).
 ;   4. Double-click this file to run it (it lives in the tray).
 ;
-;  CALIBRATE THE BOARD BORDERS (once; saved to voyage-import.ini)
-;   - Point at the TOP-LEFT corner of the border-modifier square, press Shift+F7.
-;   - Point at the BOTTOM-RIGHT corner of the border-modifier square, press Shift+F8.
-;   All 12 hover points are kept inside this rectangle.
-;
-;  EXACT BORDER CALIBRATION (optional; use if the quick mode misses)
-;   - Press Ctrl+F5 to start. The script names the next modifier to record.
-;   - Hover that modifier and press Ctrl+F6. Repeat for all 12 modifiers.
-;   - Press Ctrl+F4 to preview every saved point slowly without running OCR.
-;   Exact points override the quick rectangle until Shift+F7/Shift+F8 is used again.
-;
-;  CALIBRATE THE CHART GRID (once; saved to voyage-import.ini)
-;   - Hover the CENTRE of the TOP-LEFT chart, press  F7.
-;   - Hover the CENTRE of the BOTTOM-RIGHT cell of the 6-wide grid
-;     (the far corner cell, even if it's empty), press  F8.
+;  CALIBRATION (the Setup wizard walks you through it)
+;   The wizard opens on first run; later it lives in the tray menu
+;   ("Setup wizard..."). One key does it all: hover whatever the wizard
+;   asks for and press F7 - chart grid corners, then each of the 12
+;   border points, then an optional aim preview.
 ;   - Set GridCols / GridRows below to match your panel.
 ;
 ;  RUN
@@ -52,7 +42,7 @@ CoordMode "ToolTip", "Screen"
 ;   F10 = abort at any time
 ;   All keys are rebindable: right-click (or double-click) the tray icon
 ;   and choose "Keybinds...". Saved to voyage-import.ini.
-;   Calibration keys only work while the Setup wizard is open
+;   The calibration key (F7) only works while the Setup wizard is open
 ;   (tray icon -> "Setup wizard...").
 ;
 ;  If PoE is running as administrator, run this script as admin too,
@@ -128,30 +118,27 @@ KeyDefs := [
     ["RunSweep",      "F9",  "Run import (charts + border OCR)"],
     ["BordersOnly",   "+F9", "Import borders only (OCR, no charts)"],
     ["Abort",         "F10", "Abort"],
-    ["BorderTL",      "+F7", "Set border square top-left (wizard only)"],
-    ["BorderBR",      "+F8", "Set border square bottom-right (wizard only)"],
-    ["ExactStart",    "^F5", "Start exact border calibration (wizard only)"],
-    ["ExactSave",     "^F6", "Save exact border point (wizard only)"],
-    ["BorderPreview", "^F4", "Preview border points (wizard only)"],
-    ["GridTL",        "F7",  "Set chart grid top-left (wizard only)"],
-    ["GridBR",        "F8",  "Set chart grid bottom-right (wizard only)"],
+    ["WizardSet",     "F7",  "Set the current wizard point (wizard only)"],
 ]
 KeyActions := Map(
     "RunSweep", RunSweep,
     "BordersOnly", RunBordersOnly,
     "Abort", AbortAll,
-    "BorderTL", SetBorderTopLeft,
-    "BorderBR", SetBorderBottomRight,
-    "ExactStart", StartExactCalibration,
-    "ExactSave", SaveExactPoint,
-    "BorderPreview", PreviewBorders,
-    "GridTL", SetGridTopLeft,
-    "GridBR", SetGridBottomRight,
+    "WizardSet", WizardSetPressed,
 )
 Keys := Map()
 for def in KeyDefs
     Keys[def[1]] := IniRead(IniFile, "keys", def[1], def[2])
 RegisteredKeys := []
+
+; the calibration key exists only while the Setup wizard is open - day to day
+; the script holds just Run / Borders-only / Abort
+WIZARD_ONLY := Map("WizardSet", 1)
+
+WizardActive() {
+    global WizardGui
+    return IsSet(WizardGui) && IsObject(WizardGui) && WinExist("ahk_id " WizardGui.Hwnd)
+}
 
 /** human-readable form of an AHK hotkey string, e.g. "^F5" -> "Ctrl+F5" */
 KeyLabel(hk) {
@@ -175,12 +162,14 @@ KeyLabel(hk) {
 }
 
 ApplyKeybinds() {
-    global KeyDefs, KeyActions, Keys, RegisteredKeys
+    global KeyDefs, KeyActions, Keys, RegisteredKeys, WIZARD_ONLY
     for hk in RegisteredKeys
         try Hotkey hk, "Off"
     RegisteredKeys := []
     for def in KeyDefs {
         action := def[1]
+        if (WIZARD_ONLY.Has(action) && !WizardActive())
+            continue
         try {
             Hotkey Keys[action], KeyActions[action], "On"
             RegisteredKeys.Push(Keys[action])
@@ -278,23 +267,20 @@ WizardSteps() {
             . "This window stays on top - drag it anywhere out of the way."),
         Map("id", "grid-tl", "wait", "GridTL", "title", "Chart grid - corner 1 of 2",
             "body", "In PoE, hover your mouse over the CENTRE of the TOP-LEFT chart"
-            . " in the chart panel.`n`nThen press " KeyLabel(Keys["GridTL"]) " (keep the mouse still)."),
+            . " in the chart panel.`n`nThen press " KeyLabel(Keys["WizardSet"]) " (keep the mouse still)."),
         Map("id", "grid-br", "wait", "GridBR", "title", "Chart grid - corner 2 of 2",
             "body", "Now hover the CENTRE of the BOTTOM-RIGHT cell of the chart grid"
             . " - the far corner of the 6-wide grid, even if that slot is empty.`n`n"
-            . "Then press " KeyLabel(Keys["GridBR"]) "."),
+            . "Then press " KeyLabel(Keys["WizardSet"]) "."),
         Map("id", "border-exact", "wait", "ExactDone", "title", "Board borders - all 12 points",
             "body", "Now teach it exactly where each of the 12 border modifiers sits.`n`n"
-            . "  1.  Press " KeyLabel(Keys["ExactStart"]) " to begin.`n"
-            . "  2.  Hover the modifier named below and press " KeyLabel(Keys["ExactSave"]) ".`n"
-            . "  3.  Repeat - the script names each of the 12 in turn.`n`n"
-            . "(In a hurry? The quick 2-corner mode also works while this wizard is open: "
-            . KeyLabel(Keys["BorderTL"]) " top-left, then " KeyLabel(Keys["BorderBR"]) " bottom-right.)"),
+            . "Recording starts automatically.`n`n"
+            . "Hover the modifier named below and press " KeyLabel(Keys["WizardSet"]) "."
+            . " The script names each of the 12 in turn."),
         Map("id", "preview", "wait", "BorderPreview", "title", "Optional: preview the aim",
-            "body", "Press " KeyLabel(Keys["BorderPreview"]) " to watch the mouse visit all 12"
+            "body", "Press " KeyLabel(Keys["WizardSet"]) " to watch the mouse visit all 12"
             . " border points slowly - no OCR, no clipboard, just a dry run.`n`n"
-            . "If a point misses its pill, use exact calibration later ("
-            . KeyLabel(Keys["ExactStart"]) " to start, " KeyLabel(Keys["ExactSave"]) " per point)."
+            . "If a point misses its pill, rerun the wizard from the tray and redo the border step."
             . "`n`nOr just click Skip."),
         Map("id", "done", "wait", "", "title", "You're set!",
             "body", "Daily use:`n"
@@ -380,22 +366,52 @@ WizardUpdateStatus() {
 }
 
 WizardMove(delta) {
-    global WizardStepIndex
+    global WizardStepIndex, ExactBorderNext
     steps := WizardSteps()
     if (delta > 0 && WizardStepIndex >= steps.Length) {
         WizardFinish(true)
         return
     }
     WizardStepIndex += delta
+    if (WizardStepIndex < 1)
+        WizardStepIndex := 1
+    if (WizardStepIndex > steps.Length)
+        WizardStepIndex := steps.Length
+    ; entering the border step starts the 12-point recording automatically
+    if (steps[WizardStepIndex]["id"] = "border-exact") {
+        ClearExactBorderCalibration()
+        ExactBorderNext := 1
+    }
     WizardRender()
 }
 
 WizardExactHint() {
     global ExactBorderNext, ExactBorderPoints, Keys
     if (ExactBorderNext < 1)
-        return "-> Press " KeyLabel(Keys["ExactStart"]) " to begin the 12 points"
+        return "-> Hover the first modifier and press " KeyLabel(Keys["WizardSet"]) " to begin"
     return "Saved " ExactBorderPoints.Length "/12 - next: " BorderPointLabel(ExactBorderNext)
-        . "`nHover it and press " KeyLabel(Keys["ExactSave"]) "."
+        . "`nHover it and press " KeyLabel(Keys["WizardSet"]) "."
+}
+
+; one key does every wizard "set": what it sets depends on the current step
+WizardSetPressed(*) {
+    global WizardStepIndex
+    if !WizardActive()
+        return
+    steps := WizardSteps()
+    if (WizardStepIndex < 1 || WizardStepIndex > steps.Length)
+        return
+    id := steps[WizardStepIndex]["id"]
+    if (id = "grid-tl")
+        SetGridTopLeft()
+    else if (id = "grid-br")
+        SetGridBottomRight()
+    else if (id = "border-exact")
+        SaveExactPoint()
+    else if (id = "preview")
+        PreviewBorders()
+    else
+        Flash "Nothing to set on this step - use the buttons.", 2000
 }
 
 WizardOnAction(action) {
@@ -1005,13 +1021,13 @@ StartExactCalibration(*) {
     WizardOnAction("ExactStart")
     Flash "Exact border calibration started."
         . "`nHover 1/12: " BorderPointLabel(ExactBorderNext)
-        . "`nPress " KeyLabel(Keys["ExactSave"]) " to save it.", 5000
+        . "`nPress " KeyLabel(Keys["WizardSet"]) " to save it.", 5000
 }
 
 SaveExactPoint(*) {
     global
     if (ExactBorderNext < 1 || ExactBorderNext > 12) {
-        Flash "Press " KeyLabel(Keys["ExactStart"]) " first to start exact border calibration.", 3500
+        Flash "Border recording isn't active - open the wizard's border step.", 3500
         return
     }
 
@@ -1025,15 +1041,14 @@ SaveExactPoint(*) {
     if (ExactBorderNext > 12) {
         ExactBorderNext := 0
         WizardOnAction("ExactDone")
-        Flash "Exact border calibration complete: 12/12."
-            . "`nPress " KeyLabel(Keys["BorderPreview"]) " to preview or " KeyLabel(Keys["RunSweep"]) " to scan.", 5000
+        Flash "Exact border calibration complete: 12/12.", 4000
         return
     }
 
     WizardOnAction("ExactSave")
     Flash "Saved " savedIndex "/12: " BorderPointLabel(savedIndex)
         . "`nNext " ExactBorderNext "/12: " BorderPointLabel(ExactBorderNext)
-        . "`nHover it and press " KeyLabel(Keys["ExactSave"]) ".", 5000
+        . "`nHover it and press " KeyLabel(Keys["WizardSet"]) ".", 5000
 }
 
 ; ---- preview border positions without OCR (default Ctrl+F4) ----
@@ -1045,7 +1060,7 @@ PreviewBorders(*) {
         return
     }
     if !BoardCalibrated() {
-        MsgBox "Calibrate borders first with " KeyLabel(Keys["BorderTL"]) "/" KeyLabel(Keys["BorderBR"]) " or " KeyLabel(Keys["ExactStart"]) "/" KeyLabel(Keys["ExactSave"]) "."
+        MsgBox "Borders aren't calibrated yet - finish the wizard's border step first."
         return
     }
     if !WinExist(PoeWinTitle) {

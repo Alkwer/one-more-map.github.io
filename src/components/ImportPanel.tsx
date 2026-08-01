@@ -30,8 +30,11 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
     if (borderOcr.blockCount > 0) {
       // A complete importer sweep is a snapshot of all 12 current rolls.
       // Start clean so an OCR miss cannot leave a stale modifier from an
-      // earlier run and masquerade as a wrongly recognized border.
-      const borders = borderOcr.blockCount >= 12 ? [...borderOcr.borders] : [...state.borders]
+      // earlier run and masquerade as a wrongly recognized border - but an
+      // ALL-miss sweep (bad aim, tooltips not visible) must never wipe
+      // borders the user already entered.
+      const fullSweep = borderOcr.blockCount >= 12 && borderOcr.matches.length > 0
+      const borders = fullSweep ? [...borderOcr.borders] : [...state.borders]
       for (const match of borderOcr.matches) borders[match.index] = match.id
       onLoadState({
         ...state,
@@ -60,7 +63,11 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
       )
     const otherRejects = rejected.length - notCharted.length
     if (otherRejects > 0) parts.push(`skipped ${otherRejects} unrecognised`)
-    if (borderOcr.misses.length > 0) {
+    if (borderOcr.blockCount > 0 && borderOcr.matches.length === 0) {
+      parts.push(
+        'no border tooltips recognised - kept your existing borders (recheck the border calibration in the script wizard)',
+      )
+    } else if (borderOcr.misses.length > 0) {
       parts.push(`OCR unmatched at border${borderOcr.misses.length === 1 ? '' : 's'} ${borderOcr.misses
         .map((miss) => miss.index + 1)
         .join(', ')}`)
