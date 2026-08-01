@@ -4,7 +4,7 @@ import type { ChartData, Weights } from '../types'
 
 export const KEEP_BEST_CHARTS = 9
 
-type StrategyReservations = Pick<StrategyDef, 'reserveModIds' | 'reserveNames'>
+type StrategyReservations = Pick<StrategyDef, 'reserveModIds' | 'reserveNames' | 'reserveAreaTypes'>
 
 export function selectStrategySolvePool(
   eligiblePool: ChartData[],
@@ -12,13 +12,15 @@ export function selectStrategySolvePool(
 ): { solvePool: ChartData[]; heldBack: number } {
   const reserveModIds = strategy?.reserveModIds
   const reserveNames = strategy?.reserveNames
+  const reserveAreaTypes = strategy?.reserveAreaTypes
   const solvePool = eligiblePool.filter(
     (chart) =>
       !(reserveModIds?.length && chart.modIds.some((id) => reserveModIds.includes(id))) &&
       !(
         reserveNames?.length &&
         reserveNames.some((name) => chart.name.toLowerCase().includes(name.toLowerCase()))
-      ),
+      ) &&
+      !(reserveAreaTypes?.length && chart.areaType && reserveAreaTypes.includes(chart.areaType)),
   )
 
   return { solvePool, heldBack: eligiblePool.length - solvePool.length }

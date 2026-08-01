@@ -83,6 +83,7 @@ function resolveRuleCells(rule: PositionRule, borders: Borders): number[] {
 function chartMatchesRule(chart: ChartData, rule: PositionRule): boolean {
   if (rule.modIds && chart.modIds.some((id) => rule.modIds!.includes(id))) return true
   if (rule.nameMatch && chart.name.toLowerCase().includes(rule.nameMatch.toLowerCase())) return true
+  if (rule.areaTypes && chart.areaType && rule.areaTypes.includes(chart.areaType)) return true
   return false
 }
 

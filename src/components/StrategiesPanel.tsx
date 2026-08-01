@@ -32,7 +32,7 @@ function Readiness({
       {readiness.requirements
         .map(
           (r) =>
-            `${Math.min(r.have, r.need)}/${r.need} ${r.label}${
+            `${Math.min(r.have, r.need)}/${r.need}× ${r.label}${
               r.have > r.need ? ` (+${r.have - r.need} spare)` : ''
             }`,
         )

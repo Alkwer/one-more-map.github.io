@@ -106,7 +106,8 @@ function countMatchingCharts(
     (chart) =>
       (requirement.modIds && chart.modIds.some((id) => requirement.modIds!.includes(id))) ||
       (requirement.nameMatch &&
-        chart.name.toLowerCase().includes(requirement.nameMatch.toLowerCase())),
+        chart.name.toLowerCase().includes(requirement.nameMatch.toLowerCase())) ||
+      (requirement.areaTypes && chart.areaType && requirement.areaTypes.includes(chart.areaType)),
   ).length
 }
 
@@ -161,13 +162,15 @@ export function strategyReadiness(
 function eligiblePoolFor(strategy: StrategyDef, pool: ChartData[]): ChartData[] {
   const reserveModIds = strategy.reserveModIds
   const reserveNames = strategy.reserveNames
+  const reserveAreaTypes = strategy.reserveAreaTypes
   return pool.filter(
     (chart) =>
       !(reserveModIds?.length && chart.modIds.some((id) => reserveModIds.includes(id))) &&
       !(
         reserveNames?.length &&
         reserveNames.some((name) => chart.name.toLowerCase().includes(name.toLowerCase()))
-      ),
+      ) &&
+      !(reserveAreaTypes?.length && chart.areaType && reserveAreaTypes.includes(chart.areaType)),
   )
 }
 

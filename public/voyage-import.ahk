@@ -204,6 +204,7 @@ param(
     [int]$WindowWidth = 0,
     [int]$WindowHeight = 0,
     [string]$ImagePath = '',
+    [string]$PreferredLanguage = '',
     [switch]$RerollCost,
     [Parameter(Mandatory = $true)][string]$OutputPath)
 
@@ -339,10 +340,41 @@ function Await-Result {
 }
 
 function New-OcrEngine {
-    # Prefer an installed English recognizer because Path of Exile tooltips
-    # are English. Do not require en-US specifically: many Windows installs
-    # only have en-GB, Polish, or another Latin-script OCR language.
+    param([string]$PreferredLanguage = '')
+
     $available = @([Windows.Media.Ocr.OcrEngine]::AvailableRecognizerLanguages)
+
+    # Localized PoE clients need a matching OCR engine. Windows can expose the
+    # Korean pack as either "ko" or a regional tag such as "ko-KR".
+    if (-not [string]::IsNullOrWhiteSpace($PreferredLanguage)) {
+        $preferredTag = $PreferredLanguage.Trim()
+        $preferredPrimary = ($preferredTag -split '-', 2)[0]
+        $preferred = @($available | Where-Object {
+            $tag = $_.LanguageTag
+            $primary = ($tag -split '-', 2)[0]
+            $tag -ieq $preferredTag -or $primary -ieq $preferredPrimary
+        } | Sort-Object {
+            if ($_.LanguageTag -ieq $preferredTag) { 0 }
+            elseif ($_.LanguageTag -ieq $preferredPrimary) { 1 }
+            else { 2 }
+        })
+
+        foreach ($language in $preferred) {
+            $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromLanguage($language)
+            if ($null -ne $engine) {
+                return $engine
+            }
+        }
+
+        throw ("Windows OCR language '$preferredTag' is not installed. " +
+            'Install the matching Windows language OCR feature. For Korean, open an elevated ' +
+            'Command Prompt and run: DISM /Online /Add-Capability ' +
+            '/CapabilityName:Language.OCR~~~ko-KR~0.0.1.0')
+    }
+
+    # English clients keep the original English-first behavior. Do not require
+    # en-US specifically: many Windows installs only have en-GB or another
+    # Latin-script OCR language.
     $english = @($available | Where-Object {
         $_.LanguageTag -eq 'en-US' -or $_.LanguageTag -like 'en-*'
     } | Sort-Object {
@@ -405,7 +437,7 @@ function Read-OcrLines {
         [Parameter(Mandatory = $true)][string]$Path,
         [switch]$Unfiltered)
 
-    $engine = New-OcrEngine
+    $engine = New-OcrEngine -PreferredLanguage $PreferredLanguage
     if ($Unfiltered) {
         $text = Invoke-OcrFile $Path $engine
         if ([string]::IsNullOrWhiteSpace($text)) {
@@ -505,13 +537,30 @@ EnsureOcrHelper() {
     FileAppend OcrPowerShell(), OcrHelper, "UTF-8"
 }
 
-RunOcrHelper(arguments, cancellable := true) {
+PreferredOcrLanguage() {
+    global PoeWinTitle
+    try {
+        processName := WinGetProcessName(PoeWinTitle)
+        if RegExMatch(processName, "i)_KG\.exe$")
+            return "ko-KR"
+    }
+    return ""
+}
+
+RunOcrHelper(arguments, cancellable := true, preferredLanguage := "") {
     global OcrHelper, OcrOutput, OcrPid, OcrTimeout, Running
     try FileDelete OcrOutput
     EnsureOcrHelper()
     quote := Chr(34)
+    if (preferredLanguage = "")
+        preferredLanguage := PreferredOcrLanguage()
+    languageArg := preferredLanguage != ""
+        ? " -PreferredLanguage " quote preferredLanguage quote
+        : ""
     command := "powershell.exe -NoProfile -ExecutionPolicy Bypass -File "
-        . quote OcrHelper quote " " arguments " -OutputPath " quote OcrOutput quote
+        . quote OcrHelper quote " " arguments
+        . languageArg
+        . " -OutputPath " quote OcrOutput quote
     Run command, , "Hide", &OcrPid
     deadline := A_TickCount + OcrTimeout * 1000
     while ProcessExist(OcrPid) {
@@ -620,7 +669,8 @@ if A_Args.Length >= 2
     arguments := "-ImagePath " quote A_Args[2] quote
     if A_Args[1] = "--ocr-reroll-cost-file"
         arguments .= " -RerollCost"
-    result := RunOcrHelper(arguments, false)
+    preferredLanguage := A_Args.Length >= 3 ? A_Args[3] : ""
+    result := RunOcrHelper(arguments, false, preferredLanguage)
     FileAppend result, "*", "UTF-8"
     ExitApp
 }

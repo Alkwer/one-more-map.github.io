@@ -15,19 +15,21 @@ const chart = (uid: string, overrides: Partial<ChartData> = {}): ChartData => ({
 })
 
 describe('solver pool selection', () => {
-  it('holds back charts reserved by modifier or case-insensitive name', () => {
+  it('holds back charts reserved by modifier, name, or canonical destination', () => {
     const eligiblePool = [
       chart('ordinary'),
       chart('modifier', { modIds: ['reserved-mod'] }),
       chart('named', { name: 'Ethereal Paradise Chart' }),
+      chart('area', { areaType: 'sea-pillars' }),
     ]
 
     expect(
       selectStrategySolvePool(eligiblePool, {
         reserveModIds: ['reserved-mod'],
         reserveNames: ['ethereal paradise'],
+        reserveAreaTypes: ['sea-pillars'],
       }),
-    ).toEqual({ solvePool: [eligiblePool[0]], heldBack: 2 })
+    ).toEqual({ solvePool: [eligiblePool[0]], heldBack: 3 })
   })
 
   it('keeps the nine highest-value and every locked chart out of a filler pool', () => {

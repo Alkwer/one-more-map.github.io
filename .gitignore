@@ -6,6 +6,6 @@ test-results/
 
 # personal local tooling (not part of the site)
 *.ahk
-voyage-import.ini
+voyage-import*.ini
 # ...but the downloadable copy served by the site IS tracked
 !public/voyage-import.ahk

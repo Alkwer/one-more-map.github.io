@@ -145,6 +145,24 @@ export interface BorderModDef {
 /** Edge connectors, clockwise from North: [N, E, S, W]. */
 export type Edges = [boolean, boolean, boolean, boolean]
 
+/** Canonical destination/area type printed between a Chart name and Area Level. */
+export type ChartAreaType =
+  | 'anchorfield'
+  | 'brine-kings-domain'
+  | 'clam-infested-shelf'
+  | 'diving-shoals'
+  | 'eldritch-depths'
+  | 'hazardous-depths'
+  | 'infested-bathyspheres'
+  | 'lost-ruins'
+  | 'abyssal-plain'
+  | 'pelagic-abyss'
+  | 'seafloor-ridges'
+  | 'sea-pillars'
+  | 'sunken-totems'
+  | 'undersea-groves'
+  | 'kisharas-rest'
+
 /** Rotation-independent canonical connector shape. */
 export type ChartShape = 'End' | 'Corner' | 'Straight' | 'Junction' | 'Crossing'
 
@@ -154,6 +172,8 @@ export interface ChartData {
   name: string
   level: number
   edges: Edges
+  /** locale-independent destination used by curated strategies */
+  areaType?: ChartAreaType
   /**
    * ids into VOYAGE_MODS: the revealed adjacent/Voyage implicit, plus
    * self-scope explicit mods for manually entered charts without `rewards`.

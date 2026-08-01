@@ -6,7 +6,7 @@
 // 2026-07-28. His approach is deliberately all-or-nothing: run the speedrun
 // board with spare charts until you've collected the pieces for a juiced one.
 
-import type { Edges, Stat, Weights } from '../types'
+import type { ChartAreaType, Edges, Stat, Weights } from '../types'
 
 export interface PositionRule {
   /** board cells this rule targets (row-major, 4 = centre) */
@@ -20,6 +20,8 @@ export interface PositionRule {
   modIds?: string[]
   /** or match by chart name (case-insensitive substring, e.g. Sea-Pillar) */
   nameMatch?: string
+  /** or match a locale-independent Chart destination */
+  areaTypes?: ChartAreaType[]
   /** or a header reward stat, scored as percent/100 × per */
   rewardStat?: { stat: Stat; per: number }
   /** objective bonus per matching placement */
@@ -48,9 +50,17 @@ export interface StrategyDef {
   reserveModIds?: string[]
   /** charts whose NAME contains any of these are held back too (Sea-Pillar) */
   reserveNames?: string[]
+  /** charts with these canonical destinations are held back too */
+  reserveAreaTypes?: ChartAreaType[]
   /** pieces the strategy needs before it can receive a PLAY recommendation;
    *  the UI lists any missing requirements as diagnostic context */
-  requirements?: { modIds?: string[]; nameMatch?: string; count: number; label: string }[]
+  requirements?: {
+    modIds?: string[]
+    nameMatch?: string
+    areaTypes?: ChartAreaType[]
+    count: number
+    label: string
+  }[]
   /** a border roll the strategy hinges on (readiness warns if not entered) */
   requiresBorderId?: { id: string; label: string }
   /** what to do instead while pieces are missing */
@@ -172,6 +182,7 @@ export const STRATEGIES: StrategyDef[] = [
     layoutPenalty: 15, // a preference, not a law - "whatever works"
     reserveModIds: [...JUICE_PIECES, ...SPEEDRUN_CENTER_MODS],
     reserveNames: ['pillar', 'pelagic'],
+    reserveAreaTypes: ['sea-pillars', 'pelagic-abyss'],
   },
   {
     id: 'milky-speedrun',
@@ -206,6 +217,7 @@ export const STRATEGIES: StrategyDef[] = [
     },
     reserveModIds: JUICE_PIECES,
     reserveNames: ['pillar', 'pelagic'],
+    reserveAreaTypes: ['sea-pillars', 'pelagic-abyss'],
     rules: [
       // one centre chart, never a second one wasted elsewhere. Operative's
       // outranks the fallbacks (Milky: "won't yield as much, but consistent")
@@ -269,8 +281,13 @@ export const STRATEGIES: StrategyDef[] = [
       { cells: [0, 1, 2, 3, 4, 6, 7, 8], modIds: ['adj-pantheon'], bonus: -80 },
       { cells: [4], modIds: ['adj-lantern'], bonus: 40 },
       // Sea-Pillars belong in the corners (their rain juices their own tile)
-      { cells: [0, 2, 6, 8], nameMatch: 'pillar', bonus: 40 },
-      { cells: [1, 3, 4, 5, 7], nameMatch: 'pillar', bonus: -40 },
+      { cells: [0, 2, 6, 8], nameMatch: 'pillar', areaTypes: ['sea-pillars'], bonus: 40 },
+      {
+        cells: [1, 3, 4, 5, 7],
+        nameMatch: 'pillar',
+        areaTypes: ['sea-pillars'],
+        bonus: -40,
+      },
     ],
     layout: MEATFISH_LAYOUT,
     // soft: a full-board layout deviation (9 cells × 6) must still cost less
@@ -284,7 +301,12 @@ export const STRATEGIES: StrategyDef[] = [
         count: 1,
         label: 'Pantheon (or 4k Wisp) chart',
       },
-      { nameMatch: 'pillar', count: 2, label: 'Sea-Pillar chart (corners)' },
+      {
+        nameMatch: 'pillar',
+        areaTypes: ['sea-pillars'],
+        count: 2,
+        label: 'Sea-Pillar chart (corners)',
+      },
       { modIds: ['adj-lantern'], count: 2, label: 'Golden Lantern chart' },
       { modIds: ['voy-possess'], count: 1, label: 'Possessed Rares chart' },
       {
@@ -365,7 +387,12 @@ export const STRATEGIES: StrategyDef[] = [
     },
     rules: [
       // the Sea-Pillar chart sits ON whichever tile the Divine border touches
-      { nearBorderId: 'b-divine', nameMatch: 'pillar', bonus: 100 },
+      {
+        nearBorderId: 'b-divine',
+        nameMatch: 'pillar',
+        areaTypes: ['sea-pillars'],
+        bonus: 100,
+      },
       // feeders shoot INTO the Divine tile from beside it. "+5 Strongboxes"
       // (7 rares per box when rolled = 35 divines) outranks lower tiers/starfish
       { nearBorderId: 'b-divine', adjacentToBorder: true, modIds: ['adj-box-3'], bonus: 35 },
@@ -383,7 +410,7 @@ export const STRATEGIES: StrategyDef[] = [
       },
     ],
     requirements: [
-      { nameMatch: 'pillar', count: 1, label: 'Sea-Pillar chart' },
+      { nameMatch: 'pillar', areaTypes: ['sea-pillars'], count: 1, label: 'Sea-Pillar chart' },
       {
         modIds: ['adj-star-1', 'adj-star-2', 'adj-box-1', 'adj-box-2', 'adj-box-3'],
         count: 3,
@@ -428,7 +455,12 @@ export const STRATEGIES: StrategyDef[] = [
     },
     rules: [
       // Pelagic Abyss (high pack size) sits ON the Divine-border tile
-      { nearBorderId: 'b-divine', nameMatch: 'pelagic', bonus: 80 },
+      {
+        nearBorderId: 'b-divine',
+        nameMatch: 'pelagic',
+        areaTypes: ['pelagic-abyss'],
+        bonus: 80,
+      },
       { nearBorderId: 'b-divine', rewardStat: { stat: 'packsize', per: 8 }, bonus: 0 },
       // any strongbox adjacent charts feed the Divine tile from beside it
       {
@@ -449,7 +481,12 @@ export const STRATEGIES: StrategyDef[] = [
       },
     ],
     requirements: [
-      { nameMatch: 'pelagic', count: 1, label: 'Pelagic Abyss chart (high pack size)' },
+      {
+        nameMatch: 'pelagic',
+        areaTypes: ['pelagic-abyss'],
+        count: 1,
+        label: 'Pelagic Abyss chart (high pack size)',
+      },
       {
         modIds: [
           'adj-box-1',

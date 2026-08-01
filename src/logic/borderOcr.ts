@@ -1,4 +1,5 @@
 import { BORDER_MODS } from '../data/mods'
+import { KOREAN_BORDER_MOD_EVIDENCE } from '../data/borderMods.ko'
 import type { Borders } from '../types'
 import { emptyBorders } from '../types'
 import { REROLL_COSTS } from './rerollAdvice'
@@ -10,16 +11,34 @@ const REROLL_COST_BLOCK =
 
 export const normalizeBorderOcrText = (text: string): string =>
   text
-    .normalize('NFKD')
+    .normalize('NFKC')
     .toLowerCase()
     .replace(/[’`]/g, "'")
-    .replace(/[^a-z0-9]+/g, ' ')
+    // Korean client text joins counters to their number (for example `8개`).
+    // Split letter/number boundaries so numeric border tiers stay distinct.
+    .replace(/(\p{L})(\p{N})/gu, '$1 $2')
+    .replace(/(\p{N})(\p{L})/gu, '$1 $2')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim()
 
+interface BorderMatchVariant {
+  id: string
+  canonicalText: string
+  matchText: string
+}
+
+const borderMatchVariants: BorderMatchVariant[] = BORDER_MODS.flatMap((mod) => {
+  const korean = KOREAN_BORDER_MOD_EVIDENCE[mod.id as keyof typeof KOREAN_BORDER_MOD_EVIDENCE]
+  return [
+    { id: mod.id, canonicalText: mod.text, matchText: mod.text },
+    ...(korean ? [{ id: mod.id, canonicalText: mod.text, matchText: korean.text }] : []),
+  ]
+})
+
 const borderTokenFrequency = new Map<string, number>()
-for (const mod of BORDER_MODS) {
-  const uniqueTokens = new Set(normalizeBorderOcrText(mod.text).split(' ').filter(Boolean))
+for (const variant of borderMatchVariants) {
+  const uniqueTokens = new Set(normalizeBorderOcrText(variant.matchText).split(' ').filter(Boolean))
   for (const token of uniqueTokens) {
     borderTokenFrequency.set(token, (borderTokenFrequency.get(token) ?? 0) + 1)
   }
@@ -42,9 +61,23 @@ function editDistance(a: string, b: string): number {
 function tokenMatches(expected: string, actual: string): boolean {
   if (expected === actual) return true
   if (/^\d+$/.test(expected) || /^\d+$/.test(actual)) return false
+  const korean = /[\u3131-\u318e\uac00-\ud7a3]/u
+  if (korean.test(expected) || korean.test(actual)) {
+    if (expected.length < 2 || actual.length < 2) return false
+    const allowance = expected.length >= 6 ? 2 : 1
+    return editDistance(expected, actual) <= allowance
+  }
   if (expected.length < 5 || actual.length < 5) return false
   const allowance = expected.length >= 9 ? 2 : 1
   return editDistance(expected, actual) <= allowance
+}
+
+function signatureToken(token: string): boolean {
+  if (/^\d+$/.test(token)) return false
+  const isKorean = /[\u3131-\u318e\uac00-\ud7a3]/u.test(token)
+  // One-syllable Korean nouns such as `게` (Crab) are distinctive enough to
+  // use as exact signatures; fuzzy matching remains disabled for them.
+  return token.length >= (isKorean ? 1 : 4)
 }
 
 function candidateLines(raw: string): string[] {
@@ -105,25 +138,36 @@ function matchBorder(raw: string): Match | null {
   const candidates = candidateLines(raw)
   if (candidates.length === 0) return null
 
-  const scored = BORDER_MODS.flatMap((mod) => {
-    const expected = normalizeBorderOcrText(mod.text)
+  const scored = borderMatchVariants.flatMap((variant) => {
+    const expected = normalizeBorderOcrText(variant.matchText)
     const expectedTokens = expected.split(' ')
     const expectedNumbers = expectedTokens.filter((token) => /^\d+$/.test(token))
 
     return candidates.map((candidate) => {
       const exact = candidate === expected
-      if (exact) return { id: mod.id, text: mod.text, confidence: 1, exact }
+      if (exact) {
+        return {
+          id: variant.id,
+          text: variant.canonicalText,
+          confidence: 1,
+          exact,
+        }
+      }
 
       const actualTokens = candidate.split(' ')
       const signatureTokens = expectedTokens.filter(
-        (token) =>
-          !/^\d+$/.test(token) && token.length >= 4 && (borderTokenFrequency.get(token) ?? 0) <= 3,
+        (token) => signatureToken(token) && (borderTokenFrequency.get(token) ?? 0) <= 3,
       )
       const hasSignatureMatch =
         signatureTokens.length === 0 ||
         signatureTokens.some((token) => actualTokens.some((actual) => tokenMatches(token, actual)))
       if (!hasSignatureMatch) {
-        return { id: mod.id, text: mod.text, confidence: 0, exact }
+        return {
+          id: variant.id,
+          text: variant.canonicalText,
+          confidence: 0,
+          exact,
+        }
       }
 
       const matchedExpected = expectedTokens.filter((token) =>
@@ -145,7 +189,12 @@ function matchBorder(raw: string): Match | null {
       ) {
         confidence *= 0.6
       }
-      return { id: mod.id, text: mod.text, confidence, exact }
+      return {
+        id: variant.id,
+        text: variant.canonicalText,
+        confidence,
+        exact,
+      }
     })
   })
 
