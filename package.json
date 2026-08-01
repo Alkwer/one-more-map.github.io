@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "test": "vitest run",
+    "test": "vitest run && npm run test:border-ocr",
+    "test:border-ocr": "node tests/border-ocr-regression.cjs",
     "preview": "vite preview"
   },
   "dependencies": {

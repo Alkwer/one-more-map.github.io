@@ -3,14 +3,18 @@
 SetWorkingDir A_ScriptDir
 SetTitleMatchMode 2          ; match window titles by "contains"
 CoordMode "Mouse", "Screen"  ; all coords are absolute screen pixels
+CoordMode "ToolTip", "Screen"
 
 ; =====================================================================
-;  Allflame Voyage - bulk chart importer  (AutoHotkey v2)
+;  Allflame Voyage - bulk chart + board-border importer  (AutoHotkey v2)
 ;
-;  Two-phase, fast:
+;  Three phases:
 ;    Phase 1 - stays in PoE, hovers every cell and Ctrl+C's it, appending
 ;              each chart's text into one buffer (no window switching).
-;    Phase 2 - switches to the browser ONCE and pastes the whole buffer;
+;    Phase 2 - hovers the 12 board-border modifiers. A temporary PowerShell
+;              helper captures the PoE window and reads each tooltip with the
+;              Windows OCR engine. Screenshots never leave the PC.
+;    Phase 3 - switches to the browser ONCE and pastes the whole buffer;
 ;              the solver parses and imports every chart from that one paste.
 ;    Empty cells copy nothing and are skipped.
 ;
@@ -25,7 +29,18 @@ CoordMode "Mouse", "Screen"  ; all coords are absolute screen pixels
 ;      focus is on the page (not the address bar).
 ;   4. Double-click this file to run it (it lives in the tray).
 ;
-;  CALIBRATE THE GRID (once; it's saved to voyage-import.ini)
+;  CALIBRATE THE BOARD BORDERS (once; saved to voyage-import.ini)
+;   - Point at the TOP-LEFT corner of the border-modifier square, press F5.
+;   - Point at the BOTTOM-RIGHT corner of the border-modifier square, press F6.
+;   All 12 hover points are kept inside this rectangle.
+;
+;  EXACT BORDER CALIBRATION (optional; use if the quick mode misses)
+;   - Press Ctrl+F5 to start. The script names the next modifier to record.
+;   - Hover that modifier and press Ctrl+F6. Repeat for all 12 modifiers.
+;   - Press Ctrl+F4 to preview every saved point slowly without running OCR.
+;   Exact points override the F5/F6 rectangle until F5 or F6 is used again.
+;
+;  CALIBRATE THE CHART GRID (once; saved to voyage-import.ini)
 ;   - Hover the CENTRE of the TOP-LEFT chart, press  F7.
 ;   - Hover the CENTRE of the BOTTOM-RIGHT cell of the 6-wide grid
 ;     (the far corner cell, even if it's empty), press  F8.
@@ -49,8 +64,12 @@ GridRows := 10   ; rows to sweep (overshooting is fine - empty cells skip)
 
 ActivateDelay := 60    ; ms after focusing a window (paid only ~twice total now)
 HoverDelay    := 28    ; ms for PoE to register the cursor before Ctrl+C
+BorderHoverDelay := 250 ; ms for a border tooltip to appear before OCR capture
+BorderOcrAttempts := 2  ; retry once when both filtered and unfiltered OCR are empty
+BorderPreviewDelay := 900 ; ms per point during the Ctrl+F4 visual preview
 PasteDelay    := 90    ; ms after the single big paste
 ClipTimeout   := 0.2   ; seconds to wait for Ctrl+C (only empty cells wait the full time)
+OcrTimeout    := 90    ; seconds before a stuck Windows OCR scan is stopped
 ; If it ever MISSES a chart, raise HoverDelay ~10ms at a time (the cursor
 ; isn't settling before Ctrl+C). If the final paste drops some, raise PasteDelay.
 ; ----------------------------------------
@@ -60,7 +79,35 @@ TLx := IniRead(IniFile, "grid", "TLx", "0") + 0
 TLy := IniRead(IniFile, "grid", "TLy", "0") + 0
 BRx := IniRead(IniFile, "grid", "BRx", "0") + 0
 BRy := IniRead(IniFile, "grid", "BRy", "0") + 0
+BorderTLx := IniRead(IniFile, "board", "TopLeftX", "0") + 0
+BorderTLy := IniRead(IniFile, "board", "TopY", "0") + 0
+BorderBRx := IniRead(IniFile, "board", "BottomRightX", "0") + 0
+BorderBRy := IniRead(IniFile, "board", "BottomY", "0") + 0
+ExactBorderPoints := []
+Loop 12 {
+    exactX := IniRead(IniFile, "board-exact", "Point" A_Index "X", "0") + 0
+    exactY := IniRead(IniFile, "board-exact", "Point" A_Index "Y", "0") + 0
+    if (exactX = 0 && exactY = 0) {
+        ExactBorderPoints := []
+        break
+    }
+    ExactBorderPoints.Push([exactX, exactY])
+}
+ExactBorderNext := 0
+ScriptPid := ProcessExist()
+OcrHelper := A_Temp "\voyage-border-ocr-" ScriptPid ".ps1"
+OcrOutput := A_Temp "\voyage-border-ocr-" ScriptPid ".txt"
+OcrPid := 0
 Running := false
+
+CleanupOcr(*) {
+    global OcrHelper, OcrOutput, OcrPid
+    if OcrPid && ProcessExist(OcrPid)
+        try ProcessClose OcrPid
+    try FileDelete OcrHelper
+    try FileDelete OcrOutput
+}
+OnExit CleanupOcr
 
 Flash(text, ms := 1400) {
     ToolTip text
@@ -74,7 +121,503 @@ CellPos(row, col) {
     return [Round(TLx + col * dx), Round(TLy + row * dy)]
 }
 
-Calibrated() => (BRx != 0 || BRy != 0)
+Calibrated() => (TLx != 0 && TLy != 0 && BRx != 0 && BRy != 0)
+
+ExactBordersCalibrated() {
+    global ExactBorderPoints
+    return ExactBorderPoints.Length = 12
+}
+
+BoardCalibrated() {
+    global BorderTLx, BorderTLy, BorderBRx, BorderBRy
+    return ExactBordersCalibrated()
+        || (BorderTLx != 0 && BorderTLy != 0 && BorderBRx > BorderTLx && BorderBRy > BorderTLy)
+}
+
+BorderPointLabel(index) {
+    labels := [
+        "TOP - left", "TOP - middle", "TOP - right",
+        "RIGHT - top", "RIGHT - middle", "RIGHT - bottom",
+        "BOTTOM - left", "BOTTOM - middle", "BOTTOM - right",
+        "LEFT - top", "LEFT - middle", "LEFT - bottom"
+    ]
+    return (index >= 1 && index <= labels.Length) ? labels[index] : "unknown"
+}
+
+ClearExactBorderCalibration() {
+    global ExactBorderPoints, ExactBorderNext, IniFile
+    ExactBorderPoints := []
+    ExactBorderNext := 0
+    try IniDelete IniFile, "board-exact"
+}
+
+BorderPoints() {
+    global BorderTLx, BorderTLy, BorderBRx, BorderBRy, ExactBorderPoints
+    if ExactBordersCalibrated()
+        return ExactBorderPoints
+
+    ; F5/F6 define the outer rectangle. Each modifier sits at the centre
+    ; of one of the three equal edge segments, never outside that rectangle.
+    cellW := (BorderBRx - BorderTLx) / 3
+    cellH := (BorderBRy - BorderTLy) / 3
+    points := []
+
+    ; indices 0-2: top, left to right
+    Loop 3
+        points.Push([Round(BorderTLx + (A_Index - 0.5) * cellW), BorderTLy])
+    ; indices 3-5: right, top to bottom
+    Loop 3
+        points.Push([BorderBRx, Round(BorderTLy + (A_Index - 0.5) * cellH)])
+    ; indices 6-8: bottom, left to right
+    Loop 3
+        points.Push([Round(BorderTLx + (A_Index - 0.5) * cellW), BorderBRy])
+    ; indices 9-11: left, top to bottom
+    Loop 3
+        points.Push([BorderTLx, Round(BorderTLy + (A_Index - 0.5) * cellH)])
+
+    return points
+}
+
+OcrPowerShell() {
+    return "
+(
+param(
+    [int]$Index = -1,
+    [int]$WindowLeft = 0,
+    [int]$WindowTop = 0,
+    [int]$WindowWidth = 0,
+    [int]$WindowHeight = 0,
+    [string]$ImagePath = '',
+    [Parameter(Mandatory = $true)][string]$OutputPath)
+
+$ErrorActionPreference = 'Stop'
+trap {
+    $utf8 = [System.Text.UTF8Encoding]::new($false)
+    [System.IO.File]::WriteAllText(
+        $OutputPath,
+        ('OCR HELPER ERROR: ' + $_.Exception.ToString()),
+        $utf8)
+    exit 1
+}
+Add-Type -AssemblyName System.Drawing
+Add-Type -AssemblyName System.Runtime.WindowsRuntime
+
+Add-Type -ReferencedAssemblies 'System.Drawing' -TypeDefinition @'
+using System;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
+
+public static class VoyageOcrImage
+{
+    public static void Prepare(string sourcePath, string outputPath)
+    {
+        using (var original = new Bitmap(sourcePath))
+        using (var source = new Bitmap(original.Width, original.Height, PixelFormat.Format32bppArgb))
+        {
+            using (var graphics = Graphics.FromImage(source))
+            {
+                graphics.DrawImageUnscaled(original, 0, 0);
+            }
+
+            var rect = new Rectangle(0, 0, source.Width, source.Height);
+            var sourceData = source.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            var sourceStride = Math.Abs(sourceData.Stride);
+            var sourceBytes = new byte[sourceStride * source.Height];
+            Marshal.Copy(sourceData.Scan0, sourceBytes, 0, sourceBytes.Length);
+            source.UnlockBits(sourceData);
+
+            using (var mask = new Bitmap(source.Width, source.Height, PixelFormat.Format24bppRgb))
+            {
+                var maskData = mask.LockBits(rect, ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
+                var maskStride = Math.Abs(maskData.Stride);
+                var maskBytes = new byte[maskStride * mask.Height];
+                for (var i = 0; i < maskBytes.Length; i++)
+                {
+                    maskBytes[i] = 255;
+                }
+
+                for (var y = 0; y < source.Height; y++)
+                {
+                    for (var x = 0; x < source.Width; x++)
+                    {
+                        var sourceOffset = y * sourceStride + x * 4;
+                        var blue = sourceBytes[sourceOffset];
+                        var green = sourceBytes[sourceOffset + 1];
+                        var red = sourceBytes[sourceOffset + 2];
+
+                        // PoE board modifiers use lavender text. Keep its
+                        // anti-aliased pixels and discard inventory levels,
+                        // icons, scenery and other white UI text.
+                        var isModifierText =
+                            blue >= 130 &&
+                            blue - red >= 30 &&
+                            blue - green >= 30 &&
+                            Math.Abs(red - green) <= 18;
+                        if (!isModifierText)
+                        {
+                            continue;
+                        }
+
+                        var maskOffset = y * maskStride + x * 3;
+                        maskBytes[maskOffset] = 0;
+                        maskBytes[maskOffset + 1] = 0;
+                        maskBytes[maskOffset + 2] = 0;
+                    }
+                }
+
+                Marshal.Copy(maskBytes, 0, maskData.Scan0, maskBytes.Length);
+                mask.UnlockBits(maskData);
+
+                var scale = Math.Min(2.0, 6000.0 / Math.Max(mask.Width, mask.Height));
+                var scaledWidth = (int)Math.Round(mask.Width * scale);
+                var scaledHeight = (int)Math.Round(mask.Height * scale);
+                const int padding = 64;
+                using (var prepared = new Bitmap(
+                    scaledWidth + 2 * padding,
+                    scaledHeight + 2 * padding,
+                    PixelFormat.Format24bppRgb))
+                {
+                    using (var graphics = Graphics.FromImage(prepared))
+                    {
+                        graphics.Clear(Color.White);
+                        graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
+                        graphics.PixelOffsetMode = PixelOffsetMode.Half;
+                        graphics.DrawImage(
+                            mask,
+                            new Rectangle(padding, padding, scaledWidth, scaledHeight));
+                    }
+                    prepared.Save(outputPath, ImageFormat.Png);
+                }
+            }
+        }
+    }
+}
+'@
+
+[void][Windows.Storage.StorageFile, Windows.Storage, ContentType = WindowsRuntime]
+[void][Windows.Storage.FileAccessMode, Windows.Storage, ContentType = WindowsRuntime]
+[void][Windows.Storage.Streams.IRandomAccessStream, Windows.Storage.Streams, ContentType = WindowsRuntime]
+[void][Windows.Graphics.Imaging.BitmapDecoder, Windows.Graphics.Imaging, ContentType = WindowsRuntime]
+[void][Windows.Graphics.Imaging.SoftwareBitmap, Windows.Graphics.Imaging, ContentType = WindowsRuntime]
+[void][Windows.Globalization.Language, Windows.Globalization, ContentType = WindowsRuntime]
+[void][Windows.Media.Ocr.OcrEngine, Windows.Foundation, ContentType = WindowsRuntime]
+[void][Windows.Media.Ocr.OcrResult, Windows.Foundation, ContentType = WindowsRuntime]
+
+function Await-Result {
+    param(
+        [Parameter(Mandatory = $true)]$AsyncOperation,
+        [Parameter(Mandatory = $true)][Type]$ResultType)
+    $method = [System.WindowsRuntimeSystemExtensions].GetMethods() |
+        Where-Object {
+            $_.Name -eq 'AsTask' -and
+            $_.IsGenericMethod -and
+            $_.GetParameters().Count -eq 1
+        } |
+        Select-Object -First 1
+    $task = $method.MakeGenericMethod($ResultType).Invoke($null, @($AsyncOperation))
+    $task.Wait()
+    return $task.Result
+}
+
+function New-OcrEngine {
+    # Prefer an installed English recognizer because Path of Exile tooltips
+    # are English. Do not require en-US specifically: many Windows installs
+    # only have en-GB, Polish, or another Latin-script OCR language.
+    $available = @([Windows.Media.Ocr.OcrEngine]::AvailableRecognizerLanguages)
+    $english = @($available | Where-Object {
+        $_.LanguageTag -eq 'en-US' -or $_.LanguageTag -like 'en-*'
+    } | Sort-Object {
+        if ($_.LanguageTag -eq 'en-US') { 0 } else { 1 }
+    })
+
+    foreach ($language in $english) {
+        $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromLanguage($language)
+        if ($null -ne $engine) {
+            return $engine
+        }
+    }
+
+    # Fall back to the Windows profile language (for example pl-PL). The
+    # border matcher tolerates small OCR errors, and Latin-script recognizers
+    # can still read the English tooltip text well enough for matching.
+    $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
+    if ($null -ne $engine) {
+        return $engine
+    }
+
+    # A profile language may not be in the installed OCR list. Use any
+    # recognizer as a final fallback rather than rejecting a usable setup.
+    foreach ($language in $available) {
+        $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromLanguage($language)
+        if ($null -ne $engine) {
+            return $engine
+        }
+    }
+
+    throw ('Windows OCR has no installed language. Open an elevated Command Prompt and run: ' +
+        'DISM /Online /Add-Capability /CapabilityName:Language.OCR~~~en-US~0.0.1.0')
+}
+
+function Invoke-OcrFile {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)]$Engine)
+
+    $file = Await-Result ([Windows.Storage.StorageFile]::GetFileFromPathAsync($Path)) ([Windows.Storage.StorageFile])
+    $stream = Await-Result ($file.OpenAsync([Windows.Storage.FileAccessMode]::Read)) ([Windows.Storage.Streams.IRandomAccessStream])
+    try {
+        $decoder = Await-Result ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($stream)) ([Windows.Graphics.Imaging.BitmapDecoder])
+        $bitmap = Await-Result ($decoder.GetSoftwareBitmapAsync()) ([Windows.Graphics.Imaging.SoftwareBitmap])
+        try {
+            $result = Await-Result ($Engine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
+            $lines = @($result.Lines | ForEach-Object { $_.Text })
+            if ($lines.Count -gt 0) { return $lines -join [Environment]::NewLine }
+            return $result.Text
+        } finally {
+            if ($null -ne $bitmap) { $bitmap.Dispose() }
+        }
+    } finally {
+        $stream.Dispose()
+    }
+}
+
+function Read-OcrLines {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    $preparedPath = Join-Path $env:TEMP "voyage-ocr-filtered-$PID-$([Guid]::NewGuid().ToString('N')).png"
+    [VoyageOcrImage]::Prepare($Path, $preparedPath)
+
+    try {
+        $engine = New-OcrEngine
+        $text = Invoke-OcrFile $preparedPath $engine
+
+        # The lavender-only mask can occasionally be empty even though the
+        # tooltip is visible. Retry the original screenshot before declaring
+        # the border unreadable.
+        if ([string]::IsNullOrWhiteSpace($text)) {
+            $text = Invoke-OcrFile $Path $engine
+        }
+        if ([string]::IsNullOrWhiteSpace($text)) {
+            throw 'Windows OCR returned no text after filtered and unfiltered scans.'
+        }
+        return $text
+    } finally {
+        Remove-Item -LiteralPath $preparedPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Add-Block {
+    param(
+        [Parameter(Mandatory = $true)][System.Text.StringBuilder]$Builder,
+        [Parameter(Mandatory = $true)][int]$Index,
+        [Parameter(Mandatory = $true)][string]$Text)
+    [void]$Builder.AppendLine("=== VOYAGE BORDER $Index ===")
+    [void]$Builder.AppendLine($Text)
+    [void]$Builder.AppendLine('=== END VOYAGE BORDER ===')
+}
+
+$builder = [System.Text.StringBuilder]::new()
+if ($ImagePath) {
+    Add-Block $builder 0 (Read-OcrLines $ImagePath)
+} else {
+    if ($Index -lt 0 -or $WindowWidth -le 0 -or $WindowHeight -le 0) {
+        throw 'Invalid Path of Exile window size.'
+    }
+    $png = Join-Path $env:TEMP "voyage-border-$PID-$Index.png"
+    try {
+        $image = [System.Drawing.Bitmap]::new($WindowWidth, $WindowHeight)
+        $graphics = [System.Drawing.Graphics]::FromImage($image)
+        try {
+            $graphics.CopyFromScreen($WindowLeft, $WindowTop, 0, 0, $image.Size)
+            $image.Save($png, [System.Drawing.Imaging.ImageFormat]::Png)
+        } finally {
+            $graphics.Dispose()
+            $image.Dispose()
+        }
+        Add-Block $builder $Index (Read-OcrLines $png)
+    } catch {
+        Add-Block $builder $Index ("OCR ERROR: " + $_.Exception.Message)
+    } finally {
+        Remove-Item -LiteralPath $png -Force -ErrorAction SilentlyContinue
+    }
+}
+
+$utf8 = [System.Text.UTF8Encoding]::new($false)
+[System.IO.File]::WriteAllText($OutputPath, $builder.ToString(), $utf8)
+)"
+}
+
+EnsureOcrHelper() {
+    global OcrHelper
+    try FileDelete OcrHelper
+    FileAppend OcrPowerShell(), OcrHelper, "UTF-8"
+}
+
+RunOcrHelper(arguments, cancellable := true) {
+    global OcrHelper, OcrOutput, OcrPid, OcrTimeout, Running
+    try FileDelete OcrOutput
+    EnsureOcrHelper()
+    quote := Chr(34)
+    command := "powershell.exe -NoProfile -ExecutionPolicy Bypass -File "
+        . quote OcrHelper quote " " arguments " -OutputPath " quote OcrOutput quote
+    Run command, , "Hide", &OcrPid
+    deadline := A_TickCount + OcrTimeout * 1000
+    while ProcessExist(OcrPid) {
+        if (cancellable && !Running) {
+            ProcessClose OcrPid
+            OcrPid := 0
+            return ""
+        }
+        if (A_TickCount > deadline) {
+            ProcessClose OcrPid
+            OcrPid := 0
+            MsgBox "Windows OCR timed out. Try again, or raise OcrTimeout in the script."
+            return ""
+        }
+        Sleep 100
+    }
+    OcrPid := 0
+    if !FileExist(OcrOutput)
+        return ""
+    return FileRead(OcrOutput, "UTF-8")
+}
+
+ScanBorders() {
+    global PoeWinTitle, BorderHoverDelay, BorderOcrAttempts, Running
+    WinGetPos &winX, &winY, &winW, &winH, PoeWinTitle
+    result := ""
+    for index, point in BorderPoints() {
+        if !Running
+            break
+        arguments := "-Index " (index - 1)
+            . " -WindowLeft " winX " -WindowTop " winY
+            . " -WindowWidth " winW " -WindowHeight " winH
+        block := ""
+        Loop BorderOcrAttempts {
+            if !Running
+                break
+            attempt := A_Index
+            ToolTip "Moving to board border " index "/12..."
+                . (attempt > 1 ? "`nRetrying empty OCR scan..." : "")
+            MouseMove point[1], point[2], 0
+            Sleep BorderHoverDelay + (attempt - 1) * 200
+            ToolTip()
+            Sleep 30
+            block := RunOcrHelper(arguments)
+            if !InStr(block, "Windows OCR returned no text")
+                break
+        }
+        if (block != "")
+            result .= (result = "" ? "" : "`n") block
+    }
+    return result
+}
+
+; Developer smoke-test: run the embedded Windows OCR helper against an image.
+if A_Args.Length >= 2 && A_Args[1] = "--ocr-file" {
+    quote := Chr(34)
+    result := RunOcrHelper("-ImagePath " quote A_Args[2] quote, false)
+    FileAppend result, "*", "UTF-8"
+    ExitApp
+}
+
+; ---- F5 / F6: capture the outer board-border rectangle ----
+F5:: {
+    global
+    ClearExactBorderCalibration()
+    MouseGetPos &x, &y
+    BorderTLx := x, BorderTLy := y
+    IniWrite BorderTLx, IniFile, "board", "TopLeftX"
+    IniWrite BorderTLy, IniFile, "board", "TopY"
+    Flash "Top-left board border set: " BorderTLx ", " BorderTLy
+}
+F6:: {
+    global
+    ClearExactBorderCalibration()
+    MouseGetPos &x, &y
+    BorderBRx := x, BorderBRy := y
+    IniWrite BorderBRx, IniFile, "board", "BottomRightX"
+    IniWrite BorderBRy, IniFile, "board", "BottomY"
+    Flash "Bottom-right board border set: " BorderBRx ", " BorderBRy
+}
+
+; ---- Ctrl+F5 / Ctrl+F6: guided exact calibration of all 12 modifiers ----
+^F5:: {
+    global
+    ClearExactBorderCalibration()
+    ExactBorderNext := 1
+    Flash "Exact border calibration started."
+        . "`nHover 1/12: " BorderPointLabel(ExactBorderNext)
+        . "`nPress Ctrl+F6 to save it.", 5000
+}
+
+^F6:: {
+    global
+    if (ExactBorderNext < 1 || ExactBorderNext > 12) {
+        Flash "Press Ctrl+F5 first to start exact border calibration.", 3500
+        return
+    }
+
+    MouseGetPos &x, &y
+    savedIndex := ExactBorderNext
+    ExactBorderPoints.Push([x, y])
+    IniWrite x, IniFile, "board-exact", "Point" savedIndex "X"
+    IniWrite y, IniFile, "board-exact", "Point" savedIndex "Y"
+    ExactBorderNext++
+
+    if (ExactBorderNext > 12) {
+        ExactBorderNext := 0
+        Flash "Exact border calibration complete: 12/12."
+            . "`nPress Ctrl+F4 to preview or F9 to scan.", 5000
+        return
+    }
+
+    Flash "Saved " savedIndex "/12: " BorderPointLabel(savedIndex)
+        . "`nNext " ExactBorderNext "/12: " BorderPointLabel(ExactBorderNext)
+        . "`nHover it and press Ctrl+F6.", 5000
+}
+
+; ---- Ctrl+F4: preview border positions without OCR or clipboard changes ----
+^F4:: {
+    global
+    if Running {
+        Flash "A scan or preview is already running.", 2500
+        return
+    }
+    if !BoardCalibrated() {
+        MsgBox "Calibrate borders first with F5/F6 or Ctrl+F5/Ctrl+F6."
+        return
+    }
+    if !WinExist(PoeWinTitle) {
+        MsgBox "Can't find the PoE window (" PoeWinTitle ")."
+        return
+    }
+
+    Running := true
+    WinActivate PoeWinTitle
+    if !WinWaitActive(PoeWinTitle, , 2) {
+        Running := false
+        Flash "Couldn't focus PoE.", 3000
+        return
+    }
+
+    for index, point in BorderPoints() {
+        if !Running
+            break
+        MouseMove point[1], point[2], 0
+        ToolTip "Border preview " index "/12"
+            . "`n" BorderPointLabel(index)
+            . "`n(F10 to abort)", 20, 20
+        Sleep BorderPreviewDelay
+    }
+
+    completed := Running
+    Running := false
+    ToolTip()
+    if completed
+        Flash "Border preview complete. No OCR was run.", 3500
+}
 
 ; ---- F7 / F8: capture the grid corners ----
 F7:: {
@@ -96,8 +639,13 @@ F8:: {
 
 ; ---- F10: abort ----
 F10:: {
-    global Running
+    global Running, OcrPid, ExactBorderNext
     Running := false
+    ExactBorderNext := 0
+    if OcrPid && ProcessExist(OcrPid) {
+        ProcessClose OcrPid
+        OcrPid := 0
+    }
     Flash "Aborting..."
 }
 
@@ -118,7 +666,7 @@ F9:: {
     }
 
     Running := true
-    copied := 0, skipped := 0, blob := "", seen := Map()
+    copied := 0, skipped := 0, blob := "", borderBlob := "", seen := Map()
 
     ; ---- Phase 1: copy every chart while staying in PoE ----
     WinActivate PoeWinTitle
@@ -160,9 +708,21 @@ F9:: {
         }
     }
 
-    ; ---- Phase 2: one switch, one paste of the whole batch ----
-    if (copied > 0 && Running) {
-        A_Clipboard := blob
+    ; ---- Phase 2: OCR the 12 board-border modifier tooltips ----
+    if Running && BoardCalibrated() {
+        ToolTip "Reading 12 board borders with Windows OCR..."
+            . "`nThis can take 15-30 seconds on a 4K screen."
+            . "`n(F10 to abort)"
+        borderBlob := ScanBorders()
+    }
+
+    ; ---- Phase 3: one switch, one paste of the whole batch ----
+    if Running && (copied > 0 || borderBlob != "") {
+        payload := blob
+        if (payload != "" && borderBlob != "")
+            payload .= "`n"
+        payload .= borderBlob
+        A_Clipboard := payload
         ClipWait(1)
         WinActivate BrowserWinTitle
         if WinWaitActive(BrowserWinTitle, , 2) {
@@ -177,5 +737,9 @@ F9:: {
     }
 
     Running := false
-    Flash "Done. Sent " copied " charts in one paste; skipped " skipped " empty/dup cells.", 5000
+    borderNote := BoardCalibrated()
+        ? (borderBlob != "" ? " + 12 border OCR scans" : " (border OCR failed)")
+        : " (borders skipped: calibrate F5/F6)"
+    Flash "Done. Sent " copied " charts" borderNote
+        . "; skipped " skipped " empty/dup cells.", 6000
 }
