@@ -1,10 +1,9 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
-import { BORDER_MODS, borderModById, voyageModById } from '../data/mods'
-import { rotateEdges } from '../logic/connectivity'
-import { buildSingleChartSearch } from '../logic/regex'
-import type { Board, Borders, ChartData, Placement } from '../types'
-import { START_CELL, STAT_LABELS, STAT_SHORT } from '../types'
-import { tooltipProps } from './Tooltip'
+import { BORDER_MODS } from '../data/mods'
+import type { Board, Borders, ChartData } from '../types'
+import { START_CELL } from '../types'
+import { BoardCell } from './board/BoardCell'
+import { BorderPicker } from './board/BorderPicker'
+import { edgeStatusForCell } from './board/boardEdges'
 
 interface Props {
   board: Board
@@ -28,434 +27,48 @@ interface Props {
   sequenceActive?: boolean
 }
 
-function BorderSelect({
-  value,
-  onChange,
-  seg,
-  vertical,
-}: {
-  value: string | null
-  onChange: (id: string | null) => void
-  seg: number
-  vertical?: boolean
-}) {
-  const [open, setOpen] = useState(false)
-  const [q, setQ] = useState('')
-  const triggerRef = useRef<HTMLButtonElement>(null)
-  const dialogRef = useRef<HTMLDivElement>(null)
-  const searchRef = useRef<HTMLInputElement>(null)
-  const pickerId = useId()
-  const pickerTitleId = `${pickerId}-title`
-  const mod = value ? borderModById.get(value) : null
-  const eff = mod?.effects[0]
-  const filtered = BORDER_MODS.filter((m) => m.text.toLowerCase().includes(q.toLowerCase()))
-  // keep the popover on-screen: right-column segments align right, left-column align left
-  const align = seg >= 3 && seg <= 5 ? 'right' : seg >= 9 ? 'left' : 'center'
-
-  useEffect(() => {
-    if (open) searchRef.current?.focus()
-  }, [open])
-
-  const closePicker = () => {
-    setOpen(false)
-    window.requestAnimationFrame(() => triggerRef.current?.focus())
-  }
-  const pick = (id: string | null) => {
-    onChange(id)
-    closePicker()
-  }
-  const openPicker = () => {
-    setQ('')
-    setOpen(true)
-  }
-
-  const onPickerKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Escape') {
-      event.preventDefault()
-      closePicker()
-      return
-    }
-    if (event.key !== 'Tab') return
-
-    const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
-      'input:not([disabled]), button:not([disabled])',
-    )
-    if (!focusable?.length) return
-    const first = focusable[0]
-    const last = focusable[focusable.length - 1]
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault()
-      last.focus()
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault()
-      first.focus()
-    }
-  }
-
-  return (
-    <div className={`bslot-wrap ${vertical ? 'bslot-vertical' : ''}`}>
-      <button
-        ref={triggerRef}
-        type="button"
-        className={`bslot ${mod ? 'filled' : ''}`}
-        title={mod?.text ?? 'Border segment: activate to search'}
-        aria-label={`Border segment ${seg + 1}: ${mod?.text ?? 'No border'}`}
-        aria-expanded={open}
-        aria-haspopup="dialog"
-        aria-controls={open ? pickerId : undefined}
-        onClick={openPicker}
-      >
-        {mod ? (
-          <span>
-            {mod.short ??
-              (eff
-                ? `+${eff.percent}% ${STAT_SHORT[eff.stat]}`
-                : mod.magnitude
-                  ? `${mod.magnitude}% Magnitude`
-                  : '✦')}
-          </span>
-        ) : (
-          <span className="bslot-empty">·</span>
-        )}
-      </button>
-      {open && (
-        <>
-          <div className="bpop-backdrop" aria-hidden="true" onClick={closePicker} />
-          <div
-            ref={dialogRef}
-            id={pickerId}
-            className={`bpop bpop-${align}`}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={pickerTitleId}
-            onKeyDown={onPickerKeyDown}
-          >
-            <div className="bpop-head">
-              <h3 id={pickerTitleId} className="sr-only">
-                Choose a modifier for border segment {seg + 1}
-              </h3>
-              <button
-                type="button"
-                className="bpop-close"
-                aria-label={`Close border segment ${seg + 1} picker`}
-                onClick={closePicker}
-              >
-                ×
-              </button>
-            </div>
-            <input
-              ref={searchRef}
-              aria-label="Search border modifiers"
-              placeholder="Search border mods…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && filtered.length > 0) pick(filtered[0].id)
-              }}
-            />
-            <div className="bpop-list">
-              <button type="button" className="bpop-item muted" onClick={() => pick(null)}>
-                No border
-              </button>
-              {filtered.map((m) => (
-                <button
-                  type="button"
-                  key={m.id}
-                  className={`bpop-item ${m.id === value ? 'active' : ''}`}
-                  aria-pressed={m.id === value}
-                  onClick={() => pick(m.id)}
-                >
-                  {m.short && <span className="bpop-short">{m.short}</span>}
-                  <span className="bpop-full">{m.text}</span>
-                </button>
-              ))}
-              {filtered.length === 0 && (
-                <span className="bpop-none" role="status">
-                  No matches
-                </span>
-              )}
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
-
-type EdgeStatus = 'none' | 'connected' | 'open' | 'mismatch'
-
-function Tile({
-  cellIndex,
-  placement,
-  chart,
-  score,
-  selected,
-  highlighted,
-  placing,
-  isStart,
-  edgeStatus,
-  onClick,
-  onRemove,
-  onRotate,
-  onTogglePreserve,
-}: {
-  cellIndex: number
-  placement: Placement | null
-  chart: ChartData | null
-  score: number
-  selected: boolean
-  highlighted: boolean
-  placing: boolean
-  isStart: boolean
-  edgeStatus: EdgeStatus[]
-  onClick: () => void
-  onRemove: () => void
-  onRotate: () => void
-  onTogglePreserve: () => void
-}) {
-  const [copied, setCopied] = useState(false)
-  const row = Math.floor(cellIndex / 3) + 1
-  const column = (cellIndex % 3) + 1
-  const position = `Board cell ${cellIndex + 1}, row ${row}, column ${column}${isStart ? ', start' : ''}`
-  const startBadge = isStart ? (
-    <span className="tile-start" title="The Voyage begins here">
-      ⚓ Start
-    </span>
-  ) : null
-  if (!placement || !chart) {
-    return (
-      <div className={`tile empty ${placing ? 'placing' : ''}`}>
-        <button
-          type="button"
-          className="tile-select"
-          aria-label={`${position}: empty`}
-          aria-pressed={selected}
-          onClick={onClick}
-        >
-          {startBadge}
-          {placing && <span className="tile-empty-label">place here</span>}
-        </button>
-      </div>
-    )
-  }
-  const edges = rotateEdges(chart.edges, placement.rotation)
-  const mods = chart.modIds.map((id) => voyageModById.get(id)).filter(Boolean)
-  const scopeLabel = { self: 'this Area', adjacent: 'adjacent Areas', global: 'the whole Voyage' }
-  const tt = tooltipProps({
-    title: chart.name,
-    lines: [
-      { text: `Area Level: ${chart.level}${chart.shape ? ` · ${chart.shape}` : ''}`, cls: 'muted' },
-      ...(chart.rewards ?? []).map((e) => ({
-        text: `+${e.percent}% ${STAT_LABELS[e.stat]}`,
-        cls: 'scope-self',
-      })),
-      ...mods.map((m) => ({
-        text: `${m!.text}  (${scopeLabel[m!.scope]})`,
-        cls: `scope-${m!.scope}`,
-      })),
-    ],
-  })
-  // show the implicit (adjacent/voyage) on the tile - it's the strategic mod
-  const primary = mods.find((m) => m!.scope !== 'self') ?? mods[0]
-  const rotationDegrees = placement.rotation * 90
-  const tileLabel = `${position}: ${chart.name}; occupied; rotation ${rotationDegrees} degrees; ${chart.preserved ? 'preserved' : 'not preserved'}`
-  return (
-    <div
-      className={`tile ${selected ? 'selected' : ''} ${highlighted ? 'highlighted' : ''} ${chart.preserved ? 'preserved' : ''} ${primary ? `tscope-${primary.scope}` : ''}`}
-    >
-      <button
-        type="button"
-        className="tile-select"
-        aria-label={tileLabel}
-        aria-pressed={selected}
-        data-chart-name={chart.name}
-        onClick={onClick}
-        {...tt}
-      >
-        {(['n', 'e', 's', 'w'] as const).map((d, i) =>
-          edges[i] ? <span key={d} className={`path-bar ${d} ${edgeStatus[i]}`} /> : null,
-        )}
-        {primary &&
-          (primary.short ? (
-            <div className="tile-duo">
-              <span className="tile-duo-col">
-                <span className={`tile-duo-pct scope-${primary.scope}`}>{primary.short}</span>
-                <span className="tile-duo-label">
-                  {primary.scope === 'self'
-                    ? 'this area'
-                    : primary.scope === 'adjacent'
-                      ? 'adjacent areas'
-                      : 'whole voyage'}
-                </span>
-              </span>
-            </div>
-          ) : primary.effects[0] ? (
-            <div className="tile-duo">
-              <span className="tile-duo-col">
-                <span className={`tile-duo-pct scope-${primary.scope}`}>
-                  +{primary.effects[0].percent}% {STAT_SHORT[primary.effects[0].stat]}
-                </span>
-                <span className="tile-duo-label">
-                  {primary.scope === 'self'
-                    ? 'this area'
-                    : primary.scope === 'adjacent'
-                      ? 'adjacent areas'
-                      : 'whole voyage'}
-                </span>
-              </span>
-            </div>
-          ) : (
-            <div className={`tile-duo-text scope-${primary.scope}`}>{primary.text}</div>
-          ))}
-        {!primary && chart.implicitText && (
-          <div className="tile-duo-text scope-global">{chart.implicitText}</div>
-        )}
-        {chart.preserved && (
-          <span className="tile-preserved-badge" title="Preserved: kept when you Finish Voyage">
-            🔒 Kept
-          </span>
-        )}
-        {startBadge}
-        <span className="tile-lvl">lvl {chart.level}</span>
-        <span className="tile-score">{score.toFixed(1)}</span>
-      </button>
-      <div className="tile-actions" role="group" aria-label={`Actions for ${chart.name}`}>
-        <button
-          type="button"
-          className={chart.preserved ? 'active' : ''}
-          aria-label={
-            chart.preserved
-              ? `Stop preserving ${chart.name} in row ${row}, column ${column}`
-              : `Preserve ${chart.name} in row ${row}, column ${column}`
-          }
-          aria-pressed={!!chart.preserved}
-          title={
-            chart.preserved
-              ? 'Preserved: unmark to allow consuming'
-              : 'Preserve: keep this chart when you Finish Voyage'
-          }
-          onClick={(e) => {
-            e.stopPropagation()
-            onTogglePreserve()
-          }}
-        >
-          {chart.preserved ? '🔒' : '🔓'}
-        </button>
-        <button
-          type="button"
-          aria-label={
-            copied ? `Search copied for ${chart.name}` : `Copy in-game search for ${chart.name}`
-          }
-          title="Copy an in-game search string (name + modifier) to find this exact chart"
-          onClick={(e) => {
-            e.stopPropagation()
-            navigator.clipboard.writeText(buildSingleChartSearch(chart)).catch(() => {})
-            setCopied(true)
-            window.setTimeout(() => setCopied(false), 1200)
-          }}
-        >
-          {copied ? '✓' : '⧉'}
-        </button>
-        <button
-          type="button"
-          aria-label={`Rotate ${chart.name} in row ${row}, column ${column}; current rotation ${rotationDegrees} degrees`}
-          title="Rotate"
-          onClick={(e) => {
-            e.stopPropagation()
-            onRotate()
-          }}
-        >
-          ⟳
-        </button>
-        <button
-          type="button"
-          aria-label={`Remove ${chart.name} from row ${row}, column ${column}`}
-          title="Remove"
-          onClick={(e) => {
-            e.stopPropagation()
-            onRemove()
-          }}
-        >
-          ✕
-        </button>
-      </div>
-    </div>
-  )
-}
-
-const DIRS = [
-  { dr: -1, dc: 0, opp: 2 }, // N
-  { dr: 0, dc: 1, opp: 3 }, // E
-  { dr: 1, dc: 0, opp: 0 }, // S
-  { dr: 0, dc: -1, opp: 1 }, // W
-]
-
 export function BoardView(props: Props) {
   const { board, borders, charts } = props
 
-  const edgesAt = (i: number) => {
-    const p = board[i]
-    if (!p) return null
-    const c = charts.get(p.chartUid)
-    return c ? rotateEdges(c.edges, p.rotation) : null
-  }
-
-  const edgeStatusFor = (i: number): EdgeStatus[] => {
-    const e = edgesAt(i)
-    if (!e) return ['none', 'none', 'none', 'none']
-    const r = Math.floor(i / 3)
-    const c = i % 3
-    return DIRS.map((d, k) => {
-      if (!e[k]) return 'none' as EdgeStatus
-      const nr = r + d.dr
-      const nc = c + d.dc
-      if (nr < 0 || nr > 2 || nc < 0 || nc > 2) return 'open' as EdgeStatus
-      const ne = edgesAt(nr * 3 + nc)
-      if (!ne) return 'open' as EdgeStatus
-      if (ne[d.opp]) return 'connected' as EdgeStatus
-      return (props.strictMode ? 'mismatch' : 'open') as EdgeStatus
-    })
-  }
-
-  const tile = (i: number) => {
-    const p = board[i]
+  const tile = (cell: number) => {
+    const placement = board[cell]
     return (
-      <Tile
-        key={i}
-        cellIndex={i}
-        placement={p}
-        chart={p ? (charts.get(p.chartUid) ?? null) : null}
-        score={props.perTile[i]}
-        selected={props.selectedCell === i}
-        highlighted={!!p && p.chartUid === props.highlightUid}
-        placing={!!props.placingChart && !p}
-        isStart={i === START_CELL}
-        edgeStatus={edgeStatusFor(i)}
-        onClick={() => props.onCellClick(i)}
-        onRemove={() => props.onRemove(i)}
-        onRotate={() => props.onRotate(i)}
-        onTogglePreserve={() => p && props.onTogglePreserve(p.chartUid)}
+      <BoardCell
+        key={cell}
+        cellIndex={cell}
+        placement={placement}
+        chart={placement ? (charts.get(placement.chartUid) ?? null) : null}
+        score={props.perTile[cell]}
+        selected={props.selectedCell === cell}
+        highlighted={!!placement && placement.chartUid === props.highlightUid}
+        placing={!!props.placingChart && !placement}
+        isStart={cell === START_CELL}
+        edgeStatus={edgeStatusForCell(board, charts, cell, props.strictMode)}
+        onClick={() => props.onCellClick(cell)}
+        onRemove={() => props.onRemove(cell)}
+        onRotate={() => props.onRotate(cell)}
+        onTogglePreserve={() => placement && props.onTogglePreserve(placement.chartUid)}
       />
     )
   }
-  const border = (seg: number, vertical?: boolean) => (
-    <BorderSelect
-      key={`b${seg}`}
-      value={borders[seg]}
-      seg={seg}
+  const border = (segment: number, vertical?: boolean) => (
+    <BorderPicker
+      key={`b${segment}`}
+      value={borders[segment]}
+      segment={segment}
       vertical={vertical}
-      onChange={(id) => props.onBorderChange(seg, id)}
+      onChange={(id) => props.onBorderChange(segment, id)}
     />
   )
 
   const randomize = () => {
-    for (let seg = 0; seg < 12; seg++) {
-      const m = BORDER_MODS[Math.floor(Math.random() * BORDER_MODS.length)]
-      props.onBorderChange(seg, m.id)
+    for (let segment = 0; segment < 12; segment++) {
+      const mod = BORDER_MODS[Math.floor(Math.random() * BORDER_MODS.length)]
+      props.onBorderChange(segment, mod.id)
     }
   }
   const clearBorders = () => {
-    for (let seg = 0; seg < 12; seg++) props.onBorderChange(seg, null)
+    for (let segment = 0; segment < 12; segment++) props.onBorderChange(segment, null)
   }
 
   return (
@@ -521,7 +134,7 @@ export function BoardView(props: Props) {
         <div className="voyage-finish">
           <button
             className="copy-into-game"
-            disabled={board.every((p) => !p)}
+            disabled={board.every((placement) => !placement)}
             onClick={props.onCopySequence}
             title="Step through each square in the in-game placement order (bottom-left first), copying its chart so you can Ctrl+Left-click them in the right order."
           >
@@ -529,7 +142,7 @@ export function BoardView(props: Props) {
           </button>
           <button
             className="finish-voyage"
-            disabled={board.every((p) => !p)}
+            disabled={board.every((placement) => !placement)}
             onClick={props.onFinishVoyage}
             title="Consume the charts on the board (they're used up), keeping any you've marked Preserved (🔒). Clears the board for the next voyage."
           >
