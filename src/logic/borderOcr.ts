@@ -32,6 +32,11 @@ const borderMatchVariants: BorderMatchVariant[] = BORDER_MODS.flatMap((mod) => {
   const korean = KOREAN_BORDER_MOD_EVIDENCE[mod.id as keyof typeof KOREAN_BORDER_MOD_EVIDENCE]
   return [
     { id: mod.id, canonicalText: mod.text, matchText: mod.text },
+    ...(mod.aliases ?? []).map((matchText) => ({
+      id: mod.id,
+      canonicalText: mod.text,
+      matchText,
+    })),
     ...(korean ? [{ id: mod.id, canonicalText: mod.text, matchText: korean.text }] : []),
   ]
 })
