@@ -17,10 +17,11 @@ replacement action so storage and share compatibility remain unchanged.
 
 ## Board UI
 
-The board surface owns the 3×3 grid and the placement of its 12 border controls. A board cell owns
-only cell rendering and its local copy feedback. A border picker owns its open/query state, focus
-trap, Escape handling, and focus restoration. Connector and reachability rules remain in the
-existing domain modules.
+`components/Board.tsx` owns the 3×3 grid and the placement of its 12 border controls.
+`components/board/BoardCell.tsx` owns only cell rendering and its local copy feedback.
+`components/board/BorderPicker.tsx` owns its open/query state, focus trap, Escape handling, and
+focus restoration. `components/board/boardEdges.ts` derives presentation-only connector states;
+connector and reachability rules remain in the existing domain modules.
 
 Component extraction must keep the current direct children of `.board-grid`; adding wrapper nodes
 changes CSS Grid placement. Accessible names, live regions, and focus order are compatibility
