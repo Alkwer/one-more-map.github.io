@@ -115,7 +115,7 @@ test('globally imports English, Korean, and border clipboard payloads', async ({
   await pasteText(appPage, DIVINE_BORDER_PAYLOAD)
   await expect(
     appPage.getByRole('button', {
-      name: /Border segment 1: .*Divine Orbs/,
+      name: /Border segment 1: .*Divine Orb/,
     }),
   ).toBeVisible()
 
@@ -356,9 +356,9 @@ test('recovers an unknown shape and places it on the board with the keyboard', a
   await expect(appPage.getByRole('dialog')).toHaveCount(0)
 
   await appPage.keyboard.press('Enter')
-  await borderSearch.fill('Divine Orbs')
+  await borderSearch.fill('Divine Orb')
   await appPage.keyboard.press('Enter')
-  const filledBorder = appPage.getByRole('button', { name: /Border segment 1: .*Divine Orbs/ })
+  const filledBorder = appPage.getByRole('button', { name: /Border segment 1: .*Divine Orb/ })
   await expect(filledBorder).toBeFocused()
   await expect(filledBorder).toBeVisible()
 

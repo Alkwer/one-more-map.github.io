@@ -29,17 +29,17 @@ const CURRENT_BORDER_TOOLTIPS = [
   ['b-keep-2', 'Adjacent Charts have 50% chance to not be consumed when beginning a Voyage'],
   ['b-octoboss', 'Adjacent Areas contain Filthscrabble'],
   ['b-lanterns', 'Placing Lanterns does not reduce your Lantern count in adjacent Areas'],
-  ['b-ancient', 'Rare Monsters in adjacent Areas drop 1 additional Ancient Orbs'],
-  ['b-divine', 'Rare Monsters adjacent in Areas drop 1 additional Divine Orbs'],
-  ['b-exalt', 'Rare Monsters in adjacent Areas drop 1 additional Exalted Orbs'],
-  ['b-annul', 'Rare Monsters in adjacent Areas drop 1 additional Orbs of Annulment'],
-  ['b-chaos', 'Rare Monsters in adjacent Areas drop 1 additional Chaos Orbs'],
+  ['b-ancient', 'Rare Monsters in adjacent Areas drop an additional Ancient Orb'],
+  ['b-divine', 'Rare Monsters in adjacent Areas drop an additional Divine Orb'],
+  ['b-exalt', 'Rare Monsters in adjacent Areas drop an additional Exalted Orb'],
+  ['b-annul', 'Rare Monsters in adjacent Areas drop an additional Orb of Annulment'],
+  ['b-chaos', 'Rare Monsters in adjacent Areas drop an additional Chaos Orb'],
   ['b-vaal', 'Rare Monsters in adjacent Areas drop an additional Vaal Orb'],
-  ['b-gcp', "Rare Monsters in adjacent Areas drop 1 additional Gemcutter's Prisms"],
-  ['b-chrome', 'Rare Monsters in adjacent Areas drop 1 additional Chromatic Orbs'],
-  ['b-regret', 'Rare Monsters in adjacent Areas drop 1 additional Orbs of Regret'],
-  ['b-blessed', 'Rare Monsters in adjacent Areas drop 1 additional Blessed Orbs'],
-  ['b-regal', 'Rare Monsters in adjacent Areas drop 1 additional Regal Orbs'],
+  ['b-gcp', "Rare Monsters in adjacent Areas drop an additional Gemcutter's Prism"],
+  ['b-chrome', 'Rare Monsters in adjacent Areas drop an additional Chromatic Orb'],
+  ['b-regret', 'Rare Monsters in adjacent Areas drop an additional Orb of Regret'],
+  ['b-blessed', 'Rare Monsters in adjacent Areas drop an additional Blessed Orb'],
+  ['b-regal', 'Rare Monsters in adjacent Areas drop an additional Regal Orb'],
   ['b-support', 'Rare Monsters in adjacent Areas have 20% chance to drop a Support Gem'],
   ['b-locker', "Adjacent Areas contain a lost Pirate's Locker"],
   ['b-pirates', 'Adjacent Areas contain a Brinerot raiding party'],
@@ -89,14 +89,16 @@ describe('border OCR regressions', () => {
     const canonicalByText = new Map<string, string>()
 
     for (const mod of BORDER_MODS) {
-      const normalized = normalizeBorderOcrText(mod.text)
-      assert.ok(normalized, `${mod.id} has an empty normalized tooltip`)
-      assert.equal(
-        canonicalByText.get(normalized),
-        undefined,
-        `${mod.id} duplicates the normalized OCR tooltip for ${canonicalByText.get(normalized)}`,
-      )
-      canonicalByText.set(normalized, mod.id)
+      for (const ocrText of [mod.text, ...(mod.aliases ?? [])]) {
+        const normalized = normalizeBorderOcrText(ocrText)
+        assert.ok(normalized, `${mod.id} has an empty normalized tooltip`)
+        assert.equal(
+          canonicalByText.get(normalized),
+          undefined,
+          `${mod.id} duplicates the normalized OCR tooltip for ${canonicalByText.get(normalized)}`,
+        )
+        canonicalByText.set(normalized, mod.id)
+      }
     }
 
     assert.equal(BORDER_MODS.length, BORDER_SOURCE_SNAPSHOT.canonicalTooltipCount)
@@ -134,6 +136,19 @@ describe('border OCR regressions', () => {
         expectedId,
         `${expectedId} was parsed as ${result.matches[0]?.id ?? 'MISS'}: ${tooltip}`,
       )
+    }
+  })
+
+  it('matches every declared legacy tooltip alias', () => {
+    for (const mod of BORDER_MODS) {
+      for (const alias of mod.aliases ?? []) {
+        const result = parseBorderOcrPayload(block(alias))
+        assert.equal(
+          result.matches[0]?.id,
+          mod.id,
+          `${mod.id} alias was parsed as ${result.matches[0]?.id ?? 'MISS'}: ${alias}`,
+        )
+      }
     }
   })
 
