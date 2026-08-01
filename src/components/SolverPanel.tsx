@@ -52,11 +52,20 @@ export function SolverPanel({ state, activeStrategy, onPatch, results, onResults
         // strategy reservations: hold back charts another strategy is saving for
         const reserve = activeStrategy?.reserveModIds
         const reserveNames = activeStrategy?.reserveNames
+        // locked charts sitting on the board are pinned to their exact cell -
+        // the solver arranges everything else around them (issue #9)
+        const locked = state.board.map((placement) => {
+          if (!placement) return null
+          const chart = state.pool.find((c) => c.uid === placement.chartUid)
+          return chart?.preserved ? { ...placement } : null
+        })
+        const lockedUids = new Set(locked.filter(Boolean).map((p) => p!.chartUid))
         const solvePool = state.pool.filter(
           (c) =>
-            !(reserve?.length && c.modIds.some((id) => reserve.includes(id))) &&
-            !(reserveNames?.length &&
-              reserveNames.some((n) => c.name.toLowerCase().includes(n.toLowerCase()))),
+            lockedUids.has(c.uid) ||
+            (!(reserve?.length && c.modIds.some((id) => reserve.includes(id))) &&
+              !(reserveNames?.length &&
+                reserveNames.some((n) => c.name.toLowerCase().includes(n.toLowerCase())))),
         )
         const heldBack = state.pool.length - solvePool.length
         const res = solve(solvePool, state.borders, weights, {
@@ -69,9 +78,13 @@ export function SolverPanel({ state, activeStrategy, onPatch, results, onResults
           strategyRules: activeStrategy?.rules,
           strategyLayout: activeStrategy?.layout,
           strategyLayoutPenalty: activeStrategy?.layoutPenalty,
+          locked,
         })
         onResults(res)
         const notes: string[] = []
+        const lockedCount = locked.filter(Boolean).length
+        if (lockedCount > 0)
+          notes.push(`${lockedCount} locked chart${lockedCount === 1 ? '' : 's'} kept in place.`)
         if (heldBack > 0)
           notes.push(`${heldBack} juice chart${heldBack === 1 ? '' : 's'} held back for Meatfish/Ethereal.`)
         if (solvePool.length < 9)
@@ -99,7 +112,15 @@ export function SolverPanel({ state, activeStrategy, onPatch, results, onResults
           .sort((a, b) => displayValue(b, weights, disabled) - displayValue(a, weights, disabled))
           .slice(0, KEEP_BEST)
           .forEach((c) => keep.add(c.uid))
-        const fillerPool = state.pool.filter((c) => !keep.has(c.uid))
+        // locked board charts stay pinned even in a filler board (issue #9) -
+        // they're preserved, so running the voyage doesn't consume them
+        const locked = state.board.map((placement) => {
+          if (!placement) return null
+          const chart = state.pool.find((c) => c.uid === placement.chartUid)
+          return chart?.preserved ? { ...placement } : null
+        })
+        const lockedUids = new Set(locked.filter(Boolean).map((p) => p!.chartUid))
+        const fillerPool = state.pool.filter((c) => lockedUids.has(c.uid) || !keep.has(c.uid))
         if (fillerPool.length < 9) {
           onResults([])
           setSolveNote(
@@ -115,6 +136,7 @@ export function SolverPanel({ state, activeStrategy, onPatch, results, onResults
           disabledMods: disabled,
           topK: 5,
           minimizeReward: true,
+          locked,
         })
         onResults(res)
         setSolveNote(

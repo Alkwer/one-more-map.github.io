@@ -15,6 +15,8 @@ export interface SolverOptions extends ScoreOptions {
   strategyRules?: PositionRule[]
   /** exact connector layout the strategy wants (effective edges per cell) */
   strategyLayout?: Edges[]
+  /** cells pinned by the user (locked charts stay exactly where they are) */
+  locked?: (Placement | null)[]
   /** per-cell cost of deviating from strategyLayout (default strict) */
   strategyLayoutPenalty?: number
 }
@@ -175,39 +177,50 @@ export function solve(
     if (top.length > CAP) top = top.slice(0, CAP)
   }
 
+  const locked: (Placement | null)[] =
+    opts.locked && opts.locked.length === 9 ? opts.locked : Array(9).fill(null)
+
   if (pool.length <= 9 && !opts.allowRotation) {
-    exactSearch(pool, record)
+    exactSearch(pool, locked, record)
   } else {
-    hillClimb(pool, borders, charts, weights, opts, record)
+    hillClimb(pool, borders, charts, weights, opts, locked, record)
   }
 
   return top.slice(0, opts.topK)
 }
 
-/** All placements of the pool over the 9 cells (pool ≤ 9, no rotation). */
-function exactSearch(pool: ChartData[], record: (b: Board) => void) {
-  const n = pool.length
-  const board: Board = Array(9).fill(null)
+/** All placements of the pool over the 9 cells (pool ≤ 9, no rotation).
+ *  Locked cells are pre-filled and never reassigned. */
+function exactSearch(pool: ChartData[], locked: (Placement | null)[], record: (b: Board) => void) {
+  const lockedUids = new Set(locked.filter(Boolean).map((p) => p!.chartUid))
+  const free = pool.filter((c) => !lockedUids.has(c.uid))
+  const n = free.length
+  const board: Board = locked.map((p) => (p ? { ...p } : null))
   const used = Array(n).fill(false)
+  const freeCells = board.filter((p) => !p).length
 
-  // walk cells in order; each cell is either left empty or given an unused chart
-  const place = (cell: number, placed: number) => {
-    if (9 - cell < n - placed) return // not enough cells left for remaining charts
+  // walk cells in order; each unlocked cell is either left empty or assigned
+  const place = (cell: number, placed: number, cellsLeft: number) => {
+    if (cellsLeft < n - placed) return // not enough cells left for remaining charts
     if (cell === 9) {
       if (placed === n) record(board)
       return
     }
-    place(cell + 1, placed) // leave empty
+    if (board[cell] && locked[cell]) {
+      place(cell + 1, placed, cellsLeft)
+      return
+    }
+    place(cell + 1, placed, cellsLeft - 1) // leave empty
     for (let k = 0; k < n; k++) {
       if (used[k]) continue
       used[k] = true
-      board[cell] = { chartUid: pool[k].uid, rotation: 0 }
-      place(cell + 1, placed + 1)
+      board[cell] = { chartUid: free[k].uid, rotation: 0 }
+      place(cell + 1, placed + 1, cellsLeft - 1)
       board[cell] = null
       used[k] = false
     }
   }
-  place(0, 0)
+  place(0, 0, freeCells)
 }
 
 function hillClimb(
@@ -216,6 +229,7 @@ function hillClimb(
   charts: Map<string, ChartData>,
   weights: Weights,
   opts: SolverOptions,
+  locked: (Placement | null)[],
   record: (b: Board) => void,
 ) {
   // strategies need more exploration: seeded restarts vary piece rotations,
@@ -228,9 +242,9 @@ function hillClimb(
   const evalScore = (b: Board) => evaluate(b, borders, charts, weights, opts).score
 
   for (let r = 0; r < RESTARTS; r++) {
-    // random initial: shuffle pool, take up to 9
+    // random initial: shuffle pool, take up to 9. Locked cells are fixed.
     const shuffled = [...pool].sort(() => Math.random() - 0.5)
-    const board: Board = Array(9).fill(null)
+    const board: Board = locked.map((p) => (p ? { ...p } : null))
 
     // strategy-seeded restarts (every other one): pre-place matching charts on
     // their target cells so rare shapes/pieces aren't left to random luck
@@ -298,10 +312,10 @@ function hillClimb(
       let undo: (() => void) | null = null
 
       if (move < 0.5) {
-        // swap two cells
+        // swap two cells (never a locked one)
         const a = Math.floor(Math.random() * 9)
         const b = Math.floor(Math.random() * 9)
-        if (a === b) continue
+        if (a === b || locked[a] || locked[b]) continue
         const pa = board[a]
         const pb = board[b]
         board[a] = pb
@@ -314,6 +328,7 @@ function hillClimb(
         // replace a placed chart with an unused one
         const cell = Math.floor(Math.random() * 9)
         const ui = Math.floor(Math.random() * unused.length)
+        if (locked[cell]) continue
         const prev = board[cell]
         const incoming = unused[ui]
         board[cell] = { chartUid: incoming.uid, rotation: Math.floor(Math.random() * rotMax) }
@@ -325,10 +340,10 @@ function hillClimb(
           board[cell] = prev
         }
       } else if (opts.allowRotation) {
-        // rotate a placed chart
+        // rotate a placed chart (locked charts keep their rotation too)
         const cell = Math.floor(Math.random() * 9)
         const p = board[cell]
-        if (!p) continue
+        if (!p || locked[cell]) continue
         const prevRot = p.rotation
         p.rotation = (p.rotation + 1 + Math.floor(Math.random() * 3)) % 4
         undo = () => {
