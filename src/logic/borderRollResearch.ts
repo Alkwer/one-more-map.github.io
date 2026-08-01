@@ -6,7 +6,8 @@ export const BORDER_ROLL_DATASET_SCHEMA = 'allflame-border-roll-dataset/v2' as c
 
 const LEGACY_SAMPLE_SCHEMA = 'allflame-border-roll/v1' as const
 const LEGACY_STORE_VERSION = 1
-const STORE_VERSION = 2
+const PREVIOUS_STORE_VERSION = 2
+const STORE_VERSION = 3
 const STORAGE_KEY = 'allflame-border-roll-research'
 const SUBMISSION_URL = 'https://github.com/Alkwer/one-more-map.github.io/issues/new'
 
@@ -45,6 +46,7 @@ export interface BorderResearchStore {
   version: typeof STORE_VERSION
   activeSequenceId: string
   samples: BorderRollSample[]
+  archivedSequenceIds: string[]
 }
 
 export interface BorderRollDataset {
@@ -94,11 +96,37 @@ export function createBorderResearchStore(): BorderResearchStore {
     version: STORE_VERSION,
     activeSequenceId: createId('voyage'),
     samples: [],
+    archivedSequenceIds: [],
   }
 }
 
 export function startBorderRollSequence(store: BorderResearchStore): BorderResearchStore {
   return { ...store, activeSequenceId: createId('voyage') }
+}
+
+export function archiveBorderRollSequence(
+  store: BorderResearchStore,
+  sequenceId: string,
+): BorderResearchStore {
+  if (
+    sequenceId === store.activeSequenceId ||
+    store.archivedSequenceIds.includes(sequenceId) ||
+    !store.samples.some((sample) => sample.sequenceId === sequenceId)
+  ) {
+    return store
+  }
+  return { ...store, archivedSequenceIds: [...store.archivedSequenceIds, sequenceId] }
+}
+
+export function restoreBorderRollSequence(
+  store: BorderResearchStore,
+  sequenceId: string,
+): BorderResearchStore {
+  if (!store.archivedSequenceIds.includes(sequenceId)) return store
+  return {
+    ...store,
+    archivedSequenceIds: store.archivedSequenceIds.filter((id) => id !== sequenceId),
+  }
 }
 
 function completeBorders(borders: Borders): OrderedBorderIds | null {
@@ -167,7 +195,13 @@ export function removeBorderRollSample(
   store: BorderResearchStore,
   sampleId: string,
 ): BorderResearchStore {
-  return { ...store, samples: store.samples.filter((sample) => sample.sampleId !== sampleId) }
+  const samples = store.samples.filter((sample) => sample.sampleId !== sampleId)
+  const remainingSequenceIds = new Set(samples.map((sample) => sample.sequenceId))
+  return {
+    ...store,
+    samples,
+    archivedSequenceIds: store.archivedSequenceIds.filter((id) => remainingSequenceIds.has(id)),
+  }
 }
 
 export function getBorderRollSequence(
@@ -271,14 +305,32 @@ export function loadBorderResearch(): BorderResearchStore {
       version?: unknown
       activeSequenceId?: unknown
       samples?: unknown
+      archivedSequenceIds?: unknown
     }
     if (
       value.version === STORE_VERSION &&
       typeof value.activeSequenceId === 'string' &&
       Array.isArray(value.samples) &&
-      value.samples.every(isStoredSample)
+      value.samples.every(isStoredSample) &&
+      Array.isArray(value.archivedSequenceIds) &&
+      value.archivedSequenceIds.every((id) => typeof id === 'string')
     ) {
       return value as BorderResearchStore
+    }
+    if (
+      value.version === PREVIOUS_STORE_VERSION &&
+      typeof value.activeSequenceId === 'string' &&
+      Array.isArray(value.samples) &&
+      value.samples.every(isStoredSample)
+    ) {
+      const migrated: BorderResearchStore = {
+        version: STORE_VERSION,
+        activeSequenceId: value.activeSequenceId,
+        samples: value.samples,
+        archivedSequenceIds: [],
+      }
+      saveBorderResearch(migrated)
+      return migrated
     }
     if (
       value.version === LEGACY_STORE_VERSION &&
@@ -290,6 +342,7 @@ export function loadBorderResearch(): BorderResearchStore {
         version: STORE_VERSION,
         activeSequenceId: value.activeSequenceId,
         samples: value.samples.map(migrateLegacySample),
+        archivedSequenceIds: [],
       }
       saveBorderResearch(migrated)
       return migrated

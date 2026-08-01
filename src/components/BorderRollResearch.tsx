@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   buildBorderRollSequenceSubmissionUrl,
   getBorderRollSequence,
@@ -15,11 +15,35 @@ interface Props {
 
 export function BorderRollResearch({ borders, controller }: Props) {
   const { store } = controller
+  const [showArchived, setShowArchived] = useState(false)
   const missingBorders = useMemo(() => borders.filter((id) => id === null).length, [borders])
-  const sequences = useMemo(() => {
+  const sequenceView = useMemo(() => {
+    const archivedIds = new Set(store.archivedSequenceIds)
     const ids = [...new Set(store.samples.map((sample) => sample.sequenceId))]
-    return ids.map((sequenceId) => getBorderRollSequence(store.samples, sequenceId)).reverse()
-  }, [store.samples])
+    const sequences = ids
+      .map((sequenceId) => getBorderRollSequence(store.samples, sequenceId))
+      .reverse()
+    let activeSampleCount = 0
+    let archivedSampleCount = 0
+    let archivedSequenceCount = 0
+    for (const sequence of sequences) {
+      if (archivedIds.has(sequence[0].sequenceId)) {
+        archivedSampleCount += sequence.length
+        archivedSequenceCount += 1
+      } else {
+        activeSampleCount += sequence.length
+      }
+    }
+    return {
+      archivedIds,
+      activeSampleCount,
+      archivedSampleCount,
+      archivedSequenceCount,
+      visibleSequences: showArchived
+        ? sequences
+        : sequences.filter((sequence) => !archivedIds.has(sequence[0].sequenceId)),
+    }
+  }, [showArchived, store.archivedSequenceIds, store.samples])
 
   const exportSamples = () => {
     const blob = new Blob([serializeBorderRollDataset(store.samples)], {
@@ -34,10 +58,17 @@ export function BorderRollResearch({ borders, controller }: Props) {
 
   return (
     <details className="ahk-help roll-research">
-      <summary>📊 Contribute border-roll data ({store.samples.length} saved)</summary>
+      <summary>
+        📊 Contribute border-roll data ({sequenceView.activeSampleCount} active
+        {sequenceView.archivedSampleCount > 0
+          ? ` · ${sequenceView.archivedSampleCount} archived`
+          : ''}
+        )
+      </summary>
       <p className="muted">
         Every complete 12/12 OCR scan is saved automatically. Scan the natural board and every paid
-        reroll; Finish Voyage closes the sequence and can submit it automatically.
+        reroll; Finish Voyage closes the sequence and can submit it automatically. Successfully sent
+        sequences are archived locally and hidden from this list by default.
       </p>
 
       <div className="roll-research-grid">
@@ -78,6 +109,13 @@ export function BorderRollResearch({ borders, controller }: Props) {
         <button onClick={exportSamples} disabled={store.samples.length === 0}>
           Export dataset
         </button>
+        {sequenceView.archivedSequenceCount > 0 && (
+          <button onClick={() => setShowArchived((current) => !current)}>
+            {showArchived
+              ? 'Hide archived'
+              : `Show archived (${sequenceView.archivedSequenceCount})`}
+          </button>
+        )}
       </div>
 
       <div className="roll-research-grid">
@@ -109,51 +147,78 @@ export function BorderRollResearch({ borders, controller }: Props) {
         </span>
       </div>
 
-      {store.samples.length > 0 && (
+      {sequenceView.visibleSequences.length > 0 ? (
         <ol className="roll-sample-list" aria-label="Locally saved Voyage sequences">
-          {sequences.map((sequence) => (
-            <li className="roll-sequence" key={sequence[0].sequenceId}>
-              <div className="roll-sequence-header">
-                <span>
-                  Voyage {sequence[0].sequenceId.slice(-8)} · {sequence.length}{' '}
-                  {sequence.length === 1 ? 'roll' : 'rolls'} · {sequence[0].gamePatch}
-                </span>
-                <button
-                  disabled={!isCompleteBorderRollSequence(sequence)}
-                  onClick={() =>
-                    window.open(
-                      buildBorderRollSequenceSubmissionUrl(sequence),
-                      '_blank',
-                      'noopener,noreferrer',
-                    )
-                  }
-                >
-                  Submit Voyage
-                </button>
-              </div>
-              <ol aria-label={`Rolls in Voyage ${sequence[0].sequenceId.slice(-8)}`}>
-                {sequence.map((sample) => (
-                  <li key={sample.sampleId}>
-                    <span>
-                      {sample.generation === 'natural'
-                        ? 'natural board'
-                        : `paid reroll ${sample.rerollIndex}`}
-                    </span>
-                    <button
-                      aria-label={`Remove ${sample.generation} sample captured ${sample.capturedAt}`}
-                      onClick={() => {
-                        controller.removeSample(sample.sampleId)
-                      }}
-                    >
-                      Remove
-                    </button>
-                  </li>
-                ))}
-              </ol>
-            </li>
-          ))}
+          {sequenceView.visibleSequences.map((sequence) => {
+            const sequenceId = sequence[0].sequenceId
+            const archived = sequenceView.archivedIds.has(sequenceId)
+            return (
+              <li
+                className={`roll-sequence${archived ? ' roll-sequence-archived' : ''}`}
+                key={sequenceId}
+              >
+                <div className="roll-sequence-header">
+                  <span>
+                    Voyage {sequenceId.slice(-8)} · {sequence.length}{' '}
+                    {sequence.length === 1 ? 'roll' : 'rolls'} · {sequence[0].gamePatch}
+                  </span>
+                  <div className="roll-sequence-actions">
+                    {archived ? (
+                      <>
+                        <span className="sample-ready">Archived</span>
+                        <button onClick={() => controller.restoreSequence(sequenceId)}>
+                          Restore
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          disabled={!isCompleteBorderRollSequence(sequence)}
+                          onClick={() =>
+                            window.open(
+                              buildBorderRollSequenceSubmissionUrl(sequence),
+                              '_blank',
+                              'noopener,noreferrer',
+                            )
+                          }
+                        >
+                          Submit Voyage
+                        </button>
+                        {sequenceId !== store.activeSequenceId && (
+                          <button onClick={() => controller.archiveSequence(sequenceId)}>
+                            Archive
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+                <ol aria-label={`Rolls in Voyage ${sequenceId.slice(-8)}`}>
+                  {sequence.map((sample) => (
+                    <li key={sample.sampleId}>
+                      <span>
+                        {sample.generation === 'natural'
+                          ? 'natural board'
+                          : `paid reroll ${sample.rerollIndex}`}
+                      </span>
+                      <button
+                        aria-label={`Remove ${sample.generation} sample captured ${sample.capturedAt}`}
+                        onClick={() => {
+                          controller.removeSample(sample.sampleId)
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              </li>
+            )
+          })}
         </ol>
-      )}
+      ) : sequenceView.archivedSequenceCount > 0 ? (
+        <p className="muted small">All submitted Voyage sequences are archived locally.</p>
+      ) : null}
 
       {controller.message && (
         <div className="muted pad" role="status" aria-live="polite" aria-atomic="true">

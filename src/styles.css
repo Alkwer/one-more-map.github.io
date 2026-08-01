@@ -899,6 +899,16 @@ button.primary:hover {
   justify-content: space-between;
   gap: 8px;
 }
+.roll-sequence-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+.roll-sequence-archived {
+  opacity: 0.72;
+}
 .roll-sequence > ol {
   margin: 5px 0 0;
   padding-left: 18px;

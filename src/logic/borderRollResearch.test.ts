@@ -3,6 +3,7 @@ import { BORDER_MODS } from '../data/mods'
 import type { Borders } from '../types'
 import {
   addBorderRollSample,
+  archiveBorderRollSequence,
   BORDER_ROLL_DATASET_SCHEMA,
   BORDER_ROLL_SAMPLE_SCHEMA,
   buildBorderRollSequenceSubmissionUrl,
@@ -14,6 +15,8 @@ import {
   isCompleteBorderRollSequence,
   loadBorderResearch,
   nextBorderRollIndex,
+  removeBorderRollSample,
+  restoreBorderRollSequence,
   serializeBorderRollDataset,
 } from './borderRollResearch'
 
@@ -84,13 +87,78 @@ describe('border roll research samples', () => {
 
     try {
       const migrated = loadBorderResearch()
-      expect(migrated.version).toBe(2)
+      expect(migrated.version).toBe(3)
+      expect(migrated.archivedSequenceIds).toEqual([])
       expect(migrated.samples[0]).not.toHaveProperty('voyageLevel')
       expect(migrated.samples[0].schema).toBe(BORDER_ROLL_SAMPLE_SCHEMA)
       expect(JSON.parse(setItem.mock.calls[0][1]).samples[0]).not.toHaveProperty('voyageLevel')
     } finally {
       vi.unstubAllGlobals()
     }
+  })
+
+  it('migrates stored v2 research without losing samples', () => {
+    const current = sample()
+    const setItem = vi.fn()
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn(() =>
+        JSON.stringify({
+          version: 2,
+          activeSequenceId: 'voyage-test',
+          samples: [current],
+        }),
+      ),
+      setItem,
+    })
+
+    try {
+      const migrated = loadBorderResearch()
+      expect(migrated).toMatchObject({
+        version: 3,
+        activeSequenceId: 'voyage-test',
+        samples: [{ sampleId: current.sampleId }],
+        archivedSequenceIds: [],
+      })
+      expect(JSON.parse(setItem.mock.calls[0][1])).toMatchObject({
+        version: 3,
+        archivedSequenceIds: [],
+      })
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('archives historical sequences without deleting their samples and can restore them', () => {
+    const current = sample()
+    const store = {
+      ...createBorderResearchStore(),
+      activeSequenceId: 'voyage-next',
+      samples: [current],
+    }
+
+    const archived = archiveBorderRollSequence(store, 'voyage-test')
+    expect(archived.samples).toEqual([current])
+    expect(archived.archivedSequenceIds).toEqual(['voyage-test'])
+    expect(archiveBorderRollSequence(archived, 'voyage-test')).toBe(archived)
+
+    const restored = restoreBorderRollSequence(archived, 'voyage-test')
+    expect(restored.archivedSequenceIds).toEqual([])
+  })
+
+  it('does not archive the active sequence and removes stale archive markers', () => {
+    const current = sample()
+    const store = {
+      ...createBorderResearchStore(),
+      activeSequenceId: 'voyage-test',
+      samples: [current],
+    }
+
+    expect(archiveBorderRollSequence(store, 'voyage-test')).toBe(store)
+    const historical = archiveBorderRollSequence(
+      { ...store, activeSequenceId: 'voyage-next' },
+      'voyage-test',
+    )
+    expect(removeBorderRollSample(historical, current.sampleId).archivedSequenceIds).toEqual([])
   })
 
   it('keeps one observation per roll index in a Voyage sequence', () => {
