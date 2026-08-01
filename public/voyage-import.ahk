@@ -102,15 +102,21 @@ ExactBorderNext := 0
 ScriptPid := ProcessExist()
 OcrHelper := A_Temp "\voyage-border-ocr-" ScriptPid ".ps1"
 OcrOutput := A_Temp "\voyage-border-ocr-" ScriptPid ".txt"
+OcrSession := A_Temp "\voyage-border-ocr-" ScriptPid
 OcrPid := 0
 Running := false
 
 CleanupOcr(*) {
-    global OcrHelper, OcrOutput, OcrPid
+    global OcrHelper, OcrOutput, OcrPid, OcrSession
     if OcrPid && ProcessExist(OcrPid)
         try ProcessClose OcrPid
     try FileDelete OcrHelper
     try FileDelete OcrOutput
+    try FileDelete OcrSession ".cmd"
+    try FileDelete OcrSession ".cmd.tmp"
+    try FileDelete OcrSession ".ready"
+    Loop 12
+        try FileDelete OcrSession "-res-" (A_Index - 1) ".txt"
 }
 OnExit CleanupOcr
 
@@ -510,6 +516,7 @@ param(
     [int]$WindowWidth = 0,
     [int]$WindowHeight = 0,
     [string]$ImagePath = '',
+    [string]$Session = '',
     [Parameter(Mandatory = $true)][string]$OutputPath)
 
 $ErrorActionPreference = 'Stop'
@@ -706,12 +713,13 @@ function Invoke-OcrFile {
 }
 
 function Read-OcrLines {
-    param([Parameter(Mandatory = $true)][string]$Path)
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)]$engine)
     $preparedPath = Join-Path $env:TEMP "voyage-ocr-filtered-$PID-$([Guid]::NewGuid().ToString('N')).png"
     [VoyageOcrImage]::Prepare($Path, $preparedPath)
 
     try {
-        $engine = New-OcrEngine
         $text = Invoke-OcrFile $preparedPath $engine
 
         # The lavender-only mask can occasionally be empty even though the
@@ -739,34 +747,73 @@ function Add-Block {
     [void]$Builder.AppendLine('=== END VOYAGE BORDER ===')
 }
 
-$builder = [System.Text.StringBuilder]::new()
-if ($ImagePath) {
-    Add-Block $builder 0 (Read-OcrLines $ImagePath)
-} else {
-    if ($Index -lt 0 -or $WindowWidth -le 0 -or $WindowHeight -le 0) {
-        throw 'Invalid Path of Exile window size.'
-    }
+$utf8 = [System.Text.UTF8Encoding]::new($false)
+
+function Write-Atomic {
+    param([string]$Path, [string]$Text)
+    $tmp = "$Path.tmp"
+    [System.IO.File]::WriteAllText($tmp, $Text, $utf8)
+    Move-Item -LiteralPath $tmp -Destination $Path -Force
+}
+
+function Get-BorderBlock {
+    param([int]$Index, [int]$Left, [int]$Top, [int]$Width, [int]$Height, $Engine)
+    $builder = [System.Text.StringBuilder]::new()
     $png = Join-Path $env:TEMP "voyage-border-$PID-$Index.png"
     try {
-        $image = [System.Drawing.Bitmap]::new($WindowWidth, $WindowHeight)
+        if ($Width -le 0 -or $Height -le 0) {
+            throw 'Invalid Path of Exile window size.'
+        }
+        $image = [System.Drawing.Bitmap]::new($Width, $Height)
         $graphics = [System.Drawing.Graphics]::FromImage($image)
         try {
-            $graphics.CopyFromScreen($WindowLeft, $WindowTop, 0, 0, $image.Size)
+            $graphics.CopyFromScreen($Left, $Top, 0, 0, $image.Size)
             $image.Save($png, [System.Drawing.Imaging.ImageFormat]::Png)
         } finally {
             $graphics.Dispose()
             $image.Dispose()
         }
-        Add-Block $builder $Index (Read-OcrLines $png)
+        Add-Block $builder $Index (Read-OcrLines $png $Engine)
     } catch {
         Add-Block $builder $Index ("OCR ERROR: " + $_.Exception.Message)
     } finally {
         Remove-Item -LiteralPath $png -Force -ErrorAction SilentlyContinue
     }
+    return $builder.ToString()
 }
 
-$utf8 = [System.Text.UTF8Encoding]::new($false)
-[System.IO.File]::WriteAllText($OutputPath, $builder.ToString(), $utf8)
+if ($ImagePath) {
+    $engine = New-OcrEngine
+    $builder = [System.Text.StringBuilder]::new()
+    Add-Block $builder 0 (Read-OcrLines $ImagePath $engine)
+    [System.IO.File]::WriteAllText($OutputPath, $builder.ToString(), $utf8)
+    exit 0
+}
+
+if (-not $Session) {
+    throw 'Server mode needs -Session.'
+}
+
+# Server mode: the expensive parts (C# compile above, OCR engine here) happen
+# ONCE, then each border is a quick file-signalled capture + recognition.
+$engine = New-OcrEngine
+Write-Atomic $OutputPath 'READY'
+$cmdFile = "$Session.cmd"
+while ($true) {
+    if (-not (Test-Path -LiteralPath $cmdFile)) {
+        Start-Sleep -Milliseconds 40
+        continue
+    }
+    $line = ([System.IO.File]::ReadAllText($cmdFile, $utf8)).Trim()
+    Remove-Item -LiteralPath $cmdFile -Force -ErrorAction SilentlyContinue
+    if ($line -eq 'quit') { break }
+    $parts = $line.Split('|')
+    if ($parts[0] -ne 'capture' -or $parts.Count -lt 6) { continue }
+    $idx = [int]$parts[1]
+    $block = Get-BorderBlock -Index $idx -Left ([int]$parts[2]) -Top ([int]$parts[3]) `
+        -Width ([int]$parts[4]) -Height ([int]$parts[5]) -Engine $engine
+    Write-Atomic "$Session-res-$idx.txt" $block
+}
 )"
 }
 
@@ -805,16 +852,89 @@ RunOcrHelper(arguments, cancellable := true) {
     return FileRead(OcrOutput, "UTF-8")
 }
 
+StartOcrServer() {
+    global OcrHelper, OcrSession, OcrPid
+    if (OcrPid && ProcessExist(OcrPid))
+        return
+    try FileDelete OcrSession ".ready"
+    try FileDelete OcrSession ".cmd"
+    EnsureOcrHelper()
+    quote := Chr(34)
+    command := "powershell.exe -NoProfile -ExecutionPolicy Bypass -File "
+        . quote OcrHelper quote " -Session " quote OcrSession quote
+        . " -OutputPath " quote OcrSession ".ready" quote
+    Run command, , "Hide", &OcrPid
+}
+
+WaitOcrReady(timeoutMs) {
+    global OcrSession, OcrPid, Running
+    deadline := A_TickCount + timeoutMs
+    while (A_TickCount < deadline) {
+        if !Running
+            return ""
+        if FileExist(OcrSession ".ready")
+            return Trim(FileRead(OcrSession ".ready", "UTF-8"), " `t`r`n")
+        if !ProcessExist(OcrPid)
+            return "OCR HELPER ERROR: the helper exited before becoming ready."
+        Sleep 50
+    }
+    return "OCR HELPER ERROR: timed out waiting for Windows OCR to initialize."
+}
+
+OcrSendCommand(text) {
+    global OcrSession
+    try FileDelete OcrSession ".cmd.tmp"
+    FileAppend text, OcrSession ".cmd.tmp", "UTF-8"
+    try FileMove OcrSession ".cmd.tmp", OcrSession ".cmd", 1
+}
+
+OcrCaptureBorder(index, winX, winY, winW, winH) {
+    global OcrSession, OcrPid, OcrTimeout, Running
+    resFile := OcrSession "-res-" index ".txt"
+    try FileDelete resFile
+    OcrSendCommand("capture|" index "|" winX "|" winY "|" winW "|" winH)
+    deadline := A_TickCount + OcrTimeout * 1000
+    while (A_TickCount < deadline) {
+        if !Running
+            return ""
+        if FileExist(resFile) {
+            block := FileRead(resFile, "UTF-8")
+            try FileDelete resFile
+            return block
+        }
+        if !ProcessExist(OcrPid)
+            return "=== VOYAGE BORDER " index " ===`nOCR ERROR: the helper process exited.`n=== END VOYAGE BORDER ==="
+        Sleep 40
+    }
+    return "=== VOYAGE BORDER " index " ===`nOCR ERROR: capture timed out.`n=== END VOYAGE BORDER ==="
+}
+
+StopOcrServer() {
+    global OcrSession, OcrPid
+    if (OcrPid && ProcessExist(OcrPid)) {
+        OcrSendCommand("quit")
+        deadline := A_TickCount + 2000
+        while (ProcessExist(OcrPid) && A_TickCount < deadline)
+            Sleep 50
+        if ProcessExist(OcrPid)
+            try ProcessClose OcrPid
+    }
+    OcrPid := 0
+    try FileDelete OcrSession ".cmd"
+    try FileDelete OcrSession ".ready"
+}
+
 ScanBorders() {
     global PoeWinTitle, BorderHoverDelay, BorderOcrAttempts, Running
     WinGetPos &winX, &winY, &winW, &winH, PoeWinTitle
+    ; one persistent helper per sweep: PowerShell boots and compiles while we
+    ; hover the first border, then every border is a quick capture + read
+    StartOcrServer()
     result := ""
+    ready := ""
     for index, point in BorderPoints() {
         if !Running
             break
-        arguments := "-Index " (index - 1)
-            . " -WindowLeft " winX " -WindowTop " winY
-            . " -WindowWidth " winW " -WindowHeight " winH
         block := ""
         Loop BorderOcrAttempts {
             if !Running
@@ -826,13 +946,24 @@ ScanBorders() {
             Sleep BorderHoverDelay + (attempt - 1) * 200
             ToolTip()
             Sleep 30
-            block := RunOcrHelper(arguments)
+            if (ready = "") {
+                ready := WaitOcrReady(45000)
+                if (ready = "")
+                    break
+                if (ready != "READY") {
+                    StopOcrServer()
+                    MsgBox "Border OCR unavailable:`n`n" ready
+                    return ""
+                }
+            }
+            block := OcrCaptureBorder(index - 1, winX, winY, winW, winH)
             if !InStr(block, "Windows OCR returned no text")
                 break
         }
         if (block != "")
             result .= (result = "" ? "" : "`n") block
     }
+    StopOcrServer()
     return result
 }
 
