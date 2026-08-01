@@ -193,7 +193,7 @@ export const BORDER_MODS: BorderModDef[] = [
   { id: 'b-gold-1', short: '25% Gear to Gold', text: '25% of Equipment dropped by monsters in adjacent Areas is converted to Gold', effects: [{ stat: 'gold', percent: 25 }] },
   { id: 'b-gold-2', short: '50% Gear to Gold', text: '50% of Equipment dropped by monsters in adjacent Areas is converted to Gold', effects: [{ stat: 'gold', percent: 50 }] },
   { id: 'b-decks', short: 'Stacked Decks', text: 'Basic Currency items dropped by Monsters in adjacent Areas will instead drop as Stacked Decks', effects: [{ stat: 'divcards', percent: 40 }] },
-  { id: 'b-scarabdrop', short: '+1 Scarab Drop', text: 'Rare Monsters in adjacent Areas drop 1 additional Scarabs', effects: [{ stat: 'scarabs', percent: 25 }] },
+  { id: 'b-scarabdrop', short: '+1 Scarab Drop', text: 'Rare Monsters in adjacent Areas drop an additional Scarab', effects: [{ stat: 'scarabs', percent: 25 }] },
   { id: 'b-curr-1', short: '50% Currency', text: '50% more Currency found in adjacent Areas', effects: [{ stat: 'currency', percent: 50 }] },
   { id: 'b-curr-2', short: '75% Currency', text: '75% more Currency found in adjacent Areas', effects: [{ stat: 'currency', percent: 75 }] },
   { id: 'b-curr-3', short: '100% Currency', text: '100% more Currency found in adjacent Areas', effects: [{ stat: 'currency', percent: 100 }] },

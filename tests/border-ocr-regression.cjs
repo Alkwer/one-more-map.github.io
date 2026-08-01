@@ -118,7 +118,7 @@ const CURRENT_BORDER_TOOLTIPS = [
   ],
   [
     'b-scarabdrop',
-    'Rare Monsters in adjacent Areas drop 1 additional Scarabs',
+    'Rare Monsters in adjacent Areas drop an additional Scarab',
   ],
   ['b-curr-1', '50% more Currency found in adjacent Areas'],
   ['b-curr-2', '75% more Currency found in adjacent Areas'],

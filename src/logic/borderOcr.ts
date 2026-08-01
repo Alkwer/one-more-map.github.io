@@ -13,6 +13,10 @@ const normalize = (text: string): string =>
     .replace(/[^a-z0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
+    // the game writes "drop an additional Scarab" where datamined lists say
+    // "drop 1 additional Scarabs" - treat the article as the numeral so the
+    // numeric-tier guard doesn't reject the singular wording
+    .replace(/\ban\b/g, '1')
 
 const borderTokenFrequency = new Map<string, number>()
 for (const mod of BORDER_MODS) {
