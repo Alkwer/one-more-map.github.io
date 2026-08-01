@@ -43,10 +43,15 @@ components must preserve card classes, accessible names, pressed states, tooltip
 
 ## Solver UI
 
-Solver request lifecycle state owns worker creation, cancellation, request keys, stale-result
-rejection, and result/error status. It continues to call `SolverWorkerClient`; expensive solver and
-strategy work stays behind the Web Worker boundary. Controls, weights, regex output, and results
-are presentational sections that receive values and explicit callbacks.
+`hooks/useSolverRequests.ts` owns worker creation, cancellation, request keys, stale-result
+rejection, and keyed result/error status. It continues to call `SolverWorkerClient`; expensive
+solver and strategy work stays behind the Web Worker boundary. `logic/solverPoolSelection.ts`
+selects strategy reservations and filler charts without mutating the persisted pool.
+
+`components/SolverPanel.tsx` derives eligible charts and effective weights, then composes
+`SolverControls`, `RewardWeights`, `SolverActions`, `BestChartsRegex`, and `SolverResults`. These
+presentation components receive values and explicit callbacks while preserving the existing DOM,
+live-region wording, labels, result order, and keyboard behavior.
 
 ## Extraction order
 
