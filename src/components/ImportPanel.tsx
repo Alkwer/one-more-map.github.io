@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 import { ALL_GOOD_MODS_REGEX } from '../data/strategies'
 import { generateDemoCharts } from '../logic/demo'
 import { parseBorderOcrPayload } from '../logic/borderOcr'
@@ -10,7 +11,7 @@ import type { ChartData } from '../types'
 interface Props {
   onImport: (charts: ChartData[]) => void
   state: AppState
-  onLoadState: (s: AppState) => void
+  onLoadState: Dispatch<SetStateAction<AppState>>
 }
 
 export function ImportPanel({ onImport, state, onLoadState }: Props) {
@@ -33,13 +34,15 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
       // earlier run and masquerade as a wrongly recognized border - but an
       // ALL-miss sweep (bad aim, tooltips not visible) must never wipe
       // borders the user already entered.
-      const fullSweep = borderOcr.blockCount >= 12 && borderOcr.matches.length > 0
-      const borders = fullSweep ? [...borderOcr.borders] : [...state.borders]
-      for (const match of borderOcr.matches) borders[match.index] = match.id
-      onLoadState({
-        ...state,
-        pool: charts.length > 0 ? [...state.pool, ...charts] : state.pool,
-        borders,
+      onLoadState((current) => {
+        const fullSweep = borderOcr.blockCount >= 12 && borderOcr.matches.length > 0
+        const borders = fullSweep ? [...borderOcr.borders] : [...current.borders]
+        for (const match of borderOcr.matches) borders[match.index] = match.id
+        return {
+          ...current,
+          pool: charts.length > 0 ? [...current.pool, ...charts] : current.pool,
+          borders,
+        }
       })
     } else if (charts.length > 0) {
       onImport(charts)
@@ -73,7 +76,7 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
         .join(', ')}`)
     }
     setMsg(parts.join('; ') || 'Nothing imported')
-  }, [onImport, onLoadState, state, text])
+  }, [onImport, onLoadState, text])
 
   // Ctrl+V anywhere on the page: if the clipboard holds chart item text, import
   // it straight away (no need to focus the box). Normal pastes into fields are
