@@ -67,7 +67,10 @@ reference is in [README.md](README.md#commands).
   helper. Its user instructions live in [docs/windows-ocr.md](docs/windows-ocr.md).
 - `benchmarks/` contains the solver performance fixture and benchmark.
 - `.github/workflows/deploy.yml` is the pull-request quality gate and GitHub Pages
-  deployment.
+  deployment. `process-border-roll-data.yml` validates and resolves data issues;
+  `build-border-roll-dataset.yml` opens reviewable batch-update PRs. Their pure
+  parsing and aggregation code lives under `scripts/` and is covered by
+  `npm run test:data`.
 
 Tests live next to the modules they cover. Add a focused regression test when
 changing parsing, storage, worker behavior, scoring, connectivity, or solver
