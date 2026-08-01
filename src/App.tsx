@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { BoardView } from './components/Board'
 import { BorderAppraiser } from './components/BorderAppraiser'
 import { ModBrowser } from './components/ModBrowser'
@@ -30,8 +30,15 @@ import {
   saveLocal,
   type AppState,
 } from './logic/storage'
+import { appStateReducer, summarizeVoyageFinish } from './state/appStateReducer'
+import {
+  advanceCopySequence,
+  currentCopyCell,
+  startCopySequence,
+  type CopySequenceState,
+} from './state/copySequence'
 import type { ChartData } from './types'
-import { ALL_STATS, STAT_LABELS, borderTouches, emptyBoard } from './types'
+import { ALL_STATS, STAT_LABELS, borderTouches } from './types'
 
 /** discrete/guaranteed effects (drops, spawns, conversions) rather than plain % scalars */
 const isNotable = (text: string) => !/^\d+% (increased|more|reduced) /i.test(text)
@@ -46,7 +53,7 @@ function initialState(): AppState {
 }
 
 export default function App() {
-  const [state, setState] = useState<AppState>(initialState)
+  const [state, dispatch] = useReducer(appStateReducer, undefined, initialState)
   const [showOnboarding, setShowOnboarding] = useState<boolean>(() => {
     try {
       return !localStorage.getItem('onboarding-seen')
@@ -71,7 +78,7 @@ export default function App() {
   } | null>(null)
   // guided "copy into game": walk the board in the in-game Ctrl+click fill order
   // (bottom-left, then right, then up a row): board cells 6,7,8, 3,4,5, 0,1,2
-  const [copySeq, setCopySeq] = useState<{ order: number[]; step: number } | null>(null)
+  const [copySeq, setCopySeq] = useState<CopySequenceState | null>(null)
   const [harvestTheme, setHarvestTheme] = useState(() =>
     document.body.classList.contains('theme-harvest'),
   )
@@ -223,34 +230,16 @@ export default function App() {
     return [...counts.values()]
   }, [state.borders, state.board, chartMap])
 
-  const patch = (p: Partial<AppState>) => setState((s) => ({ ...s, ...p }))
+  const patch = (p: Partial<AppState>) => dispatch({ type: 'patch', patch: p })
 
   const toggleMod = (id: string, off: boolean) =>
-    setState((s) => {
-      const set = new Set(s.disabledMods)
-      if (off) set.add(id)
-      else set.delete(id)
-      return { ...s, disabledMods: [...set] }
-    })
+    dispatch({ type: 'mods/set-disabled', ids: [id], disabled: off })
   const bulkMods = (ids: string[], off: boolean) =>
-    setState((s) => {
-      const set = new Set(s.disabledMods)
-      for (const id of ids) {
-        if (off) set.add(id)
-        else set.delete(id)
-      }
-      return { ...s, disabledMods: [...set] }
-    })
+    dispatch({ type: 'mods/set-disabled', ids, disabled: off })
 
-  const addCharts = (charts: ChartData[]) =>
-    setState((s) => ({ ...s, pool: [...s.pool, ...charts] }))
+  const addCharts = (charts: ChartData[]) => dispatch({ type: 'charts/add', charts })
 
-  const removeChart = (uid: string) =>
-    setState((s) => ({
-      ...s,
-      pool: s.pool.filter((c) => c.uid !== uid),
-      board: s.board.map((p) => (p?.chartUid === uid ? null : p)),
-    }))
+  const removeChart = (uid: string) => dispatch({ type: 'charts/remove', uid })
 
   const clearCharts = () => {
     if (
@@ -259,47 +248,24 @@ export default function App() {
       )
     )
       return
-    setState((s) => ({ ...s, pool: [], board: emptyBoard() }))
+    dispatch({ type: 'charts/clear' })
     setSelectedChart(null)
   }
 
-  const updateChart = (chart: ChartData) =>
-    setState((s) => ({ ...s, pool: s.pool.map((c) => (c.uid === chart.uid ? chart : c)) }))
+  const updateChart = (chart: ChartData) => dispatch({ type: 'charts/update', chart })
 
-  const togglePreserve = (uid: string) =>
-    setState((s) => ({
-      ...s,
-      pool: s.pool.map((c) => (c.uid === uid ? { ...c, preserved: !c.preserved } : c)),
-    }))
+  const togglePreserve = (uid: string) => dispatch({ type: 'charts/toggle-preserved', uid })
 
   // apply the voyage result: keep charts whose uid is in keptUids, consume the
   // rest of the board; charts not on the board are untouched.
   const commitFinish = (keptUids: Set<string>) => {
-    setState((s) => {
-      const onBoard = new Set(s.board.filter(Boolean).map((p) => p!.chartUid))
-      let consumed = 0
-      let kept = 0
-      const pool = s.pool.filter((c) => {
-        if (!onBoard.has(c.uid)) return true // not run this voyage
-        if (keptUids.has(c.uid)) {
-          kept++
-          return true
-        }
-        consumed++
-        return false
-      })
-      setVoyageMsg(
-        `Voyage finished: consumed ${consumed} chart${consumed === 1 ? '' : 's'}` +
-          (kept ? `, kept ${kept}` : ''),
-      )
-      window.setTimeout(() => setVoyageMsg(''), 4000)
-      return {
-        ...s,
-        pool: pool.map((c) => (keptUids.has(c.uid) ? { ...c, preserved: false } : c)),
-        board: emptyBoard(),
-        borderRerollsUsed: 0,
-      }
-    })
+    const { consumed, kept } = summarizeVoyageFinish(state, keptUids)
+    dispatch({ type: 'voyage/finish', keptUids: [...keptUids] })
+    setVoyageMsg(
+      `Voyage finished: consumed ${consumed} chart${consumed === 1 ? '' : 's'}` +
+        (kept ? `, kept ${kept}` : ''),
+    )
+    window.setTimeout(() => setVoyageMsg(''), 4000)
     setPreserveConfirm(null)
   }
 
@@ -313,7 +279,6 @@ export default function App() {
     else setPreserveConfirm({ charts: preserved, index: 0, kept: [] })
   }
 
-  const FILL_ORDER = [6, 7, 8, 3, 4, 5, 0, 1, 2]
   // the VERBATIM imported line comes first: the in-game search must match the
   // game's own wording, and our stored mod texts can drift from it (issue #3)
   const chartImplicit = (chart: ChartData): string =>
@@ -324,16 +289,14 @@ export default function App() {
     navigator.clipboard.writeText(buildSingleChartSearch(chart)).catch(() => {})
   }
   const startCopySeq = () => {
-    const order = FILL_ORDER.filter((i) => state.board[i])
-    if (order.length) setCopySeq({ order, step: 0 })
+    setCopySeq(startCopySequence(state.board))
   }
   // copy the current square's chart, then advance to the next fill position
   const copyCurrentAndAdvance = () => {
     if (!copySeq) return
-    const chart = chartMap.get(state.board[copySeq.order[copySeq.step]]!.chartUid)
+    const chart = chartMap.get(state.board[currentCopyCell(copySeq)]!.chartUid)
     if (chart) copyChartDetails(chart)
-    if (copySeq.step + 1 >= copySeq.order.length) setCopySeq(null)
-    else setCopySeq({ ...copySeq, step: copySeq.step + 1 })
+    setCopySeq(advanceCopySequence(copySeq))
   }
 
   // while stepping, Ctrl+C copies the current square and advances; Esc cancels
@@ -364,11 +327,7 @@ export default function App() {
   const onCellClick = (i: number) => {
     if (selectedChart) {
       // place the selected library chart (removing it from any other cell)
-      setState((s) => {
-        const board = s.board.map((p) => (p?.chartUid === selectedChart ? null : p))
-        board[i] = { chartUid: selectedChart, rotation: 0 }
-        return { ...s, board }
-      })
+      dispatch({ type: 'board/place', cell: i, chartUid: selectedChart })
       setSelectedChart(null)
       setSelectedCell(null)
       return
@@ -382,13 +341,7 @@ export default function App() {
       return
     }
     // swap cells
-    setState((s) => {
-      const board = [...s.board]
-      const t = board[selectedCell]
-      board[selectedCell] = board[i]
-      board[i] = t
-      return { ...s, board }
-    })
+    dispatch({ type: 'board/swap', first: selectedCell, second: i })
     setSelectedCell(null)
   }
 
@@ -499,7 +452,11 @@ export default function App() {
             onUpdate={updateChart}
             onClearCharts={clearCharts}
           />
-          <ImportPanel onImport={addCharts} state={state} onLoadState={setState} />
+          <ImportPanel
+            onImport={addCharts}
+            state={state}
+            onLoadState={(loadedState) => dispatch({ type: 'replace', state: loadedState })}
+          />
         </div>
 
         <div className="col board-col">
@@ -511,7 +468,7 @@ export default function App() {
             selectedCell={selectedCell}
             highlightUid={
               copySeq
-                ? (state.board[copySeq.order[copySeq.step]]?.chartUid ?? null)
+                ? (state.board[currentCopyCell(copySeq)]?.chartUid ?? null)
                 : preserveConfirm
                   ? preserveConfirm.charts[preserveConfirm.index].uid
                   : selectedChart && state.board.some((p) => p?.chartUid === selectedChart)
@@ -521,28 +478,9 @@ export default function App() {
             strictMode={state.mode !== 'any'}
             placingChart={selectedChart ? (chartMap.get(selectedChart) ?? null) : null}
             onCellClick={onCellClick}
-            onRemove={(i) =>
-              setState((s) => {
-                const board = [...s.board]
-                board[i] = null
-                return { ...s, board }
-              })
-            }
-            onRotate={(i) =>
-              setState((s) => {
-                const board = [...s.board]
-                const p = board[i]
-                if (p) board[i] = { ...p, rotation: (p.rotation + 1) % 4 }
-                return { ...s, board }
-              })
-            }
-            onBorderChange={(seg, id) =>
-              setState((s) => {
-                const borders = [...s.borders]
-                borders[seg] = id
-                return { ...s, borders }
-              })
-            }
+            onRemove={(i) => dispatch({ type: 'board/remove', cell: i })}
+            onRotate={(i) => dispatch({ type: 'board/rotate', cell: i })}
+            onBorderChange={(seg, id) => dispatch({ type: 'borders/set', segment: seg, id })}
             onTogglePreserve={togglePreserve}
             onFinishVoyage={finishVoyage}
             onCopySequence={startCopySeq}
@@ -558,7 +496,7 @@ export default function App() {
                 {copySeq.step + 1} of {copySeq.order.length}.
               </div>
               {(() => {
-                const c = chartMap.get(state.board[copySeq.order[copySeq.step]]!.chartUid)
+                const c = chartMap.get(state.board[currentCopyCell(copySeq)]!.chartUid)
                 if (!c) return null
                 return (
                   <>
@@ -737,7 +675,7 @@ export default function App() {
             activeStrategy={activeStrategy}
             onPatch={patch}
             onApply={(board) => {
-              patch({ board: board.map((p) => (p ? { ...p } : null)) })
+              dispatch({ type: 'board/apply', board })
               setSelectedCell(null)
               setSelectedChart(null)
             }}

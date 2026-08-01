@@ -6,7 +6,7 @@ import {
   edgesForChartShape,
   isChartShapeResolved,
 } from '../logic/chartShapes'
-import { chartRewardKey, voyageRewardKey } from '../logic/rewards'
+import { chartValue, displayChartValue } from '../logic/chartRanking'
 import { newUid } from '../logic/parser'
 import type { Board, ChartData, Edges, Weights } from '../types'
 import { STAT_LABELS, STAT_SHORT } from '../types'
@@ -26,33 +26,8 @@ interface Props {
   onClearCharts: () => void
 }
 
-const SCOPE_REACH = { self: 1, adjacent: 3, global: 9 } as const
-
-/** heuristic worth of a chart under the current weights, for sorting */
-function chartValue(chart: ChartData, weights: Weights, disabled: Set<string>): number {
-  let v = 0
-  const hasImportedRewards = !!chart.rewards?.length
-  for (const id of chart.modIds) {
-    if (disabled.has(id)) continue
-    const mod = voyageModById.get(id)
-    if (!mod) continue
-    if (mod.scope === 'self' && hasImportedRewards) continue
-    const w = weights[voyageRewardKey(mod)] ?? 0
-    for (const e of mod.effects) v += w * e.percent * SCOPE_REACH[mod.scope]
-  }
-  for (const effect of chart.rewards ?? []) {
-    v += (weights[chartRewardKey(effect.stat)] ?? 0) * effect.percent
-  }
-  return v
-}
-
 type SortMode = 'value' | 'level' | 'name'
 type ViewMode = 'grid' | 'list'
-
-/** compact display value: weighted worth scaled to a friendly 0–99ish number */
-export function displayValue(chart: ChartData, weights: Weights, disabled: Set<string>): number {
-  return Math.round(chartValue(chart, weights, disabled) / 100)
-}
 
 const EDGE_LABELS = ['N', 'E', 'S', 'W'] as const
 
@@ -311,7 +286,7 @@ export function Library(props: Props) {
             const mods = c.modIds.map((id) => voyageModById.get(id)).filter(Boolean)
             // lead with the implicit (adjacent/voyage) - it's the strategic mod
             const mod = mods.find((m) => m!.scope !== 'self') ?? mods[0] ?? null
-            const val = displayValue(c, props.weights, props.disabledMods)
+            const val = displayChartValue(c, props.weights, props.disabledMods)
             const lines = [
               ...(unresolvedShape
                 ? [

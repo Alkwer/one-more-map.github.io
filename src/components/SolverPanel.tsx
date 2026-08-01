@@ -9,7 +9,7 @@ import type { AdjacencyMode } from '../logic/scoring'
 import type { Board, ConnectivityMode } from '../types'
 import type { StrategyDef } from '../data/strategies'
 import { GROUP_LABEL, GROUP_ORDER, REWARD_TYPES } from '../logic/rewards'
-import { displayValue } from './Library'
+import { displayChartValue } from '../logic/chartRanking'
 
 /** how many of your best charts to hold back from a filler voyage (one full board) */
 const KEEP_BEST = 9
@@ -187,7 +187,9 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
     const keep = new Set<string>()
     eligiblePool.forEach((chart) => chart.preserved && keep.add(chart.uid))
     ;[...eligiblePool]
-      .sort((a, b) => displayValue(b, weights, disabled) - displayValue(a, weights, disabled))
+      .sort(
+        (a, b) => displayChartValue(b, weights, disabled) - displayChartValue(a, weights, disabled),
+      )
       .slice(0, KEEP_BEST)
       .forEach((chart) => keep.add(chart.uid))
     const fillerPool = eligiblePool.filter((chart) => !keep.has(chart.uid))

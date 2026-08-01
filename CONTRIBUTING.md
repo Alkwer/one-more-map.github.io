@@ -40,6 +40,9 @@ reference is in [README.md](README.md#commands).
 
 - `src/App.tsx` owns the top-level application state and composes the major
   screens.
+- `src/state/` contains pure transitions for persisted UI state and transient
+  workflow state. Detailed ownership boundaries and extraction invariants are
+  documented in [`docs/ui-architecture.md`](docs/ui-architecture.md).
 - `src/components/` contains the board, chart library, importer, solver controls,
   border appraiser, voyage advisor, and strategy UI.
 - `src/types.ts` defines the shared chart, board, modifier, scoring, and solver
