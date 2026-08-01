@@ -30,15 +30,15 @@ CoordMode "ToolTip", "Screen"
 ;   4. Double-click this file to run it (it lives in the tray).
 ;
 ;  CALIBRATE THE BOARD BORDERS (once; saved to voyage-import.ini)
-;   - Point at the TOP-LEFT corner of the border-modifier square, press F5.
-;   - Point at the BOTTOM-RIGHT corner of the border-modifier square, press F6.
+;   - Point at the TOP-LEFT corner of the border-modifier square, press Shift+F7.
+;   - Point at the BOTTOM-RIGHT corner of the border-modifier square, press Shift+F8.
 ;   All 12 hover points are kept inside this rectangle.
 ;
 ;  EXACT BORDER CALIBRATION (optional; use if the quick mode misses)
 ;   - Press Ctrl+F5 to start. The script names the next modifier to record.
 ;   - Hover that modifier and press Ctrl+F6. Repeat for all 12 modifiers.
 ;   - Press Ctrl+F4 to preview every saved point slowly without running OCR.
-;   Exact points override the F5/F6 rectangle until F5 or F6 is used again.
+;   Exact points override the quick rectangle until Shift+F7/Shift+F8 is used again.
 ;
 ;  CALIBRATE THE CHART GRID (once; saved to voyage-import.ini)
 ;   - Hover the CENTRE of the TOP-LEFT chart, press  F7.
@@ -118,8 +118,8 @@ OnExit CleanupOcr
 KeyDefs := [
     ["RunSweep",      "F9",  "Run import (charts + border OCR)"],
     ["Abort",         "F10", "Abort"],
-    ["BorderTL",      "F5",  "Set border square top-left"],
-    ["BorderBR",      "F6",  "Set border square bottom-right"],
+    ["BorderTL",      "+F7", "Set border square top-left"],
+    ["BorderBR",      "+F8", "Set border square bottom-right"],
     ["ExactStart",    "^F5", "Start exact border calibration"],
     ["ExactSave",     "^F6", "Save exact border point"],
     ["BorderPreview", "^F4", "Preview border points (no OCR)"],
@@ -290,7 +290,7 @@ BorderPoints() {
     if ExactBordersCalibrated()
         return ExactBorderPoints
 
-    ; F5/F6 define the outer rectangle. Each modifier sits at the centre
+    ; The quick calibration defines the outer rectangle. Each modifier sits at the centre
     ; of one of the three equal edge segments, never outside that rectangle.
     cellW := (BorderBRx - BorderTLx) / 3
     cellH := (BorderBRy - BorderTLy) / 3
@@ -656,7 +656,7 @@ if A_Args.Length >= 2 && A_Args[1] = "--ocr-file" {
     ExitApp
 }
 
-; ---- capture the outer board-border rectangle (default F5 / F6) ----
+; ---- capture the outer board-border rectangle (default Shift+F7 / Shift+F8) ----
 SetBorderTopLeft(*) {
     global
     ClearExactBorderCalibration()

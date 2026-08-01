@@ -196,8 +196,8 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
           <li>
             Double-click the script. For quick board calibration, point at the{' '}
             <strong>top-left corner of the border-modifier square</strong> and press{' '}
-            <kbd>F5</kbd>; then point at its <strong>bottom-right corner</strong> and press{' '}
-            <kbd>F6</kbd>.
+            <kbd>Shift+F7</kbd>; then point at its <strong>bottom-right corner</strong> and press{' '}
+            <kbd>Shift+F8</kbd>.
           </li>
           <li>
             If any border is missed, press <kbd>Ctrl+F5</kbd> to start exact calibration. Hover the
