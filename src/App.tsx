@@ -21,6 +21,9 @@ import { ALL_STATS, STAT_LABELS, borderTouches, emptyBoard } from './types'
 /** discrete/guaranteed effects (drops, spawns, conversions) rather than plain % scalars */
 const isNotable = (text: string) => !/^\d+% (increased|more|reduced) /i.test(text)
 
+/** bump the key to show a fresh announcement banner */
+const ANNOUNCE_KEY = 'announce-ocr-borders'
+
 function initialState(): AppState {
   const hash = window.location.hash.replace(/^#/, '')
   if (hash.length > 20) {
@@ -48,6 +51,13 @@ export default function App() {
     }
   }
   const [showMods, setShowMods] = useState(false)
+  const [showAnnounce, setShowAnnounce] = useState<boolean>(() => {
+    try {
+      return !localStorage.getItem(ANNOUNCE_KEY)
+    } catch {
+      return false
+    }
+  })
   const [voyageMsg, setVoyageMsg] = useState('')
   const [preserveConfirm, setPreserveConfirm] = useState<{
     charts: ChartData[]
@@ -403,6 +413,30 @@ export default function App() {
           <button onClick={share}>{shareMsg || 'Share layout'}</button>
         </div>
       </header>
+
+      {showAnnounce && (
+        <div className="announce-banner">
+          <span>
+            🆕 <strong>OCR border import is live!</strong> The Windows bulk importer now reads all
+            12 border modifiers straight off your screen - grab the updated script in the Import
+            panel.
+          </span>
+          <button
+            className="announce-close"
+            title="Dismiss"
+            onClick={() => {
+              setShowAnnounce(false)
+              try {
+                localStorage.setItem(ANNOUNCE_KEY, '1')
+              } catch {
+                /* ignore */
+              }
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       <main>
         <section className="col library-col">

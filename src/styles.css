@@ -313,6 +313,29 @@ button.primary:hover {
   border-color: #7a4a4a;
 }
 
+/* dismissible announcement banner */
+.announce-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 16px 10px;
+  padding: 8px 12px;
+  border: 1px solid #b08a2e;
+  border-radius: 3px;
+  background: linear-gradient(180deg, rgba(140, 100, 20, 0.3), rgba(60, 42, 8, 0.3));
+  box-shadow: 0 0 10px rgba(200, 160, 60, 0.2);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.announce-banner span {
+  flex: 1;
+  color: var(--gold-bright);
+}
+.announce-close {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+}
+
 /* jackpot alert - the two builds actually worth waiting for */
 .jackpot-banner {
   display: flex;
