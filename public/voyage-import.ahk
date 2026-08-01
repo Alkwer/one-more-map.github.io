@@ -816,19 +816,25 @@ $engine = New-OcrEngine
 Write-Atomic $OutputPath 'READY'
 $cmdFile = "$Session.cmd"
 while ($true) {
-    if (-not (Test-Path -LiteralPath $cmdFile)) {
-        Start-Sleep -Milliseconds 40
-        continue
+    # transient file contention (the AutoHotkey side moving/reading files at
+    # the same instant) must never terminate the server - swallow and retry
+    try {
+        if (-not (Test-Path -LiteralPath $cmdFile)) {
+            Start-Sleep -Milliseconds 40
+            continue
+        }
+        $line = ([System.IO.File]::ReadAllText($cmdFile, $utf8)).Trim()
+        Remove-Item -LiteralPath $cmdFile -Force -ErrorAction SilentlyContinue
+        if ($line -eq 'quit') { break }
+        $parts = $line.Split('|')
+        if ($parts[0] -ne 'capture' -or $parts.Count -lt 6) { continue }
+        $idx = [int]$parts[1]
+        $block = Get-BorderBlock -Index $idx -Left ([int]$parts[2]) -Top ([int]$parts[3]) `
+            -Width ([int]$parts[4]) -Height ([int]$parts[5]) -Engine $engine
+        Write-Atomic "$Session-res-$idx.txt" $block
+    } catch {
+        Start-Sleep -Milliseconds 60
     }
-    $line = ([System.IO.File]::ReadAllText($cmdFile, $utf8)).Trim()
-    Remove-Item -LiteralPath $cmdFile -Force -ErrorAction SilentlyContinue
-    if ($line -eq 'quit') { break }
-    $parts = $line.Split('|')
-    if ($parts[0] -ne 'capture' -or $parts.Count -lt 6) { continue }
-    $idx = [int]$parts[1]
-    $block = Get-BorderBlock -Index $idx -Left ([int]$parts[2]) -Top ([int]$parts[3]) `
-        -Width ([int]$parts[4]) -Height ([int]$parts[5]) -Engine $engine
-    Write-Atomic "$Session-res-$idx.txt" $block
 }
 )"
 }
@@ -904,25 +910,47 @@ OcrSendCommand(text) {
     try FileMove OcrSession ".cmd.tmp", OcrSession ".cmd", 1
 }
 
+OcrHelperLastWords() {
+    global OcrSession
+    if FileExist(OcrSession ".ready")
+        return Trim(FileRead(OcrSession ".ready", "UTF-8"), " `t`r`n")
+    return "no error output was left behind"
+}
+
 OcrCaptureBorder(index, winX, winY, winW, winH) {
     global OcrSession, OcrPid, OcrTimeout, Running
-    resFile := OcrSession "-res-" index ".txt"
-    try FileDelete resFile
-    OcrSendCommand("capture|" index "|" winX "|" winY "|" winW "|" winH)
-    deadline := A_TickCount + OcrTimeout * 1000
-    while (A_TickCount < deadline) {
-        if !Running
-            return ""
-        if FileExist(resFile) {
-            block := FileRead(resFile, "UTF-8")
-            try FileDelete resFile
-            return block
+    Loop 2 { ; a dead helper is restarted once, then the capture is retried
+        resFile := OcrSession "-res-" index ".txt"
+        try FileDelete resFile
+        OcrSendCommand("capture|" index "|" winX "|" winY "|" winW "|" winH)
+        deadline := A_TickCount + OcrTimeout * 1000
+        helperDied := false
+        while (A_TickCount < deadline) {
+            if !Running
+                return ""
+            if FileExist(resFile) {
+                block := FileRead(resFile, "UTF-8")
+                try FileDelete resFile
+                return block
+            }
+            if !ProcessExist(OcrPid) {
+                helperDied := true
+                break
+            }
+            Sleep 40
         }
-        if !ProcessExist(OcrPid)
-            return "=== VOYAGE BORDER " index " ===`nOCR ERROR: the helper process exited.`n=== END VOYAGE BORDER ==="
-        Sleep 40
+        if !helperDied
+            return "=== VOYAGE BORDER " index " ===`nOCR ERROR: capture timed out.`n=== END VOYAGE BORDER ==="
+        reason := OcrHelperLastWords()
+        if (A_Index = 2)
+            return "=== VOYAGE BORDER " index " ===`nOCR ERROR: helper died twice. Last error: " reason "`n=== END VOYAGE BORDER ==="
+        ; restart the helper and retry this border once
+        OcrPid := 0
+        StartOcrServer()
+        ready := WaitOcrReady(45000)
+        if (ready != "READY")
+            return "=== VOYAGE BORDER " index " ===`nOCR ERROR: helper restart failed: " ready ". Original error: " reason "`n=== END VOYAGE BORDER ==="
     }
-    return "=== VOYAGE BORDER " index " ===`nOCR ERROR: capture timed out.`n=== END VOYAGE BORDER ==="
 }
 
 StopOcrServer() {
