@@ -90,6 +90,12 @@ the complete active sequence into a durable browser outbox and starts the next
 sequence immediately. Network failures never block finishing a Voyage; the
 outbox retries on the next load or configuration change.
 
+After the intake service confirms a sequence as created or already submitted,
+the browser removes it from the outbox and archives it locally. Archived rolls
+are hidden from the active list and counter by default, but remain available
+through `Show archived`, can be restored, and are still included in a dataset
+export. A failed submission is never archived automatically.
+
 The public GitHub Pages application sends the dataset to a separate Codex Sites
 endpoint. The browser holds only a revocable submission key whose sole purpose
 is authorising valid border-roll payloads. The GitHub credential is a server

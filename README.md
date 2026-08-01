@@ -115,6 +115,8 @@ Complete OCR scans are saved into the active Voyage sequence automatically.
 GitHub issue; a separately configured private submission key can instead queue
 the issue automatically through the intake service. Automatic delivery is off
 by default, so other visitors keep their samples only in their own browser.
+Successfully delivered Voyage sequences are archived and hidden from the active
+research list without deleting the local samples or removing them from exports.
 GitHub Actions validates, labels, and closes submitted issues, while a separate
 scheduled workflow prepares reviewable dataset-update pull requests.
 

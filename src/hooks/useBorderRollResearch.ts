@@ -2,12 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { BorderRerollCostMatch } from '../logic/borderOcr'
 import {
   addBorderRollSample,
+  archiveBorderRollSequence,
   createBorderRollSample,
   getBorderRollSequence,
   isCompleteBorderRollSequence,
   loadBorderResearch,
   nextBorderRollIndex,
   removeBorderRollSample,
+  restoreBorderRollSequence,
   saveBorderResearch,
   startBorderRollSequence,
   type BorderResearchStore,
@@ -41,6 +43,8 @@ export interface BorderRollResearchController {
   captureImportedRoll: (borders: Borders, rerollCost: BorderRerollCostMatch | null) => string
   startNextSequence: () => void
   removeSample: (sampleId: string) => void
+  archiveSequence: (sequenceId: string) => void
+  restoreSequence: (sequenceId: string) => void
   finishVoyage: () => string
 }
 
@@ -94,6 +98,7 @@ export function useBorderRollResearch(): BorderRollResearchController {
         endpoint: BORDER_ROLL_INTAKE_URL,
         submissionKey: current.settings.submissionKey,
       })
+      commitStore(archiveBorderRollSequence(storeRef.current, item.sequenceId))
       commitSubmissionStore(removeQueuedBorderSubmission(submissionRef.current, item.sequenceId))
       setMessage(
         `${result.status === 'created' ? 'Submitted' : 'Already submitted'} Voyage ${item.sequenceId.slice(-8)} as issue #${result.issueNumber}.`,
@@ -106,7 +111,7 @@ export function useBorderRollResearch(): BorderRollResearchController {
     } finally {
       submittingRef.current = false
     }
-  }, [commitSubmissionStore])
+  }, [commitStore, commitSubmissionStore])
 
   const addSample = useCallback(
     (borders: Borders, rerollIndex: number, nextCost: number | null, automatic = false): string => {
@@ -236,6 +241,22 @@ export function useBorderRollResearch(): BorderRollResearchController {
     [commitStore],
   )
 
+  const archiveSequence = useCallback(
+    (sequenceId: string) => {
+      commitStore(archiveBorderRollSequence(storeRef.current, sequenceId))
+      setMessage('Archived the submitted Voyage locally.')
+    },
+    [commitStore],
+  )
+
+  const restoreSequence = useCallback(
+    (sequenceId: string) => {
+      commitStore(restoreBorderRollSequence(storeRef.current, sequenceId))
+      setMessage('Restored the Voyage to the saved sequence list.')
+    },
+    [commitStore],
+  )
+
   return {
     store,
     submissionStore,
@@ -252,6 +273,8 @@ export function useBorderRollResearch(): BorderRollResearchController {
     captureImportedRoll,
     startNextSequence,
     removeSample,
+    archiveSequence,
+    restoreSequence,
     finishVoyage,
   }
 }

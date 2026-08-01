@@ -109,29 +109,147 @@ test('records only complete border rolls and keeps Voyage sequences distinct', a
   await expect(research.getByLabel('Next cost shown')).toHaveCount(0)
   await expect(research.getByText('✓ All 12 borders ready')).toBeVisible()
   await expect(research.getByText(/Auto-saved natural board/)).toBeVisible()
-  await expect(research.getByText(/Contribute border-roll data \(1 saved\)/)).toBeVisible()
+  await expect(research.getByText(/Contribute border-roll data \(1 active\)/)).toBeVisible()
   await expect(research.getByRole('button', { name: 'Submit Voyage' })).toBeEnabled()
 
   await research.getByRole('button', { name: 'Save current roll' }).click()
   await expect(research.getByText(/Saved paid reroll 1/)).toBeVisible()
-  await expect(research.getByText(/Contribute border-roll data \(2 saved\)/)).toBeVisible()
+  await expect(research.getByText(/Contribute border-roll data \(2 active\)/)).toBeVisible()
 
   await research.getByRole('button', { name: 'Start next Voyage' }).click()
   await pasteText(appPage, COMPLETE_DIVINE_BORDER_PAYLOAD)
   await expect(research.getByText(/Auto-saved natural board/)).toBeVisible()
-  await expect(research.getByText(/Contribute border-roll data \(3 saved\)/)).toBeVisible()
+  await expect(research.getByText(/Contribute border-roll data \(3 active\)/)).toBeVisible()
+
+  await research.getByRole('button', { name: 'Archive' }).click()
+  await expect(
+    research.getByText(/Contribute border-roll data \(1 active · 2 archived\)/),
+  ).toBeVisible()
+  await research.getByRole('button', { name: 'Show archived (1)' }).click()
+  await expect(research.getByText('Archived', { exact: true })).toBeVisible()
+  await research.getByRole('button', { name: 'Restore' }).click()
+  await expect(research.getByText(/Contribute border-roll data \(3 active\)/)).toBeVisible()
   await expectNoAccessibilityViolations(appPage)
 
   const stored = await appPage.evaluate(() =>
     JSON.parse(localStorage.getItem('allflame-border-roll-research') ?? '{}'),
   )
   expect(stored.samples).toHaveLength(3)
-  expect(stored.version).toBe(2)
+  expect(stored.version).toBe(3)
+  expect(stored.archivedSequenceIds).toEqual([])
   expect(stored.samples[0]).not.toHaveProperty('voyageLevel')
   expect(stored.samples[0].rerollIndex).toBe(0)
   expect(stored.samples[1].rerollIndex).toBe(1)
   expect(stored.samples[0].sequenceId).toBe(stored.samples[1].sequenceId)
   expect(stored.samples[1].sequenceId).not.toBe(stored.samples[2].sequenceId)
+})
+
+test('archives a Voyage only after the automatic outbox receives a success response', async ({
+  appPage,
+}) => {
+  const sequenceId = 'voyage-submitted-e2e'
+  const sample = {
+    schema: 'allflame-border-roll/v2',
+    sampleId: 'roll-submitted-e2e',
+    sequenceId,
+    capturedAt: '2026-08-01T18:43:24.435Z',
+    gamePatch: '3.29',
+    generation: 'natural',
+    rerollIndex: 0,
+    displayedNextRerollCost: 3000,
+    borderModIds: [
+      'b-crabboss',
+      'b-curr-1',
+      'b-minmagic',
+      'b-anchor-2',
+      'b-mag-2',
+      'b-izaro',
+      'b-rare-1',
+      'b-rare-1',
+      'b-crabs-2',
+      'b-locker',
+      'b-locker',
+      'b-mag-3',
+    ],
+  }
+
+  await appPage.route(
+    'https://allflame-border-roll-intake.green-loom-6865.chatgpt.site/api/border-rolls',
+    async (route) => {
+      if (route.request().method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 204,
+          headers: {
+            'Access-Control-Allow-Origin': ORIGIN,
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+          },
+        })
+        return
+      }
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        headers: { 'Access-Control-Allow-Origin': ORIGIN },
+        body: JSON.stringify({
+          status: 'created',
+          issueNumber: 999,
+          issueUrl: 'https://github.com/Alkwer/one-more-map.github.io/issues/999',
+        }),
+      })
+    },
+  )
+  await appPage.addInitScript(
+    ({ queuedSample, queuedSequenceId }) => {
+      localStorage.setItem(
+        'allflame-border-roll-research',
+        JSON.stringify({
+          version: 3,
+          activeSequenceId: 'voyage-next-e2e',
+          samples: [queuedSample],
+          archivedSequenceIds: [],
+        }),
+      )
+      localStorage.setItem(
+        'allflame-border-roll-submission',
+        JSON.stringify({
+          version: 1,
+          settings: { enabled: true, submissionKey: 'e2e-private-key' },
+          queue: [
+            {
+              sequenceId: queuedSequenceId,
+              queuedAt: '2026-08-01T18:46:08.655Z',
+              dataset: {
+                schema: 'allflame-border-roll-dataset/v2',
+                exportedAt: '2026-08-01T18:46:08.655Z',
+                sampleCount: 1,
+                samples: [queuedSample],
+              },
+            },
+          ],
+        }),
+      )
+    },
+    { queuedSample: sample, queuedSequenceId: sequenceId },
+  )
+
+  await openApp(appPage)
+  const research = appPage.locator('details.roll-research')
+  await expect(
+    research.getByText(/Contribute border-roll data \(0 active · 1 archived\)/),
+  ).toBeVisible()
+  await research.getByText(/Contribute border-roll data/).click()
+  await expect(research.getByText('0 Voyage sequences queued')).toBeVisible()
+  await expect(research.getByText(/Submitted Voyage .* as issue #999/)).toBeVisible()
+  await expect(
+    research.getByText('All submitted Voyage sequences are archived locally.'),
+  ).toBeVisible()
+
+  const stored = await appPage.evaluate(() =>
+    JSON.parse(localStorage.getItem('allflame-border-roll-research') ?? '{}'),
+  )
+  expect(stored.samples).toHaveLength(1)
+  expect(stored.archivedSequenceIds).toEqual([sequenceId])
 })
 
 test('recovers an unknown shape and places it on the board with the keyboard', async ({
