@@ -12,4 +12,6 @@ Allflame*.
 - Live score panel with per-stat bonus breakdown and connector validity check
 - Auto-solver: exhaustive (optimal) for pools ≤ 9 charts without rotation, hill-climbing
   with restarts otherwise; configurable reward weights and connector rule
+- Independent Divine, Meatfish and Magic Ethereal keeper protections for Alc & Go and
+  Speedrun Strongboxes, so imported charts can be used when a protection is switched off
 - Share layouts via URL, autosave to localStorage, JSON export/import

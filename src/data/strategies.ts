@@ -8,6 +8,28 @@
 
 import type { ChartAreaType, Edges, Stat, Weights } from '../types'
 
+export const STRATEGY_RESERVATION_OPTIONS = [
+  { id: 'divine', label: 'Divine strategies' },
+  { id: 'meatfish', label: 'Meatfish' },
+  { id: 'ethereal', label: 'Magic Ethereal' },
+] as const
+
+export type StrategyReservationId = (typeof STRATEGY_RESERVATION_OPTIONS)[number]['id']
+export type StrategyReservationPreferences = Record<StrategyReservationId, boolean>
+
+export const defaultStrategyReservations = (): StrategyReservationPreferences => ({
+  divine: true,
+  meatfish: true,
+  ethereal: true,
+})
+
+export interface StrategyReservationGroup {
+  id: StrategyReservationId
+  label: string
+  modIds?: string[]
+  areaTypes?: ChartAreaType[]
+}
+
 export interface PositionRule {
   /** board cells this rule targets (row-major, 4 = centre) */
   cells?: number[]
@@ -43,11 +65,9 @@ export interface StrategyDef {
    *  a small value makes the lines a soft preference that yields to the
    *  position rules (piece locations matter more than exact lines) */
   layoutPenalty?: number
-  /** charts carrying these mods are held back entirely while this strategy is
-   *  active - they're the pieces another strategy is saving up for */
-  reserveModIds?: string[]
-  /** charts with these destination/area types are held back too */
-  reserveAreaTypes?: ChartAreaType[]
+  /** Optional keeper groups excluded while this strategy is active. Users can
+   *  enable each group independently in the solver controls. */
+  reservationGroups?: StrategyReservationGroup[]
   /** pieces the strategy needs before it's worth running; if the library
    *  can't supply them the UI says to avoid this voyage and wait */
   requirements?: {
@@ -75,21 +95,6 @@ export const RARE_IMPLICITS = ['adj-rare-1', 'adj-rare-2', 'voy-rare'] as const
 /** Milky's master keeper regex - every mod worth saving, across all strats */
 export const ALL_GOOD_MODS_REGEX =
   '"at least|cannot drop|poss|fract|bottle|divine|arca|oper|star|pantheon|belt|lantern|4000 w|strongbo|rare monsters in all voy|sulphur found in all"'
-
-/** the pieces Meatfish (and Magic Ethereal) are saving up - the interim
- *  Speedrun farm must never burn these */
-const JUICE_PIECES = [
-  'adj-star-1', 'adj-star-2',
-  'adj-pantheon',
-  'adj-lantern',
-  'voy-possess', 'voy-fracture', 'voy-rare', 'voy-noequip',
-  'adj-wisps-1', 'adj-wisps-2',
-  'adj-magic-1', 'adj-magic-2',
-  'voy-minmagic',
-  // Divine Border Rares pieces
-  'adj-box-1', 'adj-box-2', 'adj-box-3',
-  'adj-rare-1', 'adj-rare-2',
-]
 
 const CENTER = [4]
 const EDGES = [1, 3, 5, 7]
@@ -134,6 +139,56 @@ const SPEEDRUN_CENTER_MODS = [
 ]
 const NOT_CENTER = [0, 1, 2, 3, 5, 6, 7, 8]
 
+const MEATFISH_RESERVATION: StrategyReservationGroup = {
+  id: 'meatfish',
+  label: 'Meatfish',
+  modIds: [
+    'adj-star-1',
+    'adj-star-2',
+    'adj-pantheon',
+    'adj-lantern',
+    'voy-possess',
+    'voy-fracture',
+    'voy-rare',
+    'voy-noequip',
+    'adj-wisps-1',
+    'adj-wisps-2',
+  ],
+  areaTypes: ['sea-pillars'],
+}
+
+const ETHEREAL_RESERVATION: StrategyReservationGroup = {
+  id: 'ethereal',
+  label: 'Magic Ethereal',
+  modIds: [
+    'adj-lantern',
+    'voy-noequip',
+    'adj-wisps-1',
+    'adj-wisps-2',
+    'adj-magic-1',
+    'adj-magic-2',
+    'voy-minmagic',
+  ],
+}
+
+const DIVINE_RESERVATION_MODS = [
+  ...RARE_IMPLICITS,
+  'adj-star-1',
+  'adj-star-2',
+  'adj-box-1',
+  'adj-box-2',
+  'adj-box-3',
+]
+
+const divineReservation = (includeSpeedrunCentres: boolean): StrategyReservationGroup => ({
+  id: 'divine',
+  label: 'Divine strategies',
+  modIds: includeSpeedrunCentres
+    ? [...DIVINE_RESERVATION_MODS, ...SPEEDRUN_CENTER_MODS]
+    : DIVINE_RESERVATION_MODS,
+  areaTypes: ['sea-pillars', 'pelagic-abyss'],
+})
+
 // "Alc & Go" highway: three vertical lanes capped at the top,
 // joined along the bottom row. 8 connections, all reaching the ⚓ start.
 const ALC_GO_LAYOUT: Edges[] = [
@@ -155,7 +210,7 @@ export const STRATEGIES: StrategyDef[] = [
     tagline: 'Burn the charts nothing else wants - one-lane highways, hope for random encounters.',
     source: { label: 'Milky’s strat', url: '' },
     guide: [
-      'Uses only charts no other strategy needs - every juice piece and centre box is held back automatically.',
+      'Uses only charts no other strategy needs - keeper charts are held back by default, with independent protections in Solver Settings.',
       'Forms single-lane highways (three lanes joined along the bottom) - or whatever the shapes allow.',
       'Don’t care what’s on the tiles: you’re there for scattered loot, sulphur and random encounters.',
       'Alc, go, place every lantern, click everything, leave. Rinse and repeat between real runs.',
@@ -169,8 +224,7 @@ export const STRATEGIES: StrategyDef[] = [
     rules: [],
     layout: ALC_GO_LAYOUT,
     layoutPenalty: 15, // a preference, not a law - "whatever works"
-    reserveModIds: [...JUICE_PIECES, ...SPEEDRUN_CENTER_MODS],
-    reserveAreaTypes: ['sea-pillars', 'pelagic-abyss'],
+    reservationGroups: [divineReservation(true), MEATFISH_RESERVATION, ETHEREAL_RESERVATION],
   },
   {
     id: 'milky-speedrun',
@@ -185,7 +239,7 @@ export const STRATEGIES: StrategyDef[] = [
       'Take Alchemy, Scouring and Exalted orbs in to juice every box before opening.',
       'If a Filthscrabble border appears (a ~4,000-sulphur boss), the solver pins your highest-sulphur chart to its tile.',
       'Speed matters: place lanterns, click everything, open the boxes, leave. Even a junk voyage yields a div or two of scattered loot.',
-      'Never burns your juice pieces: Starfish, Pantheon, Lantern, Possessed, Fracture, Rares, No-Equipment, Wisp, Magic, Strongbox and Sea-Pillar charts are held back for the other strats.',
+      'Keeper charts for Divine, Meatfish and Magic Ethereal are held back by default; switch off only the protections you do not want in Solver Settings.',
     ],
     weights: {
       'adjacent:opbox': 10,
@@ -200,8 +254,7 @@ export const STRATEGIES: StrategyDef[] = [
       'border:exalt': 3,
       'border:ancient': 3,
     },
-    reserveModIds: JUICE_PIECES,
-    reserveAreaTypes: ['sea-pillars', 'pelagic-abyss'],
+    reservationGroups: [divineReservation(false), MEATFISH_RESERVATION, ETHEREAL_RESERVATION],
     rules: [
       // one centre chart, never a second one wasted elsewhere. Operative's
       // outranks the fallbacks (Milky: "won't yield as much, but consistent")

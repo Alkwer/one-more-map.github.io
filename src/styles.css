@@ -531,6 +531,19 @@ button.primary:hover {
   margin: 8px 0;
   line-height: 1.4;
 }
+.strategy-reservations {
+  margin: 10px 0;
+  padding: 8px 10px 9px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+.strategy-reservations legend {
+  padding: 0 4px;
+  color: var(--gold-bright);
+  font-family: var(--sc);
+  font-size: 12px;
+  letter-spacing: 0.4px;
+}
 .weights-overridden {
   opacity: 0.45;
   pointer-events: none;
