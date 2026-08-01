@@ -1,5 +1,6 @@
 import type { AppState } from './storage'
 import type { StrategyEvaluationOptions } from './strategySuggestions'
+import { defaultStrategyReservations } from '../data/strategies'
 import type { Borders, ChartData, Weights } from '../types'
 
 const normalizedRewards = (chart: ChartData) =>
@@ -37,6 +38,7 @@ export function createStrategyInventoryKey(
     adjacencyMode: options.adjacencyMode,
     adjacentAffectsSelf: options.adjacentAffectsSelf,
     disabledMods: normalizedDisabledMods(options.disabledMods ?? []),
+    strategyReservations: options.strategyReservations ?? defaultStrategyReservations(),
     limit,
   })
 }
@@ -50,6 +52,7 @@ type SolverStateKeyInput = Pick<
   | 'adjacencyMode'
   | 'adjacentAffectsSelf'
   | 'disabledMods'
+  | 'strategyReservations'
 >
 
 export function createSolverStateKey(
@@ -66,6 +69,7 @@ export function createSolverStateKey(
     adjacencyMode: state.adjacencyMode,
     adjacentAffectsSelf: state.adjacentAffectsSelf,
     disabledMods: normalizedDisabledMods(state.disabledMods),
+    strategyReservations: state.strategyReservations,
     activeStrategyId,
   })
 }

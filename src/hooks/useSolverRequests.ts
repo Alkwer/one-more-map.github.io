@@ -59,6 +59,7 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
           adjacencyMode: state.adjacencyMode,
           adjacentAffectsSelf: state.adjacentAffectsSelf,
           disabledMods: state.disabledMods,
+          strategyReservations: state.strategyReservations,
         },
         weights,
         activeStrategy?.id ?? null,
@@ -71,6 +72,7 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
       state.adjacencyMode,
       state.adjacentAffectsSelf,
       state.disabledMods,
+      state.strategyReservations,
       weights,
       activeStrategy?.id,
     ],
@@ -95,7 +97,11 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
     setBusyRequest({ key: requestKey, requestId })
     setResultState({ key: requestKey, results: [] })
     setNoteState({ key: requestKey, text: '' })
-    const { solvePool, heldBack } = selectStrategySolvePool(eligiblePool, activeStrategy)
+    const { solvePool, heldBack, heldBackFor } = selectStrategySolvePool(
+      eligiblePool,
+      activeStrategy,
+      state.strategyReservations,
+    )
 
     clientRef
       .current!.solve({
@@ -121,7 +127,9 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
         const notes: string[] = []
         if (heldBack > 0)
           notes.push(
-            `${heldBack} juice chart${heldBack === 1 ? '' : 's'} held back for Meatfish/Ethereal.`,
+            `${heldBack} chart${heldBack === 1 ? '' : 's'} held back for ${heldBackFor.join(
+              ', ',
+            )}. Change protections above to include them.`,
           )
         if (solvePool.length < 9)
           notes.push(`Only ${solvePool.length} spare charts - not enough for a full board.`)

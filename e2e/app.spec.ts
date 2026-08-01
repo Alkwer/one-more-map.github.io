@@ -57,6 +57,39 @@ test('exposes the primary screen structure and visible focus in both themes', as
   await expect(themeButton).toHaveCSS('box-shadow', /rgb\(255, 255, 255\)/)
 })
 
+test('lets low-investment strategies persist independent chart protections', async ({
+  appPage,
+}) => {
+  await openApp(appPage)
+
+  const alcAndGo = appPage.locator('.strat-card').filter({ hasText: 'Alc & Go' })
+  await alcAndGo.getByRole('button', { name: 'Set active strategy' }).click()
+
+  const protections = appPage.getByRole('group', {
+    name: 'Protect charts for other strategies',
+  })
+  await expect(protections.getByLabel('Divine strategies')).toBeChecked()
+  await expect(protections.getByLabel('Meatfish')).toBeChecked()
+  await expect(protections.getByLabel('Magic Ethereal')).toBeChecked()
+
+  await protections.getByLabel('Meatfish').uncheck()
+  await expect
+    .poll(() =>
+      appPage.evaluate(() => {
+        const stored = JSON.parse(localStorage.getItem('allflame-voyage-solver') ?? '{}')
+        return stored.strategyReservations?.meatfish
+      }),
+    )
+    .toBe(false)
+
+  await appPage.reload()
+  await expect(
+    appPage
+      .getByRole('group', { name: 'Protect charts for other strategies' })
+      .getByLabel('Meatfish'),
+  ).not.toBeChecked()
+})
+
 test('globally imports English, Korean, and border clipboard payloads', async ({ appPage }) => {
   const workerUrls: string[] = []
   appPage.on('worker', (worker) => workerUrls.push(worker.url()))

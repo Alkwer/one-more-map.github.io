@@ -12,6 +12,9 @@ Exile 3.29 _Curse of the Allflame_.
   guessed.
 - Scores layouts using configurable reward weights and shows the contribution
   from charts, borders, and voyage modifiers.
+- Lets low-investment strategies protect Divine, Meatfish, and Magic Ethereal
+  keeper charts independently, so imported charts remain available when a
+  protection is switched off.
 - Finds an optimal layout exhaustively for pools of up to nine charts without
   rotation. Larger or rotational searches use seeded hill climbing with
   restarts.

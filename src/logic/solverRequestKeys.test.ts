@@ -17,6 +17,7 @@ const inventoryOptions = {
   adjacencyMode: 'physical' as const,
   adjacentAffectsSelf: false,
   disabledMods: new Set<string>(),
+  strategyReservations: { divine: true, meatfish: true, ethereal: true },
 }
 
 describe('solver request keys', () => {
@@ -65,6 +66,7 @@ describe('solver request keys', () => {
       adjacencyMode: 'physical' as const,
       adjacentAffectsSelf: false,
       disabledMods: [],
+      strategyReservations: { divine: true, meatfish: true, ethereal: true },
     }
     const original = createSolverStateKey(state, {}, null)
     const preserved = createSolverStateKey(
@@ -74,5 +76,36 @@ describe('solver request keys', () => {
     )
 
     expect(preserved).not.toBe(original)
+  })
+
+  it('invalidates inventory and interactive results when strategy protections change', () => {
+    const borders = Array(12).fill(null)
+    const inventory = createStrategyInventoryKey([chart()], borders, inventoryOptions)
+    const changedInventory = createStrategyInventoryKey([chart()], borders, {
+      ...inventoryOptions,
+      strategyReservations: { ...inventoryOptions.strategyReservations, meatfish: false },
+    })
+    const state = {
+      pool: [chart()],
+      borders,
+      mode: 'strict' as const,
+      allowRotation: true,
+      adjacencyMode: 'physical' as const,
+      adjacentAffectsSelf: false,
+      disabledMods: [],
+      strategyReservations: inventoryOptions.strategyReservations,
+    }
+    const interactive = createSolverStateKey(state, {}, 'alc-and-go')
+    const changedInteractive = createSolverStateKey(
+      {
+        ...state,
+        strategyReservations: { ...state.strategyReservations, meatfish: false },
+      },
+      {},
+      'alc-and-go',
+    )
+
+    expect(changedInventory).not.toBe(inventory)
+    expect(changedInteractive).not.toBe(interactive)
   })
 })

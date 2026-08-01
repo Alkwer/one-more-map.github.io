@@ -68,6 +68,11 @@ describe('state decoding', () => {
     ['chart shape', { pool: [{}] }, 'pool[0].uid must be a non-empty string'],
     ['setting type', { allowRotation: 'yes' }, 'allowRotation must be a boolean'],
     [
+      'strategy reservation type',
+      { strategyReservations: { meatfish: 'no' } },
+      'meatfish must be a boolean',
+    ],
+    [
       'border entry',
       { borders: [{}, ...Array(11).fill(null)] },
       'borders[0] must be a string or null',
@@ -183,6 +188,22 @@ describe('state decoding', () => {
     })
   })
 
+  it('defaults missing strategy protections and preserves explicit choices', () => {
+    expect(decoded({ v: STATE_VERSION }).state.strategyReservations).toEqual({
+      divine: true,
+      meatfish: true,
+      ethereal: true,
+    })
+
+    expect(
+      decoded(
+        persisted({
+          strategyReservations: { divine: true, meatfish: false, ethereal: false },
+        }),
+      ).state.strategyReservations,
+    ).toEqual({ divine: true, meatfish: false, ethereal: false })
+  })
+
   it('round-trips a normal export and shared URL state', () => {
     const state: AppState = {
       ...defaultState(),
@@ -191,6 +212,7 @@ describe('state decoding', () => {
       borders: ['b-divine', ...Array(11).fill(null)],
       allowRotation: false,
       strategyId: 'alc-and-go',
+      strategyReservations: { divine: true, meatfish: false, ethereal: false },
       borderRerollsUsed: 2,
     }
 
