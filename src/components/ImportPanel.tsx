@@ -194,29 +194,19 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
             Click once on this page first so it has focus.
           </li>
           <li>
-            Double-click the script. For quick board calibration, point at the{' '}
-            <strong>top-left corner of the border-modifier square</strong> and press{' '}
-            <kbd>Shift+F7</kbd>; then point at its <strong>bottom-right corner</strong> and press{' '}
-            <kbd>Shift+F8</kbd>.
+            Double-click the script - a <strong>setup wizard</strong> opens on first run and walks
+            you through calibrating the chart grid and all 12 border positions, step by step, with
+            live progress. (Rerun it any time: tray icon → <em>Setup wizard…</em>.)
           </li>
           <li>
-            If any border is missed, press <kbd>Ctrl+F5</kbd> to start exact calibration. Hover the
-            modifier named by the script and press <kbd>Ctrl+F6</kbd> to save it; repeat for all 12.
-            Press <kbd>Ctrl+F4</kbd> to preview the saved positions without running OCR.
+            Daily use: <kbd>F9</kbd> copies the charts, scans the 12 borders with OCR, and imports
+            both · <kbd>Shift+F9</kbd> imports just the borders · <kbd>F10</kbd> aborts. Border OCR
+            can take around 15–30 seconds on a 4K screen.
           </li>
           <li>
-            For chart import, hover the <strong>top-left</strong> chart and press <kbd>F7</kbd>;
-            hover the <strong>bottom-right</strong> cell of the chart grid and press{' '}
-            <kbd>F8</kbd>. (Edit GridCols/GridRows if your panel isn't 6×10.)
-          </li>
-          <li>
-            <kbd>F9</kbd> copies the charts, scans the 12 borders, and imports both ·{' '}
-            <kbd>Shift+F9</kbd> imports just the borders · <kbd>F10</kbd> aborts. Border OCR can
-            take around 15–30 seconds on a 4K screen.
-          </li>
-          <li>
-            Don't like the keys? Right-click (or double-click) the script's tray icon and choose{' '}
-            <em>Keybinds…</em> - every hotkey is rebindable and saved between sessions.
+            Don't like the keys? Tray icon → <em>Keybinds…</em> - every hotkey is rebindable and
+            saved between sessions. Calibration keys only work while the wizard is open, so they
+            can't collide with your PoE binds mid-map.
           </li>
         </ol>
         <p className="muted small">

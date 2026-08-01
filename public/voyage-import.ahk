@@ -52,6 +52,8 @@ CoordMode "ToolTip", "Screen"
 ;   F10 = abort at any time
 ;   All keys are rebindable: right-click (or double-click) the tray icon
 ;   and choose "Keybinds...". Saved to voyage-import.ini.
+;   Calibration keys only work while the Setup wizard is open
+;   (tray icon -> "Setup wizard...").
 ;
 ;  If PoE is running as administrator, run this script as admin too,
 ;  or its keypresses won't reach the game. Don't touch the mouse or
@@ -120,13 +122,13 @@ KeyDefs := [
     ["RunSweep",      "F9",  "Run import (charts + border OCR)"],
     ["BordersOnly",   "+F9", "Import borders only (OCR, no charts)"],
     ["Abort",         "F10", "Abort"],
-    ["BorderTL",      "+F7", "Set border square top-left"],
-    ["BorderBR",      "+F8", "Set border square bottom-right"],
-    ["ExactStart",    "^F5", "Start exact border calibration"],
-    ["ExactSave",     "^F6", "Save exact border point"],
-    ["BorderPreview", "^F4", "Preview border points (no OCR)"],
-    ["GridTL",        "F7",  "Set chart grid top-left"],
-    ["GridBR",        "F8",  "Set chart grid bottom-right"],
+    ["BorderTL",      "+F7", "Set border square top-left (wizard only)"],
+    ["BorderBR",      "+F8", "Set border square bottom-right (wizard only)"],
+    ["ExactStart",    "^F5", "Start exact border calibration (wizard only)"],
+    ["ExactSave",     "^F6", "Save exact border point (wizard only)"],
+    ["BorderPreview", "^F4", "Preview border points (wizard only)"],
+    ["GridTL",        "F7",  "Set chart grid top-left (wizard only)"],
+    ["GridBR",        "F8",  "Set chart grid bottom-right (wizard only)"],
 ]
 KeyActions := Map(
     "RunSweep", RunSweep,
@@ -244,6 +246,189 @@ ShowKeybindGui(*) {
 A_TrayMenu.Insert("1&", "Keybinds...", ShowKeybindGui)
 A_TrayMenu.Default := "Keybinds..."
 ApplyKeybinds()
+
+; ---------------- FIRST-RUN SETUP WIZARD ----------------
+; A small always-on-top overlay that walks new users through calibration.
+; It auto-advances when the matching calibration key is pressed. Reachable
+; any time from the tray: "Setup wizard...". Auto-opens once on first run.
+WizardGui := 0
+WizardStepIndex := 1
+WizardProgressCtl := 0
+WizardTitleCtl := 0
+WizardBodyCtl := 0
+WizardHintCtl := 0
+WizardBackBtn := 0
+WizardNextBtn := 0
+
+WizardSteps() {
+    global Keys
+    return [
+        Map("id", "welcome", "wait", "", "title", "Welcome aboard!",
+            "body", "This one-time setup teaches the importer where things sit on YOUR screen."
+            . " It takes about a minute.`n`nBefore we start:`n"
+            . "  - Path of Exile in Windowed or Windowed Fullscreen`n"
+            . "  - The Voyage board open, chart panel visible, not scrolled`n"
+            . "  - The solver site open in your browser (click the page once)`n`n"
+            . "This window stays on top - drag it anywhere out of the way."),
+        Map("id", "grid-tl", "wait", "GridTL", "title", "Chart grid - corner 1 of 2",
+            "body", "In PoE, hover your mouse over the CENTRE of the TOP-LEFT chart"
+            . " in the chart panel.`n`nThen press " KeyLabel(Keys["GridTL"]) " (keep the mouse still)."),
+        Map("id", "grid-br", "wait", "GridBR", "title", "Chart grid - corner 2 of 2",
+            "body", "Now hover the CENTRE of the BOTTOM-RIGHT cell of the chart grid"
+            . " - the far corner of the 6-wide grid, even if that slot is empty.`n`n"
+            . "Then press " KeyLabel(Keys["GridBR"]) "."),
+        Map("id", "border-exact", "wait", "ExactDone", "title", "Board borders - all 12 points",
+            "body", "Now teach it exactly where each of the 12 border modifiers sits.`n`n"
+            . "  1.  Press " KeyLabel(Keys["ExactStart"]) " to begin.`n"
+            . "  2.  Hover the modifier named below and press " KeyLabel(Keys["ExactSave"]) ".`n"
+            . "  3.  Repeat - the script names each of the 12 in turn.`n`n"
+            . "(In a hurry? The quick 2-corner mode also works while this wizard is open: "
+            . KeyLabel(Keys["BorderTL"]) " top-left, then " KeyLabel(Keys["BorderBR"]) " bottom-right.)"),
+        Map("id", "preview", "wait", "BorderPreview", "title", "Optional: preview the aim",
+            "body", "Press " KeyLabel(Keys["BorderPreview"]) " to watch the mouse visit all 12"
+            . " border points slowly - no OCR, no clipboard, just a dry run.`n`n"
+            . "If a point misses its pill, use exact calibration later ("
+            . KeyLabel(Keys["ExactStart"]) " to start, " KeyLabel(Keys["ExactSave"]) " per point)."
+            . "`n`nOr just click Skip."),
+        Map("id", "done", "wait", "", "title", "You're set!",
+            "body", "Daily use:`n"
+            . "  - " KeyLabel(Keys["RunSweep"]) "  =  full import (charts + border OCR)`n"
+            . "  - " KeyLabel(Keys["BordersOnly"]) "  =  rescan just the 12 borders`n"
+            . "  - " KeyLabel(Keys["Abort"]) "  =  abort anything`n`n"
+            . "Tray icon -> Keybinds... to rebind any of these.`n"
+            . "Tray icon -> Setup wizard... to run this again."),
+    ]
+}
+
+StartWizard(*) {
+    global WizardGui, WizardStepIndex, WizardProgressCtl, WizardTitleCtl
+    global WizardBodyCtl, WizardHintCtl, WizardBackBtn, WizardNextBtn
+    if IsObject(WizardGui) {
+        WizardStepIndex := 1
+        WizardRender()
+        WizardGui.Show()
+        ApplyKeybinds()
+        SetTimer WizardUpdateStatus, 800
+        return
+    }
+    WizardGui := Gui("+AlwaysOnTop +ToolWindow", "Voyage Importer - Setup")
+    WizardGui.BackColor := "16130E"
+    WizardGui.SetFont("s9 c9A8F76", "Segoe UI")
+    WizardProgressCtl := WizardGui.Add("Text", "xm w400", "")
+    WizardGui.SetFont("s12 cE7D7AB Bold", "Segoe UI")
+    WizardTitleCtl := WizardGui.Add("Text", "xm w400", "")
+    WizardGui.SetFont("s10 cD8CBB0 Norm", "Segoe UI")
+    WizardBodyCtl := WizardGui.Add("Text", "xm w400 h170", "")
+    WizardGui.SetFont("s10 c7FD98F", "Segoe UI")
+    WizardHintCtl := WizardGui.Add("Text", "xm w400 h48", "")
+    WizardGui.SetFont("s10 cD8CBB0", "Segoe UI")
+    WizardBackBtn := WizardGui.Add("Button", "xm w90", "Back")
+    WizardNextBtn := WizardGui.Add("Button", "x+8 w130 Default", "Next")
+    closeBtn := WizardGui.Add("Button", "x+8 w90", "Close")
+    WizardBackBtn.OnEvent("Click", (*) => WizardMove(-1))
+    WizardNextBtn.OnEvent("Click", (*) => WizardMove(1))
+    closeBtn.OnEvent("Click", (*) => WizardFinish(false))
+    WizardGui.OnEvent("Close", (*) => (WizardFinish(false), true))
+    WizardStepIndex := 1
+    WizardRender()
+    WizardGui.Show("x24 y24")
+    ApplyKeybinds()
+    SetTimer WizardUpdateStatus, 800
+}
+
+WizardRender() {
+    global WizardStepIndex, WizardProgressCtl, WizardTitleCtl, WizardBodyCtl
+    global WizardHintCtl, WizardBackBtn, WizardNextBtn, Keys
+    steps := WizardSteps()
+    if (WizardStepIndex < 1)
+        WizardStepIndex := 1
+    if (WizardStepIndex > steps.Length)
+        WizardStepIndex := steps.Length
+    step := steps[WizardStepIndex]
+    WizardProgressCtl.Value := "Step " WizardStepIndex " of " steps.Length
+    WizardTitleCtl.Value := step["title"]
+    WizardBodyCtl.Value := step["body"]
+    if (step["id"] = "border-exact")
+        WizardHintCtl.Value := WizardExactHint()
+    else if (step["wait"] != "")
+        WizardHintCtl.Value := "-> Waiting for " KeyLabel(Keys[step["wait"]]) " ... (auto-advances, or click Skip)"
+    else if (step["id"] = "welcome")
+        WizardUpdateStatus()
+    else
+        WizardHintCtl.Value := "Have a profitable voyage!"
+    WizardBackBtn.Enabled := WizardStepIndex > 1
+    WizardNextBtn.Text := (WizardStepIndex = steps.Length) ? "Finish"
+        : (step["wait"] != "") ? "Skip" : "Next"
+}
+
+WizardUpdateStatus() {
+    global WizardGui, WizardStepIndex, WizardHintCtl, PoeWinTitle, BrowserWinTitle
+    if !IsObject(WizardGui) || !WinExist("ahk_id " WizardGui.Hwnd)
+        return
+    steps := WizardSteps()
+    if (steps[WizardStepIndex]["id"] != "welcome")
+        return
+    poe := WinExist(PoeWinTitle) ? "OK - found" : "MISSING - start PoE (windowed)"
+    web := WinExist(BrowserWinTitle) ? "OK - found" : "MISSING - open the solver site"
+    WizardHintCtl.Value := "Path of Exile window:  " poe "`nSolver browser tab:     " web
+}
+
+WizardMove(delta) {
+    global WizardStepIndex
+    steps := WizardSteps()
+    if (delta > 0 && WizardStepIndex >= steps.Length) {
+        WizardFinish(true)
+        return
+    }
+    WizardStepIndex += delta
+    WizardRender()
+}
+
+WizardExactHint() {
+    global ExactBorderNext, ExactBorderPoints, Keys
+    if (ExactBorderNext < 1)
+        return "-> Press " KeyLabel(Keys["ExactStart"]) " to begin the 12 points"
+    return "Saved " ExactBorderPoints.Length "/12 - next: " BorderPointLabel(ExactBorderNext)
+        . "`nHover it and press " KeyLabel(Keys["ExactSave"]) "."
+}
+
+WizardOnAction(action) {
+    global WizardGui, WizardStepIndex
+    if !IsObject(WizardGui) || !WinExist("ahk_id " WizardGui.Hwnd)
+        return
+    steps := WizardSteps()
+    if (WizardStepIndex < 1 || WizardStepIndex > steps.Length)
+        return
+    step := steps[WizardStepIndex]
+    if (step["wait"] = action) {
+        WizardMove(1)
+        return
+    }
+    ; progress ticks inside the 12-point step refresh the hint, not the step
+    if (step["id"] = "border-exact" && (action = "ExactStart" || action = "ExactSave"))
+        WizardRender()
+    ; finishing the quick 2-corner mode also satisfies the border step
+    if (step["id"] = "border-exact" && action = "BorderBR" && BoardCalibrated())
+        WizardMove(1)
+}
+
+WizardFinish(completed) {
+    global WizardGui, IniFile, Keys
+    SetTimer WizardUpdateStatus, 0
+    if IsObject(WizardGui)
+        WizardGui.Hide()
+    ApplyKeybinds()
+    IniWrite 1, IniFile, "wizard", "Seen"
+    if completed
+        Flash "Setup complete. " KeyLabel(Keys["RunSweep"]) " runs the import!", 4000
+}
+
+A_TrayMenu.Insert("2&", "Setup wizard...", StartWizard)
+; the wizard must be seen once - even with calibration already in the ini.
+; Completing it OR closing/skipping it sets the Seen flag; after that it only
+; opens from the tray menu.
+if (IniRead(IniFile, "wizard", "Seen", "0") = "0")
+    SetTimer StartWizard, -600
 ; ------------------------------------------
 
 Flash(text, ms := 1400) {
@@ -662,6 +847,7 @@ if A_Args.Length >= 2 && A_Args[1] = "--ocr-file" {
 ; ---- capture the outer board-border rectangle (default Shift+F7 / Shift+F8) ----
 SetBorderTopLeft(*) {
     global
+    WizardOnAction("BorderTL")
     ClearExactBorderCalibration()
     MouseGetPos &x, &y
     BorderTLx := x, BorderTLy := y
@@ -676,6 +862,7 @@ SetBorderBottomRight(*) {
     BorderBRx := x, BorderBRy := y
     IniWrite BorderBRx, IniFile, "board", "BottomRightX"
     IniWrite BorderBRy, IniFile, "board", "BottomY"
+    WizardOnAction("BorderBR")
     Flash "Bottom-right board border set: " BorderBRx ", " BorderBRy
 }
 
@@ -684,6 +871,7 @@ StartExactCalibration(*) {
     global
     ClearExactBorderCalibration()
     ExactBorderNext := 1
+    WizardOnAction("ExactStart")
     Flash "Exact border calibration started."
         . "`nHover 1/12: " BorderPointLabel(ExactBorderNext)
         . "`nPress " KeyLabel(Keys["ExactSave"]) " to save it.", 5000
@@ -705,11 +893,13 @@ SaveExactPoint(*) {
 
     if (ExactBorderNext > 12) {
         ExactBorderNext := 0
+        WizardOnAction("ExactDone")
         Flash "Exact border calibration complete: 12/12."
             . "`nPress " KeyLabel(Keys["BorderPreview"]) " to preview or " KeyLabel(Keys["RunSweep"]) " to scan.", 5000
         return
     }
 
+    WizardOnAction("ExactSave")
     Flash "Saved " savedIndex "/12: " BorderPointLabel(savedIndex)
         . "`nNext " ExactBorderNext "/12: " BorderPointLabel(ExactBorderNext)
         . "`nHover it and press " KeyLabel(Keys["ExactSave"]) ".", 5000
@@ -718,6 +908,7 @@ SaveExactPoint(*) {
 ; ---- preview border positions without OCR (default Ctrl+F4) ----
 PreviewBorders(*) {
     global
+    WizardOnAction("BorderPreview")
     if Running {
         Flash "A scan or preview is already running.", 2500
         return
@@ -759,6 +950,7 @@ PreviewBorders(*) {
 ; ---- capture the chart grid corners (default F7 / F8) ----
 SetGridTopLeft(*) {
     global
+    WizardOnAction("GridTL")
     MouseGetPos &x, &y
     TLx := x, TLy := y
     IniWrite TLx, IniFile, "grid", "TLx"
@@ -767,6 +959,7 @@ SetGridTopLeft(*) {
 }
 SetGridBottomRight(*) {
     global
+    WizardOnAction("GridBR")
     MouseGetPos &x, &y
     BRx := x, BRy := y
     IniWrite BRx, IniFile, "grid", "BRx"
@@ -794,8 +987,7 @@ RunBordersOnly(*) {
         return
     }
     if !BoardCalibrated() {
-        MsgBox "Calibrate borders first with " KeyLabel(Keys["BorderTL"]) "/" KeyLabel(Keys["BorderBR"])
-            . " or " KeyLabel(Keys["ExactStart"]) "/" KeyLabel(Keys["ExactSave"]) "."
+        MsgBox "Borders aren't calibrated yet. Right-click the tray icon -> Setup wizard..."
         return
     }
     if !WinExist(PoeWinTitle) {
@@ -848,7 +1040,7 @@ RunBordersOnly(*) {
 RunSweep(*) {
     global
     if !Calibrated() {
-        MsgBox "Calibrate first (F7 top-left, F8 bottom-right)."
+        MsgBox "Not calibrated yet. Right-click the tray icon -> Setup wizard..."
         return
     }
     if !WinExist(PoeWinTitle) {
@@ -934,7 +1126,7 @@ RunSweep(*) {
     Running := false
     borderNote := BoardCalibrated()
         ? (borderBlob != "" ? " + 12 border OCR scans" : " (border OCR failed)")
-        : " (borders skipped: calibrate " KeyLabel(Keys["BorderTL"]) "/" KeyLabel(Keys["BorderBR"]) ")"
+        : " (borders skipped: run the tray Setup wizard)"
     Flash "Done. Sent " copied " charts" borderNote
         . "; skipped " skipped " empty/dup cells.", 6000
 }
