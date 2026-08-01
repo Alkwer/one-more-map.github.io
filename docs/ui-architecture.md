@@ -29,10 +29,17 @@ contracts.
 
 ## Chart library UI
 
-The library owns filtering, sorting, grid/list preference, selection, and which chart editor is
-open. The editor owns chart field changes and explicit shape resolution. Reusable chart ranking is
-a pure heuristic in `logic/chartRanking.ts`, shared by the library and filler solver without either
-UI component importing the other.
+`components/Library.tsx` owns filter/sort controls, the persisted grid/list preference, selection
+coordination, and which editor is open. `components/library/libraryView.ts` filters and sorts charts
+without owning state or mutating the pool. `components/library/ChartGrid.tsx` and
+`components/library/ChartList.tsx` preserve the two existing presentation trees, while
+`components/library/ChartEditor.tsx` owns chart field changes and explicit shape resolution.
+Reusable chart ranking remains a pure heuristic in `logic/chartRanking.ts`, shared by the library
+and filler solver without either UI component importing the other.
+
+Grid/list persistence still uses the existing `library-view` storage key. Unresolved charts must
+continue to open the list editor instead of becoming selectable, and the extracted presentation
+components must preserve card classes, accessible names, pressed states, tooltips, and action order.
 
 ## Solver UI
 
