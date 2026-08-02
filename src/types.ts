@@ -111,7 +111,10 @@ export type Scope = 'self' | 'adjacent' | 'global'
 
 export interface ModEffect {
   stat: Stat
-  /** percentage value; treated multiplicatively as (1 + percent/100) */
+  /**
+   * Normalized heuristic contribution in percentage points. Scoring adds
+   * effects reaching an area; the actual in-game stacking rules are unconfirmed.
+   */
   percent: number
 }
 

@@ -41,6 +41,28 @@ const assertClose = (actual: number, expected: number) =>
   assert.ok(Math.abs(actual - expected) < 1e-9, `${actual} !== ${expected}`)
 
 describe('scoring regressions', () => {
+  it('stacks effects additively within an area', () => {
+    const c = chart(
+      'additive',
+      [],
+      [
+        { stat: 'quantity', percent: 50 },
+        { stat: 'quantity', percent: 50 },
+      ],
+    )
+    const board = boardWith([1, c])
+    const charts = new Map([[c.uid, c]])
+    const weights = { 'self:quant': 1 }
+    const connectivity = analyzeConnectivity(board, charts, 'any')
+
+    const score = scoreBoard(board, emptyBorders(), charts, weights, options, connectivity)
+    const fastScore = prepareScoreTotal(emptyBorders(), charts, weights, options)
+
+    assert.equal(score.total, 1)
+    assert.equal(score.perStat.quantity, 1)
+    assert.equal(fastScore(board, connectivity), 1)
+  })
+
   it('scores imported explicit rewards and border appraisal consistently', () => {
     // Imported header rewards are scored as self-scope explicit modifiers and use
     // the same reward key as their manually modelled chart-mod equivalent.
