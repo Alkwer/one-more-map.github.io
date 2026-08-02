@@ -437,6 +437,41 @@ test('steps through chart copying and preserves a confirmed Voyage survivor', as
   ).toBeVisible()
 })
 
+test('follows the tutorial from solving through result selection to copying', async ({
+  appPage,
+}) => {
+  await openApp(appPage)
+  await pasteText(appPage, makeCrossingChartBatch(9))
+  await expect(libraryHeading(appPage)).toContainText('(9)')
+
+  await appPage.getByRole('button', { name: /TUTORIAL/ }).click()
+  const tutorial = appPage.locator('.tutorial')
+  for (let step = 0; step < 5; step += 1) {
+    await tutorial.getByRole('button', { name: /Next/ }).click()
+  }
+  await expect(tutorial).toContainText('Nothing is applied automatically.')
+  await expect(appPage.locator('.tut-ring')).toBeVisible()
+  await tutorial.getByRole('button', { name: '✕' }).click()
+
+  const boardCells = appPage.locator('.tile-select')
+  const occupiedCellCount = () =>
+    boardCells.evaluateAll(
+      (cells) => cells.filter((cell) => cell.getAttribute('data-chart-name')).length,
+    )
+
+  const solveButton = appPage.getByRole('button', { name: 'Solve (9 charts)' })
+  await solveButton.click()
+  const firstResult = appPage.locator('.results .result').first()
+  await expect(firstResult).toBeVisible({ timeout: 20_000 })
+  await expect.poll(occupiedCellCount).toBe(0)
+
+  await firstResult.click()
+  await expect.poll(occupiedCellCount).toBe(9)
+
+  await appPage.getByRole('button', { name: /Copy into game/ }).click()
+  await expect(appPage.getByText(/Step 1 of 9/)).toBeVisible()
+})
+
 test('cancels a stale solve, completes in the worker, and applies a result', async ({
   appPage,
 }) => {

@@ -21,7 +21,7 @@ export function SolverActions(props: Props) {
             : props.solveNote}
       </div>
 
-      <div className="solve-bar solve-row">
+      <div className="solver-actions solve-row">
         <button
           className="primary"
           onClick={props.onSolve}

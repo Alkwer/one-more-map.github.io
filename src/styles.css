@@ -2847,9 +2847,6 @@ textarea {
   gap: 8px;
   align-items: stretch;
 }
-.solve-row .solve-big {
-  flex: 1;
-}
 .solve-settings-btn {
   display: flex;
   flex-direction: column;
@@ -2862,17 +2859,6 @@ textarea {
 .solve-settings-label {
   font-size: 10.5px;
   letter-spacing: 0.5px;
-}
-.solver-popup {
-  max-width: 430px;
-  max-height: 86vh;
-  overflow-y: auto;
-}
-.solver-popup .solver {
-  background: none;
-  border: none;
-  box-shadow: none;
-  padding: 0;
 }
 .import-rare-alert {
   display: flex;

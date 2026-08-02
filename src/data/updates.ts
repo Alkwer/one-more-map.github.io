@@ -63,13 +63,6 @@ export const UPDATES: UpdateEntry[] = [
   },
   {
     date: '2026-08-01',
-    tag: 'reworked',
-    title: 'Solve is front and centre',
-    detail:
-      'The Solve button now sits directly under the board, above Copy into game. Results appear as clickable cards (points + runnable badge); the best one auto-loads and is marked "on board".',
-  },
-  {
-    date: '2026-08-01',
     tag: 'new',
     title: 'Chart destinations power the strategies',
     detail:
