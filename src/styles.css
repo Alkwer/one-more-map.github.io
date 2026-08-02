@@ -1838,6 +1838,24 @@ textarea {
   }
 }
 
+/* rare-implicit (Divine fuel) charts arrived in an import */
+.import-rare-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 2px;
+  padding: 7px 10px;
+  border: 1px solid var(--gold-dim);
+  border-radius: 3px;
+  background: rgba(200, 170, 110, 0.12);
+  color: var(--gold-bright);
+  font-size: 13px;
+  box-shadow: 0 0 10px rgba(200, 170, 110, 0.25);
+}
+.import-rare-alert span {
+  flex: 1;
+}
+
 /* ------- updates log ------- */
 .updates-btn.unseen {
   position: relative;

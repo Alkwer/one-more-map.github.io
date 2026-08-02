@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
-import { ALL_GOOD_MODS_REGEX } from '../data/strategies'
+import { ALL_GOOD_MODS_REGEX, RARE_IMPLICITS } from '../data/strategies'
 import { generateDemoCharts } from '../logic/demo'
 import { parseBorderOcrPayload } from '../logic/borderOcr'
 import { isChartClipboardText, parseChartText } from '../logic/parser'
@@ -17,6 +17,8 @@ interface Props {
 export function ImportPanel({ onImport, state, onLoadState }: Props) {
   const [text, setText] = useState('')
   const [msg, setMsg] = useState('')
+  // celebratory alert when an import brings in rare-implicit (Divine fuel) charts
+  const [rareAlert, setRareAlert] = useState('')
 
   const doParse = useCallback((raw?: string) => {
     const source = raw ?? text
@@ -88,6 +90,17 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
         .join(', ')}`)
     }
     setMsg(parts.join('; ') || 'Nothing imported')
+
+    // rare-implicit charts are the Divine strategies' fuel - flag them loudly
+    // so a jackpot piece never slips into the library unnoticed
+    const rares = charts.filter((c) =>
+      c.modIds.some((id) => (RARE_IMPLICITS as readonly string[]).includes(id)),
+    ).length
+    setRareAlert(
+      rares > 0
+        ? `${rares} Rare Monsters chart${rares === 1 ? '' : 's'} imported - Divine-strategy fuel! Locked 🔒 in the library until you run a Divine border board.`
+        : '',
+    )
   }, [onImport, onLoadState, text])
 
   // Ctrl+V anywhere on the page: if the clipboard holds chart item text, import
@@ -168,6 +181,14 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
         </button>
       </div>
       {msg && <div className="muted pad">{msg}</div>}
+      {rareAlert && (
+        <div className="import-rare-alert">
+          <span>🎰 {rareAlert}</span>
+          <button className="announce-close" title="Dismiss" onClick={() => setRareAlert('')}>
+            ✕
+          </button>
+        </div>
+      )}
 
       <details className="ahk-help">
         <summary>🎲 Rolling & keeping charts (Milky's regexes)</summary>

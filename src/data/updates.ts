@@ -15,6 +15,13 @@ export const UPDATES: UpdateEntry[] = [
   {
     date: '2026-08-02',
     tag: 'new',
+    title: 'Rare chart import alerts',
+    detail:
+      'Importing a Rare Monsters chart (Divine-strategy fuel) now pops a golden alert in the Import panel, so a jackpot piece never slips into the library unnoticed.',
+  },
+  {
+    date: '2026-08-02',
+    tag: 'new',
     title: 'Strategy fuel locks in the library',
     detail:
       'Charts saved as another strategy’s fuel (rare-implicits for the Divine strats, Rare Fracture for Meatfish) now show a 🔒 badge in the Chart Library with a tooltip naming the strategy. Badges follow the protection toggles.',
