@@ -7,6 +7,8 @@ interface Props {
   pool: ChartData[]
   borders: Borders
   onSelect: (id: string | null) => void
+  /** open the multi-voyage session planner */
+  onPlanSession?: () => void
 }
 
 /** per-requirement tally of what the library can supply */
@@ -88,7 +90,7 @@ function RegexRow({ regex }: { regex: string }) {
   )
 }
 
-export function StrategiesPanel({ activeId, pool, borders, onSelect }: Props) {
+export function StrategiesPanel({ activeId, pool, borders, onSelect, onPlanSession }: Props) {
   const [expanded, setExpanded] = useState<string | null>(activeId)
 
   return (
@@ -96,6 +98,15 @@ export function StrategiesPanel({ activeId, pool, borders, onSelect }: Props) {
       <div className="panel-title">
         Strategies
         {activeId && <span className="strat-live-badge">ACTIVE</span>}
+        <span className="spacer" />
+        {onPlanSession && (
+          <button
+            onClick={onPlanSession}
+            title="Sequence your whole library into a session of voyages"
+          >
+            📋 Plan session
+          </button>
+        )}
       </div>
       <div className="muted small-note" style={{ marginTop: 0 }}>
         Curated community strategies. Picking one overrides your reward weights and steers the

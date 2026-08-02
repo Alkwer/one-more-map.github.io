@@ -138,7 +138,7 @@ const ETHEREAL_LAYOUT: Edges[] = [
 
 // the ONE chart Speedrun puts in the centre: Diviner's / Operative's boxes or
 // Messages in a Bottle (Arcanist's and generic boxes don't qualify)
-const SPEEDRUN_CENTER_MODS = [
+export const SPEEDRUN_CENTER_MODS = [
   'adj-divbox-1', 'adj-divbox-2',
   'adj-opbox-1', 'adj-opbox-2',
   'adj-msg-1', 'adj-msg-2',

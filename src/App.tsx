@@ -11,6 +11,8 @@ import { SolverPanel } from './components/SolverPanel'
 import { SolveBar } from './components/SolveBar'
 import { UpdatesLog } from './components/UpdatesLog'
 import { LATEST_UPDATE_DATE } from './data/updates'
+import { BorderAdvisor } from './components/BorderAdvisor'
+import { SessionPlanner } from './components/SessionPlanner'
 import { borderModById, voyageModById } from './data/mods'
 import { strategyById } from './data/strategies'
 import { StrategiesPanel } from './components/StrategiesPanel'
@@ -55,6 +57,7 @@ export default function App() {
   }
   const [showMods, setShowMods] = useState(false)
   const [showSolverSettings, setShowSolverSettings] = useState(false)
+  const [showPlanner, setShowPlanner] = useState(false)
   const [showUpdates, setShowUpdates] = useState(false)
   const [updatesSeen, setUpdatesSeen] = useState<string>(() => {
     try {
@@ -411,6 +414,15 @@ export default function App() {
         />
       )}
       {showUpdates && <UpdatesLog onClose={() => setShowUpdates(false)} />}
+      {showPlanner && (
+        <SessionPlanner
+          pool={state.pool}
+          borders={state.borders}
+          reservations={state.strategyReservations}
+          onUseStrategy={(id) => patch({ strategyId: id })}
+          onClose={() => setShowPlanner(false)}
+        />
+      )}
       {showSolverSettings && (
         <div className="onboard-backdrop" onClick={() => setShowSolverSettings(false)}>
           <div className="onboard solver-popup" onClick={(e) => e.stopPropagation()}>
@@ -625,6 +637,12 @@ export default function App() {
             </div>
           )}
 
+          <BorderAdvisor
+            borders={state.borders}
+            weights={effectiveWeights}
+            activeStrategy={activeStrategy}
+          />
+
           <div className={`conn-status ${conn.valid ? 'ok' : 'bad'}`}>
             {state.mode === 'any'
               ? 'Connector rules ignored'
@@ -715,6 +733,7 @@ export default function App() {
             pool={state.pool}
             borders={state.borders}
             onSelect={(id) => patch({ strategyId: id })}
+            onPlanSession={() => setShowPlanner(true)}
           />
         </section>
       </main>
