@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ALL_GOOD_MODS_REGEX } from '../data/strategies'
+import { ALL_GOOD_MODS_REGEX, RARE_IMPLICITS } from '../data/strategies'
 import { BorderRollResearch } from './BorderRollResearch'
 import { generateDemoCharts } from '../logic/demo'
 import { applyBorderOcrSnapshot, parseBorderOcrPayload } from '../logic/borderOcr'
@@ -19,6 +19,7 @@ interface Props {
 export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Props) {
   const [text, setText] = useState('')
   const [msg, setMsg] = useState('')
+  const [rareAlert, setRareAlert] = useState('')
 
   const doParse = useCallback(
     (raw?: string) => {
@@ -55,6 +56,15 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
       if (charts.length > 0 || hasOcrPayload) {
         setText('')
       }
+
+      const rareCount = charts.filter((chart) =>
+        chart.modIds.some((id) => (RARE_IMPLICITS as readonly string[]).includes(id)),
+      ).length
+      setRareAlert(
+        rareCount > 0
+          ? `${rareCount} Rare Monsters chart${rareCount === 1 ? '' : 's'} imported - Divine-strategy fuel! Locked 🔒 in the library until you run a Divine border board.`
+          : '',
+      )
 
       if (charts.length)
         parts.push(`Imported ${charts.length} chart${charts.length === 1 ? '' : 's'}`)
@@ -233,6 +243,14 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
       {msg && (
         <div className="muted pad" role="status" aria-live="polite" aria-atomic="true">
           {msg}
+        </div>
+      )}
+      {rareAlert && (
+        <div className="import-rare-alert">
+          <span>🎰 {rareAlert}</span>
+          <button className="announce-close" title="Dismiss" onClick={() => setRareAlert('')}>
+            ✕
+          </button>
         </div>
       )}
 

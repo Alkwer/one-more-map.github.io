@@ -7,6 +7,7 @@ interface Props {
   allowRotation: boolean
   onSolve: () => void
   onFiller: () => void
+  onOpenPlanner?: () => void
 }
 
 export function SolverActions(props: Props) {
@@ -20,13 +21,24 @@ export function SolverActions(props: Props) {
             : props.solveNote}
       </div>
 
-      <button
-        className="primary"
-        onClick={props.onSolve}
-        disabled={props.busy || props.eligibleChartCount === 0}
-      >
-        {props.busy ? 'Solving…' : `Solve (${props.eligibleChartCount} charts)`}
-      </button>
+      <div className="solve-bar solve-row">
+        <button
+          className="primary"
+          onClick={props.onSolve}
+          disabled={props.busy || props.eligibleChartCount === 0}
+        >
+          {props.busy ? 'Solving…' : `Solve (${props.eligibleChartCount} charts)`}
+        </button>
+        {props.onOpenPlanner && (
+          <button
+            className="solve-settings-btn"
+            onClick={props.onOpenPlanner}
+            title="Sequence your whole library into a session of voyages"
+          >
+            📋<span className="solve-settings-label">Plan</span>
+          </button>
+        )}
+      </div>
       <button
         className="filler-btn"
         onClick={props.onFiller}

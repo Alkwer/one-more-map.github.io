@@ -39,6 +39,7 @@ export function createStrategyInventoryKey(
     adjacentAffectsSelf: options.adjacentAffectsSelf,
     disabledMods: normalizedDisabledMods(options.disabledMods ?? []),
     strategyReservations: options.strategyReservations ?? defaultStrategyReservations(),
+    pieceKeeps: options.pieceKeeps ?? {},
     limit,
   })
 }
@@ -53,7 +54,8 @@ type SolverStateKeyInput = Pick<
   | 'adjacentAffectsSelf'
   | 'disabledMods'
   | 'strategyReservations'
->
+> &
+  Partial<Pick<AppState, 'board' | 'pieceKeeps'>>
 
 export function createSolverStateKey(
   state: SolverStateKeyInput,
@@ -62,6 +64,7 @@ export function createSolverStateKey(
 ): string {
   return JSON.stringify({
     pool: state.pool.map((chart) => normalizedChart(chart, true)),
+    board: state.board ?? [],
     borders: state.borders,
     weights: normalizedWeights(weights),
     mode: state.mode,
@@ -70,6 +73,7 @@ export function createSolverStateKey(
     adjacentAffectsSelf: state.adjacentAffectsSelf,
     disabledMods: normalizedDisabledMods(state.disabledMods),
     strategyReservations: state.strategyReservations,
+    pieceKeeps: state.pieceKeeps ?? {},
     activeStrategyId,
   })
 }

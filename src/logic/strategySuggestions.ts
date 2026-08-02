@@ -28,6 +28,7 @@ export interface StrategyEvaluationOptions extends ScoreOptions {
   mode: ConnectivityMode
   allowRotation: boolean
   strategyReservations?: StrategyReservationPreferences
+  pieceKeeps?: Record<string, number>
 }
 
 export interface StrategyReadiness {
@@ -302,6 +303,8 @@ export function evaluateStrategyInventory(
       pool,
       strategy,
       opts.strategyReservations,
+      undefined,
+      opts.pieceKeeps,
     ).solvePool
     const potential =
       solve(eligiblePool, borders, strategy.weights, {

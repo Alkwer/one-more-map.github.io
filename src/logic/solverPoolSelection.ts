@@ -6,11 +6,16 @@ import {
   type StrategyReservationPreferences,
 } from '../data/strategies'
 import { displayChartValue } from './chartRanking'
+import { selectPieceBank, strategyWantsChart } from './pieceKeeps'
 import type { ChartData, Weights } from '../types'
 
 export const KEEP_BEST_CHARTS = 9
 
-type StrategyReservations = Pick<StrategyDef, 'allowRareImplicits' | 'reservationGroups'>
+type StrategyReservations = Pick<
+  StrategyDef,
+  'allowRareImplicits' | 'allowFractureCharts' | 'reservationGroups'
+> &
+  Partial<Pick<StrategyDef, 'id'>>
 
 const matchesReservation = (
   chart: ChartData,
@@ -26,19 +31,17 @@ const matchesReservation = (
   )
 }
 
-export function selectStrategySolvePool(
+const selectLegacyStrategySolvePool = (
   eligiblePool: ChartData[],
   strategy: StrategyReservations | null,
-  preferences: StrategyReservationPreferences = defaultStrategyReservations(),
-): { solvePool: ChartData[]; heldBack: number; heldBackFor: string[] } {
+  preferences: StrategyReservationPreferences,
+) => {
   const matchedLabels = new Set<string>()
   const configuredGroups = strategy
     ? (strategy.reservationGroups ?? [])
     : MANUAL_STRATEGY_RESERVATIONS
   const enabledReservations = configuredGroups.filter((reservation) => preferences[reservation.id])
 
-  // Preserve both rare-implicit chart types in non-Divine modes that do not
-  // already define them. Each type remains independently configurable.
   if (!strategy?.allowRareImplicits) {
     DIVINE_RARE_RESERVATIONS.forEach((fallback) => {
       if (
@@ -67,12 +70,42 @@ export function selectStrategySolvePool(
   }
 }
 
+export function selectStrategySolvePool(
+  eligiblePool: ChartData[],
+  strategy: StrategyReservations | null,
+  preferences: StrategyReservationPreferences = defaultStrategyReservations(),
+  lockedUids: ReadonlySet<string> = new Set(),
+  pieceKeeps?: Record<string, number>,
+): { solvePool: ChartData[]; heldBack: number; heldBackFor: string[] } {
+  if (pieceKeeps === undefined) {
+    return selectLegacyStrategySolvePool(eligiblePool, strategy, preferences)
+  }
+  const bank = selectPieceBank(eligiblePool, pieceKeeps ?? {}, preferences)
+  const heldFor = new Set<string>()
+
+  const solvePool = eligiblePool.filter((chart) => {
+    if (lockedUids.has(chart.uid)) return true
+    const owner = bank.get(chart.uid)
+    if (!owner || owner.strategyId === strategy?.id) return true
+    if (strategyWantsChart(strategy?.id, chart)) return true
+    heldFor.add(owner.strategyName)
+    return false
+  })
+
+  return {
+    solvePool,
+    heldBack: eligiblePool.length - solvePool.length,
+    heldBackFor: [...heldFor],
+  }
+}
+
 export function selectFillerPool(
   eligiblePool: ChartData[],
   weights: Weights,
   disabledMods: ReadonlySet<string>,
   strategy: StrategyReservations | null,
   preferences: StrategyReservationPreferences = defaultStrategyReservations(),
+  pieceKeeps?: Record<string, number>,
 ): ChartData[] {
   const keep = new Set<string>()
   eligiblePool.forEach((chart) => chart.preserved && keep.add(chart.uid))
@@ -85,6 +118,12 @@ export function selectFillerPool(
     .slice(0, KEEP_BEST_CHARTS)
     .forEach((chart) => keep.add(chart.uid))
 
-  const strategySafePool = selectStrategySolvePool(eligiblePool, strategy, preferences).solvePool
+  const strategySafePool = selectStrategySolvePool(
+    eligiblePool,
+    strategy,
+    preferences,
+    keep,
+    pieceKeeps,
+  ).solvePool
   return strategySafePool.filter((chart) => !keep.has(chart.uid))
 }

@@ -16,9 +16,10 @@ interface Props {
   activeStrategy: StrategyDef | null
   onPatch: (patch: Partial<AppState>) => void
   onApply: (board: Board) => void
+  onOpenPlanner?: () => void
 }
 
-export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) {
+export function SolverPanel({ state, activeStrategy, onPatch, onApply, onOpenPlanner }: Props) {
   const [regexCap, setRegexCap] = useState(50)
   const [copied, setCopied] = useState(false)
   // While a strategy is active it overrides the manual weights everywhere here.
@@ -63,6 +64,7 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply }: Props) 
         allowRotation={state.allowRotation}
         onSolve={run}
         onFiller={runFiller}
+        onOpenPlanner={onOpenPlanner}
       />
 
       <BestChartsRegex

@@ -115,11 +115,19 @@ export interface StrategyDef {
   /** Divine strategies may consume rare-implicit charts; every other mode
    *  keeps them available for a future Divine-border run by default. */
   allowRareImplicits?: boolean
+  /** Meatfish may consume Rare Fracture charts; other strategies bank them. */
+  allowFractureCharts?: boolean
   /** Milky's in-game search string highlighting this strategy's keeper charts */
   searchRegex?: string
   /** extra links shown on the card (trade searches, guides) */
   extraLinks?: { label: string; url: string }[]
 }
+
+/** Rare-monster implicit charts are Divine-strategy fuel. */
+export const RARE_IMPLICITS = ['adj-rare-1', 'adj-rare-2', 'voy-rare'] as const
+
+/** Rare Fracture charts are Meatfish fuel. */
+export const MEATFISH_FUEL = ['voy-fracture'] as const
 
 /** Milky's master keeper regex - every mod worth saving, across all strats */
 export const ALL_GOOD_MODS_REGEX =
@@ -170,7 +178,7 @@ const SPEEDRUN_PREMIUM_STRONGBOX_MODS = [
   'adj-opbox-1',
   'adj-opbox-2',
 ]
-const SPEEDRUN_CENTER_MODS = [...SPEEDRUN_PREMIUM_STRONGBOX_MODS, 'adj-msg-1', 'adj-msg-2']
+export const SPEEDRUN_CENTER_MODS = [...SPEEDRUN_PREMIUM_STRONGBOX_MODS, 'adj-msg-1', 'adj-msg-2']
 const NOT_CENTER = [0, 1, 2, 3, 5, 6, 7, 8]
 
 const GENERIC_STRONGBOX_RESERVATION: StrategyReservationGroup = {
@@ -470,6 +478,7 @@ export const STRATEGIES: StrategyDef[] = [
     ],
     waitHint: 'Speedrun Strongboxes in the meantime.',
     searchRegex: '"cannot|poss|lantern|pantheon"',
+    allowFractureCharts: true,
   },
   {
     id: 'milky-ethereal',

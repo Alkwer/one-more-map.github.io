@@ -35,6 +35,8 @@ export interface AppState {
   strategyId: string | null
   /** chart types excluded from low-investment strategy solve pools */
   strategyReservations: StrategyReservationPreferences
+  /** per-piece-type counts kept in reserve for curated strategies */
+  pieceKeeps: Record<string, number>
   /** paid border rerolls recorded for the current Voyage board (0–5 assumed cap) */
   borderRerollsUsed: number
 }
@@ -51,6 +53,7 @@ export const defaultState = (): AppState => ({
   disabledMods: [],
   strategyId: null,
   strategyReservations: defaultStrategyReservations(),
+  pieceKeeps: {},
   borderRerollsUsed: 0,
 })
 
@@ -398,6 +401,23 @@ function decodeRerolls(value: unknown, warnings: string[]): number {
   return rerolls
 }
 
+function decodePieceKeeps(value: unknown, warnings: string[]): Record<string, number> {
+  if (value === undefined) return {}
+  if (!isRecord(value)) fail('pieceKeeps must be an object')
+
+  const decoded: Record<string, number> = {}
+  for (const [key, count] of Object.entries(value)) {
+    if (typeof count !== 'number' || !Number.isFinite(count)) {
+      warnings.push(`pieceKeeps.${key} was ignored because it is not a finite number`)
+      continue
+    }
+    const normalized = Math.max(0, Math.floor(count))
+    if (normalized !== count) warnings.push(`pieceKeeps.${key} was normalized to ${normalized}`)
+    decoded[key] = normalized
+  }
+  return decoded
+}
+
 export function saveLocal(state: AppState) {
   try {
     localStorage.setItem(LS_KEY, serializeState(state))
@@ -489,6 +509,7 @@ export function decodeState(value: unknown): StateDecodeResult {
         disabledMods: decodeDisabledMods(value.disabledMods, warnings),
         strategyId: decodeStrategyId(value.strategyId, warnings),
         strategyReservations: decodeStrategyReservations(value.strategyReservations),
+        pieceKeeps: decodePieceKeeps(value.pieceKeeps, warnings),
         borderRerollsUsed: decodeRerolls(value.borderRerollsUsed, warnings),
       },
     }

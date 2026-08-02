@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import type { StrategyReservationPreferences } from '../data/strategies'
+import { selectPieceBank, type PieceType } from '../logic/pieceKeeps'
 import { newUid } from '../logic/parser'
 import type { Board, ChartData, Weights } from '../types'
 import { ChartGrid } from './library/ChartGrid'
@@ -14,12 +16,15 @@ interface Props {
   board: Board
   weights: Weights
   disabledMods: Set<string>
+  reservations: StrategyReservationPreferences
+  pieceKeeps: Record<string, number>
   selected: string | null
   onSelect: (uid: string) => void
   onAdd: (charts: ChartData[]) => void
   onRemove: (uid: string) => void
   onUpdate: (chart: ChartData) => void
   onClearCharts: () => void
+  onOpenSaveWizard?: () => void
 }
 
 export function Library(props: Props) {
@@ -38,6 +43,10 @@ export function Library(props: Props) {
     }
   }
   const onBoard = new Set(props.board.filter(Boolean).map((placement) => placement!.chartUid))
+  const bank = useMemo<Map<string, PieceType>>(
+    () => selectPieceBank(props.pool, props.pieceKeeps, props.reservations),
+    [props.pool, props.pieceKeeps, props.reservations],
+  )
 
   const addBlank = () => {
     const chart: ChartData = {
@@ -116,6 +125,16 @@ export function Library(props: Props) {
           </button>
         </div>
       )}
+      {props.pool.length > 0 && props.onOpenSaveWizard && (
+        <div className="savefor-bar">
+          <button
+            onClick={props.onOpenSaveWizard}
+            title="Choose how many of each strategy piece the solver should keep in reserve"
+          >
+            🔖 Save charts for strategies…
+          </button>
+        </div>
+      )}
       {props.pool.length === 0 && (
         <div className="muted pad">No charts yet. Add manually or paste from the game below.</div>
       )}
@@ -125,6 +144,7 @@ export function Library(props: Props) {
           onBoard={onBoard}
           weights={props.weights}
           disabledMods={props.disabledMods}
+          bank={bank}
           selected={props.selected}
           onSelect={props.onSelect}
           onConfirmShape={(uid) => {
@@ -140,6 +160,7 @@ export function Library(props: Props) {
           onBoard={onBoard}
           selected={props.selected}
           editing={editing}
+          bank={bank}
           onSelect={props.onSelect}
           onEdit={setEditing}
           onRemove={props.onRemove}

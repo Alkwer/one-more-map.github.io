@@ -1,4 +1,12 @@
-import type { Board, Borders, ChartData, ConnectivityMode, Edges, Weights } from '../types'
+import type {
+  Board,
+  Borders,
+  ChartData,
+  ConnectivityMode,
+  Edges,
+  Placement,
+  Weights,
+} from '../types'
 import { borderTouches } from '../types'
 import type { PositionRule } from '../data/strategies'
 import { isChartShapeResolved } from './chartShapes'
@@ -16,6 +24,8 @@ export interface SolverOptions extends ScoreOptions {
   strategyRules?: PositionRule[]
   /** exact connector layout the strategy wants (effective edges per cell) */
   strategyLayout?: Edges[]
+  /** cells pinned by the user; locked charts stay exactly where they are */
+  locked?: (Placement | null)[]
   /** per-cell cost of deviating from strategyLayout (default strict) */
   strategyLayoutPenalty?: number
   /** use the heuristic path even for pools that would normally be exhaustive */
@@ -200,6 +210,8 @@ export function solve(
   const eligiblePool = opts.mode === 'strict' ? pool.filter(isChartShapeResolved) : pool
   const charts = new Map(eligiblePool.map((c) => [c.uid, c]))
   if (eligiblePool.length === 0) return []
+  const locked: (Placement | null)[] =
+    opts.locked && opts.locked.length === 9 ? opts.locked : Array(9).fill(null)
 
   const CAP = Math.max(opts.topK * 4, 20)
   let top: SolverResult[] = []
@@ -229,38 +241,45 @@ export function solve(
   }
 
   if (eligiblePool.length <= 9 && !opts.allowRotation && !opts.forceHeuristic) {
-    exactSearch(eligiblePool, record)
+    exactSearch(eligiblePool, locked, record)
   } else {
-    hillClimb(eligiblePool, borders, charts, weights, opts, record)
+    hillClimb(eligiblePool, borders, charts, weights, opts, locked, record)
   }
 
   return top.slice(0, opts.topK)
 }
 
 /** All placements of the pool over the 9 cells (pool ≤ 9, no rotation). */
-function exactSearch(pool: ChartData[], record: (b: Board) => void) {
-  const n = pool.length
-  const board: Board = Array(9).fill(null)
+function exactSearch(pool: ChartData[], locked: (Placement | null)[], record: (b: Board) => void) {
+  const lockedUids = new Set(locked.filter(Boolean).map((placement) => placement!.chartUid))
+  const free = pool.filter((chart) => !lockedUids.has(chart.uid))
+  const n = free.length
+  const board: Board = locked.map((placement) => (placement ? { ...placement } : null))
   const used = Array(n).fill(false)
+  const freeCells = board.filter((placement) => !placement).length
 
   // walk cells in order; each cell is either left empty or given an unused chart
-  const place = (cell: number, placed: number) => {
-    if (9 - cell < n - placed) return // not enough cells left for remaining charts
+  const place = (cell: number, placed: number, cellsLeft: number) => {
+    if (cellsLeft < n - placed) return
     if (cell === 9) {
       if (placed === n) record(board)
       return
     }
-    place(cell + 1, placed) // leave empty
+    if (locked[cell]) {
+      place(cell + 1, placed, cellsLeft)
+      return
+    }
+    place(cell + 1, placed, cellsLeft - 1)
     for (let k = 0; k < n; k++) {
       if (used[k]) continue
       used[k] = true
-      board[cell] = { chartUid: pool[k].uid, rotation: 0 }
-      place(cell + 1, placed + 1)
+      board[cell] = { chartUid: free[k].uid, rotation: 0 }
+      place(cell + 1, placed + 1, cellsLeft - 1)
       board[cell] = null
       used[k] = false
     }
   }
-  place(0, 0)
+  place(0, 0, freeCells)
 }
 
 function hillClimb(
@@ -269,6 +288,7 @@ function hillClimb(
   charts: Map<string, ChartData>,
   weights: Weights,
   opts: SolverOptions,
+  locked: (Placement | null)[],
   record: (b: Board) => void,
 ) {
   // strategies need more exploration: seeded restarts vary piece rotations,
@@ -305,7 +325,7 @@ function hillClimb(
       const j = Math.floor(random() * (i + 1))
       ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
     }
-    const board: Board = Array(9).fill(null)
+    const board: Board = locked.map((placement) => (placement ? { ...placement } : null))
 
     // strategy-seeded restarts (every other one): pre-place matching charts on
     // their target cells so rare shapes/pieces aren't left to random luck
@@ -376,7 +396,7 @@ function hillClimb(
         // swap two cells
         const a = Math.floor(random() * 9)
         const b = Math.floor(random() * 9)
-        if (a === b) continue
+        if (a === b || locked[a] || locked[b]) continue
         const pa = board[a]
         const pb = board[b]
         board[a] = pb
@@ -389,6 +409,7 @@ function hillClimb(
         // replace a placed chart with an unused one
         const cell = Math.floor(random() * 9)
         const ui = Math.floor(random() * unused.length)
+        if (locked[cell]) continue
         const prev = board[cell]
         const incoming = unused[ui]
         board[cell] = { chartUid: incoming.uid, rotation: Math.floor(random() * rotMax) }
@@ -403,7 +424,7 @@ function hillClimb(
         // rotate a placed chart
         const cell = Math.floor(random() * 9)
         const p = board[cell]
-        if (!p) continue
+        if (!p || locked[cell]) continue
         const prevRot = p.rotation
         p.rotation = (p.rotation + 1 + Math.floor(random() * 3)) % 4
         undo = () => {

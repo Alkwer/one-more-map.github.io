@@ -2,8 +2,11 @@ interface Props {
   disabledModCount: number
   harvestTheme: boolean
   shareMessage: string
+  updatesUnseen: boolean
   onOpenOnboarding: () => void
   onOpenMods: () => void
+  onOpenTutorial: () => void
+  onOpenUpdates: () => void
   onToggleTheme: () => void
   onShare: () => void
 }
@@ -14,6 +17,9 @@ export function AppHeader(props: Props) {
       <h1>
         Allflame <span className="accent">Voyage Solver</span>
       </h1>
+      <button className="tutorial-btn" onClick={props.onOpenTutorial}>
+        🧭 TUTORIAL · how to use this
+      </button>
       <div className="header-right">
         <span className="tag">PoE 3.29: Curse of the Allflame</span>
         <button
@@ -22,6 +28,13 @@ export function AppHeader(props: Props) {
           onClick={props.onOpenOnboarding}
         >
           ?
+        </button>
+        <button
+          className={props.updatesUnseen ? 'updates-btn unseen' : 'updates-btn'}
+          title="What's new on the site"
+          onClick={props.onOpenUpdates}
+        >
+          Updates
         </button>
         <button
           title="Browse all modifiers and switch off ones you don't want"

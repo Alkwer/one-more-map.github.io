@@ -1,5 +1,6 @@
 import { voyageModById } from '../../data/mods'
 import { isChartShapeResolved } from '../../logic/chartShapes'
+import type { PieceType } from '../../logic/pieceKeeps'
 import type { ChartData } from '../../types'
 import { EdgeGlyph } from '../icons'
 import { tooltipProps } from '../Tooltip'
@@ -10,6 +11,7 @@ interface Props {
   onBoard: ReadonlySet<string>
   selected: string | null
   editing: string | null
+  bank: ReadonlyMap<string, PieceType>
   onSelect: (uid: string) => void
   onEdit: (uid: string | null) => void
   onRemove: (uid: string) => void
@@ -24,6 +26,10 @@ export function ChartList(props: Props) {
         const modifiers = chart.modIds.map((id) => voyageModById.get(id)).filter(Boolean)
         const modifier =
           modifiers.find((candidate) => candidate!.scope !== 'self') ?? modifiers[0] ?? null
+        const bankedPiece = props.bank.get(chart.uid)
+        const lock = bankedPiece
+          ? `Saved for ${bankedPiece.strategyName} - ${bankedPiece.label}`
+          : null
         const activate = () => {
           if (unresolvedShape) {
             props.onEdit(chart.uid)
@@ -59,6 +65,11 @@ export function ChartList(props: Props) {
                 <span className="chart-name">{chart.name}</span>
                 <span className="chart-level">lvl {chart.level}</span>
                 {unresolvedShape && <span className="badge bad">needs shape</span>}
+                {lock && (
+                  <span className="badge lock" title={`${lock} - other solves won't spend it`}>
+                    🔒
+                  </span>
+                )}
                 {props.onBoard.has(chart.uid) && <span className="badge">on board</span>}
               </span>
               {modifier && (

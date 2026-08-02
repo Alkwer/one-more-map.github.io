@@ -1,6 +1,7 @@
 import { voyageModById } from '../../data/mods'
 import { isChartShapeResolved } from '../../logic/chartShapes'
 import { displayChartValue } from '../../logic/chartRanking'
+import type { PieceType } from '../../logic/pieceKeeps'
 import type { ChartData, Weights } from '../../types'
 import { STAT_LABELS, STAT_SHORT } from '../../types'
 import { EdgeGlyph } from '../icons'
@@ -11,6 +12,7 @@ interface Props {
   onBoard: ReadonlySet<string>
   weights: Weights
   disabledMods: ReadonlySet<string>
+  bank: ReadonlyMap<string, PieceType>
   selected: string | null
   onSelect: (uid: string) => void
   onConfirmShape: (uid: string) => void
@@ -27,6 +29,10 @@ export function ChartGrid(props: Props) {
         const modifier =
           modifiers.find((candidate) => candidate!.scope !== 'self') ?? modifiers[0] ?? null
         const value = displayChartValue(chart, props.weights, props.disabledMods)
+        const bankedPiece = props.bank.get(chart.uid)
+        const lock = bankedPiece
+          ? `Saved for ${bankedPiece.strategyName} - ${bankedPiece.label}`
+          : null
         const lines = [
           ...(unresolvedShape
             ? [
@@ -49,6 +55,7 @@ export function ChartGrid(props: Props) {
             cls: `scope-${candidate!.scope}`,
           })),
           { text: `Weighted value: ${value}`, cls: 'val' },
+          ...(lock ? [{ text: `🔒 ${lock} - other solves won't spend it`, cls: 'muted' }] : []),
           ...(props.onBoard.has(chart.uid)
             ? [{ text: 'Currently on the board', cls: 'muted' }]
             : []),
@@ -99,6 +106,11 @@ export function ChartGrid(props: Props) {
               {modifier && !unresolvedShape && (
                 <span className="sq-shape">
                   <EdgeGlyph edges={chart.edges} size={15} />
+                </span>
+              )}
+              {lock && (
+                <span className="sq-lock" title={lock}>
+                  🔒
                 </span>
               )}
               <span className="sq-val">{value}</span>

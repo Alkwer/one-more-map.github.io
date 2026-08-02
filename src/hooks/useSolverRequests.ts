@@ -47,12 +47,24 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
   const nextRequestId = useRef(1)
   const latestRequestId = useRef(0)
   if (clientRef.current === null) clientRef.current = new SolverWorkerClient()
+  const locked = useMemo(() => {
+    const eligibleByUid = new Map(eligiblePool.map((chart) => [chart.uid, chart]))
+    return state.board.map((placement) => {
+      if (!placement || !eligibleByUid.get(placement.chartUid)?.preserved) return null
+      return { ...placement }
+    })
+  }, [eligiblePool, state.board])
+  const lockedUids = useMemo(
+    () => new Set(locked.filter(Boolean).map((placement) => placement!.chartUid)),
+    [locked],
+  )
 
   const solveKey = useMemo(
     () =>
       createSolverStateKey(
         {
           pool: eligiblePool,
+          board: state.board,
           borders: state.borders,
           mode: state.mode,
           allowRotation: state.allowRotation,
@@ -60,12 +72,14 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
           adjacentAffectsSelf: state.adjacentAffectsSelf,
           disabledMods: state.disabledMods,
           strategyReservations: state.strategyReservations,
+          pieceKeeps: state.pieceKeeps,
         },
         weights,
         activeStrategy?.id ?? null,
       ),
     [
       eligiblePool,
+      state.board,
       state.borders,
       state.mode,
       state.allowRotation,
@@ -73,6 +87,7 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
       state.adjacentAffectsSelf,
       state.disabledMods,
       state.strategyReservations,
+      state.pieceKeeps,
       weights,
       activeStrategy?.id,
     ],
@@ -101,6 +116,8 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
       eligiblePool,
       activeStrategy,
       state.strategyReservations,
+      lockedUids,
+      state.pieceKeeps,
     )
 
     clientRef
@@ -118,6 +135,7 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
           strategyRules: activeStrategy?.rules,
           strategyLayout: activeStrategy?.layout,
           strategyLayoutPenalty: activeStrategy?.layoutPenalty,
+          locked,
         },
       })
       .then((response) => {
@@ -125,6 +143,11 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
         if (latestSolveKey.current !== requestKey || latestRequestId.current !== requestId) return
         setResultState({ key: requestKey, results: response })
         const notes: string[] = []
+        if (lockedUids.size > 0) {
+          notes.push(
+            `${lockedUids.size} locked chart${lockedUids.size === 1 ? '' : 's'} kept in place.`,
+          )
+        }
         if (heldBack > 0)
           notes.push(
             `${heldBack} chart${heldBack === 1 ? '' : 's'} held back for ${heldBackFor.join(
@@ -162,6 +185,7 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
       disabledMods,
       activeStrategy,
       state.strategyReservations,
+      state.pieceKeeps,
     )
     if (fillerPool.length < 9) {
       setResultState({ key: requestKey, results: [] })

@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef } from 'react'
+import { useEffect, useReducer, useRef, useState } from 'react'
 import { BoardView } from './components/Board'
 import { BorderAppraiser } from './components/BorderAppraiser'
 import { ImportPanel } from './components/ImportPanel'
@@ -6,6 +6,10 @@ import { Library } from './components/Library'
 import { ModBrowser } from './components/ModBrowser'
 import { Onboarding } from './components/Onboarding'
 import { SolverPanel } from './components/SolverPanel'
+import { SaveWizard } from './components/SaveWizard'
+import { SessionPlanner } from './components/SessionPlanner'
+import { Tutorial } from './components/Tutorial'
+import { UpdatesLog } from './components/UpdatesLog'
 import { StrategiesPanel } from './components/StrategiesPanel'
 import { StrategySuggestions } from './components/StrategySuggestions'
 import { TooltipLayer } from './components/Tooltip'
@@ -23,6 +27,7 @@ import { useBorderRollResearch } from './hooks/useBorderRollResearch'
 import { useVoyageAnalysis } from './hooks/useVoyageAnalysis'
 import { useVoyageWorkflows } from './hooks/useVoyageWorkflows'
 import { generateDemoCharts } from './logic/demo'
+import { LATEST_UPDATE_DATE } from './data/updates'
 import { clampRerollsUsed } from './logic/rerollAdvice'
 import { decodeShare, defaultState, loadLocal, saveLocal, type AppState } from './logic/storage'
 import { appStateReducer } from './state/appStateReducer'
@@ -43,6 +48,26 @@ export default function App() {
   const analysis = useVoyageAnalysis(state)
   const selection = useBoardSelection(state.board, dispatch)
   const borderResearch = useBorderRollResearch()
+  const [showPlanner, setShowPlanner] = useState(false)
+  const [showSaveWizard, setShowSaveWizard] = useState(false)
+  const [showTutorial, setShowTutorial] = useState(false)
+  const [showUpdates, setShowUpdates] = useState(false)
+  const [updatesSeen, setUpdatesSeen] = useState(() => {
+    try {
+      return localStorage.getItem('updates-seen') ?? ''
+    } catch {
+      return ''
+    }
+  })
+  const openUpdates = () => {
+    setShowUpdates(true)
+    setUpdatesSeen(LATEST_UPDATE_DATE)
+    try {
+      localStorage.setItem('updates-seen', LATEST_UPDATE_DATE)
+    } catch {
+      /* ignore */
+    }
+  }
   const workflows = useVoyageWorkflows(
     state,
     analysis.chartMap,
@@ -92,12 +117,35 @@ export default function App() {
           onClose={chrome.closeMods}
         />
       )}
+      {showUpdates && <UpdatesLog onClose={() => setShowUpdates(false)} />}
+      {showTutorial && <Tutorial onClose={() => setShowTutorial(false)} />}
+      {showSaveWizard && (
+        <SaveWizard
+          pool={state.pool}
+          keeps={state.pieceKeeps}
+          onApply={(pieceKeeps) => patch({ pieceKeeps })}
+          onClose={() => setShowSaveWizard(false)}
+        />
+      )}
+      {showPlanner && (
+        <SessionPlanner
+          pool={state.pool}
+          borders={state.borders}
+          reservations={state.strategyReservations}
+          pieceKeeps={state.pieceKeeps}
+          onUseStrategy={(strategyId) => patch({ strategyId })}
+          onClose={() => setShowPlanner(false)}
+        />
+      )}
       <AppHeader
         disabledModCount={state.disabledMods.length}
         harvestTheme={chrome.harvestTheme}
         shareMessage={chrome.shareMessage}
+        updatesUnseen={updatesSeen < LATEST_UPDATE_DATE}
         onOpenOnboarding={chrome.openOnboarding}
         onOpenMods={chrome.openMods}
+        onOpenTutorial={() => setShowTutorial(true)}
+        onOpenUpdates={openUpdates}
         onToggleTheme={chrome.toggleTheme}
         onShare={chrome.share}
       />
@@ -117,12 +165,15 @@ export default function App() {
             board={state.board}
             weights={analysis.effectiveWeights}
             disabledMods={analysis.disabledSet}
+            reservations={state.strategyReservations}
+            pieceKeeps={state.pieceKeeps}
             selected={selection.selectedChart}
             onSelect={selection.selectChart}
             onAdd={addCharts}
             onRemove={(uid) => dispatch({ type: 'charts/remove', uid })}
             onUpdate={(chart) => dispatch({ type: 'charts/update', chart })}
             onClearCharts={clearCharts}
+            onOpenSaveWizard={() => setShowSaveWizard(true)}
           />
           <ImportPanel
             onImport={addCharts}
@@ -225,6 +276,7 @@ export default function App() {
             activeStrategy={analysis.activeStrategy}
             onPatch={patch}
             onApply={selection.applyBoard}
+            onOpenPlanner={() => setShowPlanner(true)}
           />
         </section>
       </main>
