@@ -13,13 +13,15 @@ interface Props {
   appliedIdx: number | null
   onResults: (r: SolverResult[]) => void
   onApply: (r: SolverResult, idx: number) => void
+  /** open the multi-voyage session planner */
+  onOpenPlanner: () => void
   /** open the Solver Settings popup */
   onOpenSettings: () => void
 }
 
 /** The front-and-centre solve control: sits under the board, above
  *  "Copy into game", so solve → pick a result → copy is one straight line. */
-export function SolveBar({ state, activeStrategy, results, appliedIdx, onResults, onApply, onOpenSettings }: Props) {
+export function SolveBar({ state, activeStrategy, results, appliedIdx, onResults, onApply, onOpenPlanner, onOpenSettings }: Props) {
   const [busy, setBusy] = useState(false)
   const [solveNote, setSolveNote] = useState('')
   const weights = activeStrategy ? activeStrategy.weights : state.weights
@@ -95,6 +97,13 @@ export function SolveBar({ state, activeStrategy, results, appliedIdx, onResults
               </span>
             </>
           )}
+        </button>
+        <button
+          className="solve-settings-btn"
+          onClick={onOpenPlanner}
+          title="Sequence your whole library into a session of voyages"
+        >
+          📋<span className="solve-settings-label">Plan</span>
         </button>
         <button
           className="solve-settings-btn"

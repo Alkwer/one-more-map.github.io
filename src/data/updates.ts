@@ -15,6 +15,13 @@ export const UPDATES: UpdateEntry[] = [
   {
     date: '2026-08-02',
     tag: 'new',
+    title: 'Site tutorial',
+    detail:
+      'The 🧭 TUTORIAL button next to the site name walks the whole workflow in 8 steps - import, borders, strategies, keep counts, solve, copy into game, finish - spotlighting each section of the page as it goes. The 📋 Plan button also moved next to Solve.',
+  },
+  {
+    date: '2026-08-02',
+    tag: 'new',
     title: 'Keep-count wizard',
     detail:
       '🔖 Save charts for strategies… (Chart Library) walks you through each strategy\'s recommended chart types with a "keep X" stepper - the solver banks your best X of each type and spends everything beyond that. Banked charts wear a 🔒 naming their strategy; a chart type shared by strategies gets one knob sized for the hungriest.',
@@ -31,7 +38,7 @@ export const UPDATES: UpdateEntry[] = [
     tag: 'new',
     title: 'Session planner',
     detail:
-      '📋 Plan session (Strategies panel) sequences your whole library into a run order: juiced strategies first when their pieces are ready, Speedruns while centre charts last, Alc & Go with the rest - and shows what each waiting strategy still needs.',
+      '📋 Plan (next to Solve) sequences your whole library into a run order: juiced strategies first when their pieces are ready, Speedruns while centre charts last, Alc & Go with the rest - and shows what each waiting strategy still needs.',
   },
   {
     date: '2026-08-02',

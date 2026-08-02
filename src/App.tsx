@@ -13,6 +13,7 @@ import { UpdatesLog } from './components/UpdatesLog'
 import { LATEST_UPDATE_DATE } from './data/updates'
 import { SessionPlanner } from './components/SessionPlanner'
 import { SaveWizard } from './components/SaveWizard'
+import { Tutorial } from './components/Tutorial'
 import { borderModById, voyageModById } from './data/mods'
 import { strategyById } from './data/strategies'
 import { StrategiesPanel } from './components/StrategiesPanel'
@@ -59,6 +60,7 @@ export default function App() {
   const [showSolverSettings, setShowSolverSettings] = useState(false)
   const [showPlanner, setShowPlanner] = useState(false)
   const [showSaveWizard, setShowSaveWizard] = useState(false)
+  const [showTutorial, setShowTutorial] = useState(false)
   const [showUpdates, setShowUpdates] = useState(false)
   const [updatesSeen, setUpdatesSeen] = useState<string>(() => {
     try {
@@ -415,6 +417,7 @@ export default function App() {
         />
       )}
       {showUpdates && <UpdatesLog onClose={() => setShowUpdates(false)} />}
+      {showTutorial && <Tutorial onClose={() => setShowTutorial(false)} />}
       {showSaveWizard && (
         <SaveWizard
           pool={state.pool}
@@ -453,6 +456,9 @@ export default function App() {
         <h1>
           Allflame <span className="accent">Voyage Solver</span>
         </h1>
+        <button className="tutorial-btn" onClick={() => setShowTutorial(true)}>
+          🧭 TUTORIAL · how to use this
+        </button>
         <div className="header-right">
           <span className="tag">PoE 3.29: Curse of the Allflame</span>
           <button title="How it works" onClick={() => setShowOnboarding(true)}>
@@ -592,6 +598,7 @@ export default function App() {
                   setSelectedCell(null)
                   setSelectedChart(null)
                 }}
+                onOpenPlanner={() => setShowPlanner(true)}
                 onOpenSettings={() => setShowSolverSettings(true)}
               />
             }
@@ -739,7 +746,6 @@ export default function App() {
             pool={state.pool}
             borders={state.borders}
             onSelect={(id) => patch({ strategyId: id })}
-            onPlanSession={() => setShowPlanner(true)}
           />
         </section>
       </main>

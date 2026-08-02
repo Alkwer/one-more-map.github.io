@@ -1856,6 +1856,121 @@ textarea {
   flex: 1;
 }
 
+/* ------- tutorial ------- */
+.tutorial-btn {
+  font-family: var(--sc);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 6px 14px;
+  color: #1a1207;
+  background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 55%, #a8894e 100%);
+  border: 1px solid var(--gold-bright);
+  text-shadow: 0 1px 0 rgba(255, 240, 200, 0.5);
+  box-shadow: 0 0 12px rgba(200, 170, 110, 0.45), inset 0 1px 0 rgba(255, 245, 215, 0.6);
+  animation: tut-glow 2.2s ease-in-out infinite;
+}
+.tutorial-btn:hover {
+  color: #1a1207;
+  filter: brightness(1.1);
+  border-color: #fff2d0;
+  box-shadow: 0 0 18px rgba(231, 215, 171, 0.7), inset 0 1px 0 rgba(255, 245, 215, 0.6);
+}
+@keyframes tut-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(200, 170, 110, 0.35), inset 0 1px 0 rgba(255, 245, 215, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(231, 215, 171, 0.75), inset 0 1px 0 rgba(255, 245, 215, 0.6);
+  }
+}
+/* spotlight overlay: dim everything, cut a glowing hole around the target */
+.tut-catcher {
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+}
+.tut-ring {
+  position: fixed;
+  z-index: 601;
+  pointer-events: none;
+  border: 2px solid var(--gold-bright);
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 9999px rgba(0, 0, 0, 0.72),
+    0 0 20px rgba(231, 215, 171, 0.8),
+    inset 0 0 14px rgba(231, 215, 171, 0.3);
+  transition: top 0.3s ease, left 0.3s ease, width 0.3s ease, height 0.3s ease;
+}
+.tut-dim {
+  position: fixed;
+  inset: 0;
+  z-index: 601;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.72);
+}
+.tutorial.tut-docked {
+  position: fixed;
+  z-index: 602;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(560px, calc(100vw - 32px));
+  max-height: 44vh;
+  overflow-y: auto;
+  margin: 0;
+}
+.tutorial.tut-docked.tut-top {
+  bottom: auto;
+  top: 16px;
+}
+.tut-where {
+  font-family: var(--sc);
+  font-size: 12.5px;
+  letter-spacing: 0.5px;
+  color: var(--accent2);
+  border: 1px solid rgba(107, 163, 200, 0.35);
+  border-radius: 3px;
+  background: rgba(107, 163, 200, 0.08);
+  padding: 4px 10px;
+  margin-bottom: 8px;
+}
+.tut-body {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text);
+  margin: 6px 0;
+}
+.tut-dots {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 12px;
+}
+.tut-dot {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--panel3);
+  border: 1px solid var(--border-hi);
+}
+.tut-dot.on {
+  background: var(--gold);
+  border-color: var(--gold-bright);
+  box-shadow: 0 0 6px rgba(200, 170, 110, 0.6);
+}
+.tut-count {
+  font-size: 12px;
+  align-self: center;
+}
+.sw-actions .primary.tut-next {
+  width: auto;
+  margin-top: 0;
+  padding: 6px 22px;
+}
+
 /* ------- "save charts for strategies" wizard ------- */
 .savefor-bar {
   margin-top: 6px;
