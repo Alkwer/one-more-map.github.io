@@ -109,14 +109,30 @@ ScriptPid := ProcessExist()
 OcrHelper := A_Temp "\voyage-border-ocr-" ScriptPid ".ps1"
 OcrOutput := A_Temp "\voyage-border-ocr-" ScriptPid ".txt"
 OcrPid := 0
+LastBorderScanBlocks := 0
 Running := false
 
-CleanupOcr(*) {
-    global OcrHelper, OcrOutput, OcrPid
-    if OcrPid && ProcessExist(OcrPid)
-        try ProcessClose OcrPid
+StopOcrProcess() {
+    global OcrPid
+    pid := OcrPid
+    if pid && ProcessExist(pid) {
+        try ProcessClose pid
+        try ProcessWaitClose pid, 1
+    }
+    OcrPid := 0
+}
+
+CleanupOcrArtifacts() {
+    global OcrHelper, OcrOutput, ScriptPid
     try FileDelete OcrHelper
     try FileDelete OcrOutput
+    try FileDelete A_Temp "\voyage-border-" ScriptPid "-*.png"
+    try FileDelete A_Temp "\voyage-ocr-filtered-" ScriptPid "-*.png"
+}
+
+CleanupOcr(*) {
+    StopOcrProcess()
+    CleanupOcrArtifacts()
 }
 OnExit CleanupOcr
 
@@ -205,10 +221,13 @@ param(
     [int]$WindowHeight = 0,
     [string]$ImagePath = '',
     [string]$PreferredLanguage = '',
+    [string]$RunId = '',
     [switch]$RerollCost,
     [Parameter(Mandatory = $true)][string]$OutputPath)
 
 $ErrorActionPreference = 'Stop'
+$script:RecognizerLanguage = ''
+if ([string]::IsNullOrWhiteSpace($RunId)) { $RunId = [string]$PID }
 trap {
     $utf8 = [System.Text.UTF8Encoding]::new($false)
     [System.IO.File]::WriteAllText(
@@ -438,6 +457,7 @@ function Read-OcrLines {
         [switch]$Unfiltered)
 
     $engine = New-OcrEngine -PreferredLanguage $PreferredLanguage
+    $script:RecognizerLanguage = $engine.RecognizerLanguage.LanguageTag
     if ($Unfiltered) {
         $text = Invoke-OcrFile $Path $engine
         if ([string]::IsNullOrWhiteSpace($text)) {
@@ -446,10 +466,9 @@ function Read-OcrLines {
         return $text
     }
 
-    $preparedPath = Join-Path $env:TEMP "voyage-ocr-filtered-$PID-$([Guid]::NewGuid().ToString('N')).png"
-    [VoyageOcrImage]::Prepare($Path, $preparedPath)
-
+    $preparedPath = Join-Path $env:TEMP "voyage-ocr-filtered-$RunId-$PID-$([Guid]::NewGuid().ToString('N')).png"
     try {
+        [VoyageOcrImage]::Prepare($Path, $preparedPath)
         $text = Invoke-OcrFile $preparedPath $engine
 
         # The lavender-only mask can occasionally be empty even though the
@@ -471,8 +490,11 @@ function Add-Block {
     param(
         [Parameter(Mandatory = $true)][System.Text.StringBuilder]$Builder,
         [Parameter(Mandatory = $true)][int]$Index,
-        [Parameter(Mandatory = $true)][string]$Text)
+    [Parameter(Mandatory = $true)][string]$Text)
     [void]$Builder.AppendLine("=== VOYAGE BORDER $Index ===")
+    if (-not [string]::IsNullOrWhiteSpace($script:RecognizerLanguage)) {
+        [void]$Builder.AppendLine("OCR Language: $script:RecognizerLanguage")
+    }
     [void]$Builder.AppendLine($Text)
     [void]$Builder.AppendLine('=== END VOYAGE BORDER ===')
 }
@@ -482,6 +504,9 @@ function Add-RerollCostBlock {
         [Parameter(Mandatory = $true)][System.Text.StringBuilder]$Builder,
         [Parameter(Mandatory = $true)][string]$Text)
     [void]$Builder.AppendLine('=== VOYAGE REROLL COST ===')
+    if (-not [string]::IsNullOrWhiteSpace($script:RecognizerLanguage)) {
+        [void]$Builder.AppendLine("OCR Language: $script:RecognizerLanguage")
+    }
     [void]$Builder.AppendLine($Text)
     [void]$Builder.AppendLine('=== END VOYAGE REROLL COST ===')
 }
@@ -498,7 +523,8 @@ if ($ImagePath) {
     if (($Index -lt 0 -and -not $RerollCost) -or $WindowWidth -le 0 -or $WindowHeight -le 0) {
         throw 'Invalid Path of Exile window size.'
     }
-    $png = Join-Path $env:TEMP "voyage-border-$PID-$Index.png"
+    $png = Join-Path $env:TEMP "voyage-border-$RunId-$PID-$Index.png"
+    Remove-Item -LiteralPath $png -Force -ErrorAction SilentlyContinue
     try {
         $image = [System.Drawing.Bitmap]::new($WindowWidth, $WindowHeight)
         $graphics = [System.Drawing.Graphics]::FromImage($image)
@@ -548,45 +574,46 @@ PreferredOcrLanguage() {
 }
 
 RunOcrHelper(arguments, cancellable := true, preferredLanguage := "") {
-    global OcrHelper, OcrOutput, OcrPid, OcrTimeout, Running
-    try FileDelete OcrOutput
-    EnsureOcrHelper()
+    global OcrHelper, OcrOutput, OcrPid, OcrTimeout, Running, ScriptPid
+    CleanupOcrArtifacts()
     quote := Chr(34)
-    if (preferredLanguage = "")
-        preferredLanguage := PreferredOcrLanguage()
-    languageArg := preferredLanguage != ""
-        ? " -PreferredLanguage " quote preferredLanguage quote
-        : ""
-    command := "powershell.exe -NoProfile -ExecutionPolicy Bypass -File "
-        . quote OcrHelper quote " " arguments
-        . languageArg
-        . " -OutputPath " quote OcrOutput quote
-    Run command, , "Hide", &OcrPid
-    deadline := A_TickCount + OcrTimeout * 1000
-    while ProcessExist(OcrPid) {
-        if (cancellable && !Running) {
-            ProcessClose OcrPid
-            OcrPid := 0
-            return ""
+    try {
+        EnsureOcrHelper()
+        if (preferredLanguage = "")
+            preferredLanguage := PreferredOcrLanguage()
+        languageArg := preferredLanguage != ""
+            ? " -PreferredLanguage " quote preferredLanguage quote
+            : ""
+        command := "powershell.exe -NoProfile -ExecutionPolicy Bypass -File "
+            . quote OcrHelper quote " " arguments
+            . languageArg
+            . " -RunId " quote ScriptPid quote
+            . " -OutputPath " quote OcrOutput quote
+        Run command, , "Hide", &OcrPid
+        deadline := A_TickCount + OcrTimeout * 1000
+        while ProcessExist(OcrPid) {
+            if (cancellable && !Running)
+                return ""
+            if (A_TickCount > deadline) {
+                MsgBox "Windows OCR timed out. Try again, or raise OcrTimeout in the script."
+                return ""
+            }
+            Sleep 100
         }
-        if (A_TickCount > deadline) {
-            ProcessClose OcrPid
-            OcrPid := 0
-            MsgBox "Windows OCR timed out. Try again, or raise OcrTimeout in the script."
+        OcrPid := 0
+        if !FileExist(OcrOutput)
             return ""
-        }
-        Sleep 100
+        return FileRead(OcrOutput, "UTF-8")
+    } finally {
+        CleanupOcr()
     }
-    OcrPid := 0
-    if !FileExist(OcrOutput)
-        return ""
-    return FileRead(OcrOutput, "UTF-8")
 }
 
 ScanBorders() {
-    global PoeWinTitle, BorderHoverDelay, BorderOcrAttempts, Running
+    global PoeWinTitle, BorderHoverDelay, BorderOcrAttempts, Running, LastBorderScanBlocks
     WinGetPos &winX, &winY, &winW, &winH, PoeWinTitle
     result := ""
+    LastBorderScanBlocks := 0
     for index, point in BorderPoints() {
         if !Running
             break
@@ -599,19 +626,28 @@ ScanBorders() {
                 break
             attempt := A_Index
             ToolTip "Moving to board border " index "/12..."
-                . (attempt > 1 ? "`nRetrying empty OCR scan..." : "")
+                . (attempt > 1 ? "`nRetrying failed OCR scan..." : "")
             MouseMove point[1], point[2], 0
             Sleep BorderHoverDelay + (attempt - 1) * 200
             ToolTip()
             Sleep 30
             block := RunOcrHelper(arguments)
-            if !InStr(block, "Windows OCR returned no text")
+            if (block != "")
+                && !InStr(block, "Windows OCR returned no text")
+                && !InStr(block, "OCR ERROR:")
+                && !InStr(block, "OCR HELPER ERROR:")
                 break
         }
-        if (block != "")
+        if (block != "") {
             result .= (result = "" ? "" : "`n") block
+            LastBorderScanBlocks++
+        }
     }
-    return result
+    meta := "=== VOYAGE BORDER SCAN META ===`n"
+        . "Expected: 12`n"
+        . "Captured: " LastBorderScanBlocks "`n"
+        . "=== END VOYAGE BORDER SCAN META ==="
+    return meta . (result = "" ? "" : "`n" result)
 }
 
 ScanRerollCost() {
@@ -811,13 +847,10 @@ F8:: {
 
 ; ---- F10: abort ----
 F10:: {
-    global Running, OcrPid, ExactBorderNext
+    global Running, ExactBorderNext
     Running := false
     ExactBorderNext := 0
-    if OcrPid && ProcessExist(OcrPid) {
-        ProcessClose OcrPid
-        OcrPid := 0
-    }
+    CleanupOcr()
     Flash "Aborting..."
 }
 
@@ -879,7 +912,8 @@ F10:: {
     costNote := RerollCostCalibrated()
         ? (rerollCostBlob != "" ? " + reroll cost" : " (reroll-cost OCR failed)")
         : " (reroll cost skipped: calibrate Ctrl+F7)"
-    Flash "Done. Refreshed 12 borders" costNote "; charts were not rescanned.", 5000
+    Flash "Done. Sent " LastBorderScanBlocks "/12 border OCR results"
+        . costNote "; charts were not rescanned.", 5000
 }
 
 ; ---- F9: the real import sweep ----
@@ -991,7 +1025,7 @@ F9:: {
 
     Running := false
     borderNote := BoardCalibrated()
-        ? (borderBlob != "" ? " + 12 border OCR scans" : " (border OCR failed)")
+        ? " + " LastBorderScanBlocks "/12 border OCR results"
         : " (borders skipped: calibrate F5/F6)"
     costNote := RerollCostCalibrated()
         ? (rerollCostBlob != "" ? " + reroll cost" : " (reroll-cost OCR failed)")

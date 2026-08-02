@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { ALL_GOOD_MODS_REGEX } from '../data/strategies'
 import { BorderRollResearch } from './BorderRollResearch'
 import { generateDemoCharts } from '../logic/demo'
-import { parseBorderOcrPayload } from '../logic/borderOcr'
+import { applyBorderOcrSnapshot, parseBorderOcrPayload } from '../logic/borderOcr'
 import { isChartClipboardText, parseChartText } from '../logic/parser'
 import type { AppState } from '../logic/storage'
 import { decodeStateJson, defaultState, serializeState } from '../logic/storage'
@@ -24,9 +24,13 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
     (raw?: string) => {
       const source = raw ?? text
       const borderOcr = parseBorderOcrPayload(source)
+      const borderApplication = applyBorderOcrSnapshot(state.borders, borderOcr)
       const { charts, rejected, unresolved } = parseChartText(borderOcr.chartText)
       const notCharted = rejected.filter((r) => r.reason.startsWith('not charted'))
-      const hasOcrPayload = borderOcr.blockCount > 0 || borderOcr.rerollCostBlockCount > 0
+      const hasOcrPayload =
+        borderOcr.blockCount > 0 ||
+        borderOcr.rerollCostBlockCount > 0 ||
+        borderOcr.scanMeta !== null
       const parts: string[] = []
       if (charts.length === 0 && rejected.length === 0 && !hasOcrPayload) {
         setMsg('No items recognised. Is this Ctrl+C item text?')
@@ -34,18 +38,14 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
       }
 
       if (hasOcrPayload) {
-        // A complete importer sweep is a snapshot of all 12 current rolls.
-        // Start clean so an OCR miss cannot leave a stale modifier from an
-        // earlier run and masquerade as a wrongly recognized border.
-        const borders = borderOcr.blockCount >= 12 ? [...borderOcr.borders] : [...state.borders]
-        for (const match of borderOcr.matches) borders[match.index] = match.id
+        const borders = borderApplication.borders
         onLoadState({
           ...state,
           pool: charts.length > 0 ? [...state.pool, ...charts] : state.pool,
           borders,
           borderRerollsUsed: borderOcr.rerollCost?.rerollsUsed ?? state.borderRerollsUsed,
         })
-        if (borderOcr.blockCount === 12 && borderOcr.matches.length === 12) {
+        if (borderApplication.status === 'complete') {
           const captureMessage = borderResearch.captureImportedRoll(borders, borderOcr.rerollCost)
           if (captureMessage) parts.push(captureMessage)
         }
@@ -86,11 +86,24 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
         )
       }
       if (borderOcr.blockCount > 0) {
+        const expectedBorderCount = borderOcr.scanMeta?.expectedBlockCount ?? borderOcr.blockCount
         parts.push(
-          `matched ${borderOcr.matches.length}/${borderOcr.blockCount} border modifier${
-            borderOcr.blockCount === 1 ? '' : 's'
+          `matched ${borderOcr.matches.length}/${expectedBorderCount} border modifier${
+            expectedBorderCount === 1 ? '' : 's'
           }`,
         )
+      }
+      if (borderApplication.status === 'incomplete') {
+        parts.push(
+          `border scan incomplete (${borderOcr.uniqueBlockCount}/12 positions); kept existing borders`,
+        )
+      } else if (borderApplication.status === 'failed') {
+        parts.push('no border tooltips recognised; kept existing borders')
+      } else if (borderApplication.status === 'partial') {
+        parts.push('cleared unmatched border positions from the complete scan')
+      }
+      if (borderOcr.ocrLanguages.length > 0) {
+        parts.push(`OCR language ${borderOcr.ocrLanguages.join(', ')}`)
       }
       if (borderOcr.rerollCost) {
         parts.push(
@@ -109,7 +122,7 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
           `skipped: ${otherRejects.map(({ name, reason }) => `"${name}" (${reason})`).join(', ')}`,
         )
       }
-      if (borderOcr.misses.length > 0) {
+      if (borderOcr.misses.length > 0 && borderApplication.status !== 'failed') {
         parts.push(
           `OCR unmatched at border${borderOcr.misses.length === 1 ? '' : 's'} ${borderOcr.misses
             .map((miss) => miss.index + 1)

@@ -6,8 +6,11 @@ import { REROLL_COSTS } from './rerollAdvice'
 
 const BORDER_BLOCK =
   /===\s*VOYAGE BORDER\s+(\d{1,2})\s*===\s*([\s\S]*?)===\s*END VOYAGE BORDER\s*===/gi
+const BORDER_SCAN_META_BLOCK =
+  /===\s*VOYAGE BORDER SCAN META\s*===\s*([\s\S]*?)===\s*END VOYAGE BORDER SCAN META\s*===/gi
 const REROLL_COST_BLOCK =
   /===\s*VOYAGE REROLL COST\s*===\s*([\s\S]*?)===\s*END VOYAGE REROLL COST\s*===/gi
+const OCR_LANGUAGE_LINE = /^\s*OCR Language:\s*([\w-]+)\s*$/gim
 
 export const normalizeBorderOcrText = (text: string): string =>
   text
@@ -229,6 +232,12 @@ export interface BorderRerollCostMatch {
   raw: string
 }
 
+export interface BorderOcrScanMeta {
+  expectedBlockCount: number
+  capturedBlockCount: number
+  complete: boolean
+}
+
 export interface BorderOcrParseResult {
   /** Clipboard payload with OCR blocks removed, ready for the chart parser. */
   chartText: string
@@ -237,42 +246,94 @@ export interface BorderOcrParseResult {
   matches: BorderOcrMatch[]
   misses: BorderOcrMiss[]
   blockCount: number
+  uniqueBlockCount: number
+  snapshotComplete: boolean
+  scanMeta: BorderOcrScanMeta | null
+  ocrLanguages: string[]
   rerollCost: BorderRerollCostMatch | null
   rerollCostBlockCount: number
   rerollCostMisses: string[]
+}
+
+export type BorderOcrApplicationStatus =
+  'none' | 'legacy-patch' | 'complete' | 'partial' | 'incomplete' | 'failed'
+
+export interface BorderOcrApplication {
+  borders: Borders
+  status: BorderOcrApplicationStatus
+  applied: boolean
+}
+
+function stripOcrLanguage(raw: string, languages: Set<string>): string {
+  for (const match of raw.matchAll(OCR_LANGUAGE_LINE)) languages.add(match[1])
+  return raw.replace(OCR_LANGUAGE_LINE, '').trim()
 }
 
 export function parseBorderOcrPayload(source: string): BorderOcrParseResult {
   const borders = emptyBorders()
   const matches: BorderOcrMatch[] = []
   const misses: BorderOcrMiss[] = []
+  const blockIndices: number[] = []
+  const ocrLanguages = new Set<string>()
   let blockCount = 0
+  const rawScanMeta: Omit<BorderOcrScanMeta, 'complete'> & { found: boolean } = {
+    expectedBlockCount: 0,
+    capturedBlockCount: 0,
+    found: false,
+  }
   let rerollCost: BorderRerollCostMatch | null = null
   let rerollCostBlockCount = 0
   const rerollCostMisses: string[] = []
 
   const chartText = source
+    .replace(BORDER_SCAN_META_BLOCK, (_block, raw: string) => {
+      const expected = raw.match(/\bExpected:\s*(\d+)/i)
+      const captured = raw.match(/\bCaptured:\s*(\d+)/i)
+      if (expected && captured) {
+        rawScanMeta.expectedBlockCount = Number.parseInt(expected[1], 10)
+        rawScanMeta.capturedBlockCount = Number.parseInt(captured[1], 10)
+        rawScanMeta.found = true
+      }
+      return '\n'
+    })
     .replace(REROLL_COST_BLOCK, (_block, raw: string) => {
       rerollCostBlockCount++
-      const match = matchRerollCost(raw)
-      if (match) rerollCost = { ...match, raw: raw.trim() }
-      else rerollCostMisses.push(raw.trim())
+      const ocrText = stripOcrLanguage(raw, ocrLanguages)
+      const match = matchRerollCost(ocrText)
+      if (match) rerollCost = { ...match, raw: ocrText }
+      else rerollCostMisses.push(ocrText)
       return '\n'
     })
     .replace(BORDER_BLOCK, (_block, indexText: string, raw: string) => {
       blockCount++
       const index = Number.parseInt(indexText, 10)
+      blockIndices.push(index)
       if (index < 0 || index >= 12) return '\n'
 
-      const match = matchBorder(raw)
+      const ocrText = stripOcrLanguage(raw, ocrLanguages)
+      const match = matchBorder(ocrText)
       if (match) {
         borders[index] = match.id
         matches.push({ index, ...match })
       } else {
-        misses.push({ index, raw: raw.trim() })
+        misses.push({ index, raw: ocrText })
       }
       return '\n'
     })
+
+  const uniqueBlockCount = new Set(blockIndices.filter((index) => index >= 0 && index < 12)).size
+  const snapshotComplete = blockCount === 12 && uniqueBlockCount === 12
+  const scanMeta: BorderOcrScanMeta | null = rawScanMeta.found
+    ? {
+        expectedBlockCount: rawScanMeta.expectedBlockCount,
+        capturedBlockCount: rawScanMeta.capturedBlockCount,
+        complete:
+          rawScanMeta.expectedBlockCount === 12 &&
+          rawScanMeta.capturedBlockCount === 12 &&
+          rawScanMeta.capturedBlockCount === blockCount &&
+          snapshotComplete,
+      }
+    : null
 
   return {
     chartText,
@@ -280,8 +341,47 @@ export function parseBorderOcrPayload(source: string): BorderOcrParseResult {
     matches,
     misses,
     blockCount,
+    uniqueBlockCount,
+    snapshotComplete,
+    scanMeta,
+    ocrLanguages: [...ocrLanguages].sort(),
     rerollCost,
     rerollCostBlockCount,
     rerollCostMisses,
   }
+}
+
+export function applyBorderOcrSnapshot(
+  currentBorders: Borders,
+  result: BorderOcrParseResult,
+): BorderOcrApplication {
+  if (result.scanMeta && !result.scanMeta.complete) {
+    return { borders: [...currentBorders], status: 'incomplete', applied: false }
+  }
+
+  if (result.blockCount === 0) {
+    return { borders: [...currentBorders], status: 'none', applied: false }
+  }
+
+  // A systemic OCR failure must not erase borders entered manually or imported
+  // by an earlier successful sweep.
+  if (result.matches.length === 0) {
+    return { borders: [...currentBorders], status: 'failed', applied: false }
+  }
+
+  // New importer sweeps are transactional. A killed helper or missing output
+  // must not create a hybrid snapshot containing new and stale border values.
+  if (result.snapshotComplete) {
+    return {
+      borders: [...result.borders],
+      status: result.matches.length === 12 ? 'complete' : 'partial',
+      applied: true,
+    }
+  }
+
+  // Preserve compatibility with older helpers and intentionally pasted
+  // single-border fixtures, which predate transactional scan metadata.
+  const borders = [...currentBorders]
+  for (const match of result.matches) borders[match.index] = match.id
+  return { borders, status: 'legacy-patch', applied: true }
 }
