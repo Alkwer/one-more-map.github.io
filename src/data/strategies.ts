@@ -94,11 +94,17 @@ export interface StrategyDef {
   requiresBorderId?: { id: string; label: string }
   /** what to do instead while pieces are missing */
   waitHint?: string
+  /** Divine strategies may consume rare-implicit charts; every other mode
+   *  keeps them available for a future Divine-border run by default. */
+  allowRareImplicits?: boolean
   /** Milky's in-game search string highlighting this strategy's keeper charts */
   searchRegex?: string
   /** extra links shown on the card (trade searches, guides) */
   extraLinks?: { label: string; url: string }[]
 }
+
+/** Rare-monster implicit charts are core fuel for the Divine-border strategies. */
+export const RARE_IMPLICITS = ['adj-rare-1', 'adj-rare-2', 'voy-rare'] as const
 
 /** Milky's master keeper regex - every mod worth saving, across all strats */
 export const ALL_GOOD_MODS_REGEX =
@@ -187,9 +193,9 @@ const ETHEREAL_RESERVATION: StrategyReservationGroup = {
 }
 
 const DIVINE_RESERVATION_MODS = [
+  ...RARE_IMPLICITS,
   'adj-star-1',
   'adj-star-2',
-  'voy-rare',
   'adj-box-1',
   'adj-box-2',
   'adj-box-3',
@@ -206,6 +212,13 @@ const divineReservation = (includeSpeedrunCentres: boolean): StrategyReservation
   nameMatches: ['pillar', 'pelagic'],
   areaTypes: ['sea-pillars', 'pelagic-abyss'],
 })
+
+/** Manual solving protects every curated strategy category by default. */
+export const MANUAL_STRATEGY_RESERVATIONS: StrategyReservationGroup[] = [
+  divineReservation(true),
+  MEATFISH_RESERVATION,
+  ETHEREAL_RESERVATION,
+]
 
 // "Alc & Go" highway: three vertical lanes capped at the top,
 // joined along the bottom row. 8 connections, all reaching the ⚓ start.
@@ -508,6 +521,7 @@ export const STRATEGIES: StrategyDef[] = [
     },
     waitHint: 'Speedrun Strongboxes until the pieces and the Divine border line up.',
     searchRegex: '"rare monsters in all voy|strongbox"',
+    allowRareImplicits: true,
   },
   {
     id: 'cutedog-divine-boxes',
@@ -596,6 +610,7 @@ export const STRATEGIES: StrategyDef[] = [
     },
     waitHint: 'Speedrun Strongboxes until the pieces and the Divine border line up.',
     searchRegex: '"m q.*(1[2-9].|[2-9]..)%"',
+    allowRareImplicits: true,
     extraLinks: [
       {
         label: 'Trade search: cheap good charts',
