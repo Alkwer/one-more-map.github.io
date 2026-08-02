@@ -351,9 +351,9 @@ describe('parseChartText', () => {
   })
 
   it('maps all observed Korean implicit lines to canonical ids without changing raw text', () => {
-    expect(koreanImplicitAliasCases).toHaveLength(38)
-    expect(koreanImplicitAliasCases.reduce((sum, entry) => sum + entry.occurrences, 0)).toBe(63)
-    expect(new Set(koreanImplicitAliasCases.map(({ modId }) => modId)).size).toBe(34)
+    expect(koreanImplicitAliasCases).toHaveLength(41)
+    expect(koreanImplicitAliasCases.reduce((sum, entry) => sum + entry.occurrences, 0)).toBe(66)
+    expect(new Set(koreanImplicitAliasCases.map(({ modId }) => modId)).size).toBe(37)
 
     for (const { rawText, modId } of koreanImplicitAliasCases) {
       const chart = parseOnlyChart(koreanChart.replace(KOREAN_CHARTED_IMPLICIT, rawText))
@@ -400,7 +400,7 @@ describe('parseChartText', () => {
   })
 
   it('maps player-confirmed Korean numeric-tier variants without treating them as corpus observations', () => {
-    expect(koreanNumericTierAliasCases).toHaveLength(15)
+    expect(koreanNumericTierAliasCases).toHaveLength(17)
 
     for (const { rawText, modId } of koreanNumericTierAliasCases) {
       const chart = parseOnlyChart(koreanChart.replace(KOREAN_CHARTED_IMPLICIT, rawText))

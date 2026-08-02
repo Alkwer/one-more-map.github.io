@@ -31,10 +31,24 @@ describe('Korean border OCR matching', () => {
     const rarity = KOREAN_BORDER_MOD_EVIDENCE['b-rarity-2'].text.replace('희귀도', '회귀도')
     const rareMonsters = KOREAN_BORDER_MOD_EVIDENCE['b-rare-2'].text.replace('희귀', '회귀')
     const treasureAnchors = KOREAN_BORDER_MOD_EVIDENCE['b-anchor-1'].text.replace('닻', '닺')
+    const blessedOrbs = KOREAN_BORDER_MOD_EVIDENCE['b-blessed'].text.replace('희귀', '회귀')
+    const raresPerConnection = KOREAN_BORDER_MOD_EVIDENCE['b-rareconn-2'].text.replace(
+      '희귀',
+      '회귀',
+    )
 
     expect(parseBorderOcrPayload(block(rarity)).matches[0]?.id).toBe('b-rarity-2')
     expect(parseBorderOcrPayload(block(rareMonsters)).matches[0]?.id).toBe('b-rare-2')
     expect(parseBorderOcrPayload(block(treasureAnchors)).matches[0]?.id).toBe('b-anchor-1')
+    expect(parseBorderOcrPayload(block(blessedOrbs)).matches[0]?.id).toBe('b-blessed')
+    expect(parseBorderOcrPayload(block(raresPerConnection)).matches[0]?.id).toBe('b-rareconn-2')
+  })
+
+  it('ignores leading OCR noise and tolerates the observed Captainsbane typo', () => {
+    const result = parseBorderOcrPayload(block('叭뇩넣\n인접 지역에 지휘관의 파열 등장', 3))
+
+    expect(result.misses).toEqual([])
+    expect(result.matches).toEqual([expect.objectContaining({ index: 3, id: 'b-crabboss' })])
   })
 
   it('normalizes Korean punctuation and spacing around numeric counters', () => {

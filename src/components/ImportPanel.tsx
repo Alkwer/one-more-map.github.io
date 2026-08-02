@@ -58,6 +58,26 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
 
       if (charts.length)
         parts.push(`Imported ${charts.length} chart${charts.length === 1 ? '' : 's'}`)
+      // Distinct physical charts have different rolls. A large byte-identical
+      // batch usually means the bulk importer's saved grid calibration is off.
+      if (charts.length >= 5) {
+        const key = (chart: ChartData) =>
+          JSON.stringify([
+            chart.name,
+            chart.level,
+            chart.modIds,
+            chart.implicitText,
+            chart.rewards,
+            chart.shape,
+            chart.rawText,
+          ])
+        const first = key(charts[0])
+        if (charts.every((chart) => key(chart) === first)) {
+          parts.push(
+            `⚠ all ${charts.length} are identical - if this came from the bulk importer, recalibrate its grid with F7/F8, then reset and re-import`,
+          )
+        }
+      }
       if (unresolved.length) {
         parts.push(
           `needs shape confirmation: ${unresolved

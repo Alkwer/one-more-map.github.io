@@ -899,7 +899,9 @@ F9:: {
     }
 
     Running := true
-    copied := 0, skipped := 0, blob := "", borderBlob := "", rerollCostBlob := "", seen := Map()
+    copied := 0, skipped := 0, scannedCharts := 0
+    blob := "", borderBlob := "", rerollCostBlob := "", seen := Map()
+    firstChart := "", allIdentical := true
 
     ; ---- Phase 1: copy every chart while staying in PoE ----
     WinActivate PoeWinTitle
@@ -928,8 +930,17 @@ F9:: {
                 continue
             }
             clip := Trim(A_Clipboard, " `t`r`n")
-            if !InStr(clip, "Item Class") || seen.Has(clip) {
-                skipped++                 ; not an item, or a duplicate
+            if !InStr(clip, "Item Class") {
+                skipped++                 ; not an item
+                continue
+            }
+            scannedCharts++
+            if (firstChart = "")
+                firstChart := clip
+            else if (clip != firstChart)
+                allIdentical := false
+            if seen.Has(clip) {
+                skipped++                 ; duplicate
                 continue
             }
             seen[clip] := true
@@ -939,6 +950,17 @@ F9:: {
                 . "`ncharts " copied "   skipped " skipped
                 . "`n(F10 to abort)"
         }
+    }
+
+    ; Distinct physical Charts always differ in their rolled values. If every
+    ; occupied cell copied the same text, the mouse stayed on one item and the
+    ; saved grid corners are no longer valid.
+    calibWarn := ""
+    if Running && scannedCharts >= 5 && allIdentical {
+        blob := "", copied := 0
+        calibWarn := "Every occupied grid cell copied the SAME chart, so none were sent"
+            . " - your grid calibration looks wrong (or PoE's window moved)."
+            . " Recalibrate with F7/F8 and try again."
     }
 
     ; ---- Phase 2: OCR the 12 borders and the optional reroll-cost tooltip ----
@@ -974,6 +996,10 @@ F9:: {
     costNote := RerollCostCalibrated()
         ? (rerollCostBlob != "" ? " + reroll cost" : " (reroll-cost OCR failed)")
         : " (reroll cost skipped: calibrate Ctrl+F7)"
+    if (calibWarn != "") {
+        Flash calibWarn borderNote costNote, 10000
+        return
+    }
     Flash "Done. Sent " copied " charts" borderNote costNote
         . "; skipped " skipped " empty/dup cells.", 6000
 }
