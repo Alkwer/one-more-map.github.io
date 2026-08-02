@@ -72,10 +72,10 @@ const STEPS: Step[] = [
   {
     icon: '⚙',
     title: 'Solve',
-    where: 'The gold button in Diagnostics',
-    target: '.solve-bar',
+    where: 'The Solver panel in Diagnostics',
+    target: '.solver-actions',
     body: [
-      'Press Solve. The best runnable board loads instantly; four alternatives sit beside it as cards - click any to load it.',
+      'Press Solve. Ranked results appear below when the worker finishes; click the result you want to load onto the board. Nothing is applied automatically.',
       'Every suggestion obeys the real rules: connectors match, all 9 squares filled, everything reachable from the ⚓ start.',
       'Connector rules, reward weights, protections and the filler-voyage builder are in the same Solver panel.',
     ],
@@ -83,7 +83,7 @@ const STEPS: Step[] = [
   {
     icon: '📋',
     title: 'Copy it into the game',
-    where: '"Copy into game" under the results',
+    where: '"Copy into game" below the board',
     target: '.voyage-finish',
     body: [
       'The game fills the board bottom-left first - this walks your board in exactly that order.',
@@ -94,8 +94,8 @@ const STEPS: Step[] = [
   {
     icon: '🌊',
     title: 'Run it, finish it, repeat',
-    where: '"Finish Voyage" - then 📋 Plan (next to Solve) for the big picture',
-    target: '.solve-bar',
+    where: '"Finish Voyage" below the board; 📋 Plan sits next to Solve in Diagnostics',
+    target: '.voyage-finish',
     body: [
       'After the voyage, press Finish Voyage (next to Copy into game): it consumes the board charts and asks, one by one, which preserved charts actually survived.',
       'The 📋 Plan button beside Solve sequences your whole library into a run order - juiced boards when ready, Speedruns while centre charts last, Alc & Go with the rest.',

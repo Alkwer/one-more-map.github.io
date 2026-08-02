@@ -64,6 +64,12 @@ selects strategy reservations and filler charts without mutating the persisted p
 presentation components receive values and explicit callbacks while preserving the existing DOM,
 live-region wording, labels, result order, and keyboard behavior.
 
+`SolverPanel` is the canonical solve/result surface. `SolverActions` starts worker-backed requests,
+and `SolverResults` displays the keyed response without changing the board. A result is applied only
+after the user selects it, through `useBoardSelection.applyBoard`; solver completion never mutates
+the board automatically. UI components must not call the expensive `solve()` function directly on
+the main thread or keep a parallel busy/result lifecycle.
+
 ## Extraction order
 
 1. Establish pure transitions, reusable selectors, and characterization tests.
