@@ -28,8 +28,16 @@ export function SolverPanel({ state, activeStrategy, onPatch, onResults }: Props
   // while a strategy is active it overrides the manual weights everywhere here
   const weights = activeStrategy ? activeStrategy.weights : state.weights
   const reservationGroups = activeStrategy?.reservationGroups ?? []
-  const availableReservations = STRATEGY_RESERVATION_OPTIONS.filter((option) =>
-    reservationGroups.some((reservation) => reservation.id === option.id),
+  // manual mode and strategies without reservation groups still hold back
+  // rare-implicit charts (the Divine fallback in selectStrategySolvePool) -
+  // surface its toggle here so the solve note's pointer always works
+  const divineFallback =
+    !activeStrategy?.allowRareImplicits &&
+    !reservationGroups.some((reservation) => reservation.id === 'divine')
+  const availableReservations = STRATEGY_RESERVATION_OPTIONS.filter(
+    (option) =>
+      reservationGroups.some((reservation) => reservation.id === option.id) ||
+      (option.id === 'divine' && divineFallback),
   )
   const bestRegex = useMemo(
     () => buildBestModRegex(weights, regexCap, new Set(state.disabledMods)),
