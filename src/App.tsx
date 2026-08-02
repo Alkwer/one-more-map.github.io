@@ -11,7 +11,6 @@ import { SolverPanel } from './components/SolverPanel'
 import { SolveBar } from './components/SolveBar'
 import { UpdatesLog } from './components/UpdatesLog'
 import { LATEST_UPDATE_DATE } from './data/updates'
-import { BorderAdvisor } from './components/BorderAdvisor'
 import { SessionPlanner } from './components/SessionPlanner'
 import { borderModById, voyageModById } from './data/mods'
 import { strategyById } from './data/strategies'
@@ -636,12 +635,6 @@ export default function App() {
               </div>
             </div>
           )}
-
-          <BorderAdvisor
-            borders={state.borders}
-            weights={effectiveWeights}
-            activeStrategy={activeStrategy}
-          />
 
           <div className={`conn-status ${conn.valid ? 'ok' : 'bad'}`}>
             {state.mode === 'any'

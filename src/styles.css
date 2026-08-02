@@ -1856,45 +1856,6 @@ textarea {
   flex: 1;
 }
 
-/* ------- border reroll advisor ------- */
-.border-advisor {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 8px;
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  background: var(--panel2);
-  font-size: 12.5px;
-}
-.border-advisor.ba-jackpot {
-  border-color: var(--gold-dim);
-  box-shadow: 0 0 10px rgba(200, 170, 110, 0.3);
-}
-.ba-verdict {
-  font-family: var(--sc);
-  letter-spacing: 0.5px;
-}
-.ba-verdict.ba-jackpot,
-.ba-jackpot.hit {
-  color: var(--gold-bright);
-}
-.ba-verdict.ba-keep {
-  color: var(--good);
-}
-.ba-verdict.ba-coinflip {
-  color: var(--muted);
-}
-.ba-verdict.ba-reroll {
-  color: var(--accent2);
-}
-.ba-jackpot {
-  font-size: 12px;
-  color: var(--muted);
-}
-
 /* ------- session planner ------- */
 .session-plan {
   max-width: 600px;

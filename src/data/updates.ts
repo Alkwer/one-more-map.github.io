@@ -22,13 +22,6 @@ export const UPDATES: UpdateEntry[] = [
   {
     date: '2026-08-02',
     tag: 'new',
-    title: 'Border reroll advisor',
-    detail:
-      'A strip under the board scores your current 12 border rolls against the odds: keep, coin flip, or reroll - plus the chance per reroll of hitting the +1 Divine Orb jackpot border. Never tells you to reroll away a rolled jackpot.',
-  },
-  {
-    date: '2026-08-02',
-    tag: 'new',
     title: 'Rare chart import alerts',
     detail:
       'Importing a Rare Monsters chart (Divine-strategy fuel) now pops a golden alert in the Import panel, so a jackpot piece never slips into the library unnoticed.',
