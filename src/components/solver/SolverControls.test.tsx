@@ -19,48 +19,68 @@ describe('solver strategy protections', () => {
       />,
     )
 
-  it('shows each keeper category enabled by default for a low-investment strategy', () => {
+  it('shows each chart-type protection enabled by default for a low-investment strategy', () => {
     const html = renderToStaticMarkup(
       <SolverControls state={defaultState()} activeStrategy={strategy} onPatch={() => undefined} />,
     )
 
-    expect(html).toContain('Protect charts for other strategies')
-    expect(reservationInput(html, 'speedrun')).toContain('checked=""')
-    expect(reservationInput(html, 'divine')).toContain('checked=""')
+    expect(html).toContain('Protect chart types')
+    expect(reservationInput(html, 'genericStrongboxes')).toContain('checked=""')
+    expect(reservationInput(html, 'divinerStrongboxes')).toContain('checked=""')
+    expect(reservationInput(html, 'arcanistStrongboxes')).toContain('checked=""')
+    expect(reservationInput(html, 'operativeStrongboxes')).toContain('checked=""')
+    expect(reservationInput(html, 'messages')).toContain('checked=""')
+    expect(reservationInput(html, 'starfish')).toContain('checked=""')
+    expect(reservationInput(html, 'globalRares')).toContain('checked=""')
+    expect(reservationInput(html, 'adjacentRares')).toContain('checked=""')
     expect(reservationInput(html, 'meatfish')).toContain('checked=""')
     expect(reservationInput(html, 'ethereal')).toContain('checked=""')
   })
 
   it('renders a disabled protection as unchecked', () => {
     const state = defaultState()
-    state.strategyReservations.meatfish = false
+    state.strategyReservations.starfish = false
     const html = renderToStaticMarkup(
       <SolverControls state={state} activeStrategy={strategy} onPatch={() => undefined} />,
     )
 
-    expect(reservationInput(html, 'divine')).toContain('checked=""')
-    expect(reservationInput(html, 'meatfish')).not.toContain('checked=""')
+    expect(reservationInput(html, 'genericStrongboxes')).toContain('checked=""')
+    expect(reservationInput(html, 'starfish')).not.toContain('checked=""')
   })
 
-  it('shows every strategy protection in manual mode', () => {
+  it('shows every chart-type protection in manual mode', () => {
     const html = renderControls(null)
 
-    expect(html).toContain('Protect charts for other strategies')
-    expect(reservationInput(html, 'speedrun')).toContain('checked=""')
-    expect(reservationInput(html, 'divine')).toContain('checked=""')
+    expect(html).toContain('Protect chart types')
+    expect(reservationInput(html, 'genericStrongboxes')).toContain('checked=""')
+    expect(reservationInput(html, 'divinerStrongboxes')).toContain('checked=""')
+    expect(reservationInput(html, 'starfish')).toContain('checked=""')
+    expect(reservationInput(html, 'globalRares')).toContain('checked=""')
+    expect(reservationInput(html, 'adjacentRares')).toContain('checked=""')
     expect(reservationInput(html, 'meatfish')).toContain('checked=""')
     expect(reservationInput(html, 'ethereal')).toContain('checked=""')
   })
 
-  it('shows the Divine protection for non-Divine strategies without reservation groups', () => {
+  it('shows separate Rare protections for non-Divine strategies without reservation groups', () => {
     const html = renderControls('milky-meatfish')
 
-    expect(reservationInput(html, 'divine')).toContain('checked=""')
+    expect(reservationInput(html, 'globalRares')).toContain('checked=""')
+    expect(reservationInput(html, 'adjacentRares')).toContain('checked=""')
   })
 
   it('hides fallback protections for Divine strategies', () => {
     const html = renderControls('divine-border-rares')
 
-    expect(html).not.toContain('Protect charts for other strategies')
+    expect(html).not.toContain('Protect chart types')
+  })
+
+  it('lets Speedrun use typed Strongboxes while independently protecting generic ones', () => {
+    const html = renderControls('milky-speedrun')
+
+    expect(reservationInput(html, 'genericStrongboxes')).toContain('checked=""')
+    expect(reservationInput(html, 'starfish')).toContain('checked=""')
+    expect(reservationInput(html, 'divinerStrongboxes')).toBeUndefined()
+    expect(reservationInput(html, 'arcanistStrongboxes')).toBeUndefined()
+    expect(reservationInput(html, 'operativeStrongboxes')).toBeUndefined()
   })
 })

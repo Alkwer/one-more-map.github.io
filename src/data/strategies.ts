@@ -9,18 +9,34 @@
 import type { ChartAreaType, Edges, Stat, Weights } from '../types'
 
 export const STRATEGY_RESERVATION_OPTIONS = [
-  { id: 'speedrun', label: 'Speedrun Strongboxes' },
-  { id: 'divine', label: 'Divine strategies' },
-  { id: 'meatfish', label: 'Meatfish' },
-  { id: 'ethereal', label: 'Magic Ethereal' },
+  { id: 'genericStrongboxes', label: 'Generic Strongboxes (+1 / +2-4 / +5)' },
+  { id: 'divinerStrongboxes', label: "Diviner's Strongboxes" },
+  { id: 'arcanistStrongboxes', label: "Arcanist's Strongboxes" },
+  { id: 'operativeStrongboxes', label: "Operative's Strongboxes" },
+  { id: 'messages', label: 'Messages in a Bottle' },
+  { id: 'starfish', label: 'Giant Starfish' },
+  { id: 'globalRares', label: 'Rare Monsters in all Voyage Areas' },
+  { id: 'adjacentRares', label: 'Rare Monsters in adjacent Areas' },
+  { id: 'seaPillars', label: 'Sea-Pillar destinations' },
+  { id: 'pelagicAbyss', label: 'Pelagic Abyss destinations' },
+  { id: 'meatfish', label: 'Other Meatfish pieces' },
+  { id: 'ethereal', label: 'Other Magic Ethereal pieces' },
 ] as const
 
 export type StrategyReservationId = (typeof STRATEGY_RESERVATION_OPTIONS)[number]['id']
 export type StrategyReservationPreferences = Record<StrategyReservationId, boolean>
 
 export const defaultStrategyReservations = (): StrategyReservationPreferences => ({
-  speedrun: true,
-  divine: true,
+  genericStrongboxes: true,
+  divinerStrongboxes: true,
+  arcanistStrongboxes: true,
+  operativeStrongboxes: true,
+  messages: true,
+  starfish: true,
+  globalRares: true,
+  adjacentRares: true,
+  seaPillars: true,
+  pelagicAbyss: true,
   meatfish: true,
   ethereal: true,
 })
@@ -73,8 +89,8 @@ export interface StrategyDef {
    *  a small value makes the lines a soft preference that yields to the
    *  position rules (piece locations matter more than exact lines) */
   layoutPenalty?: number
-  /** Optional keeper groups excluded while this strategy is active. Users can
-   *  enable each group independently in the solver controls. */
+  /** Optional chart-type keeper groups excluded while this strategy is active.
+   *  Users can enable each group independently in the solver controls. */
   reservationGroups?: StrategyReservationGroup[]
   /** pieces the strategy needs before it can receive a PLAY recommendation;
    *  the UI lists any missing requirements as diagnostic context */
@@ -104,9 +120,6 @@ export interface StrategyDef {
   /** extra links shown on the card (trade searches, guides) */
   extraLinks?: { label: string; url: string }[]
 }
-
-/** Rare-monster implicit charts are core fuel for the Divine-border strategies. */
-export const RARE_IMPLICITS = ['adj-rare-1', 'adj-rare-2', 'voy-rare'] as const
 
 /** Milky's master keeper regex - every mod worth saving, across all strats */
 export const ALL_GOOD_MODS_REGEX =
@@ -160,34 +173,94 @@ const SPEEDRUN_PREMIUM_STRONGBOX_MODS = [
 const SPEEDRUN_CENTER_MODS = [...SPEEDRUN_PREMIUM_STRONGBOX_MODS, 'adj-msg-1', 'adj-msg-2']
 const NOT_CENTER = [0, 1, 2, 3, 5, 6, 7, 8]
 
-const SPEEDRUN_RESERVATION: StrategyReservationGroup = {
-  id: 'speedrun',
-  label: 'Speedrun Strongboxes',
-  modIds: SPEEDRUN_CENTER_MODS,
+const GENERIC_STRONGBOX_RESERVATION: StrategyReservationGroup = {
+  id: 'genericStrongboxes',
+  label: 'Generic Strongboxes',
+  modIds: ['adj-box-1', 'adj-box-2', 'adj-box-3'],
 }
 
-const MEATFISH_RESERVATION: StrategyReservationGroup = {
-  id: 'meatfish',
-  label: 'Meatfish',
-  modIds: [
-    'adj-star-1',
-    'adj-star-2',
-    'adj-pantheon',
-    'adj-lantern',
-    'voy-possess',
-    'voy-fracture',
-    'voy-rare',
-    'voy-noequip',
-    'adj-wisps-1',
-    'adj-wisps-2',
-  ],
+const DIVINER_STRONGBOX_RESERVATION: StrategyReservationGroup = {
+  id: 'divinerStrongboxes',
+  label: "Diviner's Strongboxes",
+  modIds: ['adj-divbox-1', 'adj-divbox-2'],
+}
+
+const ARCANIST_STRONGBOX_RESERVATION: StrategyReservationGroup = {
+  id: 'arcanistStrongboxes',
+  label: "Arcanist's Strongboxes",
+  modIds: ['adj-arcbox-1', 'adj-arcbox-2'],
+}
+
+const OPERATIVE_STRONGBOX_RESERVATION: StrategyReservationGroup = {
+  id: 'operativeStrongboxes',
+  label: "Operative's Strongboxes",
+  modIds: ['adj-opbox-1', 'adj-opbox-2'],
+}
+
+const MESSAGE_RESERVATION: StrategyReservationGroup = {
+  id: 'messages',
+  label: 'Messages in a Bottle',
+  modIds: ['adj-msg-1', 'adj-msg-2'],
+}
+
+const SPEEDRUN_RESERVATIONS = [
+  DIVINER_STRONGBOX_RESERVATION,
+  ARCANIST_STRONGBOX_RESERVATION,
+  OPERATIVE_STRONGBOX_RESERVATION,
+  MESSAGE_RESERVATION,
+]
+
+const STARFISH_RESERVATION: StrategyReservationGroup = {
+  id: 'starfish',
+  label: 'Giant Starfish',
+  modIds: ['adj-star-1', 'adj-star-2'],
+}
+
+const ADJACENT_RARES_RESERVATION: StrategyReservationGroup = {
+  id: 'adjacentRares',
+  label: 'Adjacent Rare Monsters',
+  modIds: ['adj-rare-1', 'adj-rare-2'],
+}
+
+const GLOBAL_RARES_RESERVATION: StrategyReservationGroup = {
+  id: 'globalRares',
+  label: 'Voyage-wide Rare Monsters',
+  modIds: ['voy-rare'],
+}
+
+export const DIVINE_RARE_RESERVATIONS = [ADJACENT_RARES_RESERVATION, GLOBAL_RARES_RESERVATION]
+
+const SEA_PILLAR_RESERVATION: StrategyReservationGroup = {
+  id: 'seaPillars',
+  label: 'Sea-Pillar destinations',
   nameMatches: ['pillar'],
   areaTypes: ['sea-pillars'],
 }
 
+const PELAGIC_ABYSS_RESERVATION: StrategyReservationGroup = {
+  id: 'pelagicAbyss',
+  label: 'Pelagic Abyss destinations',
+  nameMatches: ['pelagic'],
+  areaTypes: ['pelagic-abyss'],
+}
+
+const MEATFISH_RESERVATION: StrategyReservationGroup = {
+  id: 'meatfish',
+  label: 'Other Meatfish pieces',
+  modIds: [
+    'adj-pantheon',
+    'adj-lantern',
+    'voy-possess',
+    'voy-fracture',
+    'voy-noequip',
+    'adj-wisps-1',
+    'adj-wisps-2',
+  ],
+}
+
 const ETHEREAL_RESERVATION: StrategyReservationGroup = {
   id: 'ethereal',
-  label: 'Magic Ethereal',
+  label: 'Other Magic Ethereal pieces',
   modIds: [
     'adj-lantern',
     'voy-noequip',
@@ -200,31 +273,19 @@ const ETHEREAL_RESERVATION: StrategyReservationGroup = {
   areaTypes: ['infested-bathyspheres'],
 }
 
-const DIVINE_RESERVATION_MODS = [
-  ...RARE_IMPLICITS,
-  'adj-star-1',
-  'adj-star-2',
-  'adj-box-1',
-  'adj-box-2',
-  'adj-box-3',
-  'adj-rare-1',
-  'adj-rare-2',
+const DIVINE_RESERVATIONS: StrategyReservationGroup[] = [
+  GENERIC_STRONGBOX_RESERVATION,
+  STARFISH_RESERVATION,
+  ADJACENT_RARES_RESERVATION,
+  GLOBAL_RARES_RESERVATION,
+  SEA_PILLAR_RESERVATION,
+  PELAGIC_ABYSS_RESERVATION,
 ]
 
-const divineReservation = (includePremiumStrongboxes: boolean): StrategyReservationGroup => ({
-  id: 'divine',
-  label: 'Divine strategies',
-  modIds: includePremiumStrongboxes
-    ? [...DIVINE_RESERVATION_MODS, ...SPEEDRUN_PREMIUM_STRONGBOX_MODS]
-    : DIVINE_RESERVATION_MODS,
-  nameMatches: ['pillar', 'pelagic'],
-  areaTypes: ['sea-pillars', 'pelagic-abyss'],
-})
-
-/** Manual solving protects every curated strategy category by default. */
+/** Manual solving protects every curated chart type by default. */
 export const MANUAL_STRATEGY_RESERVATIONS: StrategyReservationGroup[] = [
-  SPEEDRUN_RESERVATION,
-  divineReservation(true),
+  ...SPEEDRUN_RESERVATIONS,
+  ...DIVINE_RESERVATIONS,
   MEATFISH_RESERVATION,
   ETHEREAL_RESERVATION,
 ]
@@ -265,8 +326,8 @@ export const STRATEGIES: StrategyDef[] = [
     layout: ALC_GO_LAYOUT,
     layoutPenalty: 15, // a preference, not a law - "whatever works"
     reservationGroups: [
-      SPEEDRUN_RESERVATION,
-      divineReservation(true),
+      ...SPEEDRUN_RESERVATIONS,
+      ...DIVINE_RESERVATIONS,
       MEATFISH_RESERVATION,
       ETHEREAL_RESERVATION,
     ],
@@ -303,7 +364,7 @@ export const STRATEGIES: StrategyDef[] = [
       'border:exalt': 3,
       'border:ancient': 3,
     },
-    reservationGroups: [divineReservation(false), MEATFISH_RESERVATION, ETHEREAL_RESERVATION],
+    reservationGroups: [...DIVINE_RESERVATIONS, MEATFISH_RESERVATION, ETHEREAL_RESERVATION],
     rules: [
       // one centre chart, never a second one wasted elsewhere. Operative's
       // outranks the fallbacks (Milky: "won't yield as much, but consistent")

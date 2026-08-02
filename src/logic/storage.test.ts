@@ -189,12 +189,9 @@ describe('state decoding', () => {
   })
 
   it('defaults missing strategy protections and preserves explicit choices', () => {
-    expect(decoded({ v: STATE_VERSION }).state.strategyReservations).toEqual({
-      speedrun: true,
-      divine: true,
-      meatfish: true,
-      ethereal: true,
-    })
+    expect(decoded({ v: STATE_VERSION }).state.strategyReservations).toEqual(
+      defaultState().strategyReservations,
+    )
 
     expect(
       decoded(
@@ -202,7 +199,20 @@ describe('state decoding', () => {
           strategyReservations: { divine: false, meatfish: true, ethereal: false },
         }),
       ).state.strategyReservations,
-    ).toEqual({ speedrun: true, divine: false, meatfish: true, ethereal: false })
+    ).toEqual({
+      genericStrongboxes: false,
+      divinerStrongboxes: true,
+      arcanistStrongboxes: true,
+      operativeStrongboxes: true,
+      messages: true,
+      starfish: true,
+      globalRares: true,
+      adjacentRares: false,
+      seaPillars: true,
+      pelagicAbyss: false,
+      meatfish: true,
+      ethereal: false,
+    })
 
     expect(
       decoded(
@@ -215,7 +225,30 @@ describe('state decoding', () => {
           },
         }),
       ).state.strategyReservations,
-    ).toEqual({ speedrun: false, divine: true, meatfish: false, ethereal: false })
+    ).toEqual({
+      genericStrongboxes: true,
+      divinerStrongboxes: true,
+      arcanistStrongboxes: true,
+      operativeStrongboxes: true,
+      messages: false,
+      starfish: true,
+      globalRares: true,
+      adjacentRares: true,
+      seaPillars: true,
+      pelagicAbyss: true,
+      meatfish: false,
+      ethereal: false,
+    })
+
+    const granular = {
+      ...defaultState().strategyReservations,
+      divinerStrongboxes: false,
+      starfish: false,
+      adjacentRares: false,
+    }
+    expect(
+      decoded(persisted({ strategyReservations: granular })).state.strategyReservations,
+    ).toEqual(granular)
   })
 
   it('round-trips a normal export and shared URL state', () => {
@@ -226,7 +259,12 @@ describe('state decoding', () => {
       borders: ['b-divine', ...Array(11).fill(null)],
       allowRotation: false,
       strategyId: 'alc-and-go',
-      strategyReservations: { speedrun: false, divine: true, meatfish: false, ethereal: false },
+      strategyReservations: {
+        ...defaultState().strategyReservations,
+        messages: false,
+        starfish: false,
+        adjacentRares: false,
+      },
       borderRerollsUsed: 2,
     }
 

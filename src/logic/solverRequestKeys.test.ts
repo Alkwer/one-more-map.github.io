@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { defaultStrategyReservations } from '../data/strategies'
 import type { ChartData } from '../types'
 import { createSolverStateKey, createStrategyInventoryKey } from './solverRequestKeys'
 
@@ -17,7 +18,7 @@ const inventoryOptions = {
   adjacencyMode: 'physical' as const,
   adjacentAffectsSelf: false,
   disabledMods: new Set<string>(),
-  strategyReservations: { speedrun: true, divine: true, meatfish: true, ethereal: true },
+  strategyReservations: defaultStrategyReservations(),
 }
 
 describe('solver request keys', () => {
@@ -66,7 +67,7 @@ describe('solver request keys', () => {
       adjacencyMode: 'physical' as const,
       adjacentAffectsSelf: false,
       disabledMods: [],
-      strategyReservations: { speedrun: true, divine: true, meatfish: true, ethereal: true },
+      strategyReservations: defaultStrategyReservations(),
     }
     const original = createSolverStateKey(state, {}, null)
     const preserved = createSolverStateKey(

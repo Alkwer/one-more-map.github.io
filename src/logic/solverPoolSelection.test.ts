@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { defaultStrategyReservations } from '../data/strategies'
 import { chartRewardKey } from './rewards'
 import type { ChartData } from '../types'
 import { KEEP_BEST_CHARTS, selectFillerPool, selectStrategySolvePool } from './solverPoolSelection'
@@ -14,12 +15,17 @@ const chart = (uid: string, overrides: Partial<ChartData> = {}): ChartData => ({
   ...overrides,
 })
 
+const reservations = (overrides: Partial<ReturnType<typeof defaultStrategyReservations>> = {}) => ({
+  ...defaultStrategyReservations(),
+  ...overrides,
+})
+
 describe('solver pool selection', () => {
   const strategy = {
     reservationGroups: [
       {
-        id: 'divine' as const,
-        label: 'Divine strategies',
+        id: 'genericStrongboxes' as const,
+        label: 'Generic Strongboxes',
         modIds: ['divine-mod'],
         nameMatches: ['pelagic'],
         areaTypes: ['sea-pillars' as const],
@@ -49,23 +55,25 @@ describe('solver pool selection', () => {
   it('holds back only enabled reservation groups and reports why', () => {
     expect(
       selectStrategySolvePool(eligiblePool, strategy, {
-        speedrun: false,
-        divine: true,
+        ...reservations(),
+        genericStrongboxes: true,
         meatfish: false,
         ethereal: false,
       }),
     ).toEqual({
       solvePool: [eligiblePool[0], eligiblePool[4], eligiblePool[5]],
       heldBack: 3,
-      heldBackFor: ['Divine strategies'],
+      heldBackFor: ['Generic Strongboxes'],
     })
   })
 
   it('returns every eligible chart when all reservation groups are disabled', () => {
     expect(
       selectStrategySolvePool(eligiblePool, strategy, {
-        speedrun: false,
-        divine: false,
+        ...reservations(),
+        genericStrongboxes: false,
+        adjacentRares: false,
+        globalRares: false,
         meatfish: false,
         ethereal: false,
       }),
@@ -84,8 +92,8 @@ describe('solver pool selection', () => {
       selectStrategySolvePool(eligiblePool, {
         reservationGroups: [
           {
-            id: 'divine',
-            label: 'Divine strategies',
+            id: 'genericStrongboxes',
+            label: 'Generic Strongboxes',
             modIds: ['reserved-mod'],
             nameMatches: ['ethereal paradise'],
             areaTypes: ['sea-pillars'],
@@ -95,7 +103,7 @@ describe('solver pool selection', () => {
     ).toEqual({
       solvePool: [eligiblePool[0]],
       heldBack: 3,
-      heldBackFor: ['Divine strategies'],
+      heldBackFor: ['Generic Strongboxes'],
     })
   })
 
@@ -110,19 +118,27 @@ describe('solver pool selection', () => {
     expect(selectStrategySolvePool(manualPool, null)).toEqual({
       solvePool: [manualPool[0]],
       heldBack: 3,
-      heldBackFor: ['Divine strategies', 'Meatfish', 'Magic Ethereal'],
+      heldBackFor: [
+        'Adjacent Rare Monsters',
+        'Other Meatfish pieces',
+        'Other Magic Ethereal pieces',
+      ],
     })
     expect(
-      selectStrategySolvePool(manualPool, null, {
-        speedrun: false,
-        divine: false,
-        meatfish: true,
-        ethereal: false,
-      }),
+      selectStrategySolvePool(
+        manualPool,
+        null,
+        reservations({
+          adjacentRares: false,
+          globalRares: false,
+          meatfish: true,
+          ethereal: false,
+        }),
+      ),
     ).toEqual({
       solvePool: [manualPool[0], manualPool[1], manualPool[3]],
       heldBack: 1,
-      heldBackFor: ['Meatfish'],
+      heldBackFor: ['Other Meatfish pieces'],
     })
   })
 
@@ -191,7 +207,7 @@ describe('solver pool selection', () => {
       { [chartRewardKey('quantity')]: 1 },
       new Set(),
       null,
-      { speedrun: false, divine: true, meatfish: true, ethereal: true },
+      reservations({ messages: false }),
     )
 
     expect(protectedPool.map(({ uid }) => uid)).toEqual(['ordinary-0', 'ordinary-1', 'ordinary-2'])
@@ -201,5 +217,57 @@ describe('solver pool selection', () => {
       'ordinary-2',
       'speedrun-message',
     ])
+  })
+
+  it('releases Starfish independently from generic Strongboxes', () => {
+    const pool = [
+      chart('ordinary'),
+      chart('starfish', { modIds: ['adj-star-2'] }),
+      chart('strongboxes', { modIds: ['adj-box-3'] }),
+    ]
+
+    expect(selectStrategySolvePool(pool, null, reservations({ starfish: false }))).toEqual({
+      solvePool: [pool[0], pool[1]],
+      heldBack: 1,
+      heldBackFor: ['Generic Strongboxes'],
+    })
+  })
+
+  it('configures each Strongbox family independently', () => {
+    const pool = [
+      chart('generic', { modIds: ['adj-box-3'] }),
+      chart('diviner', { modIds: ['adj-divbox-2'] }),
+      chart('arcanist', { modIds: ['adj-arcbox-2'] }),
+      chart('operative', { modIds: ['adj-opbox-2'] }),
+    ]
+
+    expect(
+      selectStrategySolvePool(
+        pool,
+        null,
+        reservations({
+          divinerStrongboxes: false,
+          arcanistStrongboxes: false,
+          operativeStrongboxes: false,
+        }),
+      ),
+    ).toEqual({
+      solvePool: [pool[1], pool[2], pool[3]],
+      heldBack: 1,
+      heldBackFor: ['Generic Strongboxes'],
+    })
+  })
+
+  it('releases adjacent Rares without spending voyage-wide Rares', () => {
+    const pool = [
+      chart('adjacent-rares', { modIds: ['adj-rare-2'] }),
+      chart('global-rares', { modIds: ['voy-rare'] }),
+    ]
+
+    expect(selectStrategySolvePool(pool, null, reservations({ adjacentRares: false }))).toEqual({
+      solvePool: [pool[0]],
+      heldBack: 1,
+      heldBackFor: ['Voyage-wide Rare Monsters'],
+    })
   })
 })
