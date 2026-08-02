@@ -13,11 +13,13 @@ interface Props {
   appliedIdx: number | null
   onResults: (r: SolverResult[]) => void
   onApply: (r: SolverResult, idx: number) => void
+  /** open the Solver Settings popup */
+  onOpenSettings: () => void
 }
 
 /** The front-and-centre solve control: sits under the board, above
  *  "Copy into game", so solve → pick a result → copy is one straight line. */
-export function SolveBar({ state, activeStrategy, results, appliedIdx, onResults, onApply }: Props) {
+export function SolveBar({ state, activeStrategy, results, appliedIdx, onResults, onApply, onOpenSettings }: Props) {
   const [busy, setBusy] = useState(false)
   const [solveNote, setSolveNote] = useState('')
   const weights = activeStrategy ? activeStrategy.weights : state.weights
@@ -79,19 +81,28 @@ export function SolveBar({ state, activeStrategy, results, appliedIdx, onResults
 
   return (
     <div className="solve-bar">
-      <button className="solve-big" onClick={run} disabled={busy || state.pool.length === 0}>
-        {busy ? (
-          'Solving…'
-        ) : (
-          <>
-            ⚙ Solve
-            <span className="solve-big-sub">
-              best board from {state.pool.length} chart{state.pool.length === 1 ? '' : 's'}
-              {activeStrategy ? ` · ${activeStrategy.name}` : ''}
-            </span>
-          </>
-        )}
-      </button>
+      <div className="solve-row">
+        <button className="solve-big" onClick={run} disabled={busy || state.pool.length === 0}>
+          {busy ? (
+            'Solving…'
+          ) : (
+            <>
+              Solve
+              <span className="solve-big-sub">
+                best board from {state.pool.length} chart{state.pool.length === 1 ? '' : 's'}
+                {activeStrategy ? ` · ${activeStrategy.name}` : ''}
+              </span>
+            </>
+          )}
+        </button>
+        <button
+          className="solve-settings-btn"
+          onClick={onOpenSettings}
+          title="Connector rules, reward weights, chart protections, filler voyage and the best-charts regex"
+        >
+          ⚙<span className="solve-settings-label">Settings</span>
+        </button>
+      </div>
       {solveNote && <div className="muted small-note solve-bar-note">{solveNote}</div>}
       {results.length > 0 && (
         <>

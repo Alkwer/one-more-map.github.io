@@ -1697,6 +1697,39 @@ textarea {
 .solve-bar {
   margin-top: 12px;
 }
+.solve-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.solve-row .solve-big {
+  flex: 1;
+}
+.solve-settings-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 6px 14px;
+  font-size: 17px;
+}
+.solve-settings-label {
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+}
+/* solver settings rendered inside the popup - the overlay brings its own frame */
+.solver-popup {
+  max-width: 430px;
+  max-height: 86vh;
+  overflow-y: auto;
+}
+.solver-popup .solver {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
 .solve-big {
   display: flex;
   align-items: baseline;
@@ -1803,6 +1836,73 @@ textarea {
   .solve-results {
     grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
   }
+}
+
+/* ------- updates log ------- */
+.updates-btn.unseen {
+  position: relative;
+}
+.updates-btn.unseen::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gold-bright);
+  box-shadow: 0 0 6px rgba(231, 215, 171, 0.8);
+}
+.updates-log {
+  max-width: 620px;
+  max-height: 84vh;
+  overflow-y: auto;
+}
+.updates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.update-row {
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 8px 10px;
+  background: var(--panel2);
+}
+.update-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.update-tag {
+  font-family: var(--sc);
+  font-size: 10.5px;
+  letter-spacing: 1px;
+  padding: 1px 6px;
+  border-radius: 2px;
+}
+.update-tag.tag-new {
+  color: var(--gold-bright);
+  border: 1px solid var(--gold-dim);
+  background: rgba(200, 170, 110, 0.12);
+}
+.update-tag.tag-reworked {
+  color: var(--accent2);
+  border: 1px solid rgba(107, 163, 200, 0.5);
+  background: rgba(107, 163, 200, 0.1);
+}
+.update-title {
+  font-family: var(--sc);
+  color: var(--gold);
+  letter-spacing: 0.5px;
+}
+.update-date {
+  font-size: 11.5px;
+}
+.update-detail {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 /* ------- onboarding ------- */

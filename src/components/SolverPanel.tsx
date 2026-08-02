@@ -18,9 +18,11 @@ interface Props {
   activeStrategy: StrategyDef | null
   onPatch: (p: Partial<AppState>) => void
   onResults: (r: SolverResult[]) => void
+  /** rendered inside the settings popup - shows a Done button that calls this */
+  onClose?: () => void
 }
 
-export function SolverPanel({ state, activeStrategy, onPatch, onResults }: Props) {
+export function SolverPanel({ state, activeStrategy, onPatch, onResults, onClose }: Props) {
   const [busy, setBusy] = useState(false)
   const [regexCap, setRegexCap] = useState(50)
   const [copied, setCopied] = useState(false)
@@ -129,7 +131,15 @@ export function SolverPanel({ state, activeStrategy, onPatch, onResults }: Props
 
   return (
     <div className="solver">
-      <div className="panel-title">Solver Settings</div>
+      <div className="panel-title">
+        Solver Settings
+        {onClose && (
+          <>
+            <span className="spacer" />
+            <button onClick={onClose}>Done</button>
+          </>
+        )}
+      </div>
 
       <div className="field">
         <label>Connector rule</label>

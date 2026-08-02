@@ -9,6 +9,8 @@ import { ImportPanel } from './components/ImportPanel'
 import { Library } from './components/Library'
 import { SolverPanel } from './components/SolverPanel'
 import { SolveBar } from './components/SolveBar'
+import { UpdatesLog } from './components/UpdatesLog'
+import { LATEST_UPDATE_DATE } from './data/updates'
 import { borderModById, voyageModById } from './data/mods'
 import { strategyById } from './data/strategies'
 import { StrategiesPanel } from './components/StrategiesPanel'
@@ -52,6 +54,24 @@ export default function App() {
     }
   }
   const [showMods, setShowMods] = useState(false)
+  const [showSolverSettings, setShowSolverSettings] = useState(false)
+  const [showUpdates, setShowUpdates] = useState(false)
+  const [updatesSeen, setUpdatesSeen] = useState<string>(() => {
+    try {
+      return localStorage.getItem('updates-seen') ?? ''
+    } catch {
+      return ''
+    }
+  })
+  const openUpdates = () => {
+    setShowUpdates(true)
+    setUpdatesSeen(LATEST_UPDATE_DATE)
+    try {
+      localStorage.setItem('updates-seen', LATEST_UPDATE_DATE)
+    } catch {
+      /* ignore */
+    }
+  }
   const [showAnnounce, setShowAnnounce] = useState<boolean>(() => {
     try {
       return !localStorage.getItem(ANNOUNCE_KEY)
@@ -390,6 +410,23 @@ export default function App() {
           onClose={() => setShowMods(false)}
         />
       )}
+      {showUpdates && <UpdatesLog onClose={() => setShowUpdates(false)} />}
+      {showSolverSettings && (
+        <div className="onboard-backdrop" onClick={() => setShowSolverSettings(false)}>
+          <div className="onboard solver-popup" onClick={(e) => e.stopPropagation()}>
+            <SolverPanel
+              state={state}
+              activeStrategy={activeStrategy}
+              onPatch={patch}
+              onResults={(r) => {
+                setResults(r)
+                setAppliedIdx(null)
+              }}
+              onClose={() => setShowSolverSettings(false)}
+            />
+          </div>
+        </div>
+      )}
       <header>
         <h1>
           Allflame <span className="accent">Voyage Solver</span>
@@ -398,6 +435,13 @@ export default function App() {
           <span className="tag">PoE 3.29: Curse of the Allflame</span>
           <button title="How it works" onClick={() => setShowOnboarding(true)}>
             ?
+          </button>
+          <button
+            className={updatesSeen < LATEST_UPDATE_DATE ? 'updates-btn unseen' : 'updates-btn'}
+            title="What's new on the site"
+            onClick={openUpdates}
+          >
+            Updates
           </button>
           <button title="Browse all modifiers and switch off ones you don't want" onClick={() => setShowMods(true)}>
             Mods{state.disabledMods.length > 0 ? ` (${state.disabledMods.length} off)` : ''}
@@ -524,6 +568,7 @@ export default function App() {
                   setSelectedCell(null)
                   setSelectedChart(null)
                 }}
+                onOpenSettings={() => setShowSolverSettings(true)}
               />
             }
           />
@@ -670,15 +715,6 @@ export default function App() {
             pool={state.pool}
             borders={state.borders}
             onSelect={(id) => patch({ strategyId: id })}
-          />
-          <SolverPanel
-            state={state}
-            activeStrategy={activeStrategy}
-            onPatch={patch}
-            onResults={(r) => {
-              setResults(r)
-              setAppliedIdx(null)
-            }}
           />
         </section>
       </main>
