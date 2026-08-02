@@ -1,9 +1,29 @@
 import { describe, expect, it } from 'vitest'
-import { parseBorderOcrPayload } from './borderOcr'
+import { emptyBorders } from '../types'
+import { applyBorderOcrSnapshot, parseBorderOcrPayload } from './borderOcr'
 
 const payload = (text: string) => `=== VOYAGE REROLL COST ===
 ${text}
 === END VOYAGE REROLL COST ===`
+
+const divineTooltip = 'Rare Monsters in adjacent Areas drop an additional Divine Orb'
+const borderBlock = (
+  index: number,
+  text = divineTooltip,
+  language = '',
+) => `=== VOYAGE BORDER ${index} ===
+${language ? `OCR Language: ${language}\n` : ''}${text}
+=== END VOYAGE BORDER ===`
+const scanPayload = (blocks: string[], captured = blocks.length) => `=== VOYAGE BORDER SCAN META ===
+Expected: 12
+Captured: ${captured}
+=== END VOYAGE BORDER SCAN META ===
+${blocks.join('\n')}`
+const existingBorders = () => {
+  const borders = emptyBorders()
+  borders.fill('b-chaos')
+  return borders
+}
 
 describe('parseBorderOcrPayload reroll cost', () => {
   it.each([
@@ -50,5 +70,81 @@ Unrelated screen text 24 000`),
     )
 
     expect(result.rerollCost).toBeNull()
+  })
+})
+
+describe('transactional border OCR snapshots', () => {
+  it('applies a complete 12-position importer sweep and records its OCR language', () => {
+    const parsed = parseBorderOcrPayload(
+      scanPayload(
+        Array.from({ length: 12 }, (_, index) => borderBlock(index, divineTooltip, 'en-US')),
+      ),
+    )
+    const applied = applyBorderOcrSnapshot(existingBorders(), parsed)
+
+    expect(parsed.uniqueBlockCount).toBe(12)
+    expect(parsed.snapshotComplete).toBe(true)
+    expect(parsed.scanMeta?.complete).toBe(true)
+    expect(parsed.ocrLanguages).toEqual(['en-US'])
+    expect(applied.status).toBe('complete')
+    expect(applied.borders).toEqual(Array(12).fill('b-divine'))
+  })
+
+  it('clears a missed position instead of retaining a stale border from a complete sweep', () => {
+    const blocks = Array.from({ length: 12 }, (_, index) =>
+      borderBlock(index, index === 11 ? 'unreadable tooltip noise' : divineTooltip),
+    )
+    const parsed = parseBorderOcrPayload(scanPayload(blocks))
+    const applied = applyBorderOcrSnapshot(existingBorders(), parsed)
+
+    expect(applied.status).toBe('partial')
+    expect(applied.borders.slice(0, 11)).toEqual(Array(11).fill('b-divine'))
+    expect(applied.borders[11]).toBeNull()
+  })
+
+  it('rejects an interrupted importer sweep without mixing it into existing borders', () => {
+    const parsed = parseBorderOcrPayload(
+      scanPayload(Array.from({ length: 11 }, (_, index) => borderBlock(index))),
+    )
+    const existing = existingBorders()
+    const applied = applyBorderOcrSnapshot(existing, parsed)
+
+    expect(parsed.scanMeta?.complete).toBe(false)
+    expect(applied).toMatchObject({ status: 'incomplete', applied: false })
+    expect(applied.borders).toEqual(existing)
+  })
+
+  it('rejects duplicated positions even when the importer reports 12 captured blocks', () => {
+    const blocks = [...Array.from({ length: 11 }, (_, index) => borderBlock(index)), borderBlock(0)]
+    const parsed = parseBorderOcrPayload(scanPayload(blocks, 12))
+    const existing = existingBorders()
+    const applied = applyBorderOcrSnapshot(existing, parsed)
+
+    expect(parsed.blockCount).toBe(12)
+    expect(parsed.uniqueBlockCount).toBe(11)
+    expect(parsed.scanMeta?.complete).toBe(false)
+    expect(applied.borders).toEqual(existing)
+  })
+
+  it('preserves manual borders when a structurally complete sweep recognises nothing', () => {
+    const parsed = parseBorderOcrPayload(
+      scanPayload(
+        Array.from({ length: 12 }, (_, index) => borderBlock(index, 'OCR ERROR: unavailable')),
+      ),
+    )
+    const existing = existingBorders()
+    const applied = applyBorderOcrSnapshot(existing, parsed)
+
+    expect(parsed.matches).toHaveLength(0)
+    expect(applied).toMatchObject({ status: 'failed', applied: false })
+    expect(applied.borders).toEqual(existing)
+  })
+
+  it('keeps legacy single-border clipboard patches compatible', () => {
+    const parsed = parseBorderOcrPayload(borderBlock(0))
+    const applied = applyBorderOcrSnapshot(emptyBorders(), parsed)
+
+    expect(applied.status).toBe('legacy-patch')
+    expect(applied.borders[0]).toBe('b-divine')
   })
 })

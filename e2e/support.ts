@@ -37,6 +37,18 @@ Rare Monsters adjacent in Areas drop 1 additional Divine Orbs
 === END VOYAGE BORDER ===`,
 ).join('\n')
 
+export const INCOMPLETE_BORDER_SCAN_PAYLOAD = `=== VOYAGE BORDER SCAN META ===
+Expected: 12
+Captured: 11
+=== END VOYAGE BORDER SCAN META ===
+${Array.from(
+  { length: 11 },
+  (_, index) => `=== VOYAGE BORDER ${index} ===
+OCR Language: en-US
+Rare Monsters in adjacent Areas drop an additional Chaos Orb
+=== END VOYAGE BORDER ===`,
+).join('\n')}`
+
 export function makeCrossingChartBatch(count: number): string {
   return Array.from({ length: count }, (_, index) =>
     ENGLISH_CHART.replace(
