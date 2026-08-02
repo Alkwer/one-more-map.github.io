@@ -190,6 +190,7 @@ describe('state decoding', () => {
 
   it('defaults missing strategy protections and preserves explicit choices', () => {
     expect(decoded({ v: STATE_VERSION }).state.strategyReservations).toEqual({
+      speedrun: true,
       divine: true,
       meatfish: true,
       ethereal: true,
@@ -198,10 +199,23 @@ describe('state decoding', () => {
     expect(
       decoded(
         persisted({
-          strategyReservations: { divine: true, meatfish: false, ethereal: false },
+          strategyReservations: { divine: false, meatfish: true, ethereal: false },
         }),
       ).state.strategyReservations,
-    ).toEqual({ divine: true, meatfish: false, ethereal: false })
+    ).toEqual({ speedrun: true, divine: false, meatfish: true, ethereal: false })
+
+    expect(
+      decoded(
+        persisted({
+          strategyReservations: {
+            speedrun: false,
+            divine: true,
+            meatfish: false,
+            ethereal: false,
+          },
+        }),
+      ).state.strategyReservations,
+    ).toEqual({ speedrun: false, divine: true, meatfish: false, ethereal: false })
   })
 
   it('round-trips a normal export and shared URL state', () => {
@@ -212,7 +226,7 @@ describe('state decoding', () => {
       borders: ['b-divine', ...Array(11).fill(null)],
       allowRotation: false,
       strategyId: 'alc-and-go',
-      strategyReservations: { divine: true, meatfish: false, ethereal: false },
+      strategyReservations: { speedrun: false, divine: true, meatfish: false, ethereal: false },
       borderRerollsUsed: 2,
     }
 

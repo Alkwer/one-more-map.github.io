@@ -17,7 +17,7 @@ const inventoryOptions = {
   adjacencyMode: 'physical' as const,
   adjacentAffectsSelf: false,
   disabledMods: new Set<string>(),
-  strategyReservations: { divine: true, meatfish: true, ethereal: true },
+  strategyReservations: { speedrun: true, divine: true, meatfish: true, ethereal: true },
 }
 
 describe('solver request keys', () => {
@@ -66,7 +66,7 @@ describe('solver request keys', () => {
       adjacencyMode: 'physical' as const,
       adjacentAffectsSelf: false,
       disabledMods: [],
-      strategyReservations: { divine: true, meatfish: true, ethereal: true },
+      strategyReservations: { speedrun: true, divine: true, meatfish: true, ethereal: true },
     }
     const original = createSolverStateKey(state, {}, null)
     const preserved = createSolverStateKey(

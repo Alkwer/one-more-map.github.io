@@ -127,7 +127,7 @@ describe('strategy reservation preferences', () => {
     const protectedInventory = evaluateStrategyInventory(borders, charts, pool, options)
     const unprotectedInventory = evaluateStrategyInventory(borders, charts, pool, {
       ...options,
-      strategyReservations: { divine: false, meatfish: false, ethereal: true },
+      strategyReservations: { speedrun: true, divine: false, meatfish: false, ethereal: true },
     })
 
     expect(

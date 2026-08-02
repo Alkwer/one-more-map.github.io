@@ -351,6 +351,7 @@ function decodeStrategyReservations(value: unknown): StrategyReservationPreferen
   if (value === undefined) return defaults
   if (!isRecord(value)) fail('strategyReservations must be an object')
   return {
+    speedrun: optionalBoolean(value, 'speedrun', defaults.speedrun),
     divine: optionalBoolean(value, 'divine', defaults.divine),
     meatfish: optionalBoolean(value, 'meatfish', defaults.meatfish),
     ethereal: optionalBoolean(value, 'ethereal', defaults.ethereal),

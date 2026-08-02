@@ -25,6 +25,7 @@ describe('solver strategy protections', () => {
     )
 
     expect(html).toContain('Protect charts for other strategies')
+    expect(reservationInput(html, 'speedrun')).toContain('checked=""')
     expect(reservationInput(html, 'divine')).toContain('checked=""')
     expect(reservationInput(html, 'meatfish')).toContain('checked=""')
     expect(reservationInput(html, 'ethereal')).toContain('checked=""')
@@ -45,6 +46,7 @@ describe('solver strategy protections', () => {
     const html = renderControls(null)
 
     expect(html).toContain('Protect charts for other strategies')
+    expect(reservationInput(html, 'speedrun')).toContain('checked=""')
     expect(reservationInput(html, 'divine')).toContain('checked=""')
     expect(reservationInput(html, 'meatfish')).toContain('checked=""')
     expect(reservationInput(html, 'ethereal')).toContain('checked=""')
