@@ -22,6 +22,12 @@ type AppPage = Parameters<typeof openApp>[0]
 const libraryHeading = (page: AppPage) =>
   page.getByRole('heading', { level: 2, name: /Chart Library/ })
 
+const chartPayload = (name: string, area: string, implicit: string) =>
+  ENGLISH_CHART.replace('Armoured Coral Reef Chart of Ice', name)
+    .replace('Undersea Groves', area)
+    .replace("20% increased Dead Man's Sulphur found in this Area", implicit)
+    .replace('Chart Shape: Corner', 'Chart Shape: Crossing')
+
 async function expectNoAccessibilityViolations(page: AppPage) {
   const { violations } = await new AxeBuilder({ page }).analyze()
   expect(
@@ -126,6 +132,46 @@ test('globally imports English, Korean, and border clipboard payloads', async ({
   await expect
     .poll(() => workerUrls.some((url) => /\/assets\/solver\.worker-[^/]+\.js$/.test(url)))
     .toBe(true)
+})
+
+test('plans the complete corner Divine composition with two feeders and six Rares', async ({
+  appPage,
+}) => {
+  await openApp(appPage)
+
+  const charts = [
+    chartPayload(
+      'Sea Pillars Crossing',
+      'Sea Pillars',
+      "20% increased Dead Man's Sulphur found in this Area",
+    ),
+    ...Array.from({ length: 2 }, (_, index) =>
+      chartPayload(
+        `Starfish Feeder ${index + 1}`,
+        'Undersea Groves',
+        'Adjacent Areas contains 4-5 additional Giant Starfish',
+      ),
+    ),
+    ...Array.from({ length: 6 }, (_, index) =>
+      chartPayload(
+        `Rare Crossing ${index + 1}`,
+        'Undersea Groves',
+        '25% increased number of Rare Monsters',
+      ),
+    ),
+  ]
+  await pasteText(appPage, charts.join('\n'))
+  await pasteText(appPage, DIVINE_BORDER_PAYLOAD)
+  await expect(libraryHeading(appPage)).toContainText('(9)')
+
+  await appPage.getByRole('button', { name: '📋 Plan' }).click()
+  const planner = appPage.locator('.session-plan')
+  const readyDivine = planner.locator('.plan-row.ready').filter({ hasText: 'Divine Border Rares' })
+
+  await expect(readyDivine).toContainText('pieces ready - run this board')
+  await expect(
+    planner.locator('.plan-row.waiting').filter({ hasText: 'Divine Border Rares' }),
+  ).toHaveCount(0)
 })
 
 test('keeps existing borders after an interrupted Windows OCR sweep', async ({ appPage }) => {
