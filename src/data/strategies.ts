@@ -82,6 +82,8 @@ export interface StrategyDef {
   waitHint?: string
   /** this strategy is allowed to place rare-implicit charts (Divine strats) */
   allowRareImplicits?: boolean
+  /** this strategy is allowed to place Rare Fracture charts (Meatfish) */
+  allowFractureCharts?: boolean
   /** Milky's in-game search string highlighting this strategy's keeper charts */
   searchRegex?: string
   /** extra links shown on the card (trade searches, guides) */
@@ -91,6 +93,10 @@ export interface StrategyDef {
 /** rare-monster implicit charts are Divine-strategy fuel: nothing else may
  *  use them (the solver holds them back everywhere except the Divine strats) */
 export const RARE_IMPLICITS = ['adj-rare-1', 'adj-rare-2', 'voy-rare'] as const
+
+/** Rare Fracture charts are Meatfish fuel: fracturing multiplies the giga-rare
+ *  farm, so only Meatfish may spend them (held back everywhere else) */
+export const MEATFISH_FUEL = ['voy-fracture'] as const
 
 /** Milky's master keeper regex - every mod worth saving, across all strats */
 export const ALL_GOOD_MODS_REGEX =
@@ -323,6 +329,7 @@ export const STRATEGIES: StrategyDef[] = [
     ],
     waitHint: 'Speedrun Strongboxes in the meantime.',
     searchRegex: '"cannot|poss|lantern|pantheon"',
+    allowFractureCharts: true,
   },
   {
     id: 'milky-ethereal',
@@ -380,7 +387,6 @@ export const STRATEGIES: StrategyDef[] = [
       'adjacent:star': 8,
       'adjacent:box': 8,
       'voyage:possess': 6,
-      'voyage:fracture': 6,
       'border:divine': 10,
       'self:pack': 3,
     },

@@ -537,6 +537,18 @@ button.primary:hover {
   border: 1px solid var(--border);
   border-radius: 3px;
 }
+/* 🔒 on library charts held back as another strategy's fuel */
+.sq-lock {
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  font-size: 11px;
+  filter: drop-shadow(0 1px 1px #000);
+}
+.badge.lock {
+  border-color: var(--gold-dim);
+  color: var(--gold);
+}
 .strategy-reservations legend {
   padding: 0 4px;
   color: var(--gold-bright);

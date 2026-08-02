@@ -39,25 +39,27 @@ describe('solver strategy protections', () => {
     expect(reservationInput(html, 'meatfish')).not.toContain('checked=""')
   })
 
-  it('offers the Divine toggle in manual mode, where the rare-implicit fallback applies', () => {
+  it('offers the Divine and Meatfish toggles in manual mode, where both fallbacks apply', () => {
     const html = renderPanel(null)
 
     expect(html).toContain('Protect charts for other strategies')
     expect(reservationInput(html, 'divine')).toContain('checked=""')
-    expect(reservationInput(html, 'meatfish')).toBeUndefined()
+    expect(reservationInput(html, 'meatfish')).toContain('checked=""')
     expect(reservationInput(html, 'ethereal')).toBeUndefined()
   })
 
-  it('offers the Divine toggle for Meatfish, which also holds rare-implicits back', () => {
+  it('offers only the Divine toggle for Meatfish, which may spend its own fracture fuel', () => {
     const html = renderPanel('milky-meatfish')
 
     expect(reservationInput(html, 'divine')).toContain('checked=""')
     expect(reservationInput(html, 'meatfish')).toBeUndefined()
   })
 
-  it('hides protections entirely for the Divine strategies (they hold nothing back)', () => {
+  it('offers only the Meatfish toggle for the Divine strategies (fracture is not theirs)', () => {
     const html = renderPanel('divine-border-rares')
 
-    expect(html).not.toContain('Protect charts for other strategies')
+    expect(html).toContain('Protect charts for other strategies')
+    expect(reservationInput(html, 'divine')).toBeUndefined()
+    expect(reservationInput(html, 'meatfish')).toContain('checked=""')
   })
 })

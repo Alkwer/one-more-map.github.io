@@ -1,4 +1,5 @@
 import {
+  MEATFISH_FUEL,
   RARE_IMPLICITS,
   defaultStrategyReservations,
   type StrategyDef,
@@ -7,12 +8,21 @@ import {
 } from '../data/strategies'
 import type { ChartData } from '../types'
 
-type StrategyReservations = Pick<StrategyDef, 'allowRareImplicits' | 'reservationGroups'>
+type StrategyReservations = Pick<
+  StrategyDef,
+  'allowRareImplicits' | 'allowFractureCharts' | 'reservationGroups'
+>
 
 const DIVINE_RARE_RESERVATION: StrategyReservationGroup = {
   id: 'divine',
   label: 'Divine strategies',
   modIds: [...RARE_IMPLICITS],
+}
+
+const MEATFISH_FRACTURE_RESERVATION: StrategyReservationGroup = {
+  id: 'meatfish',
+  label: 'Meatfish',
+  modIds: [...MEATFISH_FUEL],
 }
 
 const matchesReservation = (
@@ -47,6 +57,17 @@ export function selectStrategySolvePool(
     !configuredGroups.some((reservation) => reservation.id === 'divine')
   ) {
     enabledReservations.push(DIVINE_RARE_RESERVATION)
+  }
+
+  // Rare Fracture charts are Meatfish fuel the same way: hold them back in
+  // manual mode and every strategy that isn't Meatfish itself. Alc & Go and
+  // Speedrun already carry them inside their configured Meatfish group.
+  if (
+    preferences.meatfish &&
+    !strategy?.allowFractureCharts &&
+    !configuredGroups.some((reservation) => reservation.id === 'meatfish')
+  ) {
+    enabledReservations.push(MEATFISH_FRACTURE_RESERVATION)
   }
 
   const matchedLabels = new Set<string>()

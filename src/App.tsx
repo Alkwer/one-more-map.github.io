@@ -448,6 +448,7 @@ export default function App() {
             board={state.board}
             weights={effectiveWeights}
             disabledMods={disabledSet}
+            reservations={state.strategyReservations}
             selected={selectedChart}
             onSelect={(uid) => {
               setSelectedChart((cur) => (cur === uid ? null : uid))

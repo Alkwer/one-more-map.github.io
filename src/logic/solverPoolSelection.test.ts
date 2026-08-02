@@ -12,7 +12,10 @@ const chart = (uid: string, overrides: Partial<ChartData> = {}): ChartData => ({
   ...overrides,
 })
 
-const strategy: Pick<StrategyDef, 'allowRareImplicits' | 'reservationGroups'> = {
+const strategy: Pick<
+  StrategyDef,
+  'allowRareImplicits' | 'allowFractureCharts' | 'reservationGroups'
+> = {
   reservationGroups: [
     {
       id: 'divine',
@@ -92,5 +95,30 @@ describe('strategy solve-pool reservations', () => {
         ethereal: true,
       }).solvePool,
     ).toEqual([rare])
+  })
+
+  it('holds Rare Fracture charts for Meatfish everywhere except Meatfish itself', () => {
+    const fracture = chart('fracture', { modIds: ['voy-fracture'] })
+
+    // manual mode holds it, reporting Meatfish as the reason
+    const manual = selectStrategySolvePool([fracture], null)
+    expect(manual.solvePool).toEqual([])
+    expect(manual.heldBackFor).toEqual(['Meatfish'])
+    // Meatfish itself may spend it
+    expect(
+      selectStrategySolvePool([fracture], { allowFractureCharts: true }).solvePool,
+    ).toEqual([fracture])
+    // a Divine strategy may not (rares allowed, fracture still Meatfish fuel)
+    expect(
+      selectStrategySolvePool([fracture], { allowRareImplicits: true }).solvePool,
+    ).toEqual([])
+    // switching the Meatfish protection off releases it
+    expect(
+      selectStrategySolvePool([fracture], null, {
+        divine: true,
+        meatfish: false,
+        ethereal: true,
+      }).solvePool,
+    ).toEqual([fracture])
   })
 })

@@ -4,7 +4,7 @@ import { solve, type SolverResult } from '../logic/solver'
 import type { AppState } from '../logic/storage'
 import type { AdjacencyMode } from '../logic/scoring'
 import type { ConnectivityMode } from '../types'
-import { RARE_IMPLICITS, STRATEGY_RESERVATION_OPTIONS } from '../data/strategies'
+import { MEATFISH_FUEL, RARE_IMPLICITS, STRATEGY_RESERVATION_OPTIONS } from '../data/strategies'
 import type { StrategyDef } from '../data/strategies'
 import { GROUP_LABEL, GROUP_ORDER, REWARD_TYPES } from '../logic/rewards'
 import { displayValue } from './Library'
@@ -34,10 +34,15 @@ export function SolverPanel({ state, activeStrategy, onPatch, onResults }: Props
   const divineFallback =
     !activeStrategy?.allowRareImplicits &&
     !reservationGroups.some((reservation) => reservation.id === 'divine')
+  // same for Rare Fracture charts, which are Meatfish fuel
+  const meatfishFallback =
+    !activeStrategy?.allowFractureCharts &&
+    !reservationGroups.some((reservation) => reservation.id === 'meatfish')
   const availableReservations = STRATEGY_RESERVATION_OPTIONS.filter(
     (option) =>
       reservationGroups.some((reservation) => reservation.id === option.id) ||
-      (option.id === 'divine' && divineFallback),
+      (option.id === 'divine' && divineFallback) ||
+      (option.id === 'meatfish' && meatfishFallback),
   )
   const bestRegex = useMemo(
     () => buildBestModRegex(weights, regexCap, new Set(state.disabledMods)),
@@ -64,12 +69,19 @@ export function SolverPanel({ state, activeStrategy, onPatch, onResults }: Props
         const disabled = new Set(state.disabledMods)
         const keep = new Set<string>()
         state.pool.forEach((c) => c.preserved && keep.add(c.uid))
-        // Rare-implicit charts are Divine-strategy fuel by default. Respect the
-        // same user preference when building a throwaway filler voyage.
+        // Rare-implicit charts are Divine-strategy fuel and Rare Fracture is
+        // Meatfish fuel - neither is ever filler while its protection is on.
         if (state.strategyReservations.divine) {
           state.pool.forEach(
             (c) =>
               c.modIds.some((id) => (RARE_IMPLICITS as readonly string[]).includes(id)) &&
+              keep.add(c.uid),
+          )
+        }
+        if (state.strategyReservations.meatfish) {
+          state.pool.forEach(
+            (c) =>
+              c.modIds.some((id) => (MEATFISH_FUEL as readonly string[]).includes(id)) &&
               keep.add(c.uid),
           )
         }

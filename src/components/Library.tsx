@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import { VOYAGE_MODS, voyageModById } from '../data/mods'
+import { MEATFISH_FUEL, RARE_IMPLICITS } from '../data/strategies'
+import type { StrategyReservationPreferences } from '../data/strategies'
 import { voyageRewardKey } from '../logic/rewards'
 import { newUid } from '../logic/parser'
 import type { Board, ChartData, Edges, Weights } from '../types'
@@ -12,12 +14,29 @@ interface Props {
   board: Board
   weights: Weights
   disabledMods: Set<string>
+  /** keeper protections - decide which charts show the 🔒 "saved for" badge */
+  reservations: StrategyReservationPreferences
   selected: string | null
   onSelect: (uid: string) => void
   onAdd: (charts: ChartData[]) => void
   onRemove: (uid: string) => void
   onUpdate: (chart: ChartData) => void
   onClearCharts: () => void
+}
+
+/** which strategy this chart is being saved for (while its protection is on) */
+function fuelLock(chart: ChartData, prefs: StrategyReservationPreferences): string | null {
+  if (
+    prefs.divine &&
+    chart.modIds.some((id) => (RARE_IMPLICITS as readonly string[]).includes(id))
+  )
+    return 'Saved for the Divine strategies'
+  if (
+    prefs.meatfish &&
+    chart.modIds.some((id) => (MEATFISH_FUEL as readonly string[]).includes(id))
+  )
+    return 'Saved for Meatfish'
+  return null
 }
 
 const SCOPE_REACH = { self: 1, adjacent: 3, global: 9 } as const
@@ -240,6 +259,7 @@ export function Library(props: Props) {
             // lead with the implicit (adjacent/voyage) - it's the strategic mod
             const mod = mods.find((m) => m!.scope !== 'self') ?? mods[0] ?? null
             const val = displayValue(c, props.weights, props.disabledMods)
+            const lock = fuelLock(c, props.reservations)
             const lines = [
               { text: `Area Level: ${c.level}${c.shape ? ` · ${c.shape}` : ''}`, cls: 'muted' },
               ...(c.rewards ?? []).map((e) => ({
@@ -248,6 +268,9 @@ export function Library(props: Props) {
               })),
               ...mods.map((m) => ({ text: m!.text, cls: `scope-${m!.scope}` })),
               { text: `Weighted value: ${val}`, cls: 'val' },
+              ...(lock
+                ? [{ text: `🔒 ${lock} - other solves won't spend it`, cls: 'muted' }]
+                : []),
               ...(onBoard.has(c.uid) ? [{ text: 'Currently on the board', cls: 'muted' }] : []),
             ]
             return (
@@ -278,6 +301,11 @@ export function Library(props: Props) {
                     <EdgeGlyph edges={c.edges} size={15} />
                   </span>
                 )}
+                {lock && (
+                  <span className="sq-lock" title={lock}>
+                    🔒
+                  </span>
+                )}
                 <span className="sq-val">{val}</span>
                 <span className="sq-lvl">L:{c.level}</span>
                 <button
@@ -300,6 +328,7 @@ export function Library(props: Props) {
         {visible.map((c) => {
           const allMods = c.modIds.map((id) => voyageModById.get(id)).filter(Boolean)
           const mod = allMods.find((m) => m!.scope !== 'self') ?? allMods[0] ?? null
+          const lock = fuelLock(c, props.reservations)
           return (
             <div
               key={c.uid}
@@ -310,6 +339,11 @@ export function Library(props: Props) {
                 <EdgeGlyph edges={c.edges} />
                 <span className="chart-name">{c.name}</span>
                 <span className="chart-level">lvl {c.level}</span>
+                {lock && (
+                  <span className="badge lock" title={`${lock} - other solves won't spend it`}>
+                    🔒
+                  </span>
+                )}
                 {onBoard.has(c.uid) && <span className="badge">on board</span>}
                 <span className="spacer" />
                 <button
