@@ -1,4 +1,8 @@
-import { STRATEGY_RESERVATION_OPTIONS, type StrategyDef } from '../../data/strategies'
+import {
+  MANUAL_STRATEGY_RESERVATIONS,
+  STRATEGY_RESERVATION_OPTIONS,
+  type StrategyDef,
+} from '../../data/strategies'
 import type { AdjacencyMode } from '../../logic/scoring'
 import type { AppState } from '../../logic/storage'
 import type { ConnectivityMode } from '../../types'
@@ -11,9 +15,16 @@ interface Props {
 }
 
 export function SolverControls({ state, activeStrategy, onPatch }: Props) {
-  const reservationGroups = activeStrategy?.reservationGroups ?? []
-  const availableReservations = STRATEGY_RESERVATION_OPTIONS.filter((option) =>
-    reservationGroups.some((reservation) => reservation.id === option.id),
+  const reservationGroups = activeStrategy
+    ? (activeStrategy.reservationGroups ?? [])
+    : MANUAL_STRATEGY_RESERVATIONS
+  const divineFallback =
+    !activeStrategy?.allowRareImplicits &&
+    !reservationGroups.some((reservation) => reservation.id === 'divine')
+  const availableReservations = STRATEGY_RESERVATION_OPTIONS.filter(
+    (option) =>
+      reservationGroups.some((reservation) => reservation.id === option.id) ||
+      (option.id === 'divine' && divineFallback),
   )
 
   return (

@@ -97,6 +97,42 @@ describe('solver pool selection', () => {
     })
   })
 
+  it('holds every enabled strategy category back in manual mode', () => {
+    const manualPool = [
+      chart('ordinary'),
+      chart('adjacent-rares', { modIds: ['adj-rare-1'] }),
+      chart('meatfish', { modIds: ['voy-possess'] }),
+      chart('ethereal', { modIds: ['voy-minmagic'] }),
+    ]
+
+    expect(selectStrategySolvePool(manualPool, null)).toEqual({
+      solvePool: [manualPool[0]],
+      heldBack: 3,
+      heldBackFor: ['Divine strategies', 'Meatfish', 'Magic Ethereal'],
+    })
+    expect(
+      selectStrategySolvePool(manualPool, null, {
+        divine: false,
+        meatfish: true,
+        ethereal: false,
+      }),
+    ).toEqual({
+      solvePool: [manualPool[0], manualPool[1], manualPool[3]],
+      heldBack: 1,
+      heldBackFor: ['Meatfish'],
+    })
+  })
+
+  it('allows Divine strategies to consume rare-implicit charts', () => {
+    const divinePool = [chart('ordinary'), chart('voyage-rares', { modIds: ['voy-rare'] })]
+
+    expect(
+      selectStrategySolvePool(divinePool, {
+        allowRareImplicits: true,
+      }),
+    ).toEqual({ solvePool: divinePool, heldBack: 0, heldBackFor: [] })
+  })
+
   it('keeps the nine highest-value and every locked chart out of a filler pool', () => {
     const eligiblePool = Array.from({ length: 12 }, (_, index) =>
       chart(String(index), {

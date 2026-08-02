@@ -10,6 +10,15 @@ const reservationInput = (html: string, id: string) =>
 describe('solver strategy protections', () => {
   const strategy = strategyById.get('alc-and-go')!
 
+  const renderControls = (strategyId: string | null) =>
+    renderToStaticMarkup(
+      <SolverControls
+        state={defaultState()}
+        activeStrategy={strategyId ? strategyById.get(strategyId)! : null}
+        onPatch={() => undefined}
+      />,
+    )
+
   it('shows each keeper category enabled by default for a low-investment strategy', () => {
     const html = renderToStaticMarkup(
       <SolverControls state={defaultState()} activeStrategy={strategy} onPatch={() => undefined} />,
@@ -30,5 +39,26 @@ describe('solver strategy protections', () => {
 
     expect(reservationInput(html, 'divine')).toContain('checked=""')
     expect(reservationInput(html, 'meatfish')).not.toContain('checked=""')
+  })
+
+  it('shows every strategy protection in manual mode', () => {
+    const html = renderControls(null)
+
+    expect(html).toContain('Protect charts for other strategies')
+    expect(reservationInput(html, 'divine')).toContain('checked=""')
+    expect(reservationInput(html, 'meatfish')).toContain('checked=""')
+    expect(reservationInput(html, 'ethereal')).toContain('checked=""')
+  })
+
+  it('shows the Divine protection for non-Divine strategies without reservation groups', () => {
+    const html = renderControls('milky-meatfish')
+
+    expect(reservationInput(html, 'divine')).toContain('checked=""')
+  })
+
+  it('hides fallback protections for Divine strategies', () => {
+    const html = renderControls('divine-border-rares')
+
+    expect(html).not.toContain('Protect charts for other strategies')
   })
 })
