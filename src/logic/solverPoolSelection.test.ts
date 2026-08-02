@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { StrategyDef } from '../data/strategies'
 import type { ChartData } from '../types'
-import { selectStrategySolvePool } from './solverPoolSelection'
+import { selectRareBacklog, selectStrategySolvePool } from './solverPoolSelection'
 
 const chart = (uid: string, overrides: Partial<ChartData> = {}): ChartData => ({
   uid,
@@ -95,6 +95,43 @@ describe('strategy solve-pool reservations', () => {
         ethereal: true,
       }).solvePool,
     ).toEqual([rare])
+  })
+
+  it('banks only the best six rare charts - extras are spendable', () => {
+    const rares = [
+      ...Array.from({ length: 5 }, (_, i) => chart(`r60-${i}`, { modIds: ['adj-rare-2'] })),
+      chart('r25-good', {
+        modIds: ['voy-rare'],
+        rewards: [{ stat: 'quantity', percent: 70 }],
+      }),
+      chart('r25-weak', { modIds: ['voy-rare'] }),
+      chart('r30-extra', { modIds: ['adj-rare-1'] }),
+    ]
+
+    // ranking: five 60% tiers + the best-rolled 25% fill the backlog...
+    const backlog = selectRareBacklog(rares)
+    expect(backlog.size).toBe(6)
+    expect(backlog.has('r30-extra')).toBe(true) // 30% tier beats both 25%s
+    expect(backlog.has('r25-good')).toBe(false)
+    expect(backlog.has('r25-weak')).toBe(false)
+
+    // ...and manual mode holds exactly the backlog, spending the rest
+    const { solvePool } = selectStrategySolvePool(rares, null)
+    expect(solvePool.map(({ uid }) => uid).sort()).toEqual(['r25-good', 'r25-weak'])
+  })
+
+  it('ranks equal-tier rares by their header rolls', () => {
+    const pool = [
+      ...Array.from({ length: 5 }, (_, i) => chart(`r60-${i}`, { modIds: ['adj-rare-2'] })),
+      chart('weak', { modIds: ['voy-rare'] }),
+      chart('good', {
+        modIds: ['voy-rare'],
+        rewards: [{ stat: 'quantity', percent: 70 }],
+      }),
+    ]
+    const backlog = selectRareBacklog(pool)
+    expect(backlog.has('good')).toBe(true)
+    expect(backlog.has('weak')).toBe(false)
   })
 
   it('holds Rare Fracture charts for Meatfish everywhere except Meatfish itself', () => {

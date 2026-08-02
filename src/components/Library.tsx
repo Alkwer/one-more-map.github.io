@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { VOYAGE_MODS, voyageModById } from '../data/mods'
-import { MEATFISH_FUEL, RARE_IMPLICITS } from '../data/strategies'
+import { MEATFISH_FUEL } from '../data/strategies'
 import type { StrategyReservationPreferences } from '../data/strategies'
+import { selectRareBacklog } from '../logic/solverPoolSelection'
 import { voyageRewardKey } from '../logic/rewards'
 import { newUid } from '../logic/parser'
 import type { Board, ChartData, Edges, Weights } from '../types'
@@ -25,12 +26,13 @@ interface Props {
 }
 
 /** which strategy this chart is being saved for (while its protection is on) */
-function fuelLock(chart: ChartData, prefs: StrategyReservationPreferences): string | null {
-  if (
-    prefs.divine &&
-    chart.modIds.some((id) => (RARE_IMPLICITS as readonly string[]).includes(id))
-  )
-    return 'Saved for the Divine strategies'
+function fuelLock(
+  chart: ChartData,
+  prefs: StrategyReservationPreferences,
+  rareBacklog: Set<string>,
+): string | null {
+  if (prefs.divine && rareBacklog.has(chart.uid))
+    return 'Saved for the Divine strategies (rare backlog)'
   if (
     prefs.meatfish &&
     chart.modIds.some((id) => (MEATFISH_FUEL as readonly string[]).includes(id))
@@ -175,6 +177,7 @@ export function Library(props: Props) {
     }
   }
   const onBoard = new Set(props.board.filter(Boolean).map((p) => p!.chartUid))
+  const rareBacklog = useMemo(() => selectRareBacklog(props.pool), [props.pool])
 
   const addBlank = () => {
     const chart: ChartData = {
@@ -259,7 +262,7 @@ export function Library(props: Props) {
             // lead with the implicit (adjacent/voyage) - it's the strategic mod
             const mod = mods.find((m) => m!.scope !== 'self') ?? mods[0] ?? null
             const val = displayValue(c, props.weights, props.disabledMods)
-            const lock = fuelLock(c, props.reservations)
+            const lock = fuelLock(c, props.reservations, rareBacklog)
             const lines = [
               { text: `Area Level: ${c.level}${c.shape ? ` · ${c.shape}` : ''}`, cls: 'muted' },
               ...(c.rewards ?? []).map((e) => ({
@@ -328,7 +331,7 @@ export function Library(props: Props) {
         {visible.map((c) => {
           const allMods = c.modIds.map((id) => voyageModById.get(id)).filter(Boolean)
           const mod = allMods.find((m) => m!.scope !== 'self') ?? allMods[0] ?? null
-          const lock = fuelLock(c, props.reservations)
+          const lock = fuelLock(c, props.reservations, rareBacklog)
           return (
             <div
               key={c.uid}

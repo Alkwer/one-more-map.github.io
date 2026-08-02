@@ -4,7 +4,8 @@ import { solve, type SolverResult } from '../logic/solver'
 import type { AppState } from '../logic/storage'
 import type { AdjacencyMode } from '../logic/scoring'
 import type { ConnectivityMode } from '../types'
-import { MEATFISH_FUEL, RARE_IMPLICITS, STRATEGY_RESERVATION_OPTIONS } from '../data/strategies'
+import { MEATFISH_FUEL, STRATEGY_RESERVATION_OPTIONS } from '../data/strategies'
+import { selectRareBacklog } from '../logic/solverPoolSelection'
 import type { StrategyDef } from '../data/strategies'
 import { GROUP_LABEL, GROUP_ORDER, REWARD_TYPES } from '../logic/rewards'
 import { displayValue } from './Library'
@@ -71,14 +72,12 @@ export function SolverPanel({ state, activeStrategy, onPatch, onResults, onClose
         const disabled = new Set(state.disabledMods)
         const keep = new Set<string>()
         state.pool.forEach((c) => c.preserved && keep.add(c.uid))
-        // Rare-implicit charts are Divine-strategy fuel and Rare Fracture is
-        // Meatfish fuel - neither is ever filler while its protection is on.
+        // The rare-implicit backlog (best few charts) is Divine-strategy fuel
+        // and Rare Fracture is Meatfish fuel - neither is ever filler while
+        // its protection is on. Rares beyond the backlog burn like any spare.
         if (state.strategyReservations.divine) {
-          state.pool.forEach(
-            (c) =>
-              c.modIds.some((id) => (RARE_IMPLICITS as readonly string[]).includes(id)) &&
-              keep.add(c.uid),
-          )
+          const backlog = selectRareBacklog(state.pool)
+          state.pool.forEach((c) => backlog.has(c.uid) && keep.add(c.uid))
         }
         if (state.strategyReservations.meatfish) {
           state.pool.forEach(

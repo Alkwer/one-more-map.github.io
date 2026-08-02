@@ -14,6 +14,13 @@ export interface UpdateEntry {
 export const UPDATES: UpdateEntry[] = [
   {
     date: '2026-08-02',
+    tag: 'reworked',
+    title: 'Rare backlog capped at six',
+    detail:
+      'Only your six best Rare Monsters charts (highest tier, then best rolls) are banked for the Divine strategies now - extras get spent by Alc & Go, Speedrun and filler voyages instead of piling up. The 🔒 badge marks the banked six.',
+  },
+  {
+    date: '2026-08-02',
     tag: 'new',
     title: 'Session planner',
     detail:

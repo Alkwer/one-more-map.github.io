@@ -155,7 +155,6 @@ const MEATFISH_RESERVATION: StrategyReservationGroup = {
     'adj-lantern',
     'voy-possess',
     'voy-fracture',
-    'voy-rare',
     'voy-noequip',
     'adj-wisps-1',
     'adj-wisps-2',
