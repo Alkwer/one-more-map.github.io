@@ -234,6 +234,12 @@ assert.match(
 assert.match(ahkImporter, /if !IsChartText\(clip\)/)
 assert.doesNotMatch(ahkImporter, /seen\.Has\(clip\)/)
 
+// Calibration sanity guard (issue #20): a sweep where EVERY cell copied the
+// same chart text means the grid corners are wrong - it must warn and send
+// nothing rather than import dozens of phantom duplicates.
+assert.match(ahkImporter, /copied >= 5 && allIdentical/)
+assert.match(ahkImporter, /Every grid cell copied the SAME chart/)
+
 // The helper script is written to disk by AutoHotkey from a continuation
 // string - backtick is AHK's escape character, so any backtick in the
 // embedded PowerShell (e.g. a PS line continuation) is silently stripped at

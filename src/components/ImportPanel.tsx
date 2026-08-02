@@ -53,6 +53,18 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
 
     const parts: string[] = []
     if (charts.length) parts.push(`Imported ${charts.length} chart${charts.length === 1 ? '' : 's'}`)
+    // distinct physical charts always differ in their rolled values, so a big
+    // batch of byte-identical imports means the bulk importer's mouse hovered
+    // one item the whole sweep - bad grid calibration (issue #20)
+    if (charts.length >= 5) {
+      const key = (c: ChartData) =>
+        JSON.stringify([c.name, c.level, c.modIds, c.implicitText, c.rewards, c.shape, c.rawText])
+      const first = key(charts[0])
+      if (charts.every((c) => key(c) === first))
+        parts.push(
+          `⚠ all ${charts.length} are IDENTICAL - if this came from the bulk importer, its grid calibration is off (re-run the setup wizard, then Clear all charts and re-import)`,
+        )
+    }
     if (borderOcr.blockCount > 0) {
       parts.push(
         `matched ${borderOcr.matches.length}/${borderOcr.blockCount} border modifier${

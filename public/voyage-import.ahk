@@ -1284,6 +1284,7 @@ RunSweep(*) {
 
     Running := true
     copied := 0, skipped := 0, blob := "", borderBlob := ""
+    firstChart := "", allIdentical := true
 
     ; ---- Phase 1: copy every chart while staying in PoE ----
     WinActivate PoeWinTitle
@@ -1320,10 +1321,25 @@ RunSweep(*) {
             ; solver pieces even when every copied property is the same.
             blob .= (blob = "" ? "" : "`n") clip
             copied++
+            if (firstChart = "")
+                firstChart := clip
+            else if (clip != firstChart)
+                allIdentical := false
             ToolTip "Copying... row " (r+1) " col " (c+1)
                 . "`ncharts " copied "   skipped " skipped
                 . "`n(" KeyLabel(Keys["Abort"]) " to abort)"
         }
+    }
+
+    ; Calibration sanity guard: distinct physical Charts always differ in their
+    ; rolled values, so EVERY grid cell copying the same text means the mouse
+    ; hovered one item the whole sweep - the grid corners are wrong (issue #20).
+    calibWarn := ""
+    if Running && copied >= 5 && allIdentical {
+        blob := "", copied := 0
+        calibWarn := "Every grid cell copied the SAME chart, so none were sent"
+            . " - your grid calibration looks wrong (or PoE's window moved)."
+            . " Re-run the tray Setup wizard and click the grid corners again."
     }
 
     ; ---- Phase 2: OCR the 12 board-border modifier tooltips ----
@@ -1358,6 +1374,10 @@ RunSweep(*) {
     borderNote := BoardCalibrated()
         ? (borderBlob != "" ? " + 12 border OCR scans" : " (border OCR failed)")
         : " (borders skipped: run the tray Setup wizard)"
+    if (calibWarn != "") {
+        Flash calibWarn (borderBlob != "" ? " (The 12 border scans WERE sent.)" : ""), 10000
+        return
+    }
     Flash "Done. Sent " copied " charts" borderNote
         . "; skipped " skipped " empty/non-chart cells.", 6000
 }
