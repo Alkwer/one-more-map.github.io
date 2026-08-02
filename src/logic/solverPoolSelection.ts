@@ -1,9 +1,8 @@
 import {
+  DIVINE_RARE_RESERVATIONS,
   MANUAL_STRATEGY_RESERVATIONS,
-  RARE_IMPLICITS,
   defaultStrategyReservations,
   type StrategyDef,
-  type StrategyReservationGroup,
   type StrategyReservationPreferences,
 } from '../data/strategies'
 import { displayChartValue } from './chartRanking'
@@ -12,12 +11,6 @@ import type { ChartData, Weights } from '../types'
 export const KEEP_BEST_CHARTS = 9
 
 type StrategyReservations = Pick<StrategyDef, 'allowRareImplicits' | 'reservationGroups'>
-
-const DIVINE_RARE_RESERVATION: StrategyReservationGroup = {
-  id: 'divine',
-  label: 'Divine strategies',
-  modIds: [...RARE_IMPLICITS],
-}
 
 const matchesReservation = (
   chart: ChartData,
@@ -44,14 +37,17 @@ export function selectStrategySolvePool(
     : MANUAL_STRATEGY_RESERVATIONS
   const enabledReservations = configuredGroups.filter((reservation) => preferences[reservation.id])
 
-  // Preserve rare-implicit charts in manual and non-Divine modes. The two
-  // low-investment strategies already include them in a broader Divine group.
-  if (
-    preferences.divine &&
-    !strategy?.allowRareImplicits &&
-    !configuredGroups.some((reservation) => reservation.id === 'divine')
-  ) {
-    enabledReservations.push(DIVINE_RARE_RESERVATION)
+  // Preserve both rare-implicit chart types in non-Divine modes that do not
+  // already define them. Each type remains independently configurable.
+  if (!strategy?.allowRareImplicits) {
+    DIVINE_RARE_RESERVATIONS.forEach((fallback) => {
+      if (
+        preferences[fallback.id] &&
+        !configuredGroups.some((reservation) => reservation.id === fallback.id)
+      ) {
+        enabledReservations.push(fallback)
+      }
+    })
   }
 
   const solvePool = eligiblePool.filter((chart) => {

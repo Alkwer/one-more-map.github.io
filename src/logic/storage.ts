@@ -33,7 +33,7 @@ export interface AppState {
   disabledMods: string[]
   /** active curated strategy id (overrides weights + shapes the solver) or null */
   strategyId: string | null
-  /** keeper categories excluded from low-investment strategy solve pools */
+  /** chart types excluded from low-investment strategy solve pools */
   strategyReservations: StrategyReservationPreferences
   /** paid border rerolls recorded for the current Voyage board (0–5 assumed cap) */
   borderRerollsUsed: number
@@ -350,11 +350,39 @@ function decodeStrategyReservations(value: unknown): StrategyReservationPreferen
   const defaults = defaultStrategyReservations()
   if (value === undefined) return defaults
   if (!isRecord(value)) fail('strategyReservations must be an object')
+
+  // Pre-granular saves used four broad strategy flags. Use their combined
+  // effective behaviour as the fallback for each new chart-type preference.
+  const legacySpeedrun = optionalBoolean(value, 'speedrun', true)
+  const legacyDivine = optionalBoolean(value, 'divine', true)
+  const legacyMeatfish = optionalBoolean(value, 'meatfish', true)
+  const legacyEthereal = optionalBoolean(value, 'ethereal', true)
+
   return {
-    speedrun: optionalBoolean(value, 'speedrun', defaults.speedrun),
-    divine: optionalBoolean(value, 'divine', defaults.divine),
-    meatfish: optionalBoolean(value, 'meatfish', defaults.meatfish),
-    ethereal: optionalBoolean(value, 'ethereal', defaults.ethereal),
+    genericStrongboxes: optionalBoolean(value, 'genericStrongboxes', legacyDivine),
+    divinerStrongboxes: optionalBoolean(
+      value,
+      'divinerStrongboxes',
+      legacySpeedrun || legacyDivine,
+    ),
+    arcanistStrongboxes: optionalBoolean(
+      value,
+      'arcanistStrongboxes',
+      legacySpeedrun || legacyDivine,
+    ),
+    operativeStrongboxes: optionalBoolean(
+      value,
+      'operativeStrongboxes',
+      legacySpeedrun || legacyDivine,
+    ),
+    messages: optionalBoolean(value, 'messages', legacySpeedrun),
+    starfish: optionalBoolean(value, 'starfish', legacyDivine || legacyMeatfish),
+    globalRares: optionalBoolean(value, 'globalRares', legacyDivine || legacyMeatfish),
+    adjacentRares: optionalBoolean(value, 'adjacentRares', legacyDivine),
+    seaPillars: optionalBoolean(value, 'seaPillars', legacyDivine || legacyMeatfish),
+    pelagicAbyss: optionalBoolean(value, 'pelagicAbyss', legacyDivine),
+    meatfish: legacyMeatfish,
+    ethereal: legacyEthereal,
   }
 }
 

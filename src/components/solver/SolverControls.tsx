@@ -1,4 +1,5 @@
 import {
+  DIVINE_RARE_RESERVATIONS,
   MANUAL_STRATEGY_RESERVATIONS,
   STRATEGY_RESERVATION_OPTIONS,
   type StrategyDef,
@@ -18,13 +19,14 @@ export function SolverControls({ state, activeStrategy, onPatch }: Props) {
   const reservationGroups = activeStrategy
     ? (activeStrategy.reservationGroups ?? [])
     : MANUAL_STRATEGY_RESERVATIONS
-  const divineFallback =
-    !activeStrategy?.allowRareImplicits &&
-    !reservationGroups.some((reservation) => reservation.id === 'divine')
-  const availableReservations = STRATEGY_RESERVATION_OPTIONS.filter(
-    (option) =>
-      reservationGroups.some((reservation) => reservation.id === option.id) ||
-      (option.id === 'divine' && divineFallback),
+  const fallbackReservations = activeStrategy?.allowRareImplicits
+    ? []
+    : DIVINE_RARE_RESERVATIONS.filter(
+        (fallback) => !reservationGroups.some((reservation) => reservation.id === fallback.id),
+      )
+  const effectiveReservations = [...reservationGroups, ...fallbackReservations]
+  const availableReservations = STRATEGY_RESERVATION_OPTIONS.filter((option) =>
+    effectiveReservations.some((reservation) => reservation.id === option.id),
   )
 
   return (
@@ -80,7 +82,7 @@ export function SolverControls({ state, activeStrategy, onPatch }: Props) {
 
       {availableReservations.length > 0 && (
         <fieldset className="strategy-reservations">
-          <legend>Protect charts for other strategies</legend>
+          <legend>Protect chart types</legend>
           {availableReservations.map((option) => (
             <label className="check" key={option.id}>
               <input
@@ -101,8 +103,8 @@ export function SolverControls({ state, activeStrategy, onPatch }: Props) {
             </label>
           ))}
           <div className="muted small-note">
-            Enabled categories stay out of this solve pool. A chart shared by categories remains
-            protected while any matching category is enabled.
+            Enabled chart types stay out of this solve pool. These choices persist when you switch
+            strategies.
           </div>
         </fieldset>
       )}

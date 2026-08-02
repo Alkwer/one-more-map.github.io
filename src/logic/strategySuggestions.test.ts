@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { strategyById } from '../data/strategies'
+import { defaultStrategyReservations, strategyById } from '../data/strategies'
 import type { Borders, ChartAreaType, ChartData } from '../types'
 import { emptyBorders } from '../types'
 import { decideVoyage } from './voyageDecision'
@@ -127,7 +127,11 @@ describe('strategy reservation preferences', () => {
     const protectedInventory = evaluateStrategyInventory(borders, charts, pool, options)
     const unprotectedInventory = evaluateStrategyInventory(borders, charts, pool, {
       ...options,
-      strategyReservations: { speedrun: true, divine: false, meatfish: false, ethereal: true },
+      strategyReservations: {
+        ...defaultStrategyReservations(),
+        globalRares: false,
+        meatfish: false,
+      },
     })
 
     expect(

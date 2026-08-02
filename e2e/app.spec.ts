@@ -67,28 +67,27 @@ test('lets low-investment strategies persist independent chart protections', asy
   await alcAndGo.getByRole('button', { name: 'Set active strategy' }).click()
 
   const protections = appPage.getByRole('group', {
-    name: 'Protect charts for other strategies',
+    name: 'Protect chart types',
   })
-  await expect(protections.getByLabel('Speedrun Strongboxes')).toBeChecked()
-  await expect(protections.getByLabel('Divine strategies')).toBeChecked()
-  await expect(protections.getByLabel('Meatfish')).toBeChecked()
-  await expect(protections.getByLabel('Magic Ethereal')).toBeChecked()
+  await expect(protections.getByLabel('Generic Strongboxes (+1 / +2-4 / +5)')).toBeChecked()
+  await expect(protections.getByLabel("Diviner's Strongboxes")).toBeChecked()
+  await expect(protections.getByLabel('Giant Starfish')).toBeChecked()
+  await expect(protections.getByLabel('Rare Monsters in all Voyage Areas')).toBeChecked()
+  await expect(protections.getByLabel('Rare Monsters in adjacent Areas')).toBeChecked()
 
-  await protections.getByLabel('Meatfish').uncheck()
+  await protections.getByLabel('Giant Starfish').uncheck()
   await expect
     .poll(() =>
       appPage.evaluate(() => {
         const stored = JSON.parse(localStorage.getItem('allflame-voyage-solver') ?? '{}')
-        return stored.strategyReservations?.meatfish
+        return stored.strategyReservations?.starfish
       }),
     )
     .toBe(false)
 
   await appPage.reload()
   await expect(
-    appPage
-      .getByRole('group', { name: 'Protect charts for other strategies' })
-      .getByLabel('Meatfish'),
+    appPage.getByRole('group', { name: 'Protect chart types' }).getByLabel('Giant Starfish'),
   ).not.toBeChecked()
 })
 
