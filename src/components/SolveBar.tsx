@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { solve, type SolverResult } from '../logic/solver'
 import type { AppState } from '../logic/storage'
-import { RARE_IMPLICITS } from '../data/strategies'
 import type { StrategyDef } from '../data/strategies'
+import { selectStrategySolvePool } from '../logic/solverPoolSelection'
 
 interface Props {
   state: AppState
@@ -28,9 +28,6 @@ export function SolveBar({ state, activeStrategy, results, appliedIdx, onResults
     // let the UI paint the busy state before the (synchronous) solve
     window.setTimeout(() => {
       try {
-        // strategy reservations: hold back charts another strategy is saving for
-        const reserve = activeStrategy?.reserveModIds
-        const reserveAreaTypes = activeStrategy?.reserveAreaTypes
         // locked charts sitting on the board are pinned to their exact cell -
         // the solver arranges everything else around them (issue #9)
         const locked = state.board.map((placement) => {
@@ -39,26 +36,12 @@ export function SolveBar({ state, activeStrategy, results, appliedIdx, onResults
           return chart?.preserved ? { ...placement } : null
         })
         const lockedUids = new Set(locked.filter(Boolean).map((p) => p!.chartUid))
-        // rare-implicit charts are Divine-strategy fuel: everything else
-        // (manual mode included) leaves them in the library
-        const raresAllowed = activeStrategy?.allowRareImplicits ?? false
-        const isRareImplicit = (c: (typeof state.pool)[number]) =>
-          c.modIds.some((id) => (RARE_IMPLICITS as readonly string[]).includes(id))
-        const solvePool = state.pool.filter(
-          (c) =>
-            lockedUids.has(c.uid) ||
-            ((raresAllowed || !isRareImplicit(c)) &&
-              !(reserve?.length && c.modIds.some((id) => reserve.includes(id))) &&
-              !(
-                reserveAreaTypes?.length &&
-                c.areaType &&
-                reserveAreaTypes.includes(c.areaType)
-              )),
+        const { solvePool, heldBack, heldBackFor } = selectStrategySolvePool(
+          state.pool,
+          activeStrategy,
+          state.strategyReservations,
+          lockedUids,
         )
-        const raresHeld = raresAllowed
-          ? 0
-          : state.pool.filter((c) => !lockedUids.has(c.uid) && isRareImplicit(c)).length
-        const heldBack = state.pool.length - solvePool.length - raresHeld
         const res = solve(solvePool, state.borders, weights, {
           mode: state.mode,
           allowRotation: state.allowRotation,
@@ -79,10 +62,10 @@ export function SolveBar({ state, activeStrategy, results, appliedIdx, onResults
         const lockedCount = locked.filter(Boolean).length
         if (lockedCount > 0)
           notes.push(`${lockedCount} locked chart${lockedCount === 1 ? '' : 's'} kept in place.`)
-        if (raresHeld > 0)
-          notes.push(`${raresHeld} rare-implicit chart${raresHeld === 1 ? '' : 's'} saved for the Divine strategies.`)
         if (heldBack > 0)
-          notes.push(`${heldBack} juice chart${heldBack === 1 ? '' : 's'} held back for Meatfish/Ethereal.`)
+          notes.push(
+            `${heldBack} chart${heldBack === 1 ? '' : 's'} held back for ${heldBackFor.join(', ')}. Change protections in Solver Settings to include them.`,
+          )
         if (solvePool.length < 9)
           notes.push(`Only ${solvePool.length} spare charts - not enough for a full board.`)
         else if (res.length && !res[0].valid)

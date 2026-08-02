@@ -2,6 +2,10 @@ import type { AdjacencyMode } from './scoring'
 import type { Board, Borders, ChartData, ConnectivityMode, Weights } from '../types'
 import { emptyBoard, emptyBorders } from '../types'
 import { DEFAULT_WEIGHTS } from './rewards'
+import {
+  defaultStrategyReservations,
+  type StrategyReservationPreferences,
+} from '../data/strategies'
 
 export interface AppState {
   pool: ChartData[]
@@ -16,6 +20,8 @@ export interface AppState {
   disabledMods: string[]
   /** active curated strategy id (overrides weights + shapes the solver) or null */
   strategyId: string | null
+  /** keeper categories excluded from low-investment strategy solve pools */
+  strategyReservations: StrategyReservationPreferences
 }
 
 export const defaultState = (): AppState => ({
@@ -29,6 +35,7 @@ export const defaultState = (): AppState => ({
   adjacentAffectsSelf: false,
   disabledMods: [],
   strategyId: null,
+  strategyReservations: defaultStrategyReservations(),
 })
 
 const LS_KEY = 'allflame-voyage-solver'
@@ -79,6 +86,13 @@ function revive(obj: unknown): AppState {
   const d = defaultState()
   if (typeof obj !== 'object' || obj === null) return d
   const o = obj as Partial<AppState>
+  const reservationDefaults = defaultStrategyReservations()
+  const rawReservations =
+    typeof o.strategyReservations === 'object' &&
+    o.strategyReservations !== null &&
+    !Array.isArray(o.strategyReservations)
+      ? o.strategyReservations
+      : null
   return {
     pool: Array.isArray(o.pool) ? o.pool : d.pool,
     board: Array.isArray(o.board) && o.board.length === 9 ? o.board : d.board,
@@ -94,5 +108,19 @@ function revive(obj: unknown): AppState {
       ? o.disabledMods.filter((x): x is string => typeof x === 'string')
       : d.disabledMods,
     strategyId: typeof o.strategyId === 'string' ? o.strategyId : null,
+    strategyReservations: {
+      divine:
+        typeof rawReservations?.divine === 'boolean'
+          ? rawReservations.divine
+          : reservationDefaults.divine,
+      meatfish:
+        typeof rawReservations?.meatfish === 'boolean'
+          ? rawReservations.meatfish
+          : reservationDefaults.meatfish,
+      ethereal:
+        typeof rawReservations?.ethereal === 'boolean'
+          ? rawReservations.ethereal
+          : reservationDefaults.ethereal,
+    },
   }
 }

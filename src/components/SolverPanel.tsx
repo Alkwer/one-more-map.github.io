@@ -4,7 +4,7 @@ import { solve, type SolverResult } from '../logic/solver'
 import type { AppState } from '../logic/storage'
 import type { AdjacencyMode } from '../logic/scoring'
 import type { ConnectivityMode } from '../types'
-import { RARE_IMPLICITS } from '../data/strategies'
+import { RARE_IMPLICITS, STRATEGY_RESERVATION_OPTIONS } from '../data/strategies'
 import type { StrategyDef } from '../data/strategies'
 import { GROUP_LABEL, GROUP_ORDER, REWARD_TYPES } from '../logic/rewards'
 import { displayValue } from './Library'
@@ -27,6 +27,10 @@ export function SolverPanel({ state, activeStrategy, onPatch, onResults }: Props
   const [solveNote, setSolveNote] = useState('')
   // while a strategy is active it overrides the manual weights everywhere here
   const weights = activeStrategy ? activeStrategy.weights : state.weights
+  const reservationGroups = activeStrategy?.reservationGroups ?? []
+  const availableReservations = STRATEGY_RESERVATION_OPTIONS.filter((option) =>
+    reservationGroups.some((reservation) => reservation.id === option.id),
+  )
   const bestRegex = useMemo(
     () => buildBestModRegex(weights, regexCap, new Set(state.disabledMods)),
     [weights, regexCap, state.disabledMods],
@@ -52,12 +56,15 @@ export function SolverPanel({ state, activeStrategy, onPatch, onResults }: Props
         const disabled = new Set(state.disabledMods)
         const keep = new Set<string>()
         state.pool.forEach((c) => c.preserved && keep.add(c.uid))
-        // rare-implicit charts are never filler - they're Divine-strategy fuel
-        state.pool.forEach(
-          (c) =>
-            c.modIds.some((id) => (RARE_IMPLICITS as readonly string[]).includes(id)) &&
-            keep.add(c.uid),
-        )
+        // Rare-implicit charts are Divine-strategy fuel by default. Respect the
+        // same user preference when building a throwaway filler voyage.
+        if (state.strategyReservations.divine) {
+          state.pool.forEach(
+            (c) =>
+              c.modIds.some((id) => (RARE_IMPLICITS as readonly string[]).includes(id)) &&
+              keep.add(c.uid),
+          )
+        }
         ;[...state.pool]
           .sort((a, b) => displayValue(b, weights, disabled) - displayValue(a, weights, disabled))
           .slice(0, KEEP_BEST)
@@ -149,6 +156,35 @@ export function SolverPanel({ state, activeStrategy, onPatch, onResults }: Props
           ⚑ <strong>{activeStrategy.name}</strong> is steering the solver - your manual weights
           below are ignored while it's active.
         </div>
+      )}
+
+      {availableReservations.length > 0 && (
+        <fieldset className="strategy-reservations">
+          <legend>Protect charts for other strategies</legend>
+          {availableReservations.map((option) => (
+            <label className="check" key={option.id}>
+              <input
+                type="checkbox"
+                name="strategy-reservation"
+                value={option.id}
+                checked={state.strategyReservations[option.id]}
+                onChange={(event) =>
+                  onPatch({
+                    strategyReservations: {
+                      ...state.strategyReservations,
+                      [option.id]: event.target.checked,
+                    },
+                  })
+                }
+              />
+              {option.label}
+            </label>
+          ))}
+          <div className="muted small-note">
+            Enabled categories stay out of this solve pool. A chart shared by categories remains
+            protected while any matching category is enabled.
+          </div>
+        </fieldset>
       )}
 
       <details className="weights-panel">
