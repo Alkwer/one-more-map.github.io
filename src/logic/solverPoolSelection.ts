@@ -75,6 +75,8 @@ export function selectFillerPool(
   eligiblePool: ChartData[],
   weights: Weights,
   disabledMods: ReadonlySet<string>,
+  strategy: StrategyReservations | null,
+  preferences: StrategyReservationPreferences = defaultStrategyReservations(),
 ): ChartData[] {
   const keep = new Set<string>()
   eligiblePool.forEach((chart) => chart.preserved && keep.add(chart.uid))
@@ -87,5 +89,6 @@ export function selectFillerPool(
     .slice(0, KEEP_BEST_CHARTS)
     .forEach((chart) => keep.add(chart.uid))
 
-  return eligiblePool.filter((chart) => !keep.has(chart.uid))
+  const strategySafePool = selectStrategySolvePool(eligiblePool, strategy, preferences).solvePool
+  return strategySafePool.filter((chart) => !keep.has(chart.uid))
 }

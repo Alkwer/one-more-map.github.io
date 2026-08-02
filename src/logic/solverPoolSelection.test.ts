@@ -49,6 +49,7 @@ describe('solver pool selection', () => {
   it('holds back only enabled reservation groups and reports why', () => {
     expect(
       selectStrategySolvePool(eligiblePool, strategy, {
+        speedrun: false,
         divine: true,
         meatfish: false,
         ethereal: false,
@@ -63,6 +64,7 @@ describe('solver pool selection', () => {
   it('returns every eligible chart when all reservation groups are disabled', () => {
     expect(
       selectStrategySolvePool(eligiblePool, strategy, {
+        speedrun: false,
         divine: false,
         meatfish: false,
         ethereal: false,
@@ -112,6 +114,7 @@ describe('solver pool selection', () => {
     })
     expect(
       selectStrategySolvePool(manualPool, null, {
+        speedrun: false,
         divine: false,
         meatfish: true,
         ethereal: false,
@@ -145,6 +148,7 @@ describe('solver pool selection', () => {
       eligiblePool,
       { [chartRewardKey('quantity')]: 1 },
       new Set(),
+      null,
     )
 
     expect(KEEP_BEST_CHARTS).toBe(9)
@@ -162,6 +166,40 @@ describe('solver pool selection', () => {
       '9',
       '10',
       '11',
+    ])
+  })
+
+  it('keeps enabled strategy reservations out of a filler pool', () => {
+    const eligiblePool = [
+      ...Array.from({ length: 12 }, (_, index) =>
+        chart(`ordinary-${index}`, {
+          rewards: [{ stat: 'quantity', percent: index * 100 }],
+        }),
+      ),
+      chart('speedrun-message', { modIds: ['adj-msg-1'] }),
+      chart('ethereal-area', { areaType: 'infested-bathyspheres' }),
+    ]
+
+    const protectedPool = selectFillerPool(
+      eligiblePool,
+      { [chartRewardKey('quantity')]: 1 },
+      new Set(),
+      null,
+    )
+    const speedrunReleased = selectFillerPool(
+      eligiblePool,
+      { [chartRewardKey('quantity')]: 1 },
+      new Set(),
+      null,
+      { speedrun: false, divine: true, meatfish: true, ethereal: true },
+    )
+
+    expect(protectedPool.map(({ uid }) => uid)).toEqual(['ordinary-0', 'ordinary-1', 'ordinary-2'])
+    expect(speedrunReleased.map(({ uid }) => uid)).toEqual([
+      'ordinary-0',
+      'ordinary-1',
+      'ordinary-2',
+      'speedrun-message',
     ])
   })
 })

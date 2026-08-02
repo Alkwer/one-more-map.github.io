@@ -156,12 +156,18 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
     const requestKey = solveKey
     setNoteState({ key: requestKey, text: '' })
     const disabledMods = new Set(state.disabledMods)
-    const fillerPool = selectFillerPool(eligiblePool, weights, disabledMods)
+    const fillerPool = selectFillerPool(
+      eligiblePool,
+      weights,
+      disabledMods,
+      activeStrategy,
+      state.strategyReservations,
+    )
     if (fillerPool.length < 9) {
       setResultState({ key: requestKey, results: [] })
       setNoteState({
         key: requestKey,
-        text: `Only ${fillerPool.length} spare chart${fillerPool.length === 1 ? '' : 's'} - need 9 outside your best ${KEEP_BEST_CHARTS} and locked charts to build a filler voyage.`,
+        text: `Only ${fillerPool.length} spare chart${fillerPool.length === 1 ? '' : 's'} - need 9 outside your best ${KEEP_BEST_CHARTS}, strategy-protected, and locked charts to build a filler voyage.`,
       })
       return
     }
@@ -192,7 +198,7 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
         setNoteState({
           key: requestKey,
           text: response[0]?.valid
-            ? 'Filler voyage: lowest-value fully reachable board from your spare charts (your best & locked charts untouched).'
+            ? 'Filler voyage: lowest-value fully reachable board from your spare charts (your best, strategy-protected & locked charts untouched).'
             : 'No fully reachable filler layout from your spare charts.',
         })
       })

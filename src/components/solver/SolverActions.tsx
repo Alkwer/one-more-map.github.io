@@ -31,7 +31,7 @@ export function SolverActions(props: Props) {
         className="filler-btn"
         onClick={props.onFiller}
         disabled={props.busy || props.eligibleChartCount < 10}
-        title="Build a throwaway voyage from your lowest-value spare charts, keeping your best and locked charts for a real run"
+        title="Build a throwaway voyage from your lowest-value spare charts, keeping your best, strategy-protected and locked charts for a real run"
       >
         🗑 Filler voyage (spare charts)
       </button>

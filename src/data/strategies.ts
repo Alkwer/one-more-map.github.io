@@ -9,6 +9,7 @@
 import type { ChartAreaType, Edges, Stat, Weights } from '../types'
 
 export const STRATEGY_RESERVATION_OPTIONS = [
+  { id: 'speedrun', label: 'Speedrun Strongboxes' },
   { id: 'divine', label: 'Divine strategies' },
   { id: 'meatfish', label: 'Meatfish' },
   { id: 'ethereal', label: 'Magic Ethereal' },
@@ -18,6 +19,7 @@ export type StrategyReservationId = (typeof STRATEGY_RESERVATION_OPTIONS)[number
 export type StrategyReservationPreferences = Record<StrategyReservationId, boolean>
 
 export const defaultStrategyReservations = (): StrategyReservationPreferences => ({
+  speedrun: true,
   divine: true,
   meatfish: true,
   ethereal: true,
@@ -147,17 +149,22 @@ const ETHEREAL_LAYOUT: Edges[] = [
 
 // the ONE chart Speedrun puts in the centre: premium typed Strongboxes or
 // Messages in a Bottle (generic Strongboxes don't qualify)
-const SPEEDRUN_CENTER_MODS = [
+const SPEEDRUN_PREMIUM_STRONGBOX_MODS = [
   'adj-divbox-1',
   'adj-divbox-2',
   'adj-arcbox-1',
   'adj-arcbox-2',
   'adj-opbox-1',
   'adj-opbox-2',
-  'adj-msg-1',
-  'adj-msg-2',
 ]
+const SPEEDRUN_CENTER_MODS = [...SPEEDRUN_PREMIUM_STRONGBOX_MODS, 'adj-msg-1', 'adj-msg-2']
 const NOT_CENTER = [0, 1, 2, 3, 5, 6, 7, 8]
+
+const SPEEDRUN_RESERVATION: StrategyReservationGroup = {
+  id: 'speedrun',
+  label: 'Speedrun Strongboxes',
+  modIds: SPEEDRUN_CENTER_MODS,
+}
 
 const MEATFISH_RESERVATION: StrategyReservationGroup = {
   id: 'meatfish',
@@ -190,6 +197,7 @@ const ETHEREAL_RESERVATION: StrategyReservationGroup = {
     'adj-magic-2',
     'voy-minmagic',
   ],
+  areaTypes: ['infested-bathyspheres'],
 }
 
 const DIVINE_RESERVATION_MODS = [
@@ -203,11 +211,11 @@ const DIVINE_RESERVATION_MODS = [
   'adj-rare-2',
 ]
 
-const divineReservation = (includeSpeedrunCentres: boolean): StrategyReservationGroup => ({
+const divineReservation = (includePremiumStrongboxes: boolean): StrategyReservationGroup => ({
   id: 'divine',
   label: 'Divine strategies',
-  modIds: includeSpeedrunCentres
-    ? [...DIVINE_RESERVATION_MODS, ...SPEEDRUN_CENTER_MODS]
+  modIds: includePremiumStrongboxes
+    ? [...DIVINE_RESERVATION_MODS, ...SPEEDRUN_PREMIUM_STRONGBOX_MODS]
     : DIVINE_RESERVATION_MODS,
   nameMatches: ['pillar', 'pelagic'],
   areaTypes: ['sea-pillars', 'pelagic-abyss'],
@@ -215,6 +223,7 @@ const divineReservation = (includeSpeedrunCentres: boolean): StrategyReservation
 
 /** Manual solving protects every curated strategy category by default. */
 export const MANUAL_STRATEGY_RESERVATIONS: StrategyReservationGroup[] = [
+  SPEEDRUN_RESERVATION,
   divineReservation(true),
   MEATFISH_RESERVATION,
   ETHEREAL_RESERVATION,
@@ -255,7 +264,12 @@ export const STRATEGIES: StrategyDef[] = [
     rules: [],
     layout: ALC_GO_LAYOUT,
     layoutPenalty: 15, // a preference, not a law - "whatever works"
-    reservationGroups: [divineReservation(true), MEATFISH_RESERVATION, ETHEREAL_RESERVATION],
+    reservationGroups: [
+      SPEEDRUN_RESERVATION,
+      divineReservation(true),
+      MEATFISH_RESERVATION,
+      ETHEREAL_RESERVATION,
+    ],
   },
   {
     id: 'milky-speedrun',

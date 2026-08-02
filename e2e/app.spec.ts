@@ -68,6 +68,7 @@ test('lets low-investment strategies persist independent chart protections', asy
   const protections = appPage.getByRole('group', {
     name: 'Protect charts for other strategies',
   })
+  await expect(protections.getByLabel('Speedrun Strongboxes')).toBeChecked()
   await expect(protections.getByLabel('Divine strategies')).toBeChecked()
   await expect(protections.getByLabel('Meatfish')).toBeChecked()
   await expect(protections.getByLabel('Magic Ethereal')).toBeChecked()
