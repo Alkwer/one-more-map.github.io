@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react'
 import { VOYAGE_MODS, voyageModById } from '../data/mods'
-import { MEATFISH_FUEL } from '../data/strategies'
 import type { StrategyReservationPreferences } from '../data/strategies'
-import { selectRareBacklog } from '../logic/solverPoolSelection'
+import { selectPieceBank, type PieceType } from '../logic/pieceKeeps'
 import { voyageRewardKey } from '../logic/rewards'
 import { newUid } from '../logic/parser'
 import type { Board, ChartData, Edges, Weights } from '../types'
@@ -17,28 +16,22 @@ interface Props {
   disabledMods: Set<string>
   /** keeper protections - decide which charts show the 🔒 "saved for" badge */
   reservations: StrategyReservationPreferences
+  /** per-piece-type keep counts (missing entries use the recommended default) */
+  pieceKeeps: Record<string, number>
   selected: string | null
   onSelect: (uid: string) => void
   onAdd: (charts: ChartData[]) => void
   onRemove: (uid: string) => void
   onUpdate: (chart: ChartData) => void
   onClearCharts: () => void
+  /** open the guided "save charts for strategies" wizard */
+  onOpenSaveWizard?: () => void
 }
 
-/** which strategy this chart is being saved for (while its protection is on) */
-function fuelLock(
-  chart: ChartData,
-  prefs: StrategyReservationPreferences,
-  rareBacklog: Set<string>,
-): string | null {
-  if (prefs.divine && rareBacklog.has(chart.uid))
-    return 'Saved for the Divine strategies (rare backlog)'
-  if (
-    prefs.meatfish &&
-    chart.modIds.some((id) => (MEATFISH_FUEL as readonly string[]).includes(id))
-  )
-    return 'Saved for Meatfish'
-  return null
+/** which strategy this chart is banked for, per the keep counts */
+function fuelLock(chart: ChartData, bank: Map<string, PieceType>): string | null {
+  const piece = bank.get(chart.uid)
+  return piece ? `Saved for ${piece.strategyName} - ${piece.label}` : null
 }
 
 const SCOPE_REACH = { self: 1, adjacent: 3, global: 9 } as const
@@ -177,7 +170,10 @@ export function Library(props: Props) {
     }
   }
   const onBoard = new Set(props.board.filter(Boolean).map((p) => p!.chartUid))
-  const rareBacklog = useMemo(() => selectRareBacklog(props.pool), [props.pool])
+  const bank = useMemo(
+    () => selectPieceBank(props.pool, props.pieceKeeps, props.reservations),
+    [props.pool, props.pieceKeeps, props.reservations],
+  )
 
   const addBlank = () => {
     const chart: ChartData = {
@@ -250,6 +246,16 @@ export function Library(props: Props) {
           </button>
         </div>
       )}
+      {props.pool.length > 0 && props.onOpenSaveWizard && (
+        <div className="savefor-bar">
+          <button
+            onClick={props.onOpenSaveWizard}
+            title="A guided walkthrough: pin charts to a strategy so nothing else (manual solves and filler included) will spend them"
+          >
+            🔖 Save charts for strategies…
+          </button>
+        </div>
+      )}
       {props.pool.length === 0 && (
         <div className="muted pad">
           No charts yet. Add manually or paste from the game below.
@@ -262,7 +268,7 @@ export function Library(props: Props) {
             // lead with the implicit (adjacent/voyage) - it's the strategic mod
             const mod = mods.find((m) => m!.scope !== 'self') ?? mods[0] ?? null
             const val = displayValue(c, props.weights, props.disabledMods)
-            const lock = fuelLock(c, props.reservations, rareBacklog)
+            const lock = fuelLock(c, bank)
             const lines = [
               { text: `Area Level: ${c.level}${c.shape ? ` · ${c.shape}` : ''}`, cls: 'muted' },
               ...(c.rewards ?? []).map((e) => ({
@@ -331,7 +337,7 @@ export function Library(props: Props) {
         {visible.map((c) => {
           const allMods = c.modIds.map((id) => voyageModById.get(id)).filter(Boolean)
           const mod = allMods.find((m) => m!.scope !== 'self') ?? allMods[0] ?? null
-          const lock = fuelLock(c, props.reservations, rareBacklog)
+          const lock = fuelLock(c, bank)
           return (
             <div
               key={c.uid}

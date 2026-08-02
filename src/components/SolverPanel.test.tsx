@@ -39,27 +39,13 @@ describe('solver strategy protections', () => {
     expect(reservationInput(html, 'meatfish')).not.toContain('checked=""')
   })
 
-  it('offers the Divine and Meatfish toggles in manual mode, where both fallbacks apply', () => {
-    const html = renderPanel(null)
-
-    expect(html).toContain('Protect charts for other strategies')
-    expect(reservationInput(html, 'divine')).toContain('checked=""')
-    expect(reservationInput(html, 'meatfish')).toContain('checked=""')
-    expect(reservationInput(html, 'ethereal')).toBeUndefined()
-  })
-
-  it('offers only the Divine toggle for Meatfish, which may spend its own fracture fuel', () => {
-    const html = renderPanel('milky-meatfish')
-
-    expect(reservationInput(html, 'divine')).toContain('checked=""')
-    expect(reservationInput(html, 'meatfish')).toBeUndefined()
-  })
-
-  it('offers only the Meatfish toggle for the Divine strategies (fracture is not theirs)', () => {
-    const html = renderPanel('divine-border-rares')
-
-    expect(html).toContain('Protect charts for other strategies')
-    expect(reservationInput(html, 'divine')).toBeUndefined()
-    expect(reservationInput(html, 'meatfish')).toContain('checked=""')
+  it('offers all three toggles in every mode - the bank applies everywhere', () => {
+    for (const strategyId of [null, 'milky-meatfish', 'divine-border-rares']) {
+      const html = renderPanel(strategyId)
+      expect(html).toContain('Protect charts for other strategies')
+      expect(reservationInput(html, 'divine')).toContain('checked=""')
+      expect(reservationInput(html, 'meatfish')).toContain('checked=""')
+      expect(reservationInput(html, 'ethereal')).toContain('checked=""')
+    }
   })
 })

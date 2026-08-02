@@ -14,10 +14,17 @@ export interface UpdateEntry {
 export const UPDATES: UpdateEntry[] = [
   {
     date: '2026-08-02',
-    tag: 'reworked',
-    title: 'Rare backlog capped at six',
+    tag: 'new',
+    title: 'Keep-count wizard',
     detail:
-      'Only your six best Rare Monsters charts (highest tier, then best rolls) are banked for the Divine strategies now - extras get spent by Alc & Go, Speedrun and filler voyages instead of piling up. The 🔒 badge marks the banked six.',
+      '🔖 Save charts for strategies… (Chart Library) walks you through each strategy\'s recommended chart types with a "keep X" stepper - the solver banks your best X of each type and spends everything beyond that. Banked charts wear a 🔒 naming their strategy; a chart type shared by strategies gets one knob sized for the hungriest.',
+  },
+  {
+    date: '2026-08-02',
+    tag: 'reworked',
+    title: 'Reservations became keep counts',
+    detail:
+      'Blanket holds ("save every Lantern") are gone: every protection now banks the best X of each recommended piece type, defaulting to what each strategy actually needs (rares get one spare). The Solver Settings toggles switch whole categories of banks off.',
   },
   {
     date: '2026-08-02',

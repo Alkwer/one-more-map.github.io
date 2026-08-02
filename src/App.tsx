@@ -12,6 +12,7 @@ import { SolveBar } from './components/SolveBar'
 import { UpdatesLog } from './components/UpdatesLog'
 import { LATEST_UPDATE_DATE } from './data/updates'
 import { SessionPlanner } from './components/SessionPlanner'
+import { SaveWizard } from './components/SaveWizard'
 import { borderModById, voyageModById } from './data/mods'
 import { strategyById } from './data/strategies'
 import { StrategiesPanel } from './components/StrategiesPanel'
@@ -57,6 +58,7 @@ export default function App() {
   const [showMods, setShowMods] = useState(false)
   const [showSolverSettings, setShowSolverSettings] = useState(false)
   const [showPlanner, setShowPlanner] = useState(false)
+  const [showSaveWizard, setShowSaveWizard] = useState(false)
   const [showUpdates, setShowUpdates] = useState(false)
   const [updatesSeen, setUpdatesSeen] = useState<string>(() => {
     try {
@@ -413,11 +415,20 @@ export default function App() {
         />
       )}
       {showUpdates && <UpdatesLog onClose={() => setShowUpdates(false)} />}
+      {showSaveWizard && (
+        <SaveWizard
+          pool={state.pool}
+          keeps={state.pieceKeeps}
+          onApply={(keeps) => patch({ pieceKeeps: keeps })}
+          onClose={() => setShowSaveWizard(false)}
+        />
+      )}
       {showPlanner && (
         <SessionPlanner
           pool={state.pool}
           borders={state.borders}
           reservations={state.strategyReservations}
+          pieceKeeps={state.pieceKeeps}
           onUseStrategy={(id) => patch({ strategyId: id })}
           onClose={() => setShowPlanner(false)}
         />
@@ -504,6 +515,7 @@ export default function App() {
             weights={effectiveWeights}
             disabledMods={disabledSet}
             reservations={state.strategyReservations}
+            pieceKeeps={state.pieceKeeps}
             selected={selectedChart}
             onSelect={(uid) => {
               setSelectedChart((cur) => (cur === uid ? null : uid))
@@ -513,6 +525,7 @@ export default function App() {
             onRemove={removeChart}
             onUpdate={updateChart}
             onClearCharts={clearCharts}
+            onOpenSaveWizard={() => setShowSaveWizard(true)}
           />
           <ImportPanel onImport={addCharts} state={state} onLoadState={setState} />
         </section>

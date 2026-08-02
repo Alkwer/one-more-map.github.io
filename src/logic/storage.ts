@@ -22,6 +22,9 @@ export interface AppState {
   strategyId: string | null
   /** keeper categories excluded from low-investment strategy solve pools */
   strategyReservations: StrategyReservationPreferences
+  /** per-piece-type keep counts ("bank 2 Starfish for Meatfish"); keys from
+   *  PIECE_TYPES, missing entries use each type's recommended default */
+  pieceKeeps: Record<string, number>
 }
 
 export const defaultState = (): AppState => ({
@@ -36,6 +39,7 @@ export const defaultState = (): AppState => ({
   disabledMods: [],
   strategyId: null,
   strategyReservations: defaultStrategyReservations(),
+  pieceKeeps: {},
 })
 
 const LS_KEY = 'allflame-voyage-solver'
@@ -122,5 +126,14 @@ function revive(obj: unknown): AppState {
           ? rawReservations.ethereal
           : reservationDefaults.ethereal,
     },
+    pieceKeeps:
+      typeof o.pieceKeeps === 'object' && o.pieceKeeps !== null && !Array.isArray(o.pieceKeeps)
+        ? Object.fromEntries(
+            Object.entries(o.pieceKeeps).filter(
+              (entry): entry is [string, number] =>
+                typeof entry[1] === 'number' && Number.isFinite(entry[1]),
+            ),
+          )
+        : {},
   }
 }

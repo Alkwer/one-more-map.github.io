@@ -61,6 +61,7 @@ export function planSession(
   pool: ChartData[],
   borders: Borders,
   preferences: StrategyReservationPreferences = defaultStrategyReservations(),
+  pieceKeeps: Record<string, number> = {},
 ): SessionPlan {
   const used = new Set<string>()
   const entries: PlanEntry[] = []
@@ -71,7 +72,7 @@ export function planSession(
     const s = byId.get(id) as StrategyDef
     const borderMissing = s.requiresBorderId && !borders.includes(s.requiresBorderId.id)
     // the strategy may only spend what its own reservations allow
-    const spendable = selectStrategySolvePool(remaining(), s, preferences).solvePool
+    const spendable = selectStrategySolvePool(remaining(), s, preferences, undefined, pieceKeeps).solvePool
 
     const missing: string[] = []
     const tentative = new Set<string>()
@@ -119,7 +120,7 @@ export function planSession(
   const speedrun = byId.get('milky-speedrun') as StrategyDef
   let speedrunRuns = 0
   for (;;) {
-    const spendable = selectStrategySolvePool(remaining(), speedrun, preferences).solvePool
+    const spendable = selectStrategySolvePool(remaining(), speedrun, preferences, undefined, pieceKeeps).solvePool
     const isCentre = (c: ChartData) =>
       c.modIds.some((id) => SPEEDRUN_CENTER_MODS.includes(id))
     const centres = spendable.filter(isCentre)
@@ -146,7 +147,7 @@ export function planSession(
 
   // ---- Alc & Go burns whatever nothing else wants ----
   const alcgo = byId.get('alc-and-go') as StrategyDef
-  const alcSpendable = selectStrategySolvePool(remaining(), alcgo, preferences).solvePool
+  const alcSpendable = selectStrategySolvePool(remaining(), alcgo, preferences, undefined, pieceKeeps).solvePool
   const alcRuns = Math.floor(alcSpendable.length / 9)
   if (alcRuns > 0) {
     alcSpendable.slice(0, alcRuns * 9).forEach((c) => used.add(c.uid))

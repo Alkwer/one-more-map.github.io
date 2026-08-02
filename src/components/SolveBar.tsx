@@ -43,6 +43,7 @@ export function SolveBar({ state, activeStrategy, results, appliedIdx, onResults
           activeStrategy,
           state.strategyReservations,
           lockedUids,
+          state.pieceKeeps,
         )
         const res = solve(solvePool, state.borders, weights, {
           mode: state.mode,
@@ -66,7 +67,7 @@ export function SolveBar({ state, activeStrategy, results, appliedIdx, onResults
           notes.push(`${lockedCount} locked chart${lockedCount === 1 ? '' : 's'} kept in place.`)
         if (heldBack > 0)
           notes.push(
-            `${heldBack} chart${heldBack === 1 ? '' : 's'} held back for ${heldBackFor.join(', ')}. Change protections in Solver Settings to include them.`,
+            `${heldBack} chart${heldBack === 1 ? '' : 's'} banked for ${heldBackFor.join(', ')}. Adjust keep counts in the library's 🔖 wizard.`,
           )
         if (solvePool.length < 9)
           notes.push(`Only ${solvePool.length} spare charts - not enough for a full board.`)

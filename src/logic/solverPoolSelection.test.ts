@@ -1,161 +1,140 @@
 import { describe, expect, it } from 'vitest'
-import type { StrategyDef } from '../data/strategies'
-import type { ChartData } from '../types'
-import { selectRareBacklog, selectStrategySolvePool } from './solverPoolSelection'
+import { strategyById } from '../data/strategies'
+import type { ChartAreaType, ChartData } from '../types'
+import { PIECE_TYPES, selectPieceBank } from './pieceKeeps'
+import { selectStrategySolvePool } from './solverPoolSelection'
 
-const chart = (uid: string, overrides: Partial<ChartData> = {}): ChartData => ({
-  uid,
-  name: `Chart ${uid}`,
+let n = 0
+const chart = (overrides: Partial<ChartData> = {}): ChartData => ({
+  uid: overrides.uid ?? `t-${n++}`,
+  name: 'Chart',
   level: 83,
   edges: [true, true, true, true],
   modIds: [],
   ...overrides,
 })
 
-const strategy: Pick<
-  StrategyDef,
-  'allowRareImplicits' | 'allowFractureCharts' | 'reservationGroups'
-> = {
-  reservationGroups: [
-    {
-      id: 'divine',
-      label: 'Divine strategies',
-      modIds: ['divine-mod'],
-      areaTypes: ['sea-pillars'],
-    },
-    { id: 'meatfish', label: 'Meatfish', modIds: ['meatfish-mod', 'shared-mod'] },
-    { id: 'ethereal', label: 'Magic Ethereal', modIds: ['ethereal-mod', 'shared-mod'] },
-  ],
+const keyOf = (label: string) => {
+  const piece = PIECE_TYPES.find((p) => p.label === label)
+  if (!piece) throw new Error(`no piece type labelled ${label}`)
+  return piece.key
 }
 
-const pool = [
-  chart('ordinary'),
-  chart('divine-modifier', { modIds: ['divine-mod'] }),
-  chart('divine-area', { areaType: 'sea-pillars' }),
-  chart('meatfish', { modIds: ['meatfish-mod'] }),
-  chart('ethereal', { modIds: ['ethereal-mod'] }),
-  chart('shared', { modIds: ['shared-mod'] }),
-]
+const ALL_ON = { divine: true, meatfish: true, ethereal: true }
 
-describe('strategy solve-pool reservations', () => {
-  it('holds back only enabled categories and reports them', () => {
-    expect(
-      selectStrategySolvePool(pool, strategy, {
-        divine: true,
-        meatfish: false,
-        ethereal: false,
-      }),
-    ).toEqual({
-      solvePool: [pool[0], pool[3], pool[4], pool[5]],
-      heldBack: 2,
-      heldBackFor: ['Divine strategies'],
-    })
+describe('keep-count solve pools', () => {
+  it('banks the recommended count of a piece type and spends the rest', () => {
+    // Meatfish wants 2 Giant Starfish; a third is an ordinary spare
+    const stars = [
+      chart({ uid: 's1', modIds: ['adj-star-1'] }),
+      chart({ uid: 's2', modIds: ['adj-star-2'] }),
+      chart({ uid: 's3', modIds: ['adj-star-1'] }),
+    ]
+    // stars are claimed by the Divine star/box type (3) before Meatfish - all
+    // three end up banked, so raise the picture with junk to see spending
+    const pool = [...stars, chart({ uid: 'junk', modIds: ['voy-quant-1'] })]
+    const manual = selectStrategySolvePool(pool, null, ALL_ON)
+    expect(manual.solvePool.map((c) => c.uid)).toEqual(['junk'])
+    expect(manual.heldBackFor.length).toBeGreaterThan(0)
   })
 
-  it('returns every chart when all categories are disabled', () => {
-    expect(
-      selectStrategySolvePool(pool, strategy, {
-        divine: false,
-        meatfish: false,
-        ethereal: false,
-      }),
-    ).toEqual({ solvePool: pool, heldBack: 0, heldBackFor: [] })
-  })
-
-  it('keeps overlaps protected while either matching category is enabled', () => {
-    const result = selectStrategySolvePool(pool, strategy, {
-      divine: false,
-      meatfish: false,
-      ethereal: true,
-    })
-
-    expect(result.solvePool.map(({ uid }) => uid)).not.toContain('shared')
-    expect(result.heldBackFor).toEqual(['Magic Ethereal'])
-  })
-
-  it('always includes locked charts even when their category is protected', () => {
-    const result = selectStrategySolvePool(
-      pool,
-      strategy,
-      { divine: true, meatfish: true, ethereal: true },
-      new Set(['divine-modifier']),
+  it('banks one spare rare beyond the Divine requirement and spends extras', () => {
+    const rares = Array.from({ length: 8 }, (_, i) =>
+      chart({ uid: `r${i}`, modIds: ['voy-rare'] }),
     )
-
-    expect(result.solvePool.map(({ uid }) => uid)).toContain('divine-modifier')
+    const { solvePool, heldBack, heldBackFor } = selectStrategySolvePool(rares, null, ALL_ON)
+    expect(heldBack).toBe(6) // requirement 5 + 1 spare
+    expect(solvePool).toHaveLength(2)
+    expect(heldBackFor).toContain('Divine Border Rares')
   })
 
-  it('preserves the manual-mode Divine protection and lets users disable it', () => {
-    const rare = chart('rare', { modIds: ['adj-rare-1'] })
-
-    expect(selectStrategySolvePool([rare], null).solvePool).toEqual([])
-    expect(
-      selectStrategySolvePool([rare], null, {
-        divine: false,
-        meatfish: true,
-        ethereal: true,
-      }).solvePool,
-    ).toEqual([rare])
-  })
-
-  it('banks only the best six rare charts - extras are spendable', () => {
-    const rares = [
-      ...Array.from({ length: 5 }, (_, i) => chart(`r60-${i}`, { modIds: ['adj-rare-2'] })),
-      chart('r25-good', {
-        modIds: ['voy-rare'],
-        rewards: [{ stat: 'quantity', percent: 70 }],
-      }),
-      chart('r25-weak', { modIds: ['voy-rare'] }),
-      chart('r30-extra', { modIds: ['adj-rare-1'] }),
-    ]
-
-    // ranking: five 60% tiers + the best-rolled 25% fill the backlog...
-    const backlog = selectRareBacklog(rares)
-    expect(backlog.size).toBe(6)
-    expect(backlog.has('r30-extra')).toBe(true) // 30% tier beats both 25%s
-    expect(backlog.has('r25-good')).toBe(false)
-    expect(backlog.has('r25-weak')).toBe(false)
-
-    // ...and manual mode holds exactly the backlog, spending the rest
-    const { solvePool } = selectStrategySolvePool(rares, null)
-    expect(solvePool.map(({ uid }) => uid).sort()).toEqual(['r25-good', 'r25-weak'])
-  })
-
-  it('ranks equal-tier rares by their header rolls', () => {
+  it('ranks a piece type by tier then rolls', () => {
     const pool = [
-      ...Array.from({ length: 5 }, (_, i) => chart(`r60-${i}`, { modIds: ['adj-rare-2'] })),
-      chart('weak', { modIds: ['voy-rare'] }),
-      chart('good', {
+      chart({ uid: 'weak', modIds: ['voy-rare'] }),
+      chart({ uid: 'strong', modIds: ['adj-rare-2'] }),
+      chart({
+        uid: 'rolled',
         modIds: ['voy-rare'],
         rewards: [{ stat: 'quantity', percent: 70 }],
       }),
     ]
-    const backlog = selectRareBacklog(pool)
-    expect(backlog.has('good')).toBe(true)
-    expect(backlog.has('weak')).toBe(false)
+    const bank = selectPieceBank(
+      pool,
+      { [keyOf('Increased Rares chart')]: 2 },
+      ALL_ON,
+    )
+    expect(bank.has('strong')).toBe(true)
+    expect(bank.has('rolled')).toBe(true)
+    expect(bank.has('weak')).toBe(false)
   })
 
-  it('holds Rare Fracture charts for Meatfish everywhere except Meatfish itself', () => {
-    const fracture = chart('fracture', { modIds: ['voy-fracture'] })
+  it('lets the owning strategy spend its banked charts', () => {
+    const meatfish = strategyById.get('milky-meatfish')!
+    const pool = [chart({ uid: 'lantern', modIds: ['adj-lantern'] })]
+    expect(selectStrategySolvePool(pool, null, ALL_ON).solvePool).toHaveLength(0)
+    expect(selectStrategySolvePool(pool, meatfish, ALL_ON).solvePool).toHaveLength(1)
+  })
 
-    // manual mode holds it, reporting Meatfish as the reason
-    const manual = selectStrategySolvePool([fracture], null)
-    expect(manual.solvePool).toEqual([])
-    expect(manual.heldBackFor).toEqual(['Meatfish'])
-    // Meatfish itself may spend it
+  it('shares banked pieces between strategies that want the same type', () => {
+    // stars bank for Divine first, but Meatfish wants stars too
+    const meatfish = strategyById.get('milky-meatfish')!
+    const pool = [chart({ uid: 'star', modIds: ['adj-star-1'] })]
+    const bank = selectPieceBank(pool, {}, ALL_ON)
+    expect(bank.get('star')?.strategyId).toBe('divine-border-rares')
+    expect(selectStrategySolvePool(pool, meatfish, ALL_ON).solvePool).toHaveLength(1)
+  })
+
+  it('a keep count of zero releases the type entirely', () => {
+    const pool = [chart({ uid: 'frac', modIds: ['voy-fracture'] })]
+    expect(selectStrategySolvePool(pool, null, ALL_ON).solvePool).toHaveLength(0)
     expect(
-      selectStrategySolvePool([fracture], { allowFractureCharts: true }).solvePool,
-    ).toEqual([fracture])
-    // a Divine strategy may not (rares allowed, fracture still Meatfish fuel)
-    expect(
-      selectStrategySolvePool([fracture], { allowRareImplicits: true }).solvePool,
-    ).toEqual([])
-    // switching the Meatfish protection off releases it
-    expect(
-      selectStrategySolvePool([fracture], null, {
-        divine: true,
-        meatfish: false,
-        ethereal: true,
+      selectStrategySolvePool(pool, null, ALL_ON, new Set(), {
+        [keyOf('No-Equipment (or Fracture) chart')]: 0,
       }).solvePool,
-    ).toEqual([fracture])
+    ).toHaveLength(1)
+  })
+
+  it('protection toggles gate their strategies\' banks', () => {
+    const pool = [chart({ uid: 'wisp', modIds: ['adj-wisps-1'] })]
+    expect(selectStrategySolvePool(pool, null, ALL_ON).solvePool).toHaveLength(0)
+    expect(
+      selectStrategySolvePool(pool, null, { divine: true, meatfish: false, ethereal: false })
+        .solvePool,
+    ).toHaveLength(1)
+  })
+
+  it('locked charts always stay spendable', () => {
+    const pool = [chart({ uid: 'locked-rare', modIds: ['adj-rare-2'] })]
+    const { solvePool } = selectStrategySolvePool(
+      pool,
+      null,
+      ALL_ON,
+      new Set(['locked-rare']),
+    )
+    expect(solvePool).toHaveLength(1)
+  })
+
+  it('sizes a shared family knob for the hungriest strategy', () => {
+    // Ethereal wants 3 lanterns even though Meatfish's knob asks for 2
+    const lanternKnob = PIECE_TYPES.find(
+      (p) => p.banks && p.modIds?.length === 1 && p.modIds[0] === 'adj-lantern',
+    )
+    expect(lanternKnob?.defaultKeep).toBe(3)
+    // Ethereal wants 4 wisps; the Pantheon-or-Wisp family knob covers them
+    const wispKnob = PIECE_TYPES.find(
+      (p) => p.banks && p.modIds?.includes('adj-wisps-1'),
+    )
+    expect(wispKnob?.defaultKeep).toBe(4)
+    const lanterns = Array.from({ length: 5 }, (_, i) =>
+      chart({ uid: `l${i}`, modIds: ['adj-lantern'] }),
+    )
+    const { solvePool } = selectStrategySolvePool(lanterns, null, ALL_ON)
+    expect(solvePool).toHaveLength(2)
+  })
+
+  it('banks Sea-Pillar charts by destination', () => {
+    const pool = [chart({ uid: 'pillar', areaType: 'sea-pillars' as ChartAreaType })]
+    const bank = selectPieceBank(pool, {}, ALL_ON)
+    expect(bank.get('pillar')?.strategyId).toBe('divine-border-rares')
   })
 })

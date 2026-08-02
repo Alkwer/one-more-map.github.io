@@ -4,8 +4,8 @@ import { solve, type SolverResult } from '../logic/solver'
 import type { AppState } from '../logic/storage'
 import type { AdjacencyMode } from '../logic/scoring'
 import type { ConnectivityMode } from '../types'
-import { MEATFISH_FUEL, STRATEGY_RESERVATION_OPTIONS } from '../data/strategies'
-import { selectRareBacklog } from '../logic/solverPoolSelection'
+import { STRATEGY_RESERVATION_OPTIONS } from '../data/strategies'
+import { selectPieceBank } from '../logic/pieceKeeps'
 import type { StrategyDef } from '../data/strategies'
 import { GROUP_LABEL, GROUP_ORDER, REWARD_TYPES } from '../logic/rewards'
 import { displayValue } from './Library'
@@ -30,23 +30,9 @@ export function SolverPanel({ state, activeStrategy, onPatch, onResults, onClose
   const [solveNote, setSolveNote] = useState('')
   // while a strategy is active it overrides the manual weights everywhere here
   const weights = activeStrategy ? activeStrategy.weights : state.weights
-  const reservationGroups = activeStrategy?.reservationGroups ?? []
-  // manual mode and strategies without reservation groups still hold back
-  // rare-implicit charts (the Divine fallback in selectStrategySolvePool) -
-  // surface its toggle here so the solve note's pointer always works
-  const divineFallback =
-    !activeStrategy?.allowRareImplicits &&
-    !reservationGroups.some((reservation) => reservation.id === 'divine')
-  // same for Rare Fracture charts, which are Meatfish fuel
-  const meatfishFallback =
-    !activeStrategy?.allowFractureCharts &&
-    !reservationGroups.some((reservation) => reservation.id === 'meatfish')
-  const availableReservations = STRATEGY_RESERVATION_OPTIONS.filter(
-    (option) =>
-      reservationGroups.some((reservation) => reservation.id === option.id) ||
-      (option.id === 'divine' && divineFallback) ||
-      (option.id === 'meatfish' && meatfishFallback),
-  )
+  // the keep-count bank applies in every mode; each toggle switches its
+  // strategies' banks off wholesale (the wizard's counts stay saved)
+  const availableReservations = STRATEGY_RESERVATION_OPTIONS
   const bestRegex = useMemo(
     () => buildBestModRegex(weights, regexCap, new Set(state.disabledMods)),
     [weights, regexCap, state.disabledMods],
@@ -72,20 +58,9 @@ export function SolverPanel({ state, activeStrategy, onPatch, onResults, onClose
         const disabled = new Set(state.disabledMods)
         const keep = new Set<string>()
         state.pool.forEach((c) => c.preserved && keep.add(c.uid))
-        // The rare-implicit backlog (best few charts) is Divine-strategy fuel
-        // and Rare Fracture is Meatfish fuel - neither is ever filler while
-        // its protection is on. Rares beyond the backlog burn like any spare.
-        if (state.strategyReservations.divine) {
-          const backlog = selectRareBacklog(state.pool)
-          state.pool.forEach((c) => backlog.has(c.uid) && keep.add(c.uid))
-        }
-        if (state.strategyReservations.meatfish) {
-          state.pool.forEach(
-            (c) =>
-              c.modIds.some((id) => (MEATFISH_FUEL as readonly string[]).includes(id)) &&
-              keep.add(c.uid),
-          )
-        }
+        // banked keeper charts (per the keep counts) are never filler
+        const bank = selectPieceBank(state.pool, state.pieceKeeps, state.strategyReservations)
+        state.pool.forEach((c) => bank.has(c.uid) && keep.add(c.uid))
         ;[...state.pool]
           .sort((a, b) => displayValue(b, weights, disabled) - displayValue(a, weights, disabled))
           .slice(0, KEEP_BEST)
@@ -210,8 +185,8 @@ export function SolverPanel({ state, activeStrategy, onPatch, onResults, onClose
             </label>
           ))}
           <div className="muted small-note">
-            Enabled categories stay out of this solve pool. A chart shared by categories remains
-            protected while any matching category is enabled.
+            Enabled categories keep their banked charts out of solve pools (counts set in the
+            library's 🔖 wizard). A strategy always spends its own banked pieces.
           </div>
         </fieldset>
       )}
