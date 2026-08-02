@@ -14,6 +14,7 @@ import {
   defaultStrategyReservations,
 } from '../data/strategies'
 import { selectStrategySolvePool } from './solverPoolSelection'
+import { requiredCountFor, type StrategyRequirement } from './strategyRequirements'
 import type { Borders, ChartData } from '../types'
 
 export interface PlanEntry {
@@ -46,20 +47,21 @@ const byId = new Map(STRATEGIES.map((s) => [s.id, s]))
 
 /** greedily claim `count` unused charts matching a requirement; null if short */
 function claim(
-  req: { modIds?: string[]; areaTypes?: string[]; count: number },
+  req: StrategyRequirement,
+  requiredCount: number,
   available: ChartData[],
   used: Set<string>,
 ): string[] | null {
   const picked: string[] = []
   for (const c of available) {
-    if (picked.length >= req.count) break
+    if (picked.length >= requiredCount) break
     if (used.has(c.uid)) continue
     const matches =
       (req.modIds && c.modIds.some((id) => req.modIds!.includes(id))) ||
       (req.areaTypes && c.areaType && req.areaTypes.includes(c.areaType))
     if (matches) picked.push(c.uid)
   }
-  return picked.length >= req.count ? picked : null
+  return picked.length >= requiredCount ? picked : null
 }
 
 export function planSession(
@@ -88,9 +90,10 @@ export function planSession(
     const missing: string[] = []
     const tentative = new Set<string>()
     for (const req of s.requirements ?? []) {
-      const got = claim(req, spendable, tentative)
+      const requiredCount = requiredCountFor(req, borders)
+      const got = claim(req, requiredCount, spendable, tentative)
       if (got) got.forEach((uid) => tentative.add(uid))
-      else missing.push(`${req.count}× ${req.label}`)
+      else missing.push(`${requiredCount}× ${req.label}`)
     }
     if (borderMissing) missing.push(s.requiresBorderId!.label)
 

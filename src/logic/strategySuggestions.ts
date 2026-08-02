@@ -15,6 +15,7 @@ import { borderRewardKey } from './rewards'
 import { scoreBoard, type ScoreOptions } from './scoring'
 import { solve } from './solver'
 import { selectStrategySolvePool } from './solverPoolSelection'
+import { requiredCountFor } from './strategyRequirements'
 
 const EPSILON = 1e-9
 const POTENTIAL_SEARCH_RESTARTS = 12
@@ -118,27 +119,6 @@ function countMatchingCharts(
         chart.name.toLowerCase().includes(requirement.nameMatch.toLowerCase())) ||
       (requirement.areaTypes && chart.areaType && requirement.areaTypes.includes(chart.areaType)),
   ).length
-}
-
-const CORNER_TILES = new Set([0, 2, 6, 8])
-
-function requiredCountFor(
-  requirement: NonNullable<StrategyDef['requirements']>[number],
-  borders: Borders,
-): number {
-  const dynamic = requirement.countByBorderNeighbours
-  if (!dynamic) return requirement.count
-
-  let bestNeighbours = 0
-  borders.forEach((modId, segment) => {
-    if (modId !== dynamic.borderId) return
-    const tile = borderTouches(segment)
-    bestNeighbours = Math.max(bestNeighbours, CORNER_TILES.has(tile) ? 2 : 3)
-  })
-
-  if (bestNeighbours === 2) return dynamic.two
-  if (bestNeighbours === 3) return dynamic.three
-  return requirement.count
 }
 
 export function strategyReadiness(

@@ -15,6 +15,24 @@ const chart = (modIds: string[], areaType?: ChartAreaType): ChartData => ({
 
 const junk = (count: number) => Array.from({ length: count }, () => chart(['voy-quant-1']))
 
+const divineBorders = (segment: number) => {
+  const borders = emptyBorders()
+  borders[segment] = 'b-divine'
+  return borders
+}
+
+const divineKit = (
+  strategyId: 'divine-border-rares' | 'cutedog-divine-boxes',
+  feederCount: number,
+  rareCount: number,
+) => [
+  chart([], strategyId === 'divine-border-rares' ? 'sea-pillars' : 'pelagic-abyss'),
+  ...Array.from({ length: feederCount }, () =>
+    chart([strategyId === 'divine-border-rares' ? 'adj-star-1' : 'adj-divbox-1']),
+  ),
+  ...Array.from({ length: rareCount }, () => chart(['voy-rare'])),
+]
+
 // a full Meatfish kit: 2 star, 1 pantheon, 2 sea-pillars, 2 lantern, 1 possess, 1 noequip
 const meatfishKit = () => [
   chart(['adj-star-1']),
@@ -29,6 +47,53 @@ const meatfishKit = () => [
 ]
 
 describe('session planner', () => {
+  describe.each([
+    {
+      strategyId: 'divine-border-rares' as const,
+      feederLabel: 'Starfish or Strongbox feeder chart',
+      rareLabel: 'Increased Rares chart',
+    },
+    {
+      strategyId: 'cutedog-divine-boxes' as const,
+      feederLabel: 'Strongbox adjacent chart (any type)',
+      rareLabel: 'Increased Rares (voyage) chart',
+    },
+  ])('$strategyId border-dependent requirements', ({ strategyId, feederLabel, rareLabel }) => {
+    it.each([
+      { location: 'corner', segment: 0, feeders: 2, rares: 6 },
+      { location: 'middle edge', segment: 1, feeders: 3, rares: 5 },
+    ])('accepts the complete $location composition', ({ segment, feeders, rares }) => {
+      const pool = divineKit(strategyId, feeders, rares)
+      const plan = planSession(pool, divineBorders(segment))
+      const entry = plan.entries.find((candidate) => candidate.strategyId === strategyId)
+
+      expect(entry?.status).toBe('ready')
+      expect(plan.allocated).toBe(pool.length)
+      expect(plan.allocated + plan.leftover).toBe(pool.length)
+    })
+
+    it('rejects a corner composition that is one Rare chart short', () => {
+      const pool = divineKit(strategyId, 3, 5)
+      const plan = planSession(pool, divineBorders(0))
+      const entry = plan.entries.find((candidate) => candidate.strategyId === strategyId)
+
+      expect(entry?.status).toBe('waiting')
+      expect(entry?.note).toContain(`6× ${rareLabel}`)
+      expect(entry?.note).not.toContain(`3× ${feederLabel}`)
+      expect(plan.allocated + plan.leftover).toBe(pool.length)
+    })
+
+    it('rejects a middle-edge composition that is one feeder chart short', () => {
+      const pool = divineKit(strategyId, 2, 6)
+      const plan = planSession(pool, divineBorders(1))
+      const entry = plan.entries.find((candidate) => candidate.strategyId === strategyId)
+
+      expect(entry?.status).toBe('waiting')
+      expect(entry?.note).toContain(`3× ${feederLabel}`)
+      expect(plan.allocated + plan.leftover).toBe(pool.length)
+    })
+  })
+
   it('sequences a ready Meatfish, then Speedruns, then Alc & Go', () => {
     const pool = [
       ...meatfishKit(),
