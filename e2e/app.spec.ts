@@ -5,6 +5,7 @@ import {
   COMPLETE_DIVINE_BORDER_PAYLOAD,
   DIVINE_BORDER_PAYLOAD,
   ENGLISH_CHART,
+  INCOMPLETE_BORDER_SCAN_PAYLOAD,
   KOREAN_CHART,
   REROLL_COST_PAYLOAD,
   ORIGIN,
@@ -125,6 +126,26 @@ test('globally imports English, Korean, and border clipboard payloads', async ({
   await expect
     .poll(() => workerUrls.some((url) => /\/assets\/solver\.worker-[^/]+\.js$/.test(url)))
     .toBe(true)
+})
+
+test('keeps existing borders after an interrupted Windows OCR sweep', async ({ appPage }) => {
+  await openApp(appPage)
+
+  await pasteText(appPage, DIVINE_BORDER_PAYLOAD)
+  const firstBorder = appPage.getByRole('button', {
+    name: /Border segment 1: .*Divine Orb/,
+  })
+  await expect(firstBorder).toBeVisible()
+
+  await pasteText(appPage, INCOMPLETE_BORDER_SCAN_PAYLOAD)
+
+  await expect(firstBorder).toBeVisible()
+  const importStatus = appPage.getByRole('region', { name: 'Import' }).getByRole('status')
+  await expect(importStatus).toContainText('matched 11/12 border modifiers')
+  await expect(importStatus).toContainText(
+    'border scan incomplete (11/12 positions); kept existing borders',
+  )
+  await expect(importStatus).toContainText('OCR language en-US')
 })
 
 test('records only complete border rolls and keeps Voyage sequences distinct', async ({

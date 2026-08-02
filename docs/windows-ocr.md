@@ -103,6 +103,17 @@ near the top of the script if the visible chart stash uses a different size.
   after a reroll.
 - `F10` aborts the current sweep.
 
+Each border sweep includes a 12-position completion marker. The solver applies
+complete snapshots atomically: an unreadable position is cleared instead of
+silently retaining a modifier from an earlier scan. If the helper is aborted,
+returns fewer than 12 positions, or recognizes none of the tooltips, the solver
+keeps the existing borders and reports that the sweep failed. Legacy
+single-border text fixtures can still be pasted as targeted updates.
+
+The import status also reports the Windows OCR recognizer language selected by
+the helper, such as `en-US` or `ko-KR`. Record that value when reproducing an OCR
+failure.
+
 A complete 12/12 paste is also recorded automatically in the active research
 sequence. Scan the natural board and every paid reroll before changing it.
 Clicking `Finish Voyage` under the solver board then closes that sequence; if
@@ -115,9 +126,10 @@ game's normal `Ctrl+C` item text; OCR is used only for border tooltips.
 ## Privacy and temporary files
 
 OCR runs locally through the Windows Runtime API. The helper writes screenshots,
-the generated PowerShell bridge, and OCR output under `%TEMP%`. Each screenshot
-is deleted after its OCR attempt, and helper/output files are removed when the
-script exits. The helper does not upload screenshots or OCR text.
+the generated PowerShell bridge, and OCR output under `%TEMP%`. Files belonging
+to the current helper run are removed after every successful or failed attempt,
+after `F10` or a timeout, and again when the script exits. The helper does not
+upload screenshots or OCR text.
 
 The solver stores imported data in browser `localStorage` unless you explicitly
 export it or create a share URL.

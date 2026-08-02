@@ -145,7 +145,7 @@ submission key stay in browser `localStorage`. They leave the browser only when
 explicitly exported, encoded into a share URL, manually submitted, or when the
 user has enabled automatic submission. The GitHub credential remains only in
 the intake service and is never sent to the browser. The Windows helper performs
-OCR on the local machine; temporary screenshots and helper output are removed
-after each attempt or when the script exits.
+OCR on the local machine; temporary screenshots, the generated bridge, and OCR
+output are removed after each attempt, abort, or exit.
 
 Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md).
