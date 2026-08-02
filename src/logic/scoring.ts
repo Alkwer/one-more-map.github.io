@@ -21,16 +21,20 @@ const NEIGHBOURS: number[][] = Array.from({ length: 9 }, (_, i) => {
 export interface ScoreBreakdown {
   total: number
   perTile: number[]
-  /** per-stat aggregate multiplier bonus across the board, for the score panel */
+  /** average additive bonus by stat per placed area; 1 represents +100% */
   perStat: Record<Stat, number>
 }
 
 /**
- * Heuristic value model: for each tile and stat, multiply (1 + pct/100) over
- * every effect reaching that tile (own self-mods, neighbours' adjacent-mods,
- * all global mods, border segments touching it). Tile score is the weighted
- * sum of (multiplier − 1); board score is the sum over tiles.
- * Deliberately simple - tune once real numbers are known.
+ * Heuristic value model: collect every effect reaching each placed tile (own
+ * self-mods, neighbours' adjacent-mods, Voyage-wide mods, and touching border
+ * segments). After applicable magnitude and connection scaling, contributions
+ * are summed additively within each reward type and multiplied by the user's
+ * weight. The board score is the sum of those weighted tile scores; perStat is
+ * the unweighted average additive bonus by stat across placed areas.
+ *
+ * This is an application heuristic following the PoE "increased" convention;
+ * the actual in-game stacking rules remain unconfirmed.
  */
 export type AdjacencyMode = 'physical' | 'connected'
 
