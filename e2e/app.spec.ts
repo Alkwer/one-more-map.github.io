@@ -279,7 +279,9 @@ test('globally imports English, Korean, and border clipboard payloads', async ({
   ).toBeVisible()
 
   await pasteText(appPage, REROLL_COST_PAYLOAD)
-  await expect(appPage.getByText('3/5', { exact: true })).toBeVisible()
+  await expect(
+    appPage.getByLabel('Voyage Recommendation').getByText('3/5', { exact: true }),
+  ).toBeVisible()
   await expect(appPage.getByRole('button', { name: 'Decrease rerolls used' })).toBeEnabled()
   await expect
     .poll(() => workerUrls.some((url) => /\/assets\/solver\.worker-[^/]+\.js$/.test(url)))
@@ -354,6 +356,7 @@ test('records only complete border rolls and keeps Voyage sequences distinct', a
   const research = appPage.locator('details.roll-research')
   await research.getByText(/Contribute border-roll data/).click()
   await expect(research.getByRole('button', { name: 'Save current roll' })).toBeDisabled()
+  await research.getByRole('combobox', { name: /Vesper upgrades/ }).selectOption('4')
 
   await pasteText(appPage, COMPLETE_DIVINE_BORDER_PAYLOAD)
   await expect(research.getByLabel('Voyage level')).toHaveCount(0)
@@ -387,9 +390,11 @@ test('records only complete border rolls and keeps Voyage sequences distinct', a
     JSON.parse(localStorage.getItem('allflame-border-roll-research') ?? '{}'),
   )
   expect(stored.samples).toHaveLength(3)
-  expect(stored.version).toBe(3)
+  expect(stored.version).toBe(4)
+  expect(stored.vesperUpgradeCount).toBe(4)
   expect(stored.archivedSequenceIds).toEqual([])
   expect(stored.samples[0]).not.toHaveProperty('voyageLevel')
+  expect(stored.samples[0].vesperUpgradeCount).toBe(4)
   expect(stored.samples[0].rerollIndex).toBe(0)
   expect(stored.samples[1].rerollIndex).toBe(1)
   expect(stored.samples[0].sequenceId).toBe(stored.samples[1].sequenceId)
