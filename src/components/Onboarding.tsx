@@ -1,3 +1,6 @@
+import { useId } from 'react'
+import { useModalDialog } from './ModalDialog'
+
 interface Props {
   onClose: () => void
   onDemo: () => void
@@ -27,10 +30,15 @@ const STEPS: { title: string; body: string }[] = [
 ]
 
 export function Onboarding({ onClose, onDemo }: Props) {
+  const titleId = useId()
+  const { dialogProps } = useModalDialog({ labelledBy: titleId, onClose })
+
   return (
-    <div className="onboard-backdrop" onClick={onClose}>
-      <div className="onboard" onClick={(e) => e.stopPropagation()}>
-        <h2 className="panel-title">Plan your Voyage</h2>
+    <div className="onboard-backdrop" data-modal-root onClick={onClose}>
+      <div {...dialogProps} className="onboard" onClick={(event) => event.stopPropagation()}>
+        <h2 id={titleId} className="panel-title" data-dialog-initial-focus tabIndex={-1}>
+          Plan your Voyage
+        </h2>
         <p className="onboard-intro">
           Build the most valuable 3×3 Voyage from your charted Charts, solved automatically around
           connector shapes, adjacency, and border rolls.

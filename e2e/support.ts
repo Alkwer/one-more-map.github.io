@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { expect, test as base, type Page } from '@playwright/test'
 
-export const ORIGIN = 'http://127.0.0.1:4173'
+export const ORIGIN = `http://127.0.0.1:${process.env.PLAYWRIGHT_PORT ?? 4173}`
 export const APP_PATH = '/allflame-voyage-solver/'
 export const APP_URL = `${ORIGIN}${APP_PATH}`
 

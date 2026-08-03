@@ -17,7 +17,7 @@ export function AppHeader(props: Props) {
       <h1>
         Allflame <span className="accent">Voyage Solver</span>
       </h1>
-      <button className="tutorial-btn" onClick={props.onOpenTutorial}>
+      <button className="tutorial-btn" data-dialog-fallback-focus onClick={props.onOpenTutorial}>
         🧭 TUTORIAL · how to use this
       </button>
       <div className="header-right">

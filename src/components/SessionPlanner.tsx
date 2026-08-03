@@ -1,7 +1,8 @@
-import { useMemo } from 'react'
+import { useId, useMemo } from 'react'
 import { planSession } from '../logic/sessionPlan'
 import type { StrategyReservationPreferences } from '../data/strategies'
 import type { Borders, ChartData } from '../types'
+import { useModalDialog } from './ModalDialog'
 
 interface Props {
   pool: ChartData[]
@@ -21,6 +22,8 @@ export function SessionPlanner({
   onUseStrategy,
   onClose,
 }: Props) {
+  const titleId = useId()
+  const { dialogProps } = useModalDialog({ labelledBy: titleId, onClose })
   const plan = useMemo(
     () => planSession(pool, borders, reservations, pieceKeeps),
     [pool, borders, reservations, pieceKeeps],
@@ -30,10 +33,16 @@ export function SessionPlanner({
   let step = 0
 
   return (
-    <div className="onboard-backdrop" onClick={onClose}>
-      <div className="onboard session-plan" onClick={(e) => e.stopPropagation()}>
+    <div className="onboard-backdrop" data-modal-root onClick={onClose}>
+      <div
+        {...dialogProps}
+        className="onboard session-plan"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="panel-title">
-          Session Plan
+          <h2 id={titleId} className="panel-title-heading" data-dialog-initial-focus tabIndex={-1}>
+            Session Plan
+          </h2>
           <span className="spacer" />
           <button onClick={onClose}>Done</button>
         </div>
@@ -59,6 +68,7 @@ export function SessionPlanner({
                 <span className="plan-note muted">{e.note}</span>
                 <span className="spacer" />
                 <button
+                  aria-label={`Use ${e.name} strategy`}
                   onClick={() => {
                     onUseStrategy(e.strategyId)
                     onClose()

@@ -1,4 +1,5 @@
-import { useLayoutEffect, useState } from 'react'
+import { useId, useLayoutEffect, useState } from 'react'
+import { useModalDialog } from './ModalDialog'
 
 interface Props {
   onClose: () => void
@@ -111,6 +112,8 @@ const RING_PAD = 6
 export function Tutorial({ onClose }: Props) {
   const [step, setStep] = useState(0)
   const [rect, setRect] = useState<DOMRect | null>(null)
+  const titleId = useId()
+  const { dialogProps } = useModalDialog({ labelledBy: titleId, onClose })
   const s = STEPS[step]
   const last = step === STEPS.length - 1
 
@@ -136,11 +139,12 @@ export function Tutorial({ onClose }: Props) {
   const dockTop = !!rect && rect.bottom > window.innerHeight * 0.62
 
   return (
-    <>
+    <div data-modal-root>
       <div className="tut-catcher" onClick={onClose} />
       {rect ? (
         <div
           className="tut-ring"
+          aria-hidden="true"
           style={{
             top: rect.top - RING_PAD,
             left: rect.left - RING_PAD,
@@ -149,13 +153,17 @@ export function Tutorial({ onClose }: Props) {
           }}
         />
       ) : (
-        <div className="tut-dim" />
+        <div className="tut-dim" aria-hidden="true" />
       )}
-      <div className={`onboard tutorial tut-docked ${dockTop ? 'tut-top' : ''}`}>
+      <div {...dialogProps} className={`onboard tutorial tut-docked ${dockTop ? 'tut-top' : ''}`}>
         <div className="panel-title">
-          {s.icon} {s.title}
+          <h2 id={titleId} className="panel-title-heading" data-dialog-initial-focus tabIndex={-1}>
+            {s.icon} {s.title}
+          </h2>
           <span className="spacer" />
-          <button onClick={onClose}>✕</button>
+          <button aria-label="Close tutorial" onClick={onClose}>
+            ✕
+          </button>
         </div>
         <div className="tut-where">📍 {s.where}</div>
         {s.body.map((p, i) => (
@@ -170,6 +178,8 @@ export function Tutorial({ onClose }: Props) {
               className={`tut-dot ${i === step ? 'on' : ''}`}
               onClick={() => setStep(i)}
               title={`${STEPS[i].icon} ${STEPS[i].title}`}
+              aria-label={`Go to tutorial step ${i + 1}: ${STEPS[i].title}`}
+              aria-current={i === step ? 'step' : undefined}
             />
           ))}
         </div>
@@ -194,6 +204,6 @@ export function Tutorial({ onClose }: Props) {
           )}
         </div>
       </div>
-    </>
+    </div>
   )
 }

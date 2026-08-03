@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import {
   CUSTOM_OPTIONS,
   PIECE_TYPES,
@@ -10,6 +10,7 @@ import {
 } from '../logic/pieceKeeps'
 import type { StrategyReservationPreferences } from '../data/strategies'
 import type { ChartData } from '../types'
+import { useModalDialog } from './ModalDialog'
 
 interface Props {
   pool: ChartData[]
@@ -36,6 +37,8 @@ export function SaveWizard({ pool, keeps, reservations, onApply, onClose }: Prop
   const [step, setStep] = useState(0)
   const [draft, setDraft] = useState<Record<string, number>>({ ...keeps })
   const [query, setQuery] = useState('')
+  const titleId = useId()
+  const { dialogProps } = useModalDialog({ labelledBy: titleId, onClose })
 
   const summary = step >= STEPS.length
   const current = summary ? null : STEPS[step]
@@ -85,10 +88,16 @@ export function SaveWizard({ pool, keeps, reservations, onApply, onClose }: Prop
     customsOf(strategyId).reduce((sum, c) => sum + (draft[c.key] ?? 0), 0)
 
   return (
-    <div className="onboard-backdrop" onClick={onClose}>
-      <div className="onboard save-wizard" onClick={(e) => e.stopPropagation()}>
+    <div className="onboard-backdrop" data-modal-root onClick={onClose}>
+      <div
+        {...dialogProps}
+        className="onboard save-wizard"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="panel-title">
-          🔖 Keep charts for strategies
+          <h2 id={titleId} className="panel-title-heading" data-dialog-initial-focus tabIndex={-1}>
+            🔖 Keep charts for strategies
+          </h2>
           <span className="muted sw-progress">
             {summary ? 'summary' : `step ${step + 1} of ${STEPS.length}`}
           </span>

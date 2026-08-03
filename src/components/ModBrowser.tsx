@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { BORDER_MODS, VOYAGE_MODS } from '../data/mods'
 import type { Scope } from '../types'
 import { STAT_SHORT } from '../types'
+import { useModalDialog } from './ModalDialog'
 
 interface Props {
   disabled: Set<string>
@@ -24,6 +25,8 @@ const valueLabel = (effects: { stat: string; percent: number }[]): string | unde
 
 export function ModBrowser({ disabled, onToggle, onBulk, onClose }: Props) {
   const [q, setQ] = useState('')
+  const titleId = useId()
+  const { dialogProps } = useModalDialog({ labelledBy: titleId, onClose })
 
   const groups: Group[] = useMemo(() => {
     const byScope = (scope: Scope) =>
@@ -57,10 +60,16 @@ export function ModBrowser({ disabled, onToggle, onBulk, onClose }: Props) {
   const disabledCount = disabled.size
 
   return (
-    <div className="onboard-backdrop" onClick={onClose}>
-      <div className="onboard modbrowser" onClick={(e) => e.stopPropagation()}>
+    <div className="onboard-backdrop" data-modal-root onClick={onClose}>
+      <div
+        {...dialogProps}
+        className="onboard modbrowser"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="panel-title">
-          <h2 className="panel-title-heading">Chart Modifiers</h2>
+          <h2 id={titleId} className="panel-title-heading" data-dialog-initial-focus tabIndex={-1}>
+            Chart Modifiers
+          </h2>
           <span className="spacer" />
           <button onClick={onClose}>Done</button>
         </div>
