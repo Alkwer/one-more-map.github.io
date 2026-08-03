@@ -140,10 +140,13 @@ to GitHub Pages. The workflow is defined in
 
 ## Local data and privacy
 
-Saved charts, research samples, pending submissions, and the optional limited
-submission key stay in browser `localStorage`. They leave the browser only when
-explicitly exported, manually submitted, or when the user has enabled automatic
-submission. A `Share layout` URL contains only the nine board cells, the charts
+Saved charts, research samples, and pending submissions stay in browser
+`localStorage`. The optional limited submission key is held in memory only and
+must be entered again after a reload; version 1 stored keys are erased during
+migration. The app loads no third-party page scripts, and its Content Security
+Policy allows scripts only from its own origin. Local data leaves the browser
+only when explicitly exported, manually submitted, or when the user has enabled
+automatic submission. A `Share layout` URL contains only the nine board cells, the charts
 placed in them, their rotations, all 12 border slots, and the effective scoring
 settings needed to reproduce the layout. Shared chart data is limited to the
 name, level, area type, connectors, recognized modifier IDs, and numeric reward

@@ -30,8 +30,10 @@ function sample(rerollIndex = 0) {
 }
 
 describe('border roll automatic submission queue', () => {
+  let values: Map<string, string>
+
   beforeEach(() => {
-    const values = new Map<string, string>()
+    values = new Map<string, string>()
     vi.stubGlobal('localStorage', {
       getItem: vi.fn((key: string) => values.get(key) ?? null),
       setItem: vi.fn((key: string, value: string) => values.set(key, value)),
@@ -44,17 +46,17 @@ describe('border roll automatic submission queue', () => {
     )
   })
 
-  it('queues one complete sequence once and persists private settings locally', () => {
+  it('queues one complete sequence once without persisting the private key', () => {
     let store = updateBorderSubmissionSettings(createBorderSubmissionStore(), {
       enabled: true,
       submissionKey: 'private-test-key',
     })
-    store = enqueueBorderRollSequence(store, [sample(0), sample(1)], '2026-08-01T13:00:00.000Z')
-    store = enqueueBorderRollSequence(store, [sample(0), sample(1)], '2026-08-01T13:01:00.000Z')
+    store = enqueueBorderRollSequence(store, [sample(0), sample(1)])
+    store = enqueueBorderRollSequence(store, [sample(0), sample(1)])
     saveBorderSubmissionStore(store)
 
     expect(loadBorderSubmissionStore()).toMatchObject({
-      settings: { enabled: true, submissionKey: 'private-test-key' },
+      settings: { enabled: true, submissionKey: '' },
       queue: [
         {
           sequenceId: 'voyage-auto-test',
@@ -62,6 +64,32 @@ describe('border roll automatic submission queue', () => {
         },
       ],
     })
+    const persisted = values.get('allflame-border-roll-submission')!
+    expect(persisted).not.toContain('private-test-key')
+    expect(persisted).not.toContain('submissionKey')
+    expect(persisted).not.toContain('queuedAt')
+  })
+
+  it('scrubs a previously persisted version 1 key while preserving its outbox', () => {
+    const queued = enqueueBorderRollSequence(createBorderSubmissionStore(), [sample()]).queue
+    values.set(
+      'allflame-border-roll-submission',
+      JSON.stringify({
+        version: 1,
+        settings: { enabled: true, submissionKey: 'rotate-this-key' },
+        queue: queued.map((item) => ({ ...item, queuedAt: '2026-08-01T13:00:00.000Z' })),
+      }),
+    )
+
+    expect(loadBorderSubmissionStore()).toMatchObject({
+      version: 2,
+      settings: { enabled: true, submissionKey: '' },
+      queue: [{ sequenceId: 'voyage-auto-test' }],
+    })
+    const migrated = values.get('allflame-border-roll-submission')!
+    expect(migrated).not.toContain('rotate-this-key')
+    expect(migrated).not.toContain('submissionKey')
+    expect(migrated).not.toContain('queuedAt')
   })
 
   it('rejects incomplete sequences before they enter the queue', () => {

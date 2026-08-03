@@ -97,8 +97,12 @@ through `Show archived`, can be restored, and are still included in a dataset
 export. A failed submission is never archived automatically.
 
 The public GitHub Pages application sends the dataset to a separate Codex Sites
-endpoint. The browser holds only a revocable submission key whose sole purpose
-is authorising valid border-roll payloads. The GitHub credential is a server
+endpoint. The browser holds the revocable submission key in React memory only;
+it is never written to local or session storage and must be re-entered after a
+reload. The durable outbox contains only the exact anonymous v2 dataset sent to
+the intake service plus its sequence ID; it contains no credential or queue
+timestamp. The page loads no third-party analytics script, and its CSP restricts
+scripts to the application's own origin. The GitHub credential is a server
 secret scoped to issue access for `Alkwer/one-more-map.github.io`; it is never
 embedded in the application. The endpoint:
 
@@ -114,6 +118,15 @@ embedded in the application. The endpoint:
 
 The intake database stores only the digest, sequence ID, processing status, and
 resulting issue number/URL. It does not retain the submitted JSON or OCR output.
+
+### Key rotation
+
+Version 2 of the browser outbox automatically rewrites valid version 1 data on
+load, removing any previously persisted submission key before the application
+renders. Operators should revoke or replace the old intake key in the service,
+distribute the replacement only to authorised contributors, and ask them to
+enter it again for the current tab. Rotating the key does not discard queued
+datasets; after a replacement is entered, the existing outbox retries normally.
 
 ## Canonical dataset
 
