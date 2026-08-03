@@ -133,6 +133,7 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
           disabledMods: [...state.disabledMods],
           topK: 5,
           strategyRules: activeStrategy?.rules,
+          strategyRequirements: activeStrategy?.requirements,
           strategyLayout: activeStrategy?.layout,
           strategyLayoutPenalty: activeStrategy?.layoutPenalty,
           locked,
@@ -156,6 +157,10 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
           )
         if (solvePool.length < 9)
           notes.push(`Only ${solvePool.length} spare charts - not enough for a full board.`)
+        else if (activeStrategy?.requirements?.length && response.length === 0)
+          notes.push(
+            'No board can satisfy every mandatory strategy piece in its allowed position with the available and locked charts.',
+          )
         else if (response.length && !response[0].valid)
           notes.push('No fully reachable layout from these charts - best partial shown.')
         setNoteState({ key: requestKey, text: notes.join(' ') })

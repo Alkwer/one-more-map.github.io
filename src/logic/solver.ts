@@ -7,11 +7,17 @@ import type {
   Placement,
   Weights,
 } from '../types'
-import { borderTouches } from '../types'
 import type { PositionRule } from '../data/strategies'
 import { isChartShapeResolved } from './chartShapes'
 import { analyzeConnectivity, rotateEdges, type ConnectivityResult } from './connectivity'
 import { prepareScoreTotal, scoreBoard, type ScoreOptions } from './scoring'
+import {
+  assignStrategyRequirementsToCells,
+  boardSatisfiesStrategyRequirements,
+  chartMatchesStrategyMatcher,
+  resolveStrategyPositionCells,
+  type StrategyRequirement,
+} from './strategyRequirements'
 
 export interface SolverOptions extends ScoreOptions {
   mode: ConnectivityMode
@@ -22,6 +28,8 @@ export interface SolverOptions extends ScoreOptions {
   minimizeReward?: boolean
   /** active strategy position rules - bonuses that shape where charts land */
   strategyRules?: PositionRule[]
+  /** mandatory strategy pieces and their allowed cells */
+  strategyRequirements?: StrategyRequirement[]
   /** exact connector layout the strategy wants (effective edges per cell) */
   strategyLayout?: Edges[]
   /** cells pinned by the user; locked charts stay exactly where they are */
@@ -62,39 +70,14 @@ function layoutMisses(board: Board, charts: Map<string, ChartData>, layout: Edge
   return misses
 }
 
-const CELL_NEIGHBOURS: number[][] = Array.from({ length: 9 }, (_, i) => {
-  const r = Math.floor(i / 3)
-  const c = i % 3
-  const out: number[] = []
-  if (r > 0) out.push(i - 3)
-  if (r < 2) out.push(i + 3)
-  if (c > 0) out.push(i - 1)
-  if (c < 2) out.push(i + 1)
-  return out
-})
-
 /** the cells a rule targets - static, or resolved from the rolled borders */
 function resolveRuleCells(rule: PositionRule, borders: Borders): number[] {
-  if (rule.cells) return rule.cells
-  if (rule.nearBorderId) {
-    const tiles: number[] = []
-    borders.forEach((id, seg) => {
-      if (id === rule.nearBorderId) tiles.push(borderTouches(seg))
-    })
-    if (!rule.adjacentToBorder) return [...new Set(tiles)]
-    const out = new Set<number>()
-    for (const t of tiles) for (const n of CELL_NEIGHBOURS[t]) out.add(n)
-    return [...out]
-  }
-  return []
+  return resolveStrategyPositionCells(rule, borders) ?? []
 }
 
 /** does this chart satisfy the rule's mod/name matcher? */
 function chartMatchesRule(chart: ChartData, rule: PositionRule): boolean {
-  if (rule.modIds && chart.modIds.some((id) => rule.modIds!.includes(id))) return true
-  if (rule.nameMatch && chart.name.toLowerCase().includes(rule.nameMatch.toLowerCase())) return true
-  if (rule.areaTypes && chart.areaType && rule.areaTypes.includes(chart.areaType)) return true
-  return false
+  return chartMatchesStrategyMatcher(chart, rule)
 }
 
 /** objective bonus from strategy position rules for this arrangement */
@@ -210,13 +193,25 @@ export function solve(
   const eligiblePool = opts.mode === 'strict' ? pool.filter(isChartShapeResolved) : pool
   const charts = new Map(eligiblePool.map((c) => [c.uid, c]))
   if (eligiblePool.length === 0) return []
+  const requirements = opts.strategyRequirements ?? []
+  const requirementsSatisfied =
+    requirements.length === 0
+      ? () => true
+      : (board: Board) => boardSatisfiesStrategyRequirements(requirements, board, charts, borders)
   const locked: (Placement | null)[] =
     opts.locked && opts.locked.length === 9 ? opts.locked : Array(9).fill(null)
+  if (
+    requirements.length > 0 &&
+    !assignStrategyRequirementsToCells(requirements, eligiblePool, borders, locked)
+  ) {
+    return []
+  }
 
   const CAP = Math.max(opts.topK * 4, 20)
   let top: SolverResult[] = []
   const seen = new Set<string>()
   const record = (board: Board) => {
+    if (!requirementsSatisfied(board)) return
     const { score, valid, launchable, fullyReachable, reward } = evaluate(
       board,
       borders,
@@ -243,7 +238,7 @@ export function solve(
   if (eligiblePool.length <= 9 && !opts.allowRotation && !opts.forceHeuristic) {
     exactSearch(eligiblePool, locked, record)
   } else {
-    hillClimb(eligiblePool, borders, charts, weights, opts, locked, record)
+    hillClimb(eligiblePool, borders, charts, weights, opts, locked, requirementsSatisfied, record)
   }
 
   return top.slice(0, opts.topK)
@@ -289,11 +284,16 @@ function hillClimb(
   weights: Weights,
   opts: SolverOptions,
   locked: (Placement | null)[],
+  requirementsSatisfied: (board: Board) => boolean,
   record: (b: Board) => void,
 ) {
   // strategies need more exploration: seeded restarts vary piece rotations,
   // and the climb has to reshape the board around the lucky combinations
-  const hasStrategy = !!(opts.strategyRules || opts.strategyLayout)
+  const hasStrategy = !!(
+    opts.strategyRules ||
+    opts.strategyLayout ||
+    opts.strategyRequirements?.length
+  )
   const RESTARTS = opts.searchRestarts ?? (hasStrategy ? 60 : 40)
   const ITERS = opts.searchIterations ?? (hasStrategy ? 5000 : 4000)
   const rotMax = opts.allowRotation ? 4 : 1
@@ -326,6 +326,26 @@ function hillClimb(
       ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
     }
     const board: Board = locked.map((placement) => (placement ? { ...placement } : null))
+
+    if (opts.strategyRequirements?.length) {
+      const requiredPlacements = assignStrategyRequirementsToCells(
+        opts.strategyRequirements,
+        shuffled,
+        borders,
+        locked,
+      )
+      if (!requiredPlacements) continue
+      for (const placement of requiredPlacements) {
+        if (board[placement.cell]) continue
+        const chart = charts.get(placement.chartUid)!
+        const target = opts.strategyLayout?.[placement.cell]
+        const shapedRotation = target ? rotationFor(chart.edges, target, rotMax) : null
+        board[placement.cell] = {
+          chartUid: chart.uid,
+          rotation: shapedRotation ?? Math.floor(random() * rotMax),
+        }
+      }
+    }
 
     // strategy-seeded restarts (every other one): pre-place matching charts on
     // their target cells so rare shapes/pieces aren't left to random luck
@@ -386,6 +406,7 @@ function hillClimb(
       board[i] = { chartUid: remaining[ri++].uid, rotation: Math.floor(random() * rotMax) }
     }
     const unused = remaining.slice(ri)
+    if (!requirementsSatisfied(board)) continue
     let score = evalScore(board)
 
     for (let it = 0; it < ITERS; it++) {
@@ -434,6 +455,10 @@ function hillClimb(
         continue
       }
 
+      if (!requirementsSatisfied(board)) {
+        undo()
+        continue
+      }
       const newScore = evalScore(board)
       if (newScore >= score) {
         score = newScore
