@@ -2,17 +2,25 @@ import type { Board } from '../types'
 
 export const BOARD_FILL_ORDER = [6, 7, 8, 3, 4, 5, 0, 1, 2] as const
 
+export interface CopySequenceEntry {
+  cell: number
+  chartUid: string
+}
+
 export interface CopySequenceState {
-  order: number[]
+  order: CopySequenceEntry[]
   step: number
 }
 
 export function startCopySequence(board: Board): CopySequenceState | null {
-  const order = BOARD_FILL_ORDER.filter((cell) => board[cell])
+  const order = BOARD_FILL_ORDER.flatMap((cell) => {
+    const placement = board[cell]
+    return placement ? [{ cell, chartUid: placement.chartUid }] : []
+  })
   return order.length > 0 ? { order, step: 0 } : null
 }
 
-export function currentCopyCell(sequence: CopySequenceState): number {
+export function currentCopyEntry(sequence: CopySequenceState): CopySequenceEntry {
   return sequence.order[sequence.step]
 }
 

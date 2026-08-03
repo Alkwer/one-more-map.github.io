@@ -1,5 +1,5 @@
 import { voyageModById } from '../../data/mods'
-import { currentCopyCell, type CopySequenceState } from '../../state/copySequence'
+import { currentCopyEntry, type CopySequenceState } from '../../state/copySequence'
 import type { Board, ChartData } from '../../types'
 import type { PreserveConfirmation } from '../../hooks/useVoyageWorkflows'
 
@@ -18,15 +18,23 @@ interface CopySequenceProps {
 }
 
 export function CopySequencePrompt(props: CopySequenceProps) {
-  const chart = props.chartMap.get(props.board[currentCopyCell(props.sequence)]!.chartUid)
+  const entry = currentCopyEntry(props.sequence)
+  const chart = props.chartMap.get(entry.chartUid)
+  const stillPlaced = props.board.some((placement) => placement?.chartUid === entry.chartUid)
 
   return (
     <div className="preserve-confirm copyseq">
       <div className="pc-head">
-        Place into game in this order (its square is glowing). Copy pastes an in-game search string;
-        Ctrl+Left-click the chart it finds. They fill bottom-left first. Step{' '}
-        {props.sequence.step + 1} of {props.sequence.order.length}.
+        Place into game in the original bottom-left-first order. Copy pastes an in-game search
+        string; Ctrl+Left-click the chart it finds. Step {props.sequence.step + 1} of{' '}
+        {props.sequence.order.length}.
       </div>
+      {!stillPlaced && chart && (
+        <div className="pc-sub" role="status">
+          The board changed. Continuing the original chart sequence; its square is no longer
+          highlighted.
+        </div>
+      )}
       {chart && (
         <>
           <div className="pc-name">{chart.name}</div>
@@ -35,6 +43,12 @@ export function CopySequencePrompt(props: CopySequenceProps) {
             {chart.shape ? ` · Shape: ${chart.shape}` : ''}
           </div>
         </>
+      )}
+      {!chart && (
+        <div className="pc-sub" role="alert">
+          This chart is no longer in the library. The sequence will stop so you can review the board
+          and start again.
+        </div>
       )}
       <div className="copyseq-actions">
         <button className="copyseq-go" onClick={props.onAdvance}>
