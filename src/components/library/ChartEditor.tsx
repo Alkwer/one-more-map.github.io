@@ -6,6 +6,8 @@ import {
   isChartShapeResolved,
 } from '../../logic/chartShapes'
 import type { ChartData, Edges } from '../../types'
+import { STAT_LABELS } from '../../types'
+import { updateImportedReward } from './chartEditorRewards'
 
 interface Props {
   chart: ChartData
@@ -29,6 +31,12 @@ export function ChartEditor({ chart, onUpdate }: Props) {
   }
   const shapeResolved = isChartShapeResolved(chart)
   const selectedShape = shapeResolved ? (chartShapeForEdges(chart.edges) ?? chart.shape ?? '') : ''
+  const isSelf = (id: string) => voyageModById.get(id)?.scope === 'self'
+  const selfIds = chart.modIds.filter(isSelf)
+  const implicitId = chart.modIds.find((id) => !isSelf(id)) ?? ''
+  const commitMods = (self0: string, self1: string, implicit: string) =>
+    onUpdate({ ...chart, modIds: [self0, self1, implicit].filter(Boolean) })
+  const selfPool = VOYAGE_MODS.filter((modifier) => modifier.scope === 'self')
 
   return (
     <div className="chart-editor" onClick={(event) => event.stopPropagation()}>
@@ -51,15 +59,39 @@ export function ChartEditor({ chart, onUpdate }: Props) {
           }
         />
       </div>
-      {(() => {
-        const isSelf = (id: string) => voyageModById.get(id)?.scope === 'self'
-        const selfIds = chart.modIds.filter(isSelf)
-        const implicitId = chart.modIds.find((id) => !isSelf(id)) ?? ''
-        const commit = (self0: string, self1: string, implicit: string) =>
-          onUpdate({ ...chart, modIds: [self0, self1, implicit].filter(Boolean) })
-        const selfPool = VOYAGE_MODS.filter((modifier) => modifier.scope === 'self')
-        return (
-          <>
+      {chart.rewards?.length ? (
+        <fieldset className="imported-reward-editor">
+          <legend>Imported area rewards</legend>
+          <p className="muted">
+            Header values used directly by ranking and the solver. Editing a value overrides the
+            imported amount.
+          </p>
+          <div className="imported-reward-grid">
+            {chart.rewards.map((reward, index) => (
+              <label key={`${reward.stat}-${index}`}>
+                <span>{STAT_LABELS[reward.stat]}</span>
+                <span className="reward-percent-input">
+                  <input
+                    type="number"
+                    aria-label={`Imported ${STAT_LABELS[reward.stat]} reward`}
+                    value={reward.percent}
+                    onChange={(event) =>
+                      onUpdate(
+                        updateImportedReward(chart, index, Number(event.target.value || '0')),
+                      )
+                    }
+                  />
+                  %
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      ) : (
+        <fieldset className="manual-mod-editor">
+          <legend>Manual area modifiers</legend>
+          <p className="muted">Inferred values used when no imported header rewards exist.</p>
+          <div className="manual-mod-grid">
             {[0, 1].map((slot) => (
               <select
                 key={slot}
@@ -68,7 +100,7 @@ export function ChartEditor({ chart, onUpdate }: Props) {
                 onChange={(event) => {
                   const next = [selfIds[0] ?? '', selfIds[1] ?? '']
                   next[slot] = event.target.value
-                  commit(next[0], next[1], implicitId)
+                  commitMods(next[0], next[1], implicitId)
                 }}
               >
                 <option value="">area mod {slot + 1}: none</option>
@@ -79,30 +111,30 @@ export function ChartEditor({ chart, onUpdate }: Props) {
                 ))}
               </select>
             ))}
-            <select
-              aria-label="Implicit modifier"
-              value={implicitId}
-              onChange={(event) => commit(selfIds[0] ?? '', selfIds[1] ?? '', event.target.value)}
-            >
-              <option value="">implicit: none</option>
-              <optgroup label="Adjacent">
-                {VOYAGE_MODS.filter((modifier) => modifier.scope === 'adjacent').map((modifier) => (
-                  <option key={modifier.id} value={modifier.id}>
-                    {modifier.text}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="Voyage-wide">
-                {VOYAGE_MODS.filter((modifier) => modifier.scope === 'global').map((modifier) => (
-                  <option key={modifier.id} value={modifier.id}>
-                    {modifier.text}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
-          </>
-        )
-      })()}
+          </div>
+        </fieldset>
+      )}
+      <select
+        aria-label="Implicit modifier"
+        value={implicitId}
+        onChange={(event) => commitMods(selfIds[0] ?? '', selfIds[1] ?? '', event.target.value)}
+      >
+        <option value="">implicit: none</option>
+        <optgroup label="Adjacent">
+          {VOYAGE_MODS.filter((modifier) => modifier.scope === 'adjacent').map((modifier) => (
+            <option key={modifier.id} value={modifier.id}>
+              {modifier.text}
+            </option>
+          ))}
+        </optgroup>
+        <optgroup label="Voyage-wide">
+          {VOYAGE_MODS.filter((modifier) => modifier.scope === 'global').map((modifier) => (
+            <option key={modifier.id} value={modifier.id}>
+              {modifier.text}
+            </option>
+          ))}
+        </optgroup>
+      </select>
       <div className={`shape-confirmation ${shapeResolved ? '' : 'unresolved'}`}>
         {!shapeResolved && (
           <div className="shape-warning">
