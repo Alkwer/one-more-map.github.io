@@ -29,13 +29,17 @@ import { useVoyageWorkflows } from './hooks/useVoyageWorkflows'
 import { generateDemoCharts } from './logic/demo'
 import { LATEST_UPDATE_DATE } from './data/updates'
 import { clampRerollsUsed } from './logic/rerollAdvice'
-import { decodeShare, type ShareDecodeResult } from './logic/share'
+import { decodeShare, mergeSharedLayout, type ShareDecodeResult } from './logic/share'
 import { defaultState, loadLocal, saveLocal, type AppState } from './logic/storage'
 import { appStateReducer } from './state/appStateReducer'
 import type { ChartData } from './types'
 
 type ShareSession =
-  | { kind: 'valid'; format: Extract<ShareDecodeResult, { ok: true }>['format'] }
+  | {
+      kind: 'valid'
+      format: Extract<ShareDecodeResult, { ok: true }>['format']
+      mergeError?: string
+    }
   | { kind: 'invalid'; message: string }
 
 interface InitialStateResult {
@@ -116,6 +120,18 @@ export default function App() {
     setShareSession(null)
     clearShareHash()
   }
+  const mergeSharedState = () => {
+    const result = mergeSharedLayout(loadLocal() ?? defaultState(), state)
+    if (!result.ok) {
+      setShareSession((session) =>
+        session?.kind === 'valid' ? { ...session, mergeError: result.message } : session,
+      )
+      return
+    }
+    dispatch({ type: 'replace', state: result.state })
+    setShareSession(null)
+    clearShareHash()
+  }
 
   const patch = (patchState: Partial<AppState>) => dispatch({ type: 'patch', patch: patchState })
   const addCharts = (charts: ChartData[]) => dispatch({ type: 'charts/add', charts })
@@ -144,18 +160,31 @@ export default function App() {
           className={`share-banner ${shareSession.kind === 'invalid' ? 'error' : ''}`}
           role={shareSession.kind === 'invalid' ? 'alert' : 'status'}
         >
-          <span>
-            {shareSession.kind === 'invalid'
-              ? `This shared layout could not be opened: ${shareSession.message}. Your saved state was left unchanged.`
-              : shareSession.format === 'legacy-v3'
-                ? 'Viewing a legacy shared state. Your saved state has not been changed.'
-                : 'Viewing a shared layout. Your saved state has not been changed.'}
-          </span>
-          <button onClick={shareSession.kind === 'valid' ? adoptSharedState : openSavedState}>
-            {shareSession.kind === 'valid'
-              ? 'Replace my saved state with this layout'
-              : 'Open my saved state'}
-          </button>
+          <div className="share-banner-copy">
+            <span>
+              {shareSession.kind === 'invalid'
+                ? `This shared layout could not be opened: ${shareSession.message}. Your saved state was left unchanged.`
+                : shareSession.format === 'legacy-v3'
+                  ? 'Viewing a legacy shared state. Your saved state has not been changed.'
+                  : 'Viewing a shared layout. Your saved state has not been changed.'}
+            </span>
+            {shareSession.kind === 'valid' && shareSession.mergeError && (
+              <span className="share-merge-error" role="alert">
+                {shareSession.mergeError}
+              </span>
+            )}
+          </div>
+          <div className="share-banner-actions">
+            <button onClick={openSavedState}>
+              {shareSession.kind === 'valid' ? 'Discard shared layout' : 'Open my saved state'}
+            </button>
+            {shareSession.kind === 'valid' && (
+              <>
+                <button onClick={mergeSharedState}>Merge with my library</button>
+                <button onClick={adoptSharedState}>Replace my saved state</button>
+              </>
+            )}
+          </div>
         </div>
       )}
       {chrome.showOnboarding && (
