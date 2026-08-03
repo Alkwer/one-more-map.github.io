@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { voyageModById } from '../../data/mods'
 import { voyageRewardKey } from '../../logic/rewards'
 import type { ChartData, Weights } from '../../types'
-import { selectVisibleCharts, type LibrarySortMode } from './libraryView'
+import { loadLibraryViewMode, selectVisibleCharts, type LibrarySortMode } from './libraryView'
 
 const chart = (uid: string, name: string, overrides: Partial<ChartData> = {}): ChartData => ({
   uid,
@@ -24,6 +24,33 @@ const select = (
 ) => selectVisibleCharts({ pool, query, sort, weights, disabledMods })
 
 describe('chart library view', () => {
+  it.each([
+    ['grid', 'grid'],
+    ['list', 'list'],
+    ['table', 'grid'],
+    [null, 'grid'],
+  ] as const)('loads stored view %s as %s', (stored, expected) => {
+    vi.stubGlobal('localStorage', { getItem: vi.fn(() => stored) })
+    try {
+      expect(loadLibraryViewMode()).toBe(expected)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('defaults to grid when storage access is blocked', () => {
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn(() => {
+        throw new Error('blocked')
+      }),
+    })
+    try {
+      expect(loadLibraryViewMode()).toBe('grid')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('filters case-insensitively by chart name or known modifier text', () => {
     const pool = [
       chart('reef', 'Armoured Coral Reef'),

@@ -6,6 +6,7 @@ import type { Board, ChartData, Weights } from '../types'
 import { ChartGrid } from './library/ChartGrid'
 import { ChartList } from './library/ChartList'
 import {
+  loadLibraryViewMode,
   selectVisibleCharts,
   type LibrarySortMode,
   type LibraryViewMode,
@@ -31,9 +32,7 @@ export function Library(props: Props) {
   const [editing, setEditing] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<LibrarySortMode>('value')
-  const [view, setView] = useState<LibraryViewMode>(
-    () => (localStorage.getItem('library-view') as LibraryViewMode) || 'grid',
-  )
+  const [view, setView] = useState<LibraryViewMode>(loadLibraryViewMode)
   const setViewPersist = (nextView: LibraryViewMode) => {
     setView(nextView)
     try {

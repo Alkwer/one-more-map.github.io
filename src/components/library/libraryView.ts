@@ -5,6 +5,15 @@ import type { ChartData, Weights } from '../../types'
 export type LibrarySortMode = 'value' | 'level' | 'name'
 export type LibraryViewMode = 'grid' | 'list'
 
+export function loadLibraryViewMode(): LibraryViewMode {
+  try {
+    const stored = globalThis.localStorage.getItem('library-view')
+    return stored === 'grid' || stored === 'list' ? stored : 'grid'
+  } catch {
+    return 'grid'
+  }
+}
+
 interface SelectVisibleChartsOptions {
   pool: ChartData[]
   query: string
