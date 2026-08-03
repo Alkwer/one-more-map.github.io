@@ -8,6 +8,7 @@ import {
 import type {
   Board,
   Borders,
+  ChartAreaType,
   ChartData,
   ChartShape,
   ConnectivityMode,
@@ -61,6 +62,23 @@ const LS_KEY = 'allflame-voyage-solver'
 /** bump only when chart/board data (mod ids) changes incompatibly */
 export const STATE_VERSION = 3 // v3: full datamined mod pools
 
+/** Resource budgets for state supplied through JSON files, URL hashes, or storage. */
+export const MAX_STATE_JSON_CHARS = 2 * 1024 * 1024
+export const MAX_STATE_FILE_BYTES = 2 * 1024 * 1024
+export const MAX_POOL_CHARTS = 250
+export const MAX_CHART_UID_LENGTH = 128
+export const MAX_CHART_NAME_LENGTH = 256
+export const MAX_IMPLICIT_TEXT_LENGTH = 4 * 1024
+export const MAX_RAW_TEXT_LENGTH = 32 * 1024
+export const MAX_SHAPE_INPUT_LENGTH = 256
+export const MAX_MOD_IDS_PER_CHART = 64
+export const MAX_REWARDS_PER_CHART = 64
+export const MAX_DISABLED_MODS = 256
+export const MAX_PIECE_KEEPS = 256
+export const MAX_PIECE_KEEP_KEY_LENGTH = 512
+const MAX_ID_LENGTH = 128
+const MAX_WEIGHT_KEYS = 128
+
 type UnknownRecord = Record<string, unknown>
 
 export type StateDecodeErrorCode = 'invalid' | 'incompatible'
@@ -82,6 +100,23 @@ const knownModifierIds = new Set([...voyageModById.keys(), ...borderModById.keys
 const knownStats = new Set<Stat>(ALL_STATS)
 const knownShapes = new Set<ChartShape>(CHART_SHAPES)
 const knownWeightKeys = new Set(Object.keys(DEFAULT_WEIGHTS))
+const knownAreaTypes = new Set<ChartAreaType>([
+  'anchorfield',
+  'brine-kings-domain',
+  'clam-infested-shelf',
+  'diving-shoals',
+  'eldritch-depths',
+  'hazardous-depths',
+  'infested-bathyspheres',
+  'lost-ruins',
+  'abyssal-plain',
+  'pelagic-abyss',
+  'seafloor-ridges',
+  'sea-pillars',
+  'sunken-totems',
+  'undersea-groves',
+  'kisharas-rest',
+])
 
 const isRecord = (value: unknown): value is UnknownRecord =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -101,11 +136,23 @@ function optionalBoolean(object: UnknownRecord, key: string, fallback: boolean):
   return value
 }
 
-function optionalString(object: UnknownRecord, key: string, path: string): string | undefined {
+function boundedString(value: unknown, path: string, maxLength: number, allowEmpty = true): string {
+  if (typeof value !== 'string' || (!allowEmpty && value.trim() === '')) {
+    fail(`${path} must be ${allowEmpty ? 'a string' : 'a non-empty string'}`)
+  }
+  if (value.length > maxLength) fail(`${path} must be at most ${maxLength} characters`)
+  return value
+}
+
+function optionalBoundedString(
+  object: UnknownRecord,
+  key: string,
+  path: string,
+  maxLength: number,
+): string | undefined {
   const value = object[key]
   if (value === undefined) return undefined
-  if (typeof value !== 'string') fail(`${path}.${key} must be a string`)
-  return value
+  return boundedString(value, `${path}.${key}`, maxLength)
 }
 
 function decodeVersion(object: UnknownRecord): number | null {
@@ -123,6 +170,9 @@ function decodeVersion(object: UnknownRecord): number | null {
 function decodeRewards(value: unknown, path: string): ModEffect[] | undefined {
   if (value === undefined) return undefined
   if (!Array.isArray(value)) fail(`${path} must be an array`)
+  if (value.length > MAX_REWARDS_PER_CHART) {
+    fail(`${path} must contain at most ${MAX_REWARDS_PER_CHART} entries`)
+  }
   return value.map((rawEffect, index) => {
     const effectPath = `${path}[${index}]`
     if (!isRecord(rawEffect)) fail(`${effectPath} must be an object`)
@@ -142,10 +192,8 @@ function decodeRewards(value: unknown, path: string): ModEffect[] | undefined {
 function decodeChart(value: unknown, index: number, warnings: string[]): ChartData {
   const path = `pool[${index}]`
   if (!isRecord(value)) fail(`${path} must be an object`)
-  if (typeof value.uid !== 'string' || value.uid.trim() === '') {
-    fail(`${path}.uid must be a non-empty string`)
-  }
-  if (typeof value.name !== 'string') fail(`${path}.name must be a string`)
+  const uid = boundedString(value.uid, `${path}.uid`, MAX_CHART_UID_LENGTH, false)
+  const name = boundedString(value.name, `${path}.name`, MAX_CHART_NAME_LENGTH)
   if (typeof value.level !== 'number' || !Number.isFinite(value.level)) {
     fail(`${path}.level must be a finite number`)
   }
@@ -156,9 +204,16 @@ function decodeChart(value: unknown, index: number, warnings: string[]): ChartDa
   ) {
     fail(`${path}.edges must contain exactly four booleans`)
   }
-  if (!Array.isArray(value.modIds) || value.modIds.some((id) => typeof id !== 'string')) {
+  if (!Array.isArray(value.modIds)) fail(`${path}.modIds must be an array of strings`)
+  if (value.modIds.length > MAX_MOD_IDS_PER_CHART) {
+    fail(`${path}.modIds must contain at most ${MAX_MOD_IDS_PER_CHART} entries`)
+  }
+  if (value.modIds.some((id) => typeof id !== 'string')) {
     fail(`${path}.modIds must be an array of strings`)
   }
+  value.modIds.forEach((id, modIndex) => {
+    boundedString(id, `${path}.modIds[${modIndex}]`, MAX_ID_LENGTH)
+  })
 
   const edges = [...value.edges] as Edges
   const inferredShape = chartShapeForEdges(edges)
@@ -196,22 +251,27 @@ function decodeChart(value: unknown, index: number, warnings: string[]): ChartDa
   }
 
   const chart: ChartData = {
-    uid: value.uid,
-    name: value.name,
+    uid,
+    name,
     level,
     edges,
     modIds,
   }
 
-  const implicitText = optionalString(value, 'implicitText', path)
-  const shapeInput = optionalString(value, 'shapeInput', path)
-  const rawText = optionalString(value, 'rawText', path)
+  const areaType = optionalBoundedString(value, 'areaType', path, MAX_ID_LENGTH)
+  if (areaType !== undefined && !knownAreaTypes.has(areaType as ChartAreaType)) {
+    fail(`${path}.areaType is not supported`)
+  }
+  const implicitText = optionalBoundedString(value, 'implicitText', path, MAX_IMPLICIT_TEXT_LENGTH)
+  const shapeInput = optionalBoundedString(value, 'shapeInput', path, MAX_SHAPE_INPUT_LENGTH)
+  const rawText = optionalBoundedString(value, 'rawText', path, MAX_RAW_TEXT_LENGTH)
   const rewards = decodeRewards(value.rewards, `${path}.rewards`)
   const preserved = value.preserved
   if (preserved !== undefined && typeof preserved !== 'boolean') {
     fail(`${path}.preserved must be a boolean`)
   }
 
+  if (areaType !== undefined) chart.areaType = areaType as ChartAreaType
   if (implicitText !== undefined) chart.implicitText = implicitText
   if (rewards !== undefined) chart.rewards = rewards
   if (rawShapeResolved === false) {
@@ -234,6 +294,9 @@ function decodeChart(value: unknown, index: number, warnings: string[]): ChartDa
 function decodePool(value: unknown, warnings: string[]): ChartData[] {
   if (value === undefined) return []
   if (!Array.isArray(value)) fail('pool must be an array')
+  if (value.length > MAX_POOL_CHARTS) {
+    fail(`pool must contain at most ${MAX_POOL_CHARTS} charts`)
+  }
   const seenUids = new Set<string>()
   return value.map((rawChart, index) => {
     const chart = decodeChart(rawChart, index, warnings)
@@ -256,9 +319,12 @@ function decodeBoard(value: unknown, pool: ChartData[], warnings: string[]): Boa
     const path = `board[${index}]`
     if (rawPlacement === null) return null
     if (!isRecord(rawPlacement)) fail(`${path} must be an object or null`)
-    if (typeof rawPlacement.chartUid !== 'string' || rawPlacement.chartUid.trim() === '') {
-      fail(`${path}.chartUid must be a non-empty string`)
-    }
+    const chartUid = boundedString(
+      rawPlacement.chartUid,
+      `${path}.chartUid`,
+      MAX_CHART_UID_LENGTH,
+      false,
+    )
     if (
       typeof rawPlacement.rotation !== 'number' ||
       !Number.isInteger(rawPlacement.rotation) ||
@@ -267,16 +333,16 @@ function decodeBoard(value: unknown, pool: ChartData[], warnings: string[]): Boa
     ) {
       fail(`${path}.rotation must be an integer from 0 to 3`)
     }
-    if (!resolvedUids.has(rawPlacement.chartUid)) {
+    if (!resolvedUids.has(chartUid)) {
       warnings.push(`${path} removed an unknown or unresolved chart reference`)
       return null
     }
-    if (placedUids.has(rawPlacement.chartUid)) {
-      fail(`${path} places chart "${rawPlacement.chartUid}" more than once`)
+    if (placedUids.has(chartUid)) {
+      fail(`${path} places chart "${chartUid}" more than once`)
     }
-    placedUids.add(rawPlacement.chartUid)
+    placedUids.add(chartUid)
     return {
-      chartUid: rawPlacement.chartUid,
+      chartUid,
       rotation: rawPlacement.rotation,
     }
   }) as Board
@@ -292,6 +358,7 @@ function decodeBorders(value: unknown, warnings: string[]): Borders {
     if (typeof border !== 'string') {
       fail(`borders[${index}] must be a string or null`)
     }
+    boundedString(border, `borders[${index}]`, MAX_ID_LENGTH)
     if (!borderModById.has(border)) {
       warnings.push(`borders[${index}] removed unknown id "${border}"`)
       return null
@@ -304,8 +371,12 @@ function decodeWeights(value: unknown, warnings: string[]): Weights {
   const weights = { ...DEFAULT_WEIGHTS }
   if (value === undefined) return weights
   if (!isRecord(value)) fail('weights must be an object')
+  if (Object.keys(value).length > MAX_WEIGHT_KEYS) {
+    fail(`weights must contain at most ${MAX_WEIGHT_KEYS} entries`)
+  }
 
   for (const [key, rawWeight] of Object.entries(value)) {
+    boundedString(key, 'weights key', MAX_ID_LENGTH)
     if (!knownWeightKeys.has(key)) {
       warnings.push(`weights removed unknown key "${key}"`)
       continue
@@ -324,11 +395,16 @@ function decodeWeights(value: unknown, warnings: string[]): Weights {
 
 function decodeDisabledMods(value: unknown, warnings: string[]): string[] {
   if (value === undefined) return []
-  if (!Array.isArray(value) || value.some((id) => typeof id !== 'string')) {
+  if (!Array.isArray(value)) fail('disabledMods must be an array of strings')
+  if (value.length > MAX_DISABLED_MODS) {
+    fail(`disabledMods must contain at most ${MAX_DISABLED_MODS} entries`)
+  }
+  if (value.some((id) => typeof id !== 'string')) {
     fail('disabledMods must be an array of strings')
   }
   const disabled = new Set<string>()
-  for (const id of value) {
+  for (const [index, id] of value.entries()) {
+    boundedString(id, `disabledMods[${index}]`, MAX_ID_LENGTH)
     if (typeof id !== 'string' || disabled.has(id)) continue
     if (!knownModifierIds.has(id)) {
       warnings.push(`disabledMods removed unknown id "${id}"`)
@@ -341,12 +417,12 @@ function decodeDisabledMods(value: unknown, warnings: string[]): string[] {
 
 function decodeStrategyId(value: unknown, warnings: string[]): string | null {
   if (value === undefined || value === null) return null
-  if (typeof value !== 'string') fail('strategyId must be a string or null')
-  if (!strategyById.has(value)) {
-    warnings.push(`strategyId removed unknown id "${value}"`)
+  const strategyId = boundedString(value, 'strategyId', MAX_ID_LENGTH)
+  if (!strategyById.has(strategyId)) {
+    warnings.push(`strategyId removed unknown id "${strategyId}"`)
     return null
   }
-  return value
+  return strategyId
 }
 
 function decodeStrategyReservations(value: unknown): StrategyReservationPreferences {
@@ -404,9 +480,13 @@ function decodeRerolls(value: unknown, warnings: string[]): number {
 function decodePieceKeeps(value: unknown, warnings: string[]): Record<string, number> {
   if (value === undefined) return {}
   if (!isRecord(value)) fail('pieceKeeps must be an object')
+  if (Object.keys(value).length > MAX_PIECE_KEEPS) {
+    fail(`pieceKeeps must contain at most ${MAX_PIECE_KEEPS} entries`)
+  }
 
   const decoded: Record<string, number> = {}
   for (const [key, count] of Object.entries(value)) {
+    boundedString(key, 'pieceKeeps key', MAX_PIECE_KEEP_KEY_LENGTH, false)
     if (typeof count !== 'number' || !Number.isFinite(count)) {
       warnings.push(`pieceKeeps.${key} was ignored because it is not a finite number`)
       continue
@@ -473,22 +553,6 @@ export function loadLocal(): AppState | null {
 
 export function serializeState(state: AppState, space?: number): string {
   return JSON.stringify({ ...state, v: STATE_VERSION }, null, space)
-}
-
-/** Share state via URL hash (base64 JSON). */
-export function encodeShare(state: AppState): string {
-  const json = serializeState(state)
-  return btoa(unescape(encodeURIComponent(json)))
-}
-
-export function decodeShare(hash: string): AppState | null {
-  try {
-    const json = decodeURIComponent(escape(atob(hash)))
-    const decoded = decodeStateJson(json)
-    return decoded.ok ? decoded.state : null
-  } catch {
-    return null
-  }
 }
 
 export function decodeState(value: unknown): StateDecodeResult {
@@ -560,6 +624,13 @@ export function decodeState(value: unknown): StateDecodeResult {
 }
 
 export function decodeStateJson(json: string): StateDecodeResult {
+  if (json.length > MAX_STATE_JSON_CHARS) {
+    return {
+      ok: false,
+      code: 'invalid',
+      message: `state JSON exceeds the ${MAX_STATE_JSON_CHARS}-character limit`,
+    }
+  }
   try {
     return decodeState(JSON.parse(json))
   } catch {
@@ -569,4 +640,17 @@ export function decodeStateJson(json: string): StateDecodeResult {
       message: 'file does not contain valid JSON',
     }
   }
+}
+
+export async function decodeStateFile(
+  file: Pick<File, 'size' | 'text'>,
+): Promise<StateDecodeResult> {
+  if (file.size > MAX_STATE_FILE_BYTES) {
+    return {
+      ok: false,
+      code: 'invalid',
+      message: 'file exceeds the 2 MiB size limit',
+    }
+  }
+  return decodeStateJson(await file.text())
 }

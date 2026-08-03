@@ -142,10 +142,31 @@ to GitHub Pages. The workflow is defined in
 
 Saved charts, research samples, pending submissions, and the optional limited
 submission key stay in browser `localStorage`. They leave the browser only when
-explicitly exported, encoded into a share URL, manually submitted, or when the
-user has enabled automatic submission. The GitHub credential remains only in
-the intake service and is never sent to the browser. The Windows helper performs
-OCR on the local machine; temporary screenshots, the generated bridge, and OCR
-output are removed after each attempt, abort, or exit.
+explicitly exported, manually submitted, or when the user has enabled automatic
+submission. A `Share layout` URL contains only the nine board cells, the charts
+placed in them, their rotations, all 12 border slots, and the effective scoring
+settings needed to reproduce the layout. Shared chart data is limited to the
+name, level, area type, connectors, recognized modifier IDs, and numeric reward
+rolls. It excludes unplaced library charts, original clipboard text, verbatim
+implicit text, preservation flags, strategy reservations, keep counts, reroll
+history, and other local preferences. Opening a share link uses an isolated
+session and does not overwrite the recipient's saved state unless they explicitly
+choose to replace it.
+
+Externally supplied state is resource-bounded: new layout hashes are limited to
+16 KiB, legacy v3 hashes to 256 KiB, JSON files to 2 MiB, and full libraries to
+250 charts. Chart IDs are limited to 128 characters, names to 256, implicit text
+to 4 KiB, original item text to 32 KiB, and connector-shape input to 256
+characters. Each chart accepts at most 64 modifier IDs and 64 numeric rewards;
+disabled-modifier lists and keep-count maps accept at most 256 entries. Normal
+legacy v3 share links remain readable within the transitional hash limit and are
+re-encoded in the minimal layout format when shared again. Layout payloads use
+unpadded Base64URL over bounded UTF-8 JSON; compression is intentionally omitted
+to keep decoding portable and avoid a separate decompression resource budget.
+
+The GitHub credential remains only in the intake service and is never sent to
+the browser. The Windows helper performs OCR on the local machine; temporary
+screenshots, the generated bridge, and OCR output are removed after each
+attempt, abort, or exit.
 
 Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md).

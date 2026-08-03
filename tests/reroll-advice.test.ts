@@ -7,7 +7,7 @@ import {
   REROLL_COSTS,
   sulphurSpentAfter,
 } from '../src/logic/rerollAdvice'
-import { decodeShare } from '../src/logic/storage'
+import { decodeShare } from '../src/logic/share'
 
 describe('reroll advice regressions', () => {
   it('keeps the cost curve, thresholds, and clamping', () => {
@@ -24,7 +24,9 @@ describe('reroll advice regressions', () => {
     // Older shared states did not have the counter; malformed/newer values are
     // safely revived into the supported range.
     const encode = (value: unknown) => Buffer.from(JSON.stringify(value), 'utf8').toString('base64')
-    assert.equal(decodeShare(encode({}))?.borderRerollsUsed, 0)
-    assert.equal(decodeShare(encode({ borderRerollsUsed: 99 }))?.borderRerollsUsed, 5)
+    const missing = decodeShare(encode({}))
+    const excessive = decodeShare(encode({ borderRerollsUsed: 99 }))
+    assert.equal(missing.ok && missing.state.borderRerollsUsed, 0)
+    assert.equal(excessive.ok && excessive.state.borderRerollsUsed, 5)
   })
 })

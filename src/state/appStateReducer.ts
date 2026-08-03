@@ -1,6 +1,7 @@
 import type { ChartData, Board } from '../types'
 import { emptyBoard } from '../types'
 import type { AppState } from '../logic/storage'
+import { MAX_POOL_CHARTS } from '../logic/storage'
 
 export type AppStateAction =
   | { type: 'replace'; state: AppState }
@@ -55,8 +56,11 @@ export function appStateReducer(state: AppState, action: AppStateAction): AppSta
       }
       return { ...state, disabledMods: [...disabledMods] }
     }
-    case 'charts/add':
-      return { ...state, pool: [...state.pool, ...action.charts] }
+    case 'charts/add': {
+      const available = Math.max(0, MAX_POOL_CHARTS - state.pool.length)
+      if (available === 0) return state
+      return { ...state, pool: [...state.pool, ...action.charts.slice(0, available)] }
+    }
     case 'charts/remove':
       return {
         ...state,

@@ -5,7 +5,7 @@ import { generateDemoCharts } from '../logic/demo'
 import { applyBorderOcrSnapshot, parseBorderOcrPayload } from '../logic/borderOcr'
 import { isChartClipboardText, parseChartText } from '../logic/parser'
 import type { AppState } from '../logic/storage'
-import { decodeStateJson, defaultState, serializeState } from '../logic/storage'
+import { decodeStateFile, defaultState, MAX_POOL_CHARTS, serializeState } from '../logic/storage'
 import type { BorderRollResearchController } from '../hooks/useBorderRollResearch'
 import type { ChartData } from '../types'
 
@@ -35,6 +35,10 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
       const parts: string[] = []
       if (charts.length === 0 && rejected.length === 0 && !hasOcrPayload) {
         setMsg('No items recognised. Is this Ctrl+C item text?')
+        return
+      }
+      if (state.pool.length + charts.length > MAX_POOL_CHARTS) {
+        setMsg(`Import would exceed the ${MAX_POOL_CHARTS}-chart library limit`)
         return
       }
 
@@ -169,7 +173,7 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
 
   const importJson = async (file: File) => {
     try {
-      const decoded = decodeStateJson(await file.text())
+      const decoded = await decodeStateFile(file)
       if (!decoded.ok) {
         setMsg(`Invalid or incompatible state file: ${decoded.message}`)
         return

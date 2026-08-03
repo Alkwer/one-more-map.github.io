@@ -713,7 +713,7 @@ test('cancels a stale solve, completes in the worker, and applies a result', asy
   await expect(secondCell).toHaveAttribute('data-chart-name', firstChartName!)
 })
 
-test('round-trips JSON, reports invalid files, and reloads a share link', async ({
+test('round-trips JSON and isolates minimal shared layouts from saved state', async ({
   appPage,
   context,
 }) => {
@@ -745,18 +745,52 @@ test('round-trips JSON, reports invalid files, and reloads a share link', async 
   await expect(appPage.getByText('State loaded from JSON', { exact: true })).toBeVisible()
   await expect(libraryHeading(appPage)).toContainText('(1)')
 
+  await appPage
+    .getByRole('button', { name: 'Select Armoured Coral Reef Chart of Ice for placement' })
+    .click()
+  await appPage.getByRole('button', { name: 'Board cell 7, row 3, column 1, start: empty' }).click()
+  await expect(
+    appPage.getByRole('button', {
+      name: /Board cell 7, row 3, column 1, start: Armoured Coral Reef Chart of Ice; occupied/,
+    }),
+  ).toBeVisible()
+  await appPage.waitForTimeout(400)
+  const savedState = await appPage.evaluate(() => localStorage.getItem('allflame-voyage-solver'))
+  expect(savedState).not.toBeNull()
+
   const shareButton = appPage.getByRole('button', { name: 'Share layout' })
   await shareButton.click()
   await expect(shareButton).toContainText('Link copied!')
   const shareUrl = await appPage.evaluate(() => navigator.clipboard.readText())
-  expect(shareUrl).toContain(`${ORIGIN}${APP_PATH}#`)
+  expect(shareUrl).toContain(`${ORIGIN}${APP_PATH}#layout.v1.`)
 
-  await appPage.evaluate(() => localStorage.removeItem('allflame-voyage-solver'))
   await appPage.goto(shareUrl)
+  await appPage.reload()
+  await expect(
+    appPage.getByText('Viewing a shared layout. Your saved state has not been changed.'),
+  ).toBeVisible()
   await expect(libraryHeading(appPage)).toContainText('(1)')
   await expect(
     appPage.getByRole('button', {
       name: 'Select Armoured Coral Reef Chart of Ice for placement',
     }),
   ).toBeVisible()
+  await appPage.waitForTimeout(400)
+  expect(await appPage.evaluate(() => localStorage.getItem('allflame-voyage-solver'))).toBe(
+    savedState,
+  )
+
+  await appPage.goto(`${ORIGIN}${APP_PATH}#layout.v1.not*base64`)
+  await appPage.reload()
+  await expect(
+    appPage.getByRole('alert').filter({ hasText: 'This shared layout could not be opened' }),
+  ).toBeVisible()
+  await expect(libraryHeading(appPage)).toContainText('(0)')
+  expect(await appPage.evaluate(() => localStorage.getItem('allflame-voyage-solver'))).toBe(
+    savedState,
+  )
+
+  await appPage.getByRole('button', { name: 'Open my saved state' }).click()
+  await expect(libraryHeading(appPage)).toContainText('(1)')
+  await expect(appPage).not.toHaveURL(/#/)
 })
