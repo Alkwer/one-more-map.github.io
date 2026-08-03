@@ -1,4 +1,6 @@
+import { useId } from 'react'
 import { UPDATES } from '../data/updates'
+import { useModalDialog } from './ModalDialog'
 
 interface Props {
   onClose: () => void
@@ -6,11 +8,20 @@ interface Props {
 
 /** Overlay listing NEW / REWORKED site updates (no bug fixes) - newest first. */
 export function UpdatesLog({ onClose }: Props) {
+  const titleId = useId()
+  const { dialogProps } = useModalDialog({ labelledBy: titleId, onClose })
+
   return (
-    <div className="onboard-backdrop" onClick={onClose}>
-      <div className="onboard updates-log" onClick={(e) => e.stopPropagation()}>
+    <div className="onboard-backdrop" data-modal-root onClick={onClose}>
+      <div
+        {...dialogProps}
+        className="onboard updates-log"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="panel-title">
-          Updates
+          <h2 id={titleId} className="panel-title-heading" data-dialog-initial-focus tabIndex={-1}>
+            Updates
+          </h2>
           <span className="spacer" />
           <button onClick={onClose}>Done</button>
         </div>

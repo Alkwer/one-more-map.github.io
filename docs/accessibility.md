@@ -10,6 +10,13 @@ The primary Voyage workflow is designed to work without a mouse.
 - Open a border picker with `Enter` or `Space`. Focus moves to its search field.
 - Press `Escape` anywhere in the border picker to close it and return focus to its border slot.
 - Selecting a border modifier also closes the picker and returns focus to its border slot.
+- Onboarding, modifier browser, updates, tutorial, keeper wizard, and session planner open as named
+  modal dialogs. Focus moves to the dialog heading so its structure can be read before its controls.
+- `Tab` and `Shift+Tab` stay inside the active dialog. The rest of the application is inert until the
+  dialog closes.
+- `Escape`, the visible close action, and a backdrop click close these dialogs and return focus to
+  the exact control that opened them. The automatically shown first-run onboarding dialog instead
+  returns focus to the first logical header action because it has no invoking control.
 
 Board-cell names expose the cell number, row, column, start state, occupancy, chart name, rotation,
 selection, and preservation state. The visual layout remains a 3×3 board surrounded by 12 border
@@ -23,7 +30,9 @@ Run the production-style Chromium suite:
 npm run test:e2e
 ```
 
-The suite runs axe against the primary screen and the open border dialog, then exercises placement,
+The suite runs axe against the primary screen, the open border dialog, and every modal workflow. It
+checks initial focus, forward and reverse focus trapping, Escape dismissal, backdrop and visible
+close actions, background inertness, and trigger-focus restoration. It also exercises placement,
 preservation, rotation, removal, swapping, picker dismissal, and picker focus restoration with the
 keyboard.
 
@@ -37,8 +46,17 @@ the pull request. The minimum walkthrough is:
 2. Import a chart and complete place, preserve, rotate, swap, and remove operations.
 3. Open a border picker, confirm its dialog name and search-field focus, close it with `Escape`, and
    confirm focus returns to the trigger.
-4. Trigger an import result and a solver result and confirm each is announced once.
-5. Repeat focus checks in both Allflame and Harvest themes.
+4. Open each modal workflow and confirm its dialog name and heading are announced. Traverse the
+   controls in both directions, including the tutorial steps and keeper-count controls, and confirm
+   focus never reaches the dimmed page.
+5. Close each modal with `Escape`, its visible close action, and the backdrop. Confirm focus returns
+   to the invoking control; for automatic first-run onboarding, confirm it moves to the first header
+   action.
+6. In Session Plan, confirm every `Use` button announces the strategy it activates. In Tutorial,
+   confirm the close button and each step selector have descriptive names and the current step is
+   conveyed.
+7. Trigger an import result and a solver result and confirm each is announced once.
+8. Repeat focus checks in both Allflame and Harvest themes.
 
 Current verification record (2026-07-31): Windows Narrator with Chromium, covering the primary
 heading and landmark outline, board-cell names and states, the named border dialog and search field,

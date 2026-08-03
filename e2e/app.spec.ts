@@ -1,5 +1,6 @@
 import { Buffer } from 'node:buffer'
 import AxeBuilder from '@axe-core/playwright'
+import type { Locator } from '@playwright/test'
 import {
   APP_PATH,
   COMPLETE_DIVINE_BORDER_PAYLOAD,
@@ -39,6 +40,31 @@ async function expectNoAccessibilityViolations(page: AppPage) {
   ).toEqual([])
 }
 
+async function expectAccessibleModal(page: AppPage, trigger: Locator, dialogName: string | RegExp) {
+  await trigger.focus()
+  await expect(trigger).toBeFocused()
+  await trigger.click()
+
+  const dialog = page.getByRole('dialog', { name: dialogName })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.locator('[data-dialog-initial-focus]')).toBeFocused()
+  await expect(page.locator('main')).toHaveJSProperty('inert', true)
+  await expectNoAccessibilityViolations(page)
+
+  const focusable = dialog.locator(
+    'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+  )
+  await page.keyboard.press('Shift+Tab')
+  await expect(focusable.last()).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(focusable.first()).toBeFocused()
+
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  await expect(trigger).toBeFocused()
+  await expect(page.locator('main')).toHaveJSProperty('inert', false)
+}
+
 test('exposes the primary screen structure and visible focus in both themes', async ({
   appPage,
 }) => {
@@ -62,6 +88,65 @@ test('exposes the primary screen structure and visible focus in both themes', as
   await expect(themeButton).toHaveCSS('outline-color', 'rgb(0, 0, 0)')
   await expect(themeButton).toHaveCSS('outline-width', '3px')
   await expect(themeButton).toHaveCSS('box-shadow', /rgb\(255, 255, 255\)/)
+})
+
+test('keeps every modal workflow labelled, contained, dismissible, and focus-safe', async ({
+  appPage,
+}) => {
+  await openApp(appPage)
+  await pasteText(appPage, ENGLISH_CHART)
+
+  await expectAccessibleModal(
+    appPage,
+    appPage.getByRole('button', { name: 'Open how it works guide' }),
+    'Plan your Voyage',
+  )
+  await expectAccessibleModal(
+    appPage,
+    appPage.getByRole('button', { name: 'Mods' }),
+    'Chart Modifiers',
+  )
+  await expectAccessibleModal(appPage, appPage.getByRole('button', { name: 'Updates' }), 'Updates')
+  await expectAccessibleModal(
+    appPage,
+    appPage.getByRole('button', { name: /TUTORIAL/ }),
+    /What this site does/,
+  )
+  await expectAccessibleModal(
+    appPage,
+    appPage.getByRole('button', { name: /Save charts for strategies/ }),
+    /Keep charts for strategies/,
+  )
+  await expectAccessibleModal(
+    appPage,
+    appPage.getByRole('button', { name: '📋 Plan' }),
+    'Session Plan',
+  )
+
+  const updatesTrigger = appPage.getByRole('button', { name: 'Updates' })
+  await updatesTrigger.click()
+  await appPage.locator('.onboard-backdrop').click({ position: { x: 2, y: 2 } })
+  await expect(updatesTrigger).toBeFocused()
+
+  await updatesTrigger.click()
+  await appPage
+    .getByRole('dialog', { name: 'Updates' })
+    .getByRole('button', { name: 'Done' })
+    .click()
+  await expect(updatesTrigger).toBeFocused()
+})
+
+test('moves focus from automatic first-run onboarding to the first header action', async ({
+  appPage,
+}) => {
+  await appPage.addInitScript(() => localStorage.removeItem('onboarding-seen'))
+  await openApp(appPage)
+
+  const onboarding = appPage.getByRole('dialog', { name: 'Plan your Voyage' })
+  await expect(onboarding.locator('[data-dialog-initial-focus]')).toBeFocused()
+  await appPage.keyboard.press('Escape')
+  await expect(onboarding).toHaveCount(0)
+  await expect(appPage.getByRole('button', { name: /TUTORIAL/ })).toBeFocused()
 })
 
 test('lets low-investment strategies persist independent chart protections', async ({
@@ -544,7 +629,7 @@ test('follows the tutorial from solving through result selection to copying', as
   }
   await expect(tutorial).toContainText('Nothing is applied automatically.')
   await expect(appPage.locator('.tut-ring')).toBeVisible()
-  await tutorial.getByRole('button', { name: '✕' }).click()
+  await tutorial.getByRole('button', { name: 'Close tutorial' }).click()
 
   const boardCells = appPage.locator('.tile-select')
   const occupiedCellCount = () =>

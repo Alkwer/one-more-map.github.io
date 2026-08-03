@@ -43,6 +43,7 @@
   --gold-bright: #e7d7ab;
   --text: #b8b1a2; /* parchment grey */
   --muted: #7d7466;
+  --muted-readable: #8f8678;
   --accent2: #6ba3c8; /* deep-sea blue */
   --good: #96b876;
   --bad: #c95a49;
@@ -3239,9 +3240,11 @@ textarea {
 }
 .update-date {
   font-size: 11.5px;
+  color: var(--muted-readable);
 }
 .update-detail {
   margin-top: 4px;
   font-size: 13px;
   line-height: 1.45;
+  color: var(--muted-readable);
 }
