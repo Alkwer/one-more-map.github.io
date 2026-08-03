@@ -14,6 +14,7 @@ const normalizedChart = (chart: ChartData, includePreserved: boolean) => ({
   uid: chart.uid,
   name: chart.name.toLowerCase(),
   edges: chart.edges,
+  areaType: chart.areaType ?? null,
   modIds: [...chart.modIds].sort(),
   rewards: normalizedRewards(chart),
   ...(includePreserved ? { preserved: !!chart.preserved } : {}),

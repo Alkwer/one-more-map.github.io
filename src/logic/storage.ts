@@ -1,4 +1,5 @@
 import type { AdjacencyMode } from './scoring'
+import { CHART_AREAS } from '../data/chartAreas'
 import { borderModById, voyageModById } from '../data/mods'
 import {
   defaultStrategyReservations,
@@ -100,23 +101,7 @@ const knownModifierIds = new Set([...voyageModById.keys(), ...borderModById.keys
 const knownStats = new Set<Stat>(ALL_STATS)
 const knownShapes = new Set<ChartShape>(CHART_SHAPES)
 const knownWeightKeys = new Set(Object.keys(DEFAULT_WEIGHTS))
-const knownAreaTypes = new Set<ChartAreaType>([
-  'anchorfield',
-  'brine-kings-domain',
-  'clam-infested-shelf',
-  'diving-shoals',
-  'eldritch-depths',
-  'hazardous-depths',
-  'infested-bathyspheres',
-  'lost-ruins',
-  'abyssal-plain',
-  'pelagic-abyss',
-  'seafloor-ridges',
-  'sea-pillars',
-  'sunken-totems',
-  'undersea-groves',
-  'kisharas-rest',
-])
+const knownAreaTypes = new Set<ChartAreaType>(CHART_AREAS.map(({ id }) => id))
 
 const isRecord = (value: unknown): value is UnknownRecord =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
