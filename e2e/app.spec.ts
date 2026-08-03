@@ -65,6 +65,26 @@ async function expectAccessibleModal(page: AppPage, trigger: Locator, dialogName
   await expect(page.locator('main')).toHaveJSProperty('inert', false)
 }
 
+test('stays usable when browser storage access is blocked', async ({ appPage }) => {
+  await appPage.addInitScript(() => {
+    for (const method of ['getItem', 'setItem'] as const) {
+      Object.defineProperty(Storage.prototype, method, {
+        configurable: true,
+        value() {
+          throw new DOMException('blocked', 'SecurityError')
+        },
+      })
+    }
+  })
+
+  await openApp(appPage)
+  await expect(appPage.locator('.app')).toBeVisible()
+  await appPage.getByRole('button', { name: '+ Add chart', exact: true }).click()
+  await expect(libraryHeading(appPage)).toContainText('(1)')
+  await appPage.getByRole('button', { name: 'Switch to list view' }).click()
+  await expect(appPage.getByRole('button', { name: 'Switch to grid view' })).toBeVisible()
+})
+
 test('exposes the primary screen structure and visible focus in both themes', async ({
   appPage,
 }) => {
