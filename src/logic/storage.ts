@@ -59,7 +59,8 @@ export const defaultState = (): AppState => ({
   borderRerollsUsed: 0,
 })
 
-const LS_KEY = 'allflame-voyage-solver'
+export const LOCAL_STATE_KEY = 'allflame-voyage-solver'
+export const LOCAL_STATE_BACKUP_PREFIX = `${LOCAL_STATE_KEY}-recovery`
 /** bump only when chart/board data (mod ids) changes incompatibly */
 export const STATE_VERSION = 3 // v3: full datamined mod pools
 
@@ -87,6 +88,19 @@ export type StateDecodeErrorCode = 'invalid' | 'incompatible'
 export type StateDecodeResult =
   | { ok: true; state: AppState; warnings: string[] }
   | { ok: false; code: StateDecodeErrorCode; message: string }
+
+export interface LocalStateRecovery {
+  status: 'recovery'
+  raw: string
+  backupKey: string | null
+  code: StateDecodeErrorCode | 'migration'
+  message: string
+  warnings: string[]
+  proposedState?: AppState
+}
+
+export type LocalStateLoadResult =
+  { status: 'empty' } | { status: 'ready'; state: AppState } | LocalStateRecovery
 
 class StateDecodeError extends Error {
   constructor(
@@ -519,21 +533,95 @@ function decodePieceKeeps(value: unknown, warnings: string[]): Record<string, nu
 
 export function saveLocal(state: AppState) {
   try {
-    localStorage.setItem(LS_KEY, serializeState(state))
+    localStorage.setItem(LOCAL_STATE_KEY, serializeState(state))
   } catch {
     /* storage full / unavailable - ignore */
   }
 }
 
-export function loadLocal(): AppState | null {
+function recoveryBackupKey(raw: string): string {
+  let hash = 2166136261
+  for (let index = 0; index < raw.length; index += 1) {
+    hash = Math.imul(hash ^ raw.charCodeAt(index), 16777619)
+  }
+  return `${LOCAL_STATE_BACKUP_PREFIX}-${raw.length}-${(hash >>> 0).toString(16)}`
+}
+
+/** Preserve the exact original payload without touching the active storage key. */
+export function quarantineLocalState(raw: string): string | null {
   try {
-    const raw = localStorage.getItem(LS_KEY)
-    if (!raw) return null
-    const decoded = decodeStateJson(raw)
-    return decoded.ok ? decoded.state : null
+    const baseKey = recoveryBackupKey(raw)
+    for (let suffix = 0; suffix < 100; suffix += 1) {
+      const backupKey = suffix === 0 ? baseKey : `${baseKey}-${suffix}`
+      const existing = localStorage.getItem(backupKey)
+      if (existing === raw) return backupKey
+      if (existing === null) {
+        localStorage.setItem(backupKey, raw)
+        return localStorage.getItem(backupKey) === raw ? backupKey : null
+      }
+    }
+    return null
   } catch {
     return null
   }
+}
+
+export function loadLocalState(): LocalStateLoadResult {
+  try {
+    const raw = localStorage.getItem(LOCAL_STATE_KEY)
+    if (!raw) return { status: 'empty' }
+    const decoded = decodeStateJson(raw)
+    if (!decoded.ok) {
+      return {
+        status: 'recovery',
+        raw,
+        backupKey: quarantineLocalState(raw),
+        code: decoded.code,
+        message: decoded.message,
+        warnings: [],
+      }
+    }
+
+    const parsed = JSON.parse(raw) as UnknownRecord
+    const needsMigration = parsed.v !== STATE_VERSION || decoded.warnings.length > 0
+    if (needsMigration) {
+      return {
+        status: 'recovery',
+        raw,
+        backupKey: quarantineLocalState(raw),
+        code: 'migration',
+        message:
+          decoded.warnings[0] ??
+          `saved state version ${String(parsed.v ?? 'unversioned')} requires migration`,
+        warnings: decoded.warnings,
+        proposedState: decoded.state,
+      }
+    }
+    return { status: 'ready', state: decoded.state }
+  } catch {
+    try {
+      const raw = localStorage.getItem(LOCAL_STATE_KEY)
+      if (raw) {
+        return {
+          status: 'recovery',
+          raw,
+          backupKey: quarantineLocalState(raw),
+          code: 'invalid',
+          message: 'saved state could not be read',
+          warnings: [],
+        }
+      }
+    } catch {
+      /* storage itself is unavailable */
+    }
+    return { status: 'empty' }
+  }
+}
+
+/** Compatibility helper for non-interactive callers. Recovery is never treated as empty state. */
+export function loadLocal(): AppState | null {
+  const result = loadLocalState()
+  return result.status === 'ready' ? result.state : null
 }
 
 export function serializeState(state: AppState, space?: number): string {

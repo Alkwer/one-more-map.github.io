@@ -9,6 +9,9 @@ import {
   decodeStateJson,
   defaultState,
   loadLocal,
+  loadLocalState,
+  LOCAL_STATE_BACKUP_PREFIX,
+  LOCAL_STATE_KEY,
   MAX_CHART_NAME_LENGTH,
   MAX_MOD_IDS_PER_CHART,
   MAX_POOL_CHARTS,
@@ -44,6 +47,15 @@ function decoded(value: unknown) {
   const result = decodeState(value)
   if (!result.ok) throw new Error(result.message)
   return result
+}
+
+function stubStoredState(raw: string) {
+  const values = new Map<string, string>([[LOCAL_STATE_KEY, raw]])
+  vi.stubGlobal('localStorage', {
+    getItem: vi.fn((key: string) => values.get(key) ?? null),
+    setItem: vi.fn((key: string, value: string) => values.set(key, value)),
+  })
+  return values
 }
 
 afterEach(() => {
@@ -477,5 +489,61 @@ describe('state decoding', () => {
       message: 'file exceeds the 2 MiB size limit',
     })
     expect(oversizedText).not.toHaveBeenCalled()
+  })
+})
+
+describe('local saved-state recovery', () => {
+  it('quarantines a newer-version payload without overwriting it during a downgrade', () => {
+    const raw = JSON.stringify(persisted({ v: STATE_VERSION + 1, pool: [chart()] }))
+    const values = stubStoredState(raw)
+
+    const result = loadLocalState()
+
+    expect(result).toMatchObject({
+      status: 'recovery',
+      code: 'incompatible',
+      raw,
+    })
+    expect(values.get(LOCAL_STATE_KEY)).toBe(raw)
+    expect(result.status === 'recovery' && result.backupKey).toMatch(
+      new RegExp(`^${LOCAL_STATE_BACKUP_PREFIX}`),
+    )
+    if (result.status === 'recovery' && result.backupKey) {
+      expect(values.get(result.backupKey)).toBe(raw)
+    }
+  })
+
+  it('quarantines a partially corrupt current payload and leaves autosave resolution to the UI', () => {
+    const raw = JSON.stringify(persisted({ pool: [chart({ edges: [true] as never })] }))
+    const values = stubStoredState(raw)
+
+    const result = loadLocalState()
+
+    expect(result).toMatchObject({
+      status: 'recovery',
+      code: 'invalid',
+      message: 'pool[0].edges must contain exactly four booleans',
+    })
+    expect(values.get(LOCAL_STATE_KEY)).toBe(raw)
+    if (result.status === 'recovery' && result.backupKey) {
+      expect(values.get(result.backupKey)).toBe(raw)
+    }
+  })
+
+  it('backs up an older payload before offering its destructive migration', () => {
+    const raw = JSON.stringify(persisted({ v: STATE_VERSION - 1, pool: [chart()] }))
+    const values = stubStoredState(raw)
+
+    const result = loadLocalState()
+
+    expect(result).toMatchObject({
+      status: 'recovery',
+      code: 'migration',
+      proposedState: { pool: [] },
+    })
+    expect(values.get(LOCAL_STATE_KEY)).toBe(raw)
+    if (result.status === 'recovery' && result.backupKey) {
+      expect(values.get(result.backupKey)).toBe(raw)
+    }
   })
 })

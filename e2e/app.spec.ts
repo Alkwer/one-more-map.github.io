@@ -1003,3 +1003,45 @@ test('requires an explicit adopt, merge, or discard decision for shared layouts'
     }),
   ).toEqual(['Armoured Coral Reef Chart of Ice'])
 })
+
+test('pauses autosave and preserves a newer saved state until explicit reset', async ({
+  appPage,
+}) => {
+  const raw = JSON.stringify({ v: 999, pool: [{ valuable: 'future chart data' }] })
+  await appPage.addInitScript((payload) => {
+    if (sessionStorage.getItem('recovery-test-seeded')) return
+    localStorage.setItem('allflame-voyage-solver', payload)
+    sessionStorage.setItem('recovery-test-seeded', '1')
+  }, raw)
+  await openApp(appPage)
+  expect(await appPage.evaluate(() => localStorage.getItem('allflame-voyage-solver'))).toBe(raw)
+
+  const recovery = appPage.getByRole('alertdialog', { name: 'Saved state needs recovery' })
+  await expect(recovery).toBeVisible()
+  await expect(recovery.getByRole('button', { name: 'Export original JSON' })).toBeVisible()
+  await expect(recovery.getByRole('button', { name: 'Retry decode' })).toBeVisible()
+  await expect(recovery.getByRole('button', { name: 'Reset saved state…' })).toBeVisible()
+
+  await appPage.waitForTimeout(500)
+  const preserved = await appPage.evaluate(() => {
+    const active = localStorage.getItem('allflame-voyage-solver')
+    const backups = Object.keys(localStorage)
+      .filter((key) => key.startsWith('allflame-voyage-solver-recovery-'))
+      .map((key) => localStorage.getItem(key))
+    return { active, backups }
+  })
+  expect(preserved.active).toBe(raw)
+  expect(preserved.backups).toContain(raw)
+
+  appPage.once('dialog', (dialog) => dialog.accept())
+  await recovery.getByRole('button', { name: 'Reset saved state…' }).click()
+  await expect(recovery).toHaveCount(0)
+  const reset = await appPage.evaluate(() => ({
+    active: JSON.parse(localStorage.getItem('allflame-voyage-solver')!),
+    backups: Object.keys(localStorage)
+      .filter((key) => key.startsWith('allflame-voyage-solver-recovery-'))
+      .map((key) => localStorage.getItem(key)),
+  }))
+  expect(reset.active.v).toBe(3)
+  expect(reset.backups).toContain(raw)
+})

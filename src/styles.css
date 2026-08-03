@@ -393,6 +393,43 @@ button.primary:hover {
 .copyseq-actions .pc-lost {
   flex: 0 0 auto;
 }
+
+.saved-state-recovery-backdrop {
+  z-index: 1000;
+}
+.saved-state-recovery {
+  width: min(620px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+}
+.saved-state-recovery h2 {
+  margin-top: 0;
+}
+.saved-state-recovery-warnings {
+  max-height: 150px;
+  overflow: auto;
+  color: var(--muted);
+}
+.recovery-backup-ok,
+.recovery-backup-error {
+  padding: 8px 10px;
+  border: 1px solid var(--border-hi);
+  overflow-wrap: anywhere;
+}
+.recovery-backup-error {
+  color: #e4a29c;
+  border-color: #925d50;
+}
+.saved-state-recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.saved-state-recovery-actions .danger {
+  color: #f0b0aa;
+  border-color: #925d50;
+}
 .copyseq-manual {
   display: grid;
   gap: 7px;

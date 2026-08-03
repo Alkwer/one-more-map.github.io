@@ -7,6 +7,7 @@ import { ModBrowser } from './components/ModBrowser'
 import { Onboarding } from './components/Onboarding'
 import { SolverPanel } from './components/SolverPanel'
 import { SaveWizard } from './components/SaveWizard'
+import { SavedStateRecovery } from './components/SavedStateRecovery'
 import { SessionPlanner } from './components/SessionPlanner'
 import { Tutorial } from './components/Tutorial'
 import { UpdatesLog } from './components/UpdatesLog'
@@ -30,7 +31,13 @@ import { generateDemoCharts } from './logic/demo'
 import { LATEST_UPDATE_DATE } from './data/updates'
 import { clampRerollsUsed } from './logic/rerollAdvice'
 import { decodeShare, mergeSharedLayout, type ShareDecodeResult } from './logic/share'
-import { defaultState, loadLocal, saveLocal, type AppState } from './logic/storage'
+import {
+  defaultState,
+  loadLocalState,
+  saveLocal,
+  type AppState,
+  type LocalStateRecovery,
+} from './logic/storage'
 import { appStateReducer } from './state/appStateReducer'
 import type { ChartData } from './types'
 
@@ -45,9 +52,12 @@ type ShareSession =
 interface InitialStateResult {
   state: AppState
   shareSession: ShareSession | null
+  recovery: LocalStateRecovery | null
 }
 
 function initialState(): InitialStateResult {
+  const saved = loadLocalState()
+  const recovery = saved.status === 'recovery' ? saved : null
   const hash = window.location.hash.replace(/^#/, '')
   if (hash.length > 0) {
     const shared = decodeShare(hash)
@@ -55,20 +65,27 @@ function initialState(): InitialStateResult {
       return {
         state: shared.state,
         shareSession: { kind: 'valid', format: shared.format },
+        recovery,
       }
     }
     return {
       state: defaultState(),
       shareSession: { kind: 'invalid', message: shared.message },
+      recovery,
     }
   }
-  return { state: loadLocal() ?? defaultState(), shareSession: null }
+  return {
+    state: saved.status === 'ready' ? saved.state : defaultState(),
+    shareSession: null,
+    recovery,
+  }
 }
 
 export default function App() {
   const [initial] = useState(initialState)
   const [state, dispatch] = useReducer(appStateReducer, initial.state)
   const [shareSession, setShareSession] = useState<ShareSession | null>(initial.shareSession)
+  const [recovery, setRecovery] = useState<LocalStateRecovery | null>(initial.recovery)
   const chrome = useAppChrome(state)
   const analysis = useVoyageAnalysis(state)
   const selection = useBoardSelection(state.board, dispatch)
@@ -102,26 +119,37 @@ export default function App() {
   const saveTimer = useRef<number>()
 
   useEffect(() => {
-    if (shareSession) return
+    if (shareSession || recovery) return
     window.clearTimeout(saveTimer.current)
     saveTimer.current = window.setTimeout(() => saveLocal(state), 300)
     return () => window.clearTimeout(saveTimer.current)
-  }, [shareSession, state])
+  }, [recovery, shareSession, state])
 
   const clearShareHash = () => {
     window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
   }
   const openSavedState = () => {
-    dispatch({ type: 'replace', state: loadLocal() ?? defaultState() })
     setShareSession(null)
     clearShareHash()
+    const saved = loadLocalState()
+    if (saved.status === 'recovery') {
+      setRecovery(saved)
+      return
+    }
+    setRecovery(null)
+    dispatch({ type: 'replace', state: saved.status === 'ready' ? saved.state : defaultState() })
   }
   const adoptSharedState = () => {
     setShareSession(null)
     clearShareHash()
   }
   const mergeSharedState = () => {
-    const result = mergeSharedLayout(loadLocal() ?? defaultState(), state)
+    const saved = loadLocalState()
+    if (saved.status === 'recovery') {
+      setRecovery(saved)
+      return
+    }
+    const result = mergeSharedLayout(saved.status === 'ready' ? saved.state : defaultState(), state)
     if (!result.ok) {
       setShareSession((session) =>
         session?.kind === 'valid' ? { ...session, mergeError: result.message } : session,
@@ -131,6 +159,36 @@ export default function App() {
     dispatch({ type: 'replace', state: result.state })
     setShareSession(null)
     clearShareHash()
+  }
+
+  const retrySavedState = () => {
+    const saved = loadLocalState()
+    if (saved.status === 'recovery') {
+      setRecovery(saved)
+      return
+    }
+    setRecovery(null)
+    if (!shareSession) {
+      dispatch({ type: 'replace', state: saved.status === 'ready' ? saved.state : defaultState() })
+    }
+  }
+
+  const migrateSavedState = () => {
+    if (!recovery?.backupKey || !recovery.proposedState) return
+    saveLocal(recovery.proposedState)
+    if (!shareSession) dispatch({ type: 'replace', state: recovery.proposedState })
+    setRecovery(null)
+  }
+
+  const resetSavedState = () => {
+    if (!recovery?.backupKey) return
+    if (!window.confirm('Reset the incompatible saved state? The recovery backup will be kept.')) {
+      return
+    }
+    const fresh = defaultState()
+    saveLocal(fresh)
+    if (!shareSession) dispatch({ type: 'replace', state: fresh })
+    setRecovery(null)
   }
 
   const patch = (patchState: Partial<AppState>) => dispatch({ type: 'patch', patch: patchState })
@@ -155,6 +213,14 @@ export default function App() {
   return (
     <div className="app">
       <TooltipLayer />
+      {recovery && (
+        <SavedStateRecovery
+          recovery={recovery}
+          onRetry={retrySavedState}
+          onMigrate={migrateSavedState}
+          onReset={resetSavedState}
+        />
+      )}
       {shareSession && (
         <div
           className={`share-banner ${shareSession.kind === 'invalid' ? 'error' : ''}`}
