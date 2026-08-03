@@ -13,6 +13,8 @@ interface Props {
   controller: BorderRollResearchController
 }
 
+const VESPER_UPGRADE_OPTIONS = [0, 1, 2, 3, 4, 5] as const
+
 export function BorderRollResearch({ borders, controller }: Props) {
   const { store } = controller
   const [showArchived, setShowArchived] = useState(false)
@@ -68,7 +70,8 @@ export function BorderRollResearch({ borders, controller }: Props) {
       <p className="muted">
         Every complete 12/12 OCR scan is saved automatically. Scan the natural board and every paid
         reroll; Finish Voyage closes the sequence and can submit it automatically. Successfully sent
-        sequences are archived locally and hidden from this list by default.
+        sequences are archived locally and hidden from this list by default. Select your Superior
+        Sovereign progress once so quest-gated border pools can be tested separately.
       </p>
 
       <div className="roll-research-grid">
@@ -80,6 +83,28 @@ export function BorderRollResearch({ borders, controller }: Props) {
             placeholder="3.29.0"
             onChange={(event) => controller.setGamePatch(event.target.value)}
           />
+        </label>
+        <label>
+          Vesper upgrades (Superior Sovereign)
+          <select
+            value={controller.vesperUpgradeCount ?? ''}
+            onChange={(event) => {
+              const value = event.target.value
+              controller.setVesperUpgradeCount(value === '' ? null : Number(value))
+            }}
+          >
+            <option value="" disabled>
+              Select current progress
+            </option>
+            {VESPER_UPGRADE_OPTIONS.map((value) => (
+              <option key={value} value={value}>
+                {value}/5
+              </option>
+            ))}
+          </select>
+          <small className="field-hint">
+            Check Challenges → Superior Sovereign. Legacy samples remain “unknown”.
+          </small>
         </label>
       </div>
 
@@ -99,10 +124,21 @@ export function BorderRollResearch({ borders, controller }: Props) {
             : ` · next cost ${controller.displayedNextRerollCost.toLocaleString('en-US')}`}
         </span>
         <span>Sequence {store.activeSequenceId.slice(-8)}</span>
+        <span
+          className={controller.vesperUpgradeCount === null ? 'sample-incomplete' : 'sample-ready'}
+        >
+          Vesper{' '}
+          {controller.vesperUpgradeCount === null
+            ? 'progress unknown'
+            : `${controller.vesperUpgradeCount}/5`}
+        </span>
       </div>
 
       <div className="import-actions roll-research-actions">
-        <button onClick={() => controller.recordCurrentRoll(borders)} disabled={missingBorders > 0}>
+        <button
+          onClick={() => controller.recordCurrentRoll(borders)}
+          disabled={missingBorders > 0 || controller.vesperUpgradeCount === null}
+        >
           Save current roll
         </button>
         <button onClick={controller.startNextSequence}>Start next Voyage</button>
@@ -164,7 +200,10 @@ export function BorderRollResearch({ borders, controller }: Props) {
                 <div className="roll-sequence-header">
                   <span>
                     Voyage {sequenceId.slice(-8)} · {sequence.length}{' '}
-                    {sequence.length === 1 ? 'roll' : 'rolls'} · {sequence[0].gamePatch}
+                    {sequence.length === 1 ? 'roll' : 'rolls'} · {sequence[0].gamePatch} · Vesper{' '}
+                    {sequence[0].vesperUpgradeCount === null
+                      ? 'unknown'
+                      : `${sequence[0].vesperUpgradeCount}/5`}
                   </span>
                   <div className="roll-sequence-actions">
                     {archived ? (

@@ -18,6 +18,7 @@ import {
   removeBorderRollSample,
   restoreBorderRollSequence,
   serializeBorderRollDataset,
+  setCurrentVesperUpgradeCount,
 } from './borderRollResearch'
 
 const completeBorders = (): Borders =>
@@ -27,6 +28,7 @@ function sample(overrides: Partial<Parameters<typeof createBorderRollSample>[0]>
   const result = createBorderRollSample({
     sequenceId: 'voyage-test',
     gamePatch: '3.29.0',
+    vesperUpgradeCount: 3,
     rerollIndex: 0,
     displayedNextRerollCost: 3000,
     borders: completeBorders(),
@@ -37,6 +39,12 @@ function sample(overrides: Partial<Parameters<typeof createBorderRollSample>[0]>
   return result.sample
 }
 
+function withoutVesperUpgradeCount(value: ReturnType<typeof sample>) {
+  const previous: Partial<typeof value> = { ...value }
+  delete previous.vesperUpgradeCount
+  return previous
+}
+
 describe('border roll research samples', () => {
   it('records a complete ordered natural roll', () => {
     const result = sample()
@@ -44,6 +52,7 @@ describe('border roll research samples', () => {
     expect(result).toMatchObject({
       schema: BORDER_ROLL_SAMPLE_SCHEMA,
       sequenceId: 'voyage-test',
+      vesperUpgradeCount: 3,
       generation: 'natural',
       rerollIndex: 0,
       displayedNextRerollCost: 3000,
@@ -59,11 +68,25 @@ describe('border roll research samples', () => {
       createBorderRollSample({
         sequenceId: 'voyage-test',
         gamePatch: '3.29',
+        vesperUpgradeCount: 3,
         rerollIndex: 0,
         displayedNextRerollCost: 3000,
         borders: incomplete,
       }),
     ).toMatchObject({ ok: false, message: expect.stringContaining('all 12') })
+  })
+
+  it('requires known Vesper progress for new samples', () => {
+    expect(
+      createBorderRollSample({
+        sequenceId: 'voyage-test',
+        gamePatch: '3.29',
+        vesperUpgradeCount: null,
+        rerollIndex: 0,
+        displayedNextRerollCost: 3000,
+        borders: completeBorders(),
+      }),
+    ).toMatchObject({ ok: false, message: expect.stringContaining('Vesper') })
   })
 
   it('migrates stored v1 samples without the post-roll Voyage level', () => {
@@ -73,6 +96,7 @@ describe('border roll research samples', () => {
       schema: 'allflame-border-roll/v1',
       voyageLevel: 83,
     }
+    delete (legacySample as Partial<typeof current>).vesperUpgradeCount
     const setItem = vi.fn()
     vi.stubGlobal('localStorage', {
       getItem: vi.fn(() =>
@@ -87,9 +111,11 @@ describe('border roll research samples', () => {
 
     try {
       const migrated = loadBorderResearch()
-      expect(migrated.version).toBe(3)
+      expect(migrated.version).toBe(4)
+      expect(migrated.vesperUpgradeCount).toBeNull()
       expect(migrated.archivedSequenceIds).toEqual([])
       expect(migrated.samples[0]).not.toHaveProperty('voyageLevel')
+      expect(migrated.samples[0].vesperUpgradeCount).toBeNull()
       expect(migrated.samples[0].schema).toBe(BORDER_ROLL_SAMPLE_SCHEMA)
       expect(JSON.parse(setItem.mock.calls[0][1]).samples[0]).not.toHaveProperty('voyageLevel')
     } finally {
@@ -99,13 +125,14 @@ describe('border roll research samples', () => {
 
   it('migrates stored v2 research without losing samples', () => {
     const current = sample()
+    const previousSample = withoutVesperUpgradeCount(current)
     const setItem = vi.fn()
     vi.stubGlobal('localStorage', {
       getItem: vi.fn(() =>
         JSON.stringify({
           version: 2,
           activeSequenceId: 'voyage-test',
-          samples: [current],
+          samples: [previousSample],
         }),
       ),
       setItem,
@@ -114,18 +141,78 @@ describe('border roll research samples', () => {
     try {
       const migrated = loadBorderResearch()
       expect(migrated).toMatchObject({
-        version: 3,
+        version: 4,
         activeSequenceId: 'voyage-test',
-        samples: [{ sampleId: current.sampleId }],
+        samples: [{ sampleId: current.sampleId, vesperUpgradeCount: null }],
+        vesperUpgradeCount: null,
         archivedSequenceIds: [],
       })
       expect(JSON.parse(setItem.mock.calls[0][1])).toMatchObject({
-        version: 3,
+        version: 4,
         archivedSequenceIds: [],
       })
     } finally {
       vi.unstubAllGlobals()
     }
+  })
+
+  it('migrates stored v3 research and preserves archive markers', () => {
+    const current = sample()
+    const previousSample = withoutVesperUpgradeCount(current)
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn(() =>
+        JSON.stringify({
+          version: 3,
+          activeSequenceId: 'voyage-next',
+          samples: [previousSample],
+          archivedSequenceIds: ['voyage-test'],
+        }),
+      ),
+      setItem: vi.fn(),
+    })
+
+    try {
+      expect(loadBorderResearch()).toMatchObject({
+        version: 4,
+        vesperUpgradeCount: null,
+        samples: [{ sampleId: current.sampleId, vesperUpgradeCount: null }],
+        archivedSequenceIds: ['voyage-test'],
+      })
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('updates the active sequence when correcting Vesper progress', () => {
+    const current = sample({ vesperUpgradeCount: 3 })
+    const historical = sample({ sequenceId: 'voyage-old', vesperUpgradeCount: 2 })
+    const store = {
+      ...createBorderResearchStore(),
+      activeSequenceId: 'voyage-test',
+      vesperUpgradeCount: 3,
+      samples: [historical, current],
+    }
+
+    const updated = setCurrentVesperUpgradeCount(store, 4)
+    expect(updated.vesperUpgradeCount).toBe(4)
+    expect(updated.samples).toEqual([
+      historical,
+      expect.objectContaining({ sequenceId: 'voyage-test', vesperUpgradeCount: 4 }),
+    ])
+  })
+
+  it('does not relabel legacy active samples when progress is selected for new rolls', () => {
+    const legacyActive = { ...sample(), vesperUpgradeCount: null }
+    const store = {
+      ...createBorderResearchStore(),
+      activeSequenceId: 'voyage-test',
+      vesperUpgradeCount: null,
+      samples: [legacyActive],
+    }
+
+    const updated = setCurrentVesperUpgradeCount(store, 4)
+    expect(updated.vesperUpgradeCount).toBe(4)
+    expect(updated.samples[0].vesperUpgradeCount).toBeNull()
   })
 
   it('archives historical sequences without deleting their samples and can restore them', () => {
@@ -184,6 +271,9 @@ describe('border roll research samples', () => {
     expect(nextBorderRollIndex(sequence)).toBe(2)
     expect(nextBorderRollIndex([reroll])).toBe(0)
     expect(isCompleteBorderRollSequence(sequence)).toBe(true)
+    expect(isCompleteBorderRollSequence([natural, { ...reroll, vesperUpgradeCount: 4 }])).toBe(
+      false,
+    )
     expect(isCompleteBorderRollSequence([reroll])).toBe(false)
   })
 
