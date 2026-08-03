@@ -1,16 +1,25 @@
 import { describe, expect, it } from 'vitest'
-import type { Board } from '../types'
+import type { Board, ChartData } from '../types'
 import {
   advanceCopySequence,
   BOARD_FILL_ORDER,
   currentCopyEntry,
   startCopySequence,
+  writeCurrentCopyAndAdvance,
 } from './copySequence'
 
 const boardWith = (...cells: number[]): Board => {
   const board: Board = Array(9).fill(null)
   for (const cell of cells) board[cell] = { chartUid: `chart-${cell}`, rotation: 0 }
   return board
+}
+
+const chart: ChartData = {
+  uid: 'chart-6',
+  name: 'Test Chart',
+  level: 83,
+  edges: [true, false, true, false],
+  modIds: ['self:quant'],
 }
 
 describe('copy sequence', () => {
@@ -53,5 +62,45 @@ describe('copy sequence', () => {
     expect(swapped[6]?.chartUid).toBe('chart-7')
     expect(solverApplied[6]).toBeNull()
     expect(currentCopyEntry(sequence)).toEqual({ cell: 6, chartUid: 'chart-6' })
+  })
+
+  it('awaits a successful clipboard write before advancing', async () => {
+    const sequence = startCopySequence(boardWith(6, 7))!
+    let written = ''
+    const result = await writeCurrentCopyAndAdvance(sequence, chart, {
+      writeText: async (text) => {
+        written = text
+      },
+    })
+
+    expect(written).not.toBe('')
+    expect(result).toEqual({ ok: true, next: { ...sequence, step: 1 } })
+  })
+
+  it('keeps the current entry selected when clipboard writing is rejected', async () => {
+    const sequence = startCopySequence(boardWith(6, 7))!
+    const result = await writeCurrentCopyAndAdvance(sequence, chart, {
+      writeText: async () => {
+        throw new Error('Permission denied')
+      },
+    })
+
+    expect(result).toMatchObject({
+      ok: false,
+      next: sequence,
+      reason: 'rejected',
+      detail: 'Permission denied',
+    })
+    expect(result.ok || result.manualText).toBeTruthy()
+    expect(currentCopyEntry(sequence).chartUid).toBe('chart-6')
+  })
+
+  it('keeps the current entry selected when the Clipboard API is unavailable', async () => {
+    const sequence = startCopySequence(boardWith(6, 7))!
+    const result = await writeCurrentCopyAndAdvance(sequence, chart, undefined)
+
+    expect(result).toMatchObject({ ok: false, next: sequence, reason: 'unavailable' })
+    expect(result.ok || result.manualText).toBeTruthy()
+    expect(currentCopyEntry(sequence).chartUid).toBe('chart-6')
   })
 })

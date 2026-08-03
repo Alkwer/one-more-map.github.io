@@ -299,7 +299,10 @@ export default function App() {
               sequence={workflows.copySequence}
               board={state.board}
               chartMap={analysis.chartMap}
+              failure={workflows.copyFailure}
+              pending={workflows.copyPending}
               onAdvance={workflows.copyCurrentAndAdvance}
+              onManualAdvance={workflows.confirmManualCopy}
               onCancel={workflows.cancelCopySequence}
             />
           )}
