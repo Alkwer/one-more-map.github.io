@@ -6,7 +6,7 @@ import {
 } from './borderRollResearch'
 
 const STORAGE_KEY = 'allflame-border-roll-submission'
-const STORE_VERSION = 1
+const STORE_VERSION = 2
 
 const PRODUCTION_INTAKE_URL =
   'https://allflame-border-roll-intake.green-loom-6865.chatgpt.site/api/border-rolls'
@@ -23,7 +23,6 @@ export interface BorderSubmissionSettings {
 
 export interface QueuedBorderSubmission {
   sequenceId: string
-  queuedAt: string
   dataset: BorderRollDataset
 }
 
@@ -53,8 +52,6 @@ function isQueuedSubmission(value: unknown): value is QueuedBorderSubmission {
   return (
     typeof item.sequenceId === 'string' &&
     item.sequenceId.length > 0 &&
-    typeof item.queuedAt === 'string' &&
-    Number.isFinite(Date.parse(item.queuedAt)) &&
     !!item.dataset &&
     item.dataset.schema === 'allflame-border-roll-dataset/v2' &&
     Array.isArray(item.dataset.samples) &&
@@ -68,26 +65,54 @@ export function loadBorderSubmissionStore(): BorderSubmissionStore {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return createBorderSubmissionStore()
-    const value = JSON.parse(raw) as Partial<BorderSubmissionStore>
+    const value = JSON.parse(raw) as {
+      version?: number
+      settings?: Partial<BorderSubmissionSettings>
+      queue?: unknown[]
+    }
     if (
-      value.version !== STORE_VERSION ||
+      (value.version !== 1 && value.version !== STORE_VERSION) ||
       !value.settings ||
       typeof value.settings.enabled !== 'boolean' ||
-      typeof value.settings.submissionKey !== 'string' ||
       !Array.isArray(value.queue) ||
       !value.queue.every(isQueuedSubmission)
     ) {
-      return createBorderSubmissionStore()
+      const clean = createBorderSubmissionStore()
+      saveBorderSubmissionStore(clean)
+      return clean
     }
-    return value as BorderSubmissionStore
+    const clean: BorderSubmissionStore = {
+      version: STORE_VERSION,
+      settings: { enabled: value.settings.enabled, submissionKey: '' },
+      queue: value.queue.filter(isQueuedSubmission).map((item) => ({
+        sequenceId: item.sequenceId,
+        dataset: item.dataset,
+      })),
+    }
+    // Version 1 persisted the key. Rewriting immediately is the migration and
+    // rotation boundary: the old credential is removed before React renders.
+    saveBorderSubmissionStore(clean)
+    return clean
   } catch {
-    return createBorderSubmissionStore()
+    const clean = createBorderSubmissionStore()
+    saveBorderSubmissionStore(clean)
+    return clean
   }
 }
 
 export function saveBorderSubmissionStore(store: BorderSubmissionStore): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(store))
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        version: STORE_VERSION,
+        settings: { enabled: store.settings.enabled },
+        queue: store.queue.map((item) => ({
+          sequenceId: item.sequenceId,
+          dataset: item.dataset,
+        })),
+      }),
+    )
   } catch {
     /* storage full or unavailable */
   }
@@ -103,7 +128,6 @@ export function updateBorderSubmissionSettings(
 export function enqueueBorderRollSequence(
   store: BorderSubmissionStore,
   samples: BorderRollSample[],
-  queuedAt = new Date().toISOString(),
 ): BorderSubmissionStore {
   if (!isCompleteBorderRollSequence(samples)) {
     throw new Error('Only a complete Voyage sequence can be queued for submission.')
@@ -116,7 +140,6 @@ export function enqueueBorderRollSequence(
       ...store.queue,
       {
         sequenceId,
-        queuedAt,
         dataset: createBorderRollDataset(
           [...samples].sort((a, b) => a.rerollIndex - b.rerollIndex),
         ),

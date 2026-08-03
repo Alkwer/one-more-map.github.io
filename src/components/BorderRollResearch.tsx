@@ -140,6 +140,10 @@ export function BorderRollResearch({ borders, controller }: Props) {
         </label>
       </div>
       <div className="roll-research-status">
+        The key is kept in memory for this tab only. Keys saved by older versions are erased on
+        load; rotate a previously stored key before re-entering it.
+      </div>
+      <div className="roll-research-status">
         <span>
           {controller.endpointConfigured
             ? `${controller.submissionStore.queue.length} Voyage sequence${controller.submissionStore.queue.length === 1 ? '' : 's'} queued`

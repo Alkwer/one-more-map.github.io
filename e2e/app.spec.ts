@@ -487,10 +487,14 @@ test('archives a Voyage only after the automatic outbox receives a success respo
 
   await openApp(appPage)
   const research = appPage.locator('details.roll-research')
+  await research.locator('summary').click()
+  await expect(research.getByText('1 Voyage sequence queued')).toBeVisible()
+  const submissionKey = research.getByLabel('Private submission key')
+  await expect(submissionKey).toHaveValue('')
+  await submissionKey.fill('e2e-private-key')
   await expect(
     research.getByText(/Contribute border-roll data \(0 active · 1 archived\)/),
   ).toBeVisible()
-  await research.getByText(/Contribute border-roll data/).click()
   await expect(research.getByText('0 Voyage sequences queued')).toBeVisible()
   await expect(research.getByText(/Submitted Voyage .* as issue #999/)).toBeVisible()
   await expect(
@@ -500,8 +504,13 @@ test('archives a Voyage only after the automatic outbox receives a success respo
   const stored = await appPage.evaluate(() =>
     JSON.parse(localStorage.getItem('allflame-border-roll-research') ?? '{}'),
   )
+  const submission = await appPage.evaluate(() =>
+    localStorage.getItem('allflame-border-roll-submission'),
+  )
   expect(stored.samples).toHaveLength(1)
   expect(stored.archivedSequenceIds).toEqual([sequenceId])
+  expect(submission).not.toContain('submissionKey')
+  expect(submission).not.toContain('e2e-private-key')
 })
 
 test('recovers an unknown shape and places it on the board with the keyboard', async ({
