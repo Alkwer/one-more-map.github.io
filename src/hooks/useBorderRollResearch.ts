@@ -11,6 +11,7 @@ import {
   removeBorderRollSample,
   restoreBorderRollSequence,
   saveBorderResearch,
+  setCurrentVesperUpgradeCount,
   startBorderRollSequence,
   type BorderResearchStore,
 } from '../logic/borderRollResearch'
@@ -36,7 +37,9 @@ export interface BorderRollResearchController {
   activeSamples: ReturnType<typeof getBorderRollSequence>
   nextRollIndex: number
   displayedNextRerollCost: number | null
+  vesperUpgradeCount: number | null
   setGamePatch: (value: string) => void
+  setVesperUpgradeCount: (value: number | null) => void
   setAutoSubmitEnabled: (enabled: boolean) => void
   setSubmissionKey: (value: string) => void
   recordCurrentRoll: (borders: Borders) => string
@@ -118,9 +121,12 @@ export function useBorderRollResearch(): BorderRollResearchController {
       const current = storeRef.current
       const existing = getBorderRollSequence(current.samples, current.activeSequenceId)
       const sequencePatch = existing[0]?.gamePatch ?? gamePatch
+      const sequenceVesperUpgradeCount =
+        existing.length > 0 ? existing[0].vesperUpgradeCount : current.vesperUpgradeCount
       const created = createBorderRollSample({
         sequenceId: current.activeSequenceId,
         gamePatch: sequencePatch,
+        vesperUpgradeCount: sequenceVesperUpgradeCount,
         rerollIndex,
         displayedNextRerollCost: nextCost,
         borders,
@@ -184,6 +190,27 @@ export function useBorderRollResearch(): BorderRollResearchController {
     commitStore(startBorderRollSequence(storeRef.current))
     setMessage('Started a new Voyage sequence. Its first complete scan will be roll 0.')
   }, [commitStore])
+
+  const setVesperUpgradeCount = useCallback(
+    (value: number | null) => {
+      const current = storeRef.current
+      const activeSamples = getBorderRollSequence(current.samples, current.activeSequenceId)
+      const protectsLegacySequence =
+        value !== null &&
+        current.vesperUpgradeCount === null &&
+        activeSamples.some((sample) => sample.vesperUpgradeCount === null)
+      const updated = setCurrentVesperUpgradeCount(current, value)
+      commitStore(protectsLegacySequence ? startBorderRollSequence(updated) : updated)
+      setMessage(
+        value === null
+          ? 'Select Superior Sovereign progress before saving another roll.'
+          : protectsLegacySequence
+            ? `Vesper ${value}/5 saved. Started a new Voyage so legacy samples remain unknown.`
+            : `New rolls will be tagged with Vesper ${value}/5.`,
+      )
+    },
+    [commitStore],
+  )
 
   const finishVoyage = useCallback(() => {
     const current = storeRef.current
@@ -266,7 +293,9 @@ export function useBorderRollResearch(): BorderRollResearchController {
     activeSamples,
     nextRollIndex,
     displayedNextRerollCost,
+    vesperUpgradeCount: store.vesperUpgradeCount,
     setGamePatch,
+    setVesperUpgradeCount,
     setAutoSubmitEnabled,
     setSubmissionKey,
     recordCurrentRoll,

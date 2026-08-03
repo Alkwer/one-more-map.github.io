@@ -53,6 +53,16 @@ function normalizeSample(value, index, knownBorderIds, errors, warnings) {
   ) {
     errors.push(`${path}.gamePatch must be a non-empty string up to 32 characters.`)
   }
+  let vesperUpgradeCount = value.vesperUpgradeCount
+  if (vesperUpgradeCount === undefined) {
+    vesperUpgradeCount = null
+    warnings.push(`${path}.vesperUpgradeCount is missing; normalized to legacy/unknown.`)
+  } else if (
+    vesperUpgradeCount !== null &&
+    (!Number.isInteger(vesperUpgradeCount) || vesperUpgradeCount < 0 || vesperUpgradeCount > 5)
+  ) {
+    errors.push(`${path}.vesperUpgradeCount must be an integer from 0 to 5 or null.`)
+  }
   if (!Number.isInteger(value.rerollIndex) || value.rerollIndex < 0 || value.rerollIndex > 20) {
     errors.push(`${path}.rerollIndex must be an integer from 0 to 20.`)
   }
@@ -97,6 +107,7 @@ function normalizeSample(value, index, knownBorderIds, errors, warnings) {
     sequenceId: value.sequenceId,
     capturedAt: new Date(value.capturedAt).toISOString(),
     gamePatch: value.gamePatch.trim(),
+    vesperUpgradeCount,
     generation: value.generation,
     rerollIndex: value.rerollIndex,
     displayedNextRerollCost: value.displayedNextRerollCost,
@@ -142,6 +153,10 @@ export function validateBorderRollPayload(payload, knownBorderIds) {
   if (sequenceIds.size > 1) errors.push('A submission must contain exactly one Voyage sequence.')
   const patches = new Set(samples.map((sample) => sample.gamePatch))
   if (patches.size > 1) errors.push('All samples in a Voyage must use the same game patch.')
+  const vesperUpgradeCounts = new Set(samples.map((sample) => sample.vesperUpgradeCount))
+  if (vesperUpgradeCounts.size > 1) {
+    errors.push('All samples in a Voyage must use the same Vesper upgrade count.')
+  }
   const indexes = samples.map((sample) => sample.rerollIndex)
   if (new Set(indexes).size !== indexes.length) errors.push('rerollIndex values must be unique.')
 

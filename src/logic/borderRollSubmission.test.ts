@@ -20,6 +20,7 @@ function sample(rerollIndex = 0) {
   const result = createBorderRollSample({
     sequenceId: 'voyage-auto-test',
     gamePatch: '3.29.0',
+    vesperUpgradeCount: 3,
     rerollIndex,
     displayedNextRerollCost: rerollIndex === 0 ? 3000 : 6000,
     borders: borders(),

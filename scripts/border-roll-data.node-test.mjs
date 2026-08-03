@@ -25,6 +25,7 @@ const sample = (rerollIndex = 0, overrides = {}) => ({
   sequenceId: 'voyage-test-sequence',
   capturedAt: `2026-08-01T12:0${rerollIndex}:00.000Z`,
   gamePatch: '3.29',
+  vesperUpgradeCount: 3,
   generation: rerollIndex === 0 ? 'natural' : 'paid-reroll',
   rerollIndex,
   displayedNextRerollCost: [3_000, 6_000, 12_000][rerollIndex] ?? null,
@@ -69,6 +70,28 @@ test('rejects unknown modifiers and malformed issue bodies', () => {
   const unknown = sample(0, { borderModIds: [...borderModIds.slice(0, 11), 'b-not-real'] })
   assert.equal(validateBorderRollPayload(unknown, knownIds).status, 'invalid')
   assert.equal(validateBorderRollIssueBody('no JSON here', knownIds).status, 'invalid')
+})
+
+test('tracks one valid Vesper upgrade count per sequence', () => {
+  assert.equal(
+    validateBorderRollPayload(sample(0, { vesperUpgradeCount: 6 }), knownIds).status,
+    'invalid',
+  )
+  assert.equal(
+    validateBorderRollPayload(dataset([sample(0), sample(1, { vesperUpgradeCount: 4 })]), knownIds)
+      .status,
+    'invalid',
+  )
+})
+
+test('normalizes legacy samples without Vesper progress to unknown', () => {
+  const legacy = sample(0)
+  delete legacy.vesperUpgradeCount
+  const result = validateBorderRollPayload(legacy, knownIds)
+
+  assert.equal(result.status, 'accepted')
+  assert.equal(result.dataset.samples[0].vesperUpgradeCount, null)
+  assert.match(result.warnings[0], /legacy\/unknown/)
 })
 
 test('finds duplicate sample IDs in previously accepted issues', () => {

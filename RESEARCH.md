@@ -1,6 +1,6 @@
 # Allflame Voyage Solver - Mechanics and Modeling Notes
 
-Last reviewed: **2026-08-01**.
+Last reviewed: **2026-08-03**.
 
 This document separates live observations from model assumptions and unresolved
 questions. Historical preview notes are retained only where they explain the
@@ -69,6 +69,11 @@ One community comment gives `75k` for five rerolls, but its written sequence is
 - All 66 use domain `deepwater_border`, generation type `unique`, required level
   `1`, and an empty `spawn_weights` array. Therefore the normal `Mods.dat`
   fields do not reveal their actual roll weights or level gates.
+- **Unknown:** Vesper's five `Superior Sovereign` upgrades may affect the pool or
+  tier selection through external or server-side logic. Patch 3.29.0b confirms
+  that Vesper upgrades did gate other Voyage content, so the app now records the
+  player's 0–5 challenge progress for every sequence instead of assuming all
+  progress states share one distribution.
 - The app intentionally contains **64 canonical, OCR-visible definitions** rather
   than mirroring every raw record. Two raw records are tracked separately in
   `src/data/borderSourceRecords.ts` pending live verification:
@@ -132,7 +137,8 @@ Capture natural boards and paid rerolls without discarding bad outcomes. For
 each observation store:
 
 ```text
-patch, natural-or-paid, reroll index, displayed cost, 12 ordered border
+patch, Vesper upgrade count (0–5 or unknown), natural-or-paid, reroll index,
+displayed cost, 12 ordered border
 modifier IDs/texts
 ```
 
@@ -153,6 +159,8 @@ of assumed.
 
 - Official 3.29.0 notes (describe Voyages, but publish no reroll constants):
   https://www.pathofexile.com/forum/view-thread/3985332
+- Official 3.29.0b notes (Voyage content previously gated by Vesper upgrades):
+  https://www.pathofexile.com/forum/view-thread/3989412/page/1
 - Current RePoE PoE1 export index and `mods.min.json`:
   https://repoe-fork.github.io/poe1.html
 - PoE Dat Viewer used to inspect `DeepwaterConstants.datc64` and the available
