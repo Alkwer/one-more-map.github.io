@@ -4,7 +4,7 @@ import type { AppState } from '../logic/storage'
 import { summarizeVoyageFinish, type AppStateAction } from '../state/appStateReducer'
 import {
   advanceCopySequence,
-  currentCopyCell,
+  currentCopyEntry,
   startCopySequence,
   type CopySequenceState,
 } from '../state/copySequence'
@@ -27,6 +27,14 @@ export function useVoyageWorkflows(
     null,
   )
   const [copySequence, setCopySequence] = useState<CopySequenceState | null>(null)
+
+  const stopUnavailableCopySequence = useCallback(() => {
+    setCopySequence(null)
+    setVoyageMessage(
+      'Copy sequence stopped: a chart from the original sequence is no longer in your library. Review the board and start Copy into game again.',
+    )
+    window.setTimeout(() => setVoyageMessage(''), 5000)
+  }, [])
 
   const commitFinish = useCallback(
     (keptUids: Set<string>) => {
@@ -63,11 +71,21 @@ export function useVoyageWorkflows(
   )
   const copyCurrentAndAdvance = useCallback(() => {
     if (!copySequence) return
-    const placement = state.board[currentCopyCell(copySequence)]!
-    const chart = chartMap.get(placement.chartUid)
-    if (chart) navigator.clipboard.writeText(buildSingleChartSearch(chart)).catch(() => {})
+    const chart = chartMap.get(currentCopyEntry(copySequence).chartUid)
+    if (!chart) {
+      stopUnavailableCopySequence()
+      return
+    }
+    navigator.clipboard.writeText(buildSingleChartSearch(chart)).catch(() => {})
     setCopySequence(advanceCopySequence(copySequence))
-  }, [chartMap, copySequence, state.board])
+  }, [chartMap, copySequence, stopUnavailableCopySequence])
+
+  useEffect(() => {
+    if (!copySequence) return
+    if (!chartMap.has(currentCopyEntry(copySequence).chartUid)) {
+      stopUnavailableCopySequence()
+    }
+  }, [chartMap, copySequence, stopUnavailableCopySequence])
 
   useEffect(() => {
     if (!copySequence) return
@@ -85,7 +103,7 @@ export function useVoyageWorkflows(
 
   const sequenceActive = !!copySequence || !!preserveConfirmation
   const highlightUid = copySequence
-    ? (state.board[currentCopyCell(copySequence)]?.chartUid ?? null)
+    ? currentCopyEntry(copySequence).chartUid
     : preserveConfirmation
       ? preserveConfirmation.charts[preserveConfirmation.index].uid
       : null

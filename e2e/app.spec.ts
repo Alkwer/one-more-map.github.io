@@ -635,6 +635,78 @@ test('steps through chart copying and preserves a confirmed Voyage survivor', as
   ).toBeVisible()
 })
 
+test('keeps a copy snapshot safe across swaps, board clears, and chart removal', async ({
+  appPage,
+}) => {
+  await openApp(appPage)
+  await pasteText(appPage, ENGLISH_CHART)
+  await pasteText(appPage, KOREAN_CHART)
+
+  await appPage
+    .getByRole('button', { name: 'Select Armoured Coral Reef Chart of Ice for placement' })
+    .click()
+  await appPage.getByRole('button', { name: 'Board cell 7, row 3, column 1, start: empty' }).click()
+  await appPage
+    .getByRole('button', { name: 'Select 해병 고역 산호 암초 해도 for placement' })
+    .click()
+  await appPage.getByRole('button', { name: 'Board cell 8, row 3, column 2: empty' }).click()
+
+  await appPage.getByRole('button', { name: /Copy into game/ }).click()
+  const copyPrompt = appPage.locator('.copyseq')
+  await expect(copyPrompt.getByText('Armoured Coral Reef Chart of Ice')).toBeVisible()
+
+  await appPage
+    .getByRole('button', { name: /Board cell 7.*Armoured Coral Reef Chart of Ice/ })
+    .click()
+  await appPage.getByRole('button', { name: /Board cell 8.*해병 고역 산호 암초 해도/ }).click()
+  await expect(copyPrompt.getByText('Armoured Coral Reef Chart of Ice')).toBeVisible()
+  await expect(
+    appPage.getByRole('button', { name: /Board cell 8.*Armoured Coral Reef Chart of Ice/ }),
+  ).toBeVisible()
+
+  await appPage
+    .getByRole('button', { name: /Remove Armoured Coral Reef Chart of Ice from row 3, column 2/ })
+    .click({ force: true })
+  await appPage
+    .getByRole('button', { name: /Remove 해병 고역 산호 암초 해도 from row 3, column 1/ })
+    .click({ force: true })
+  await expect(copyPrompt.getByText(/The board changed/)).toBeVisible()
+  await copyPrompt.getByRole('button', { name: /Copy & next/ }).click()
+  await expect(copyPrompt.getByText('해병 고역 산호 암초 해도')).toBeVisible()
+  await copyPrompt.getByRole('button', { name: /Copy last & finish/ }).click()
+  await expect(copyPrompt).toHaveCount(0)
+
+  await appPage
+    .getByRole('button', { name: 'Select Armoured Coral Reef Chart of Ice for placement' })
+    .click()
+  await appPage.getByRole('button', { name: 'Board cell 7, row 3, column 1, start: empty' }).click()
+  await appPage.getByRole('button', { name: /Copy into game/ }).click()
+  await appPage
+    .getByRole('button', { name: 'Select Armoured Coral Reef Chart of Ice for placement' })
+    .hover()
+  await appPage.getByRole('button', { name: 'Delete Armoured Coral Reef Chart of Ice' }).click()
+
+  await expect(copyPrompt).toHaveCount(0)
+  await expect(
+    appPage.getByText(/Copy sequence stopped: a chart from the original sequence/),
+  ).toBeVisible()
+  await expect(libraryHeading(appPage)).toContainText('(1)')
+
+  await appPage
+    .getByRole('button', { name: 'Select 해병 고역 산호 암초 해도 for placement' })
+    .click()
+  await appPage.getByRole('button', { name: 'Board cell 7, row 3, column 1, start: empty' }).click()
+  await appPage.getByRole('button', { name: /Copy into game/ }).click()
+  appPage.once('dialog', (dialog) => dialog.accept())
+  await appPage.getByRole('button', { name: 'Clear all' }).click()
+
+  await expect(copyPrompt).toHaveCount(0)
+  await expect(libraryHeading(appPage)).toContainText('(0)')
+  await expect(
+    appPage.getByText(/Copy sequence stopped: a chart from the original sequence/),
+  ).toBeVisible()
+})
+
 test('follows the tutorial from solving through result selection to copying', async ({
   appPage,
 }) => {
@@ -668,6 +740,11 @@ test('follows the tutorial from solving through result selection to copying', as
 
   await appPage.getByRole('button', { name: /Copy into game/ }).click()
   await expect(appPage.getByText(/Step 1 of 9/)).toBeVisible()
+  const snapshottedName = await appPage.locator('.copyseq .pc-name').textContent()
+  await solveButton.click()
+  await expect(firstResult).toBeVisible({ timeout: 20_000 })
+  await firstResult.click()
+  await expect(appPage.locator('.copyseq .pc-name')).toHaveText(snapshottedName!)
 })
 
 test('cancels a stale solve, completes in the worker, and applies a result', async ({
