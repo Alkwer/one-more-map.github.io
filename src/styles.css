@@ -1322,6 +1322,42 @@ textarea {
 .chart-editor .lvl {
   width: 70px;
 }
+.chart-editor fieldset {
+  margin: 0;
+  padding: 7px;
+  border: 1px solid var(--border);
+}
+.chart-editor legend {
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.chart-editor fieldset p {
+  margin: 0 0 7px;
+  font-size: 11px;
+}
+.imported-reward-grid,
+.manual-mod-grid {
+  display: grid;
+  gap: 6px;
+}
+.imported-reward-grid label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--self);
+  font-size: 12px;
+}
+.reward-percent-input {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.reward-percent-input input {
+  width: 76px;
+}
 .shape-confirmation {
   display: flex;
   flex-direction: column;
