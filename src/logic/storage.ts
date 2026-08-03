@@ -415,6 +415,40 @@ function decodePieceKeeps(value: unknown, warnings: string[]): Record<string, nu
     if (normalized !== count) warnings.push(`pieceKeeps.${key} was normalized to ${normalized}`)
     decoded[key] = normalized
   }
+
+  // Granular Divine bank types replaced three broad matchers without changing
+  // the state version. Copy an explicit legacy override to every new subtype so
+  // no previously protected family is silently released. Newer explicit values
+  // always win when a save contains both formats.
+  const migrations: Record<string, string[]> = {
+    'divine-border-rares:adj-star-1|adj-star-2|adj-box-1|adj-box-2|adj-box-3': [
+      'divine-border-rares:adj-star-1|adj-star-2',
+      'divine-border-rares:adj-box-2|adj-box-3',
+      'divine-border-rares:adj-box-1',
+    ],
+    'divine-border-rares:adj-rare-1|adj-rare-2|voy-rare': [
+      'divine-border-rares:voy-rare',
+      'divine-border-rares:adj-rare-1|adj-rare-2',
+    ],
+    'cutedog-divine-boxes:adj-box-1|adj-box-2|adj-box-3|adj-divbox-1|adj-divbox-2|adj-arcbox-1|adj-arcbox-2|adj-opbox-1|adj-opbox-2':
+      [
+        // Generic boxes are owned by the earlier Divine Border bank.
+        'divine-border-rares:adj-box-2|adj-box-3',
+        'divine-border-rares:adj-box-1',
+        'cutedog-divine-boxes:adj-divbox-1|adj-divbox-2',
+        'cutedog-divine-boxes:adj-arcbox-1|adj-arcbox-2',
+        'cutedog-divine-boxes:adj-opbox-1|adj-opbox-2',
+      ],
+  }
+  for (const [legacyKey, replacementKeys] of Object.entries(migrations)) {
+    const count = decoded[legacyKey]
+    if (count === undefined) continue
+    for (const replacementKey of replacementKeys) {
+      if (decoded[replacementKey] === undefined) decoded[replacementKey] = count
+    }
+    delete decoded[legacyKey]
+    warnings.push(`pieceKeeps.${legacyKey} was migrated to granular chart types`)
+  }
   return decoded
 }
 

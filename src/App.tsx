@@ -123,6 +123,7 @@ export default function App() {
         <SaveWizard
           pool={state.pool}
           keeps={state.pieceKeeps}
+          reservations={state.strategyReservations}
           onApply={(pieceKeeps) => patch({ pieceKeeps })}
           onClose={() => setShowSaveWizard(false)}
         />

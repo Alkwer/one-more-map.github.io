@@ -7,6 +7,7 @@ import {
   MEATFISH_FUEL,
   SPEEDRUN_CENTER_MODS,
   STRATEGIES,
+  STRATEGY_RESERVATION_OPTIONS,
   type StrategyReservationId,
   type StrategyReservationPreferences,
 } from '../data/strategies'
@@ -67,7 +68,12 @@ const RESERVATIONS_OF: Record<string, StrategyReservationId[]> = {
   ],
 }
 
-const matchesReservation = (chart: ChartData, id: StrategyReservationId): boolean => {
+const ALL_RESERVATION_IDS = STRATEGY_RESERVATION_OPTIONS.map(({ id }) => id)
+
+const matchesReservation = (
+  chart: Pick<ChartData, 'modIds' | 'name' | 'areaType'>,
+  id: StrategyReservationId,
+): boolean => {
   const has = (...ids: string[]) => chart.modIds.some((modId) => ids.includes(modId))
   switch (id) {
     case 'genericStrongboxes':
@@ -116,13 +122,18 @@ const matchesReservation = (chart: ChartData, id: StrategyReservationId): boolea
   }
 }
 
+const reservationsForModifierType = (modIds: string[]) =>
+  ALL_RESERVATION_IDS.filter((id) => matchesReservation({ modIds, name: '' }, id))
+
 const protectionEnabled = (
   chart: ChartData,
   piece: PieceType,
   prefs: StrategyReservationPreferences,
-) =>
-  piece.key.startsWith('custom:') ||
-  piece.reservationIds.some((id) => prefs[id] && matchesReservation(chart, id))
+) => {
+  const matchingReservations = piece.reservationIds.filter((id) => matchesReservation(chart, id))
+  if (matchingReservations.length === 0) return piece.key.startsWith('custom:')
+  return matchingReservations.some((id) => prefs[id])
+}
 
 function buildPieceTypes(): PieceType[] {
   const out: PieceType[] = []
@@ -295,7 +306,9 @@ export function customPieceTypes(keeps: Record<string, number>): PieceType[] {
       key,
       strategyId,
       strategyName: strategy.name,
-      reservationIds: [],
+      // Custom types follow every granular category they actually match. A
+      // modifier outside the known categories remains explicitly protected.
+      reservationIds: reservationsForModifierType(modIds),
       label: customLabel(modIds),
       modIds,
       recommended: 0,

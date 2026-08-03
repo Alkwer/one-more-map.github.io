@@ -17,7 +17,7 @@ export const UPDATES: UpdateEntry[] = [
     tag: 'reworked',
     title: 'Granular Divine keeps + custom chart types',
     detail:
-      'The 🔖 wizard now splits Starfish from Strongboxes, big generic boxes (+2-4/+5, Divine-mandatory) from Diviner/Arcanist/Operative boxes (free by default - their counts can\'t reach 4), and voyage-wide rares from adjacent rares (adjacent spend freely). Every step also has a searchable "+ Add a chart type" picker, grouped by type (all Diviner tiers as one entry). Thanks sincere-bat for the design (issue #21).',
+      'The 🔖 wizard now splits Starfish from Strongboxes, big generic boxes (+2-4/+5, banked for Divine) from Diviner/Arcanist/Operative boxes (left to the shared Speedrun bank by default), and voyage-wide rares from adjacent rares (adjacent spend freely). Every step also has a searchable "+ Add a chart type" picker, grouped by type (all Diviner tiers as one entry); additions follow the matching Solver Settings protection toggle. Thanks sincere-bat for the design (issue #21).',
   },
   {
     date: '2026-08-02',
