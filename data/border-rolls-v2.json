@@ -1,7 +1,7 @@
 {
   "schema": "allflame-border-roll-dataset/v2",
-  "exportedAt": "2026-08-01T21:40:33.426Z",
-  "sampleCount": 9,
+  "exportedAt": "2026-08-02T11:59:24.107Z",
+  "sampleCount": 12,
   "samples": [
     {
       "schema": "allflame-border-roll/v2",
@@ -217,6 +217,78 @@
         "b-pack-3",
         "b-exp-2",
         "b-quantconn-2"
+      ]
+    },
+    {
+      "schema": "allflame-border-roll/v2",
+      "sampleId": "roll-5c8ace80-cbe3-4886-b2de-1aae551629c2",
+      "sequenceId": "voyage-2cfe6ad4-358a-4001-a36c-5773c8fe1cb2",
+      "capturedAt": "2026-08-02T10:42:05.398Z",
+      "gamePatch": "3.29",
+      "generation": "natural",
+      "rerollIndex": 0,
+      "displayedNextRerollCost": 3000,
+      "borderModIds": [
+        "b-mag-3",
+        "b-chaos",
+        "b-goldlantern",
+        "b-pack-3",
+        "b-mag-2",
+        "b-goldlantern",
+        "b-keep-1",
+        "b-anchor-2",
+        "b-gold-2",
+        "b-goldlantern",
+        "b-locker",
+        "b-pack-2"
+      ]
+    },
+    {
+      "schema": "allflame-border-roll/v2",
+      "sampleId": "roll-4c0d860c-0fef-4051-8304-6d1a7fc87709",
+      "sequenceId": "voyage-2cfe6ad4-358a-4001-a36c-5773c8fe1cb2",
+      "capturedAt": "2026-08-02T11:58:49.905Z",
+      "gamePatch": "3.29",
+      "generation": "paid-reroll",
+      "rerollIndex": 1,
+      "displayedNextRerollCost": 6000,
+      "borderModIds": [
+        "b-mag-2",
+        "b-lanterns",
+        "b-drowned-3",
+        "b-minmagic",
+        "b-locker",
+        "b-rareconn-2",
+        "b-anchor-2",
+        "b-locker",
+        "b-rare-3",
+        "b-quantconn-2",
+        "b-crabs-1",
+        "b-mag-1"
+      ]
+    },
+    {
+      "schema": "allflame-border-roll/v2",
+      "sampleId": "roll-110089fb-5ddd-4143-ae32-9c33035a9a4c",
+      "sequenceId": "voyage-2cfe6ad4-358a-4001-a36c-5773c8fe1cb2",
+      "capturedAt": "2026-08-02T11:59:24.107Z",
+      "gamePatch": "3.29",
+      "generation": "paid-reroll",
+      "rerollIndex": 2,
+      "displayedNextRerollCost": 12000,
+      "borderModIds": [
+        "b-quantconn-1",
+        "b-pack-3",
+        "b-octoboss",
+        "b-mag-2",
+        "b-beasts-3",
+        "b-mag-1",
+        "b-pack-3",
+        "b-sulphdrop",
+        "b-rare-1",
+        "b-anchor-1",
+        "b-pack-2",
+        "b-crabboss"
       ]
     }
   ]
