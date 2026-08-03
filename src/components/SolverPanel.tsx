@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { StrategyDef } from '../data/strategies'
-import { isChartShapeResolved } from '../logic/chartShapes'
+import { selectSolverEligibleCharts } from '../logic/chartShapes'
 import { buildBestModRegex } from '../logic/regex'
 import type { AppState } from '../logic/storage'
 import type { Board } from '../types'
@@ -24,7 +24,10 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply, onOpenPla
   const [copied, setCopied] = useState(false)
   // While a strategy is active it overrides the manual weights everywhere here.
   const weights = activeStrategy ? activeStrategy.weights : state.weights
-  const eligiblePool = useMemo(() => state.pool.filter(isChartShapeResolved), [state.pool])
+  const eligiblePool = useMemo(
+    () => selectSolverEligibleCharts(state.pool, state.mode),
+    [state.pool, state.mode],
+  )
   const unresolvedShapeCount = state.pool.length - eligiblePool.length
   const { busy, results, solveNote, run, runFiller } = useSolverRequests({
     state,

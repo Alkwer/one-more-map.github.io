@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { borderModById, voyageModById } from '../data/mods'
 import { strategyById } from '../data/strategies'
 import { appraiseBorders } from '../logic/borderAppraisal'
-import { isChartShapeResolved } from '../logic/chartShapes'
+import { selectSolverEligibleCharts } from '../logic/chartShapes'
 import { checkConnectivity } from '../logic/connectivity'
 import { scoreBoard } from '../logic/scoring'
 import type { AppState } from '../logic/storage'
@@ -18,7 +18,10 @@ export function useVoyageAnalysis(state: AppState) {
     () => new Map(state.pool.map((chart) => [chart.uid, chart])),
     [state.pool],
   )
-  const resolvedPool = useMemo(() => state.pool.filter(isChartShapeResolved), [state.pool])
+  const solverEligiblePool = useMemo(
+    () => selectSolverEligibleCharts(state.pool, state.mode),
+    [state.pool, state.mode],
+  )
   const disabledSet = useMemo(() => new Set(state.disabledMods), [state.disabledMods])
   const activeStrategy = state.strategyId ? (strategyById.get(state.strategyId) ?? null) : null
   const effectiveWeights = activeStrategy ? activeStrategy.weights : state.weights
@@ -48,7 +51,7 @@ export function useVoyageAnalysis(state: AppState) {
     inventory: strategyInventory,
     loading: strategyInventoryLoading,
     error: strategyInventoryError,
-  } = useStrategyInventory(resolvedPool, state.borders, strategyEvaluationOptions)
+  } = useStrategyInventory(solverEligiblePool, state.borders, strategyEvaluationOptions)
   const strategySuggestions = useMemo(
     () =>
       evaluateCurrentBoardStrategies(
@@ -147,7 +150,7 @@ export function useVoyageAnalysis(state: AppState) {
 
   return {
     chartMap,
-    resolvedPool,
+    solverEligiblePool,
     disabledSet,
     activeStrategy,
     effectiveWeights,

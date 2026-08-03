@@ -8,7 +8,7 @@ import type {
   Weights,
 } from '../types'
 import type { PositionRule } from '../data/strategies'
-import { isChartShapeResolved } from './chartShapes'
+import { selectSolverEligibleCharts } from './chartShapes'
 import { analyzeConnectivity, rotateEdges, type ConnectivityResult } from './connectivity'
 import { prepareScoreTotal, scoreBoard, type ScoreOptions } from './scoring'
 import {
@@ -190,7 +190,7 @@ export function solve(
   weights: Weights,
   opts: SolverOptions,
 ): SolverResult[] {
-  const eligiblePool = opts.mode === 'strict' ? pool.filter(isChartShapeResolved) : pool
+  const eligiblePool = selectSolverEligibleCharts(pool, opts.mode)
   const charts = new Map(eligiblePool.map((c) => [c.uid, c]))
   if (eligiblePool.length === 0) return []
   const requirements = opts.strategyRequirements ?? []

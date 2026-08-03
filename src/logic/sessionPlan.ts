@@ -15,7 +15,8 @@ import {
 } from '../data/strategies'
 import { selectStrategySolvePool } from './solverPoolSelection'
 import { allocateStrategyRequirements } from './strategyRequirements'
-import type { Borders, ChartData } from '../types'
+import { selectSolverEligibleCharts } from './chartShapes'
+import type { Borders, ChartData, ConnectivityMode } from '../types'
 
 export interface PlanEntry {
   strategyId: string
@@ -29,6 +30,10 @@ export interface PlanEntry {
 
 export interface SessionPlan {
   entries: PlanEntry[]
+  /** charts accepted by the same mode-aware predicate as the solver */
+  eligible: number
+  /** charts excluded because their shape is unresolved in strict mode */
+  blocked: number
   /** charts allocated across all ready entries */
   allocated: number
   /** spare charts left over after the whole plan */
@@ -50,10 +55,12 @@ export function planSession(
   borders: Borders,
   preferences: StrategyReservationPreferences = defaultStrategyReservations(),
   pieceKeeps: Record<string, number> = {},
+  mode: ConnectivityMode = 'strict',
 ): SessionPlan {
+  const eligiblePool = selectSolverEligibleCharts(pool, mode)
   const used = new Set<string>()
   const entries: PlanEntry[] = []
-  const remaining = () => pool.filter((c) => !used.has(c.uid))
+  const remaining = () => eligiblePool.filter((c) => !used.has(c.uid))
 
   // ---- juiced one-offs, best first ----
   for (const id of JUICED_ORDER) {
@@ -164,6 +171,8 @@ export function planSession(
 
   return {
     entries,
+    eligible: eligiblePool.length,
+    blocked: pool.length - eligiblePool.length,
     allocated: used.size,
     leftover: pool.length - used.size,
   }

@@ -1,4 +1,4 @@
-import type { ChartData, ChartShape, Edges } from '../types'
+import type { ChartData, ChartShape, ConnectivityMode, Edges } from '../types'
 
 export const CHART_SHAPES: readonly ChartShape[] = [
   'End',
@@ -44,4 +44,16 @@ export function chartShapeForEdges(edges: unknown): ChartShape | undefined {
  */
 export function isChartShapeResolved(chart: ChartData): boolean {
   return chart.shapeResolved !== false && chartShapeForEdges(chart.edges) !== undefined
+}
+
+/** Shared runnable-inventory policy for solver, strategy readiness, and planning. */
+export function isChartSolverEligible(chart: ChartData, mode: ConnectivityMode): boolean {
+  return mode === 'any' || isChartShapeResolved(chart)
+}
+
+export function selectSolverEligibleCharts(
+  pool: readonly ChartData[],
+  mode: ConnectivityMode,
+): ChartData[] {
+  return pool.filter((chart) => isChartSolverEligible(chart, mode))
 }

@@ -12,6 +12,7 @@ import {
   type BorderAppraisalStatus,
 } from './borderAppraisal'
 import { borderRewardKey } from './rewards'
+import { selectSolverEligibleCharts } from './chartShapes'
 import { scoreBoard, type ScoreOptions } from './scoring'
 import { solve } from './solver'
 import { selectStrategySolvePool } from './solverPoolSelection'
@@ -112,13 +113,19 @@ export function strategyReadiness(
   strategy: StrategyDef,
   pool: ChartData[],
   borders: Borders,
+  mode: ConnectivityMode = 'strict',
 ): StrategyReadiness {
   let have = 0
   let need = 0
   const missing: string[] = []
   const requirements: StrategyRequirementReadiness[] = []
 
-  const allocation = allocateStrategyRequirements(strategy.requirements ?? [], pool, borders)
+  const eligiblePool = selectSolverEligibleCharts(pool, mode)
+  const allocation = allocateStrategyRequirements(
+    strategy.requirements ?? [],
+    eligiblePool,
+    borders,
+  )
   for (const entry of allocation.allocations) {
     const count = entry.chartUids.length
     have += count
@@ -264,19 +271,20 @@ export function evaluateStrategyInventory(
   opts: StrategyEvaluationOptions,
   limit = 3,
 ): StrategyInventoryResult {
+  const solverEligiblePool = selectSolverEligibleCharts(pool, opts.mode)
   const enteredBorders = borders.filter(Boolean).length
-  const hasNoEquipment = pool.some((chart) => chart.modIds.includes('voy-noequip'))
+  const hasNoEquipment = solverEligiblePool.some((chart) => chart.modIds.includes('voy-noequip'))
   const hasDivineBorder = borders.includes('b-divine') && !opts.disabledMods?.has('b-divine')
 
   const rawEvaluations = STRATEGIES.map((strategy) => {
     const eligiblePool = selectStrategySolvePool(
-      pool,
+      solverEligiblePool,
       strategy,
       opts.strategyReservations,
       undefined,
       opts.pieceKeeps,
     ).solvePool
-    const libraryReadiness = strategyReadiness(strategy, pool, borders)
+    const libraryReadiness = strategyReadiness(strategy, solverEligiblePool, borders, opts.mode)
     const potential = libraryReadiness.ready
       ? (solve(eligiblePool, borders, strategy.weights, {
           ...opts,
@@ -474,8 +482,8 @@ export function evaluateStrategyInventory(
       .slice(0, Math.max(0, limit)),
     evaluations,
     enteredBorders,
-    availableCharts: pool.length,
-    hasEvidence: enteredBorders > 0 || pool.length > 0,
+    availableCharts: solverEligiblePool.length,
+    hasEvidence: enteredBorders > 0 || solverEligiblePool.length > 0,
   }
 }
 
