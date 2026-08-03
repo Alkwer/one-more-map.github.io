@@ -73,6 +73,28 @@ describe('border-aware strategy readiness', () => {
 
     expect(readiness.ready).toBe(true)
   })
+
+  it('does not reuse one chart for two required Meatfish slots', () => {
+    const meatfish = strategyById.get('milky-meatfish')!
+    const pool = [
+      crossing('star-pillar', ['adj-star-1'], 'sea-pillars'),
+      crossing('star', ['adj-star-2']),
+      crossing('pantheon', ['adj-pantheon']),
+      crossing('pillar', [], 'sea-pillars'),
+      crossing('lantern-1', ['adj-lantern']),
+      crossing('lantern-2', ['adj-lantern']),
+      crossing('possessed', ['voy-possess']),
+      crossing('no-equipment', ['voy-noequip']),
+      crossing('filler', []),
+    ]
+
+    const readiness = strategyReadiness(meatfish, pool, emptyBorders())
+
+    expect(readiness.ready).toBe(false)
+    expect(readiness.have).toBe(8)
+    expect(readiness.need).toBe(9)
+    expect(readiness.missing).toContain('1× Sea-Pillar chart (corners)')
+  })
 })
 
 describe('Divine strategy selection', () => {
@@ -112,6 +134,41 @@ describe('Divine strategy selection', () => {
 
     expect(decision.kind).toBe('switch')
     expect(decision.strategyId).toBe('cutedog-divine-boxes')
+    expect(decision.preserveRoll).toBe(true)
+  })
+
+  it('waits when one physical chart is the only match for two required slots', () => {
+    const pool = [
+      crossing('pelagic', [], 'pelagic-abyss'),
+      crossing('box-and-rares', ['adj-box-3', 'voy-rare']),
+      crossing('box-only', ['adj-opbox-2']),
+      ...Array.from({ length: 5 }, (_, index) => crossing(`rares-${index + 1}`, ['voy-rare'])),
+      crossing('filler', []),
+    ]
+    const borders = divineBorders(0)
+    const charts = new Map(pool.map((chart) => [chart.uid, chart]))
+    const inventory = evaluateStrategyInventory(borders, charts, pool, options)
+    const strongboxes = inventory.evaluations.find(
+      (entry) => entry.strategy.id === 'cutedog-divine-boxes',
+    )!
+
+    expect(strongboxes.readiness.ready).toBe(false)
+    expect(strongboxes.readiness.missing).toContain('1× Increased Rares (voyage) chart')
+
+    const decision = decideVoyage({
+      evaluations: inventory.evaluations.map((entry) => ({
+        ...entry,
+        appraisal: entry.potentialAppraisal,
+        currentFit: entry.fit,
+        currentStatus: entry.status,
+      })),
+      activeStrategyId: null,
+      availableCharts: pool.length,
+      enteredBorders: 1,
+      rerollsUsed: 0,
+    })
+
+    expect(decision.kind).toBe('wait')
     expect(decision.preserveRoll).toBe(true)
   })
 })

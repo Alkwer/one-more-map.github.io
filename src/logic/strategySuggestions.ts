@@ -15,7 +15,7 @@ import { borderRewardKey } from './rewards'
 import { scoreBoard, type ScoreOptions } from './scoring'
 import { solve } from './solver'
 import { selectStrategySolvePool } from './solverPoolSelection'
-import { requiredCountFor } from './strategyRequirements'
+import { allocateStrategyRequirements } from './strategyRequirements'
 
 const EPSILON = 1e-9
 const POTENTIAL_SEARCH_RESTARTS = 12
@@ -108,19 +108,6 @@ export interface StrategySuggestionResult {
   hasEvidence: boolean
 }
 
-function countMatchingCharts(
-  requirement: NonNullable<StrategyDef['requirements']>[number],
-  pool: ChartData[],
-): number {
-  return pool.filter(
-    (chart) =>
-      (requirement.modIds && chart.modIds.some((id) => requirement.modIds!.includes(id))) ||
-      (requirement.nameMatch &&
-        chart.name.toLowerCase().includes(requirement.nameMatch.toLowerCase())) ||
-      (requirement.areaTypes && chart.areaType && requirement.areaTypes.includes(chart.areaType)),
-  ).length
-}
-
 export function strategyReadiness(
   strategy: StrategyDef,
   pool: ChartData[],
@@ -131,19 +118,19 @@ export function strategyReadiness(
   const missing: string[] = []
   const requirements: StrategyRequirementReadiness[] = []
 
-  for (const requirement of strategy.requirements ?? []) {
-    const count = countMatchingCharts(requirement, pool)
-    const requiredCount = requiredCountFor(requirement, borders)
-    have += Math.min(count, requiredCount)
-    need += requiredCount
+  const allocation = allocateStrategyRequirements(strategy.requirements ?? [], pool, borders)
+  for (const entry of allocation.allocations) {
+    const count = entry.chartUids.length
+    have += count
+    need += entry.required
     requirements.push({
-      label: requirement.label,
+      label: entry.requirement.label,
       have: count,
-      need: requiredCount,
-      missing: Math.max(0, requiredCount - count),
+      need: entry.required,
+      missing: entry.missing,
     })
-    if (count < requiredCount) {
-      missing.push(`${requiredCount - count}× ${requirement.label}`)
+    if (entry.missing > 0) {
+      missing.push(`${entry.missing}× ${entry.requirement.label}`)
     }
   }
 

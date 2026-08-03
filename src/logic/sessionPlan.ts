@@ -14,7 +14,7 @@ import {
   defaultStrategyReservations,
 } from '../data/strategies'
 import { selectStrategySolvePool } from './solverPoolSelection'
-import { requiredCountFor, type StrategyRequirement } from './strategyRequirements'
+import { allocateStrategyRequirements } from './strategyRequirements'
 import type { Borders, ChartData } from '../types'
 
 export interface PlanEntry {
@@ -45,25 +45,6 @@ const JUICED_ORDER = [
 
 const byId = new Map(STRATEGIES.map((s) => [s.id, s]))
 
-/** greedily claim `count` unused charts matching a requirement; null if short */
-function claim(
-  req: StrategyRequirement,
-  requiredCount: number,
-  available: ChartData[],
-  used: Set<string>,
-): string[] | null {
-  const picked: string[] = []
-  for (const c of available) {
-    if (picked.length >= requiredCount) break
-    if (used.has(c.uid)) continue
-    const matches =
-      (req.modIds && c.modIds.some((id) => req.modIds!.includes(id))) ||
-      (req.areaTypes && c.areaType && req.areaTypes.includes(c.areaType))
-    if (matches) picked.push(c.uid)
-  }
-  return picked.length >= requiredCount ? picked : null
-}
-
 export function planSession(
   pool: ChartData[],
   borders: Borders,
@@ -87,14 +68,11 @@ export function planSession(
       pieceKeeps,
     ).solvePool
 
-    const missing: string[] = []
-    const tentative = new Set<string>()
-    for (const req of s.requirements ?? []) {
-      const requiredCount = requiredCountFor(req, borders)
-      const got = claim(req, requiredCount, spendable, tentative)
-      if (got) got.forEach((uid) => tentative.add(uid))
-      else missing.push(`${requiredCount}× ${req.label}`)
-    }
+    const allocation = allocateStrategyRequirements(s.requirements ?? [], spendable, borders)
+    const missing = allocation.allocations
+      .filter((entry) => entry.missing > 0)
+      .map((entry) => `${entry.missing}× ${entry.requirement.label}`)
+    const tentative = new Set(allocation.allocatedUids)
     if (borderMissing) missing.push(s.requiresBorderId!.label)
 
     if (missing.length > 0) {
