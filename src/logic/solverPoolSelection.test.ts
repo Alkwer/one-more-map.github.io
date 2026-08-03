@@ -48,10 +48,9 @@ describe('keep-count solve pools', () => {
     expect(heldBackFor).toContain('Divine Border Rares')
   })
 
-  it('ranks a piece type by tier then rolls', () => {
+  it('ranks a piece type by rolls within the same tier', () => {
     const pool = [
       chart({ uid: 'weak', modIds: ['voy-rare'] }),
-      chart({ uid: 'strong', modIds: ['adj-rare-2'] }),
       chart({
         uid: 'rolled',
         modIds: ['voy-rare'],
@@ -60,12 +59,63 @@ describe('keep-count solve pools', () => {
     ]
     const bank = selectPieceBank(
       pool,
-      { [keyOf('Increased Rares chart')]: 2 },
+      { [keyOf('Increased Rares chart (voyage-wide)')]: 1 },
       ALL_ON,
     )
-    expect(bank.has('strong')).toBe(true)
     expect(bank.has('rolled')).toBe(true)
     expect(bank.has('weak')).toBe(false)
+  })
+
+  it('adjacent rares are spendable by default - only voyage-wide rares bank', () => {
+    const pool = [
+      chart({ uid: 'adj', modIds: ['adj-rare-2'] }),
+      chart({ uid: 'voy', modIds: ['voy-rare'] }),
+    ]
+    const { solvePool } = selectStrategySolvePool(pool, null, ALL_ON)
+    expect(solvePool.map(({ uid }) => uid)).toEqual(['adj'])
+  })
+
+  it('splits generic big boxes from typed boxes (issue #21)', () => {
+    const pool = [
+      chart({ uid: 'big4', modIds: ['adj-box-2'] }),
+      chart({ uid: 'big5', modIds: ['adj-box-3'] }),
+      chart({ uid: 'small', modIds: ['adj-box-1'] }),
+      chart({ uid: 'arcanist', modIds: ['adj-arcbox-2'] }),
+      chart({ uid: 'diviner', modIds: ['adj-divbox-2'] }),
+    ]
+    const bank = selectPieceBank(pool, {}, ALL_ON)
+    // big generic boxes are Divine-mandatory
+    expect(bank.get('big4')?.strategyId).toBe('divine-border-rares')
+    expect(bank.get('big5')?.strategyId).toBe('divine-border-rares')
+    // +1 boxes and Arcanist's are free by default
+    expect(bank.has('small')).toBe(false)
+    expect(bank.has('arcanist')).toBe(false)
+    // Diviner's is a Speedrun centre, banked for Speedrun, not Divine
+    expect(bank.get('diviner')?.strategyId).toBe('milky-speedrun')
+    // opting typed boxes back in works
+    const withDiviners = selectPieceBank(
+      pool,
+      { [keyOf("Diviner's Strongbox chart")]: 1 },
+      ALL_ON,
+    )
+    expect(withDiviners.get('diviner')?.strategyId).toBe('cutedog-divine-boxes')
+  })
+
+  it('banks user-added custom chart types for their strategy', () => {
+    const pool = [chart({ uid: 'barrel', modIds: ['adj-barrel-1'] })]
+    expect(selectStrategySolvePool(pool, null, ALL_ON).solvePool).toHaveLength(1)
+    const keeps = { 'custom:milky-meatfish:adj-barrel-1': 1 }
+    const bank = selectPieceBank(pool, keeps, ALL_ON)
+    expect(bank.get('barrel')?.strategyId).toBe('milky-meatfish')
+    const { solvePool, heldBackFor } = selectStrategySolvePool(
+      pool,
+      null,
+      ALL_ON,
+      new Set(),
+      keeps,
+    )
+    expect(solvePool).toHaveLength(0)
+    expect(heldBackFor).toEqual(['Meatfish'])
   })
 
   it('lets the owning strategy spend its banked charts', () => {

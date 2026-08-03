@@ -13,6 +13,13 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    date: '2026-08-03',
+    tag: 'reworked',
+    title: 'Granular Divine keeps + custom chart types',
+    detail:
+      'The 🔖 wizard now splits Starfish from Strongboxes, big generic boxes (+2-4/+5, Divine-mandatory) from Diviner/Arcanist/Operative boxes (free by default - their counts can\'t reach 4), and voyage-wide rares from adjacent rares (adjacent spend freely). Every step also has "+ Add a chart type" to bank anything else you care about. Thanks sincere-bat for the design (issue #21).',
+  },
+  {
     date: '2026-08-02',
     tag: 'new',
     title: 'Site tutorial',

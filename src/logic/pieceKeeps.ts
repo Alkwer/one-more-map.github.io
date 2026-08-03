@@ -66,25 +66,41 @@ function buildPieceTypes(): PieceType[] {
     )
   for (const sid of STRATEGY_ORDER) {
     const s = STRATEGIES.find((x) => x.id === sid)!
-    for (const req of s.requirements ?? []) {
-      // the Divine board wants 5 rares; bank one spare on top
-      const wantedKeep = req.modIds?.includes('voy-rare') ? req.count + 1 : req.count
-      const owner = familyOwner(req)
+    // explicit bankTypes trump requirement-derived ones - banking can be more
+    // granular than readiness (issue #21)
+    const sources = s.bankTypes
+      ? s.bankTypes.map((b) => ({
+          label: b.label,
+          modIds: b.modIds,
+          areaTypes: b.areaTypes,
+          count: b.keep,
+          keep: b.keep,
+        }))
+      : (s.requirements ?? []).map((req) => ({
+          label: req.label,
+          modIds: req.modIds,
+          areaTypes: req.areaTypes,
+          count: req.count,
+          // the Divine board wants 5 rares; bank one spare on top
+          keep: req.modIds?.includes('voy-rare') ? req.count + 1 : req.count,
+        }))
+    for (const src of sources) {
+      const owner = familyOwner(src)
       if (owner) {
-        owner.recommended = Math.max(owner.recommended, req.count)
-        owner.defaultKeep = Math.max(owner.defaultKeep, wantedKeep)
+        owner.recommended = Math.max(owner.recommended, src.count)
+        owner.defaultKeep = Math.max(owner.defaultKeep, src.keep)
       }
-      const fingerprint = (req.modIds ?? req.areaTypes ?? []).join('|')
+      const fingerprint = (src.modIds ?? src.areaTypes ?? []).join('|')
       out.push({
         key: `${s.id}:${fingerprint}`,
         strategyId: s.id,
         strategyName: s.name,
         reservationId: RESERVATION_OF[s.id],
-        label: req.label,
-        modIds: req.modIds,
-        areaTypes: req.areaTypes,
-        recommended: req.count,
-        defaultKeep: wantedKeep,
+        label: src.label,
+        modIds: src.modIds,
+        areaTypes: src.areaTypes,
+        recommended: src.count,
+        defaultKeep: src.keep,
         banks: !owner,
       })
     }
@@ -137,15 +153,44 @@ export function strategyWantsChart(strategyId: string | undefined, c: ChartData)
   return PIECE_TYPES.some((p) => p.strategyId === strategyId && matchesPiece(c, p))
 }
 
+/** key encoding a user-added chart type in the keeps record */
+export const customKey = (strategyId: string, modId: string) =>
+  `custom:${strategyId}:${modId}`
+
+/** user-added chart types, derived from `custom:<strategyId>:<modId>` keys */
+export function customPieceTypes(keeps: Record<string, number>): PieceType[] {
+  const out: PieceType[] = []
+  for (const key of Object.keys(keeps)) {
+    if (!key.startsWith('custom:')) continue
+    const [, strategyId, modId] = key.split(':')
+    const s = STRATEGIES.find((x) => x.id === strategyId)
+    const mod = voyageModById.get(modId)
+    if (!s || !mod) continue
+    out.push({
+      key,
+      strategyId,
+      strategyName: s.name,
+      reservationId: RESERVATION_OF[strategyId] ?? null,
+      label: mod.short ?? mod.text,
+      modIds: [modId],
+      recommended: 0,
+      defaultKeep: 0,
+      banks: true,
+    })
+  }
+  return out
+}
+
 /** Which charts are banked, and for whom. Claim order follows strategy
- *  priority; a chart claimed by one type is invisible to later ones. */
+ *  priority (user-added types last); a chart claimed by one type is invisible
+ *  to later ones. */
 export function selectPieceBank(
   pool: ChartData[],
   keeps: Record<string, number>,
   prefs: StrategyReservationPreferences,
 ): Map<string, PieceType> {
   const bank = new Map<string, PieceType>()
-  for (const p of PIECE_TYPES) {
+  for (const p of [...PIECE_TYPES, ...customPieceTypes(keeps)]) {
     if (!p.banks) continue
     if (p.reservationId && !prefs[p.reservationId]) continue
     const keep = keeps[p.key] ?? p.defaultKeep

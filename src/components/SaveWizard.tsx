@@ -1,5 +1,11 @@
 import { useMemo, useState } from 'react'
-import { PIECE_TYPES, matchesPiece, type PieceType } from '../logic/pieceKeeps'
+import {
+  PIECE_TYPES,
+  customKey,
+  matchesPiece,
+  type PieceType,
+} from '../logic/pieceKeeps'
+import { VOYAGE_MODS, voyageModById } from '../data/mods'
 import type { ChartData } from '../types'
 
 interface Props {
@@ -25,6 +31,7 @@ for (const p of PIECE_TYPES) {
 export function SaveWizard({ pool, keeps, onApply, onClose }: Props) {
   const [step, setStep] = useState(0)
   const [draft, setDraft] = useState<Record<string, number>>({ ...keeps })
+  const [pendingMod, setPendingMod] = useState('')
 
   const summary = step >= STEPS.length
   const current = summary ? null : STEPS[step]
@@ -37,8 +44,29 @@ export function SaveWizard({ pool, keeps, onApply, onClose }: Props) {
   }, [pool])
 
   const keepOf = (p: PieceType) => draft[p.key] ?? p.defaultKeep
-  const bump = (p: PieceType, delta: number) =>
-    setDraft((d) => ({ ...d, [p.key]: Math.max(0, keepOf(p) + delta) }))
+  const bumpKey = (key: string, base: number, delta: number) =>
+    setDraft((d) => ({ ...d, [key]: Math.max(0, (d[key] ?? base) + delta) }))
+
+  // ---- user-added chart types for the current step ----
+  const customsOf = (strategyId: string) =>
+    Object.keys(draft)
+      .filter((k) => k.startsWith(`custom:${strategyId}:`))
+      .map((k) => ({ key: k, modId: k.split(':')[2] }))
+
+  const customs = current ? customsOf(current.strategyId) : []
+  // dropdown: any non-self mod this step doesn't already cover
+  const addable = current
+    ? VOYAGE_MODS.filter(
+        (m) =>
+          m.scope !== 'self' &&
+          !current.pieces.some((p) => p.modIds?.includes(m.id)) &&
+          !customs.some((c) => c.modId === m.id),
+      )
+    : []
+
+  const pinnedTotal = (strategyId: string, pieces: PieceType[]) =>
+    pieces.reduce((sum, p) => sum + keepOf(p), 0) +
+    customsOf(strategyId).reduce((sum, c) => sum + (draft[c.key] ?? 0), 0)
 
   return (
     <div className="onboard-backdrop" onClick={onClose}>
@@ -74,15 +102,70 @@ export function SaveWizard({ pool, keeps, onApply, onClose }: Props) {
                     </span>
                     <span className="spacer" />
                     <span className="sw-stepper">
-                      <button onClick={() => bump(p, -1)} disabled={keep === 0}>
+                      <button onClick={() => bumpKey(p.key, p.defaultKeep, -1)} disabled={keep === 0}>
                         −
                       </button>
                       <span className={`sw-keep ${keep > owned ? 'short' : ''}`}>{keep}</span>
-                      <button onClick={() => bump(p, 1)}>+</button>
+                      <button onClick={() => bumpKey(p.key, p.defaultKeep, 1)}>+</button>
                     </span>
                   </div>
                 )
               })}
+              {customs.map((c) => {
+                const mod = voyageModById.get(c.modId)
+                const keep = draft[c.key] ?? 0
+                const owned = pool.filter((ch) => ch.modIds.includes(c.modId)).length
+                return (
+                  <div key={c.key} className={`sw-row ${keep > 0 ? 'pinned' : ''}`}>
+                    <span className="sw-name">{mod?.short ?? mod?.text ?? c.modId}</span>
+                    <span className="sw-mod muted">your addition · you have {owned}</span>
+                    <span className="spacer" />
+                    <span className="sw-stepper">
+                      <button onClick={() => bumpKey(c.key, 0, -1)} disabled={keep === 0}>
+                        −
+                      </button>
+                      <span className={`sw-keep ${keep > owned ? 'short' : ''}`}>{keep}</span>
+                      <button onClick={() => bumpKey(c.key, 0, 1)}>+</button>
+                    </span>
+                    <button
+                      className="sw-remove"
+                      title="Remove this chart type"
+                      onClick={() =>
+                        setDraft((d) => {
+                          const next = { ...d }
+                          delete next[c.key]
+                          return next
+                        })
+                      }
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="sw-add">
+              <select value={pendingMod} onChange={(e) => setPendingMod(e.target.value)}>
+                <option value="">+ Add a chart type to this strategy…</option>
+                {addable.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.short ?? m.text} ({m.scope === 'global' ? 'voyage' : 'adjacent'})
+                  </option>
+                ))}
+              </select>
+              <button
+                disabled={!pendingMod}
+                onClick={() => {
+                  if (!current || !pendingMod) return
+                  setDraft((d) => ({
+                    ...d,
+                    [customKey(current.strategyId, pendingMod)]: 1,
+                  }))
+                  setPendingMod('')
+                }}
+              >
+                Add
+              </button>
             </div>
           </>
         )}
@@ -95,18 +178,12 @@ export function SaveWizard({ pool, keeps, onApply, onClose }: Props) {
             </div>
             <div className="sw-list">
               {STEPS.map((s) => {
-                const total = s.pieces.reduce((sum, p) => sum + keepOf(p), 0)
-                const banked = s.pieces.reduce(
-                  (sum, p) => sum + Math.min(keepOf(p), have.get(p.key) ?? 0),
-                  0,
-                )
+                const total = pinnedTotal(s.strategyId, s.pieces)
                 return (
                   <div key={s.strategyId} className="sw-row summary">
                     <span className="sw-pin">{total > 0 ? '🔖' : '·'}</span>
                     <span className="sw-name">{s.strategyName}</span>
-                    <span className="sw-mod muted">
-                      keeping up to {total} · {banked} banked from your library now
-                    </span>
+                    <span className="sw-mod muted">keeping up to {total}</span>
                   </div>
                 )
               })}

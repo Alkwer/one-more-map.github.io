@@ -2065,6 +2065,19 @@ textarea {
 .sw-keep.short {
   color: var(--muted);
 }
+.sw-remove {
+  padding: 2px 8px;
+  font-size: 12px;
+  color: #c98b8b;
+}
+.sw-add {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.sw-add select {
+  flex: 1;
+}
 .sw-actions {
   display: flex;
   gap: 8px;

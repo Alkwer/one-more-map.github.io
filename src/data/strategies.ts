@@ -76,6 +76,16 @@ export interface StrategyDef {
     count: number
     label: string
   }[]
+  /** explicit 🔖 keep-wizard chart types; when present they replace the
+   *  requirement-derived ones, so banking can be more granular than
+   *  readiness (issue #21: split Starfish from boxes, box types from each
+   *  other, voyage rares from adjacent rares). keep = default bank count. */
+  bankTypes?: {
+    label: string
+    modIds?: string[]
+    areaTypes?: ChartAreaType[]
+    keep: number
+  }[]
   /** a border roll the strategy hinges on (readiness warns if not entered) */
   requiresBorderId?: { id: string; label: string }
   /** what to do instead while pieces are missing */
@@ -407,6 +417,17 @@ export const STRATEGIES: StrategyDef[] = [
       },
       { modIds: ['adj-rare-1', 'adj-rare-2', 'voy-rare'], count: 5, label: 'Increased Rares chart' },
     ],
+    // banking is more granular than readiness (issue #21): only the big
+    // generic boxes (+2-4/+5) are Divine-mandatory - typed boxes cap at +3
+    // and stay free for Speedrun; voyage-wide rares outrank adjacent ones
+    bankTypes: [
+      { label: 'Sea-Pillar chart', areaTypes: ['sea-pillars'], keep: 1 },
+      { label: 'Giant Starfish chart', modIds: ['adj-star-1', 'adj-star-2'], keep: 3 },
+      { label: 'Strongbox chart (+2-4 / +5)', modIds: ['adj-box-2', 'adj-box-3'], keep: 3 },
+      { label: 'Strongbox chart (+1)', modIds: ['adj-box-1'], keep: 0 },
+      { label: 'Increased Rares chart (voyage-wide)', modIds: ['voy-rare'], keep: 6 },
+      { label: 'Increased Rares chart (adjacent)', modIds: ['adj-rare-1', 'adj-rare-2'], keep: 0 },
+    ],
     requiresBorderId: { id: 'b-divine', label: 'a "+1 Divine Orb" border roll (enter your borders)' },
     waitHint: 'Speedrun Strongboxes until the pieces and the Divine border line up.',
     searchRegex: '"rare monsters in all voy|strongbox"',
@@ -470,6 +491,14 @@ export const STRATEGIES: StrategyDef[] = [
         label: 'Strongbox adjacent chart (any type)',
       },
       { modIds: ['voy-rare'], count: 5, label: 'Increased Rares (voyage) chart' },
+    ],
+    bankTypes: [
+      { label: 'Pelagic Abyss chart (high pack size)', areaTypes: ['pelagic-abyss'], keep: 1 },
+      { label: 'Strongbox chart (+2-4 / +5)', modIds: ['adj-box-2', 'adj-box-3'], keep: 3 },
+      { label: "Diviner's Strongbox chart", modIds: ['adj-divbox-1', 'adj-divbox-2'], keep: 0 },
+      { label: "Arcanist's Strongbox chart", modIds: ['adj-arcbox-1', 'adj-arcbox-2'], keep: 0 },
+      { label: "Operative's Strongbox chart", modIds: ['adj-opbox-1', 'adj-opbox-2'], keep: 0 },
+      { label: 'Increased Rares chart (voyage-wide)', modIds: ['voy-rare'], keep: 6 },
     ],
     requiresBorderId: { id: 'b-divine', label: 'a "+1 Divine Orb" border roll (enter your borders)' },
     waitHint: 'Speedrun Strongboxes until the pieces and the Divine border line up.',
