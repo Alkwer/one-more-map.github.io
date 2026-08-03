@@ -593,7 +593,9 @@ test('recovers an unknown shape and places it on the board with the keyboard', a
 
 test('steps through chart copying and preserves a confirmed Voyage survivor', async ({
   appPage,
+  context,
 }) => {
+  await context.grantPermissions(['clipboard-write'], { origin: ORIGIN })
   await openApp(appPage)
   await pasteText(appPage, ENGLISH_CHART)
   await pasteText(appPage, KOREAN_CHART)
@@ -637,7 +639,9 @@ test('steps through chart copying and preserves a confirmed Voyage survivor', as
 
 test('keeps a copy snapshot safe across swaps, board clears, and chart removal', async ({
   appPage,
+  context,
 }) => {
+  await context.grantPermissions(['clipboard-write'], { origin: ORIGIN })
   await openApp(appPage)
   await pasteText(appPage, ENGLISH_CHART)
   await pasteText(appPage, KOREAN_CHART)

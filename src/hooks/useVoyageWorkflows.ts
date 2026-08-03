@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState, type Dispatch } from 'react'
-import { buildSingleChartSearch } from '../logic/regex'
+import { useCallback, useEffect, useRef, useState, type Dispatch } from 'react'
 import type { AppState } from '../logic/storage'
 import { summarizeVoyageFinish, type AppStateAction } from '../state/appStateReducer'
 import {
   advanceCopySequence,
   currentCopyEntry,
   startCopySequence,
+  writeCurrentCopyAndAdvance,
+  type CopySequenceWriteResult,
   type CopySequenceState,
 } from '../state/copySequence'
 import type { ChartData } from '../types'
@@ -27,9 +28,16 @@ export function useVoyageWorkflows(
     null,
   )
   const [copySequence, setCopySequence] = useState<CopySequenceState | null>(null)
+  const [copyFailure, setCopyFailure] = useState<Extract<
+    CopySequenceWriteResult,
+    { ok: false }
+  > | null>(null)
+  const [copyPending, setCopyPending] = useState(false)
+  const copyInFlight = useRef(false)
 
   const stopUnavailableCopySequence = useCallback(() => {
     setCopySequence(null)
+    setCopyFailure(null)
     setVoyageMessage(
       'Copy sequence stopped: a chart from the original sequence is no longer in your library. Review the board and start Copy into game again.',
     )
@@ -69,16 +77,34 @@ export function useVoyageWorkflows(
     },
     [commitFinish, preserveConfirmation],
   )
-  const copyCurrentAndAdvance = useCallback(() => {
-    if (!copySequence) return
+  const copyCurrentAndAdvance = useCallback(async () => {
+    if (!copySequence || copyInFlight.current) return
     const chart = chartMap.get(currentCopyEntry(copySequence).chartUid)
     if (!chart) {
       stopUnavailableCopySequence()
       return
     }
-    navigator.clipboard.writeText(buildSingleChartSearch(chart)).catch(() => {})
-    setCopySequence(advanceCopySequence(copySequence))
+    copyInFlight.current = true
+    setCopyPending(true)
+    try {
+      const result = await writeCurrentCopyAndAdvance(copySequence, chart, navigator.clipboard)
+      if (!result.ok) {
+        setCopyFailure(result)
+        return
+      }
+      setCopyFailure(null)
+      setCopySequence(result.next)
+    } finally {
+      copyInFlight.current = false
+      setCopyPending(false)
+    }
   }, [chartMap, copySequence, stopUnavailableCopySequence])
+
+  const confirmManualCopy = useCallback(() => {
+    if (!copySequence || !copyFailure) return
+    setCopyFailure(null)
+    setCopySequence(advanceCopySequence(copySequence))
+  }, [copyFailure, copySequence])
 
   useEffect(() => {
     if (!copySequence) return
@@ -112,12 +138,21 @@ export function useVoyageWorkflows(
     voyageMessage,
     preserveConfirmation,
     copySequence,
+    copyFailure,
+    copyPending,
     sequenceActive,
     highlightUid,
     finishVoyage,
     decidePreserve,
-    startCopySequence: () => setCopySequence(startCopySequence(state.board)),
+    startCopySequence: () => {
+      setCopyFailure(null)
+      setCopySequence(startCopySequence(state.board))
+    },
     copyCurrentAndAdvance,
-    cancelCopySequence: () => setCopySequence(null),
+    confirmManualCopy,
+    cancelCopySequence: () => {
+      setCopyFailure(null)
+      setCopySequence(null)
+    },
   }
 }

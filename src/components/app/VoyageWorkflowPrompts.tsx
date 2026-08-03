@@ -1,5 +1,9 @@
 import { voyageModById } from '../../data/mods'
-import { currentCopyEntry, type CopySequenceState } from '../../state/copySequence'
+import {
+  currentCopyEntry,
+  type CopySequenceState,
+  type CopySequenceWriteResult,
+} from '../../state/copySequence'
 import type { Board, ChartData } from '../../types'
 import type { PreserveConfirmation } from '../../hooks/useVoyageWorkflows'
 
@@ -13,7 +17,10 @@ interface CopySequenceProps {
   sequence: CopySequenceState
   board: Board
   chartMap: Map<string, ChartData>
-  onAdvance: () => void
+  failure: Extract<CopySequenceWriteResult, { ok: false }> | null
+  pending: boolean
+  onAdvance: () => void | Promise<void>
+  onManualAdvance: () => void
   onCancel: () => void
 }
 
@@ -50,11 +57,30 @@ export function CopySequencePrompt(props: CopySequenceProps) {
           and start again.
         </div>
       )}
+      {props.failure && (
+        <div className="copyseq-manual" role="alert">
+          <strong>Nothing was copied, so this chart has not advanced.</strong>
+          <div className="pc-sub">{props.failure.detail}</div>
+          <label>
+            Manual copy search
+            <input
+              readOnly
+              value={props.failure.manualText}
+              onFocus={(event) => event.currentTarget.select()}
+            />
+          </label>
+          <button onClick={props.onManualAdvance}>I copied it manually — next</button>
+        </div>
+      )}
       <div className="copyseq-actions">
-        <button className="copyseq-go" onClick={props.onAdvance}>
-          {props.sequence.step + 1 >= props.sequence.order.length
-            ? '📋 Copy last & finish'
-            : '📋 Copy & next'}
+        <button className="copyseq-go" disabled={props.pending} onClick={props.onAdvance}>
+          {props.pending
+            ? 'Copying…'
+            : props.failure
+              ? '📋 Retry clipboard copy'
+              : props.sequence.step + 1 >= props.sequence.order.length
+                ? '📋 Copy last & finish'
+                : '📋 Copy & next'}
           <span className="copyseq-hint">or press Ctrl+C</span>
         </button>
         <button className="pc-lost" onClick={props.onCancel}>
