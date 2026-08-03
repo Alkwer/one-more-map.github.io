@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { defaultState, type AppState } from '../logic/storage'
+import { defaultState, MAX_POOL_CHARTS, type AppState } from '../logic/storage'
 import type { ChartData } from '../types'
 import { appStateReducer, summarizeVoyageFinish } from './appStateReducer'
 
@@ -90,6 +90,18 @@ describe('appStateReducer', () => {
 
     const replacement = { ...defaultState(), strategyId: 'replacement' }
     expect(appStateReducer(state, { type: 'replace', state: replacement })).toBe(replacement)
+  })
+
+  it('never grows the local library beyond the persisted-state limit', () => {
+    const state = defaultState()
+    const incoming = Array.from({ length: MAX_POOL_CHARTS + 5 }, (_, index) =>
+      chart(`chart-${index}`),
+    )
+
+    const limited = appStateReducer(state, { type: 'charts/add', charts: incoming })
+
+    expect(limited.pool).toHaveLength(MAX_POOL_CHARTS)
+    expect(limited.pool[MAX_POOL_CHARTS - 1]?.uid).toBe(`chart-${MAX_POOL_CHARTS - 1}`)
   })
 
   it('finishes a voyage without touching library charts that were not on the board', () => {

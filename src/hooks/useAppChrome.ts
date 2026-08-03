@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { encodeShare, type AppState } from '../logic/storage'
+import { encodeShare } from '../logic/share'
+import type { AppState } from '../logic/storage'
 
 export function useAppChrome(state: AppState) {
   const [showOnboarding, setShowOnboarding] = useState<boolean>(() => {
@@ -34,12 +35,21 @@ export function useAppChrome(state: AppState) {
     }
   }
   const share = async () => {
-    const url = `${location.origin}${location.pathname}#${encodeShare(state)}`
+    let hash: string
+    try {
+      hash = encodeShare(state)
+    } catch (error) {
+      setShareMessage(error instanceof Error ? error.message : 'Could not create share link')
+      window.setTimeout(() => setShareMessage(''), 2500)
+      return
+    }
+
+    const url = `${location.origin}${location.pathname}#${hash}`
     try {
       await navigator.clipboard.writeText(url)
       setShareMessage('Link copied!')
     } catch {
-      window.location.hash = encodeShare(state)
+      window.location.hash = hash
       setShareMessage('Link set in address bar')
     }
     window.setTimeout(() => setShareMessage(''), 2500)

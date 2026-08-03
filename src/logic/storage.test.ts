@@ -1,15 +1,22 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { AppState } from './storage'
 import type { ChartData, ModEffect } from '../types'
 import {
-  decodeShare,
   decodeState,
+  decodeStateFile,
   decodeStateJson,
   defaultState,
-  encodeShare,
+  MAX_CHART_NAME_LENGTH,
+  MAX_MOD_IDS_PER_CHART,
+  MAX_POOL_CHARTS,
+  MAX_RAW_TEXT_LENGTH,
+  MAX_REWARDS_PER_CHART,
+  MAX_STATE_JSON_CHARS,
+  MAX_STATE_FILE_BYTES,
   serializeState,
   STATE_VERSION,
 } from './storage'
+import { decodeShare } from './share'
 import { customKey } from './pieceKeeps'
 
 const chart = (overrides: Partial<ChartData> = {}): ChartData => ({
@@ -61,7 +68,9 @@ describe('state decoding', () => {
       code: 'invalid',
       message: 'state root must be an object',
     })
-    expect(decodeShare(btoa(JSON.stringify({ v: STATE_VERSION, pool: [{}] })))).toBeNull()
+    expect(decodeShare(btoa(JSON.stringify({ v: STATE_VERSION, pool: [{}] })))).toMatchObject({
+      ok: false,
+    })
   })
 
   it.each([
@@ -293,10 +302,9 @@ describe('state decoding', () => {
     }
 
     expect(decoded(JSON.parse(serializeState(state))).state.pieceKeeps).toEqual(state.pieceKeeps)
-    expect(decodeShare(encodeShare(state))?.pieceKeeps).toEqual(state.pieceKeeps)
   })
 
-  it('round-trips a normal export and shared URL state', () => {
+  it('round-trips a normal export state', () => {
     const state: AppState = {
       ...defaultState(),
       pool: [chart({ shapeResolved: true, preserved: true })],
@@ -316,6 +324,106 @@ describe('state decoding', () => {
     const json = serializeState(state, 2)
     expect(JSON.parse(json).v).toBe(STATE_VERSION)
     expect(decoded(JSON.parse(json)).state).toEqual(state)
-    expect(decodeShare(encodeShare(state))).toEqual(state)
+  })
+
+  it('enforces state resource limits at their boundaries', () => {
+    const charts = Array.from({ length: MAX_POOL_CHARTS }, (_, index) =>
+      chart({ uid: `chart-${index}` }),
+    )
+    expect(decodeState(persisted({ pool: charts }))).toMatchObject({ ok: true })
+    expect(
+      decodeState(persisted({ pool: [...charts, chart({ uid: 'one-too-many' })] })),
+    ).toMatchObject({
+      ok: false,
+      message: `pool must contain at most ${MAX_POOL_CHARTS} charts`,
+    })
+
+    expect(
+      decodeState(persisted({ pool: [chart({ name: 'n'.repeat(MAX_CHART_NAME_LENGTH) })] })),
+    ).toMatchObject({ ok: true })
+    expect(
+      decodeState(persisted({ pool: [chart({ name: 'n'.repeat(MAX_CHART_NAME_LENGTH + 1) })] })),
+    ).toMatchObject({
+      ok: false,
+      message: `pool[0].name must be at most ${MAX_CHART_NAME_LENGTH} characters`,
+    })
+
+    expect(
+      decodeState(
+        persisted({
+          pool: [chart({ rawText: 'r'.repeat(MAX_RAW_TEXT_LENGTH) })],
+        }),
+      ),
+    ).toMatchObject({ ok: true })
+    expect(
+      decodeState(
+        persisted({
+          pool: [chart({ rawText: 'r'.repeat(MAX_RAW_TEXT_LENGTH + 1) })],
+        }),
+      ),
+    ).toMatchObject({
+      ok: false,
+      message: `pool[0].rawText must be at most ${MAX_RAW_TEXT_LENGTH} characters`,
+    })
+
+    expect(
+      decodeState(
+        persisted({
+          pool: [chart({ modIds: Array(MAX_MOD_IDS_PER_CHART).fill('adj-star-1') })],
+        }),
+      ),
+    ).toMatchObject({ ok: true })
+    expect(
+      decodeState(
+        persisted({
+          pool: [chart({ modIds: Array(MAX_MOD_IDS_PER_CHART + 1).fill('adj-star-1') })],
+        }),
+      ),
+    ).toMatchObject({
+      ok: false,
+      message: `pool[0].modIds must contain at most ${MAX_MOD_IDS_PER_CHART} entries`,
+    })
+
+    const reward = { stat: 'quantity' as const, percent: 1 }
+    expect(
+      decodeState(
+        persisted({ pool: [chart({ rewards: Array(MAX_REWARDS_PER_CHART).fill(reward) })] }),
+      ),
+    ).toMatchObject({ ok: true })
+    expect(
+      decodeState(
+        persisted({ pool: [chart({ rewards: Array(MAX_REWARDS_PER_CHART + 1).fill(reward) })] }),
+      ),
+    ).toMatchObject({
+      ok: false,
+      message: `pool[0].rewards must contain at most ${MAX_REWARDS_PER_CHART} entries`,
+    })
+  })
+
+  it('rejects oversized JSON before parsing it', () => {
+    const maximum = `{${' '.repeat(MAX_STATE_JSON_CHARS - 2)}}`
+    expect(decodeStateJson(maximum)).toMatchObject({ ok: true })
+    expect(decodeStateJson(`${maximum} `)).toMatchObject({
+      ok: false,
+      message: `state JSON exceeds the ${MAX_STATE_JSON_CHARS}-character limit`,
+    })
+  })
+
+  it('rejects oversized files before reading their contents', async () => {
+    const maximumText = vi.fn(async () => '{}')
+    await expect(
+      decodeStateFile({ size: MAX_STATE_FILE_BYTES, text: maximumText }),
+    ).resolves.toMatchObject({ ok: true })
+    expect(maximumText).toHaveBeenCalledOnce()
+
+    const oversizedText = vi.fn(async () => '{}')
+
+    await expect(
+      decodeStateFile({ size: MAX_STATE_FILE_BYTES + 1, text: oversizedText }),
+    ).resolves.toMatchObject({
+      ok: false,
+      message: 'file exceeds the 2 MiB size limit',
+    })
+    expect(oversizedText).not.toHaveBeenCalled()
   })
 })

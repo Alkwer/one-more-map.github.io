@@ -6,10 +6,11 @@ than introducing a new state-management framework.
 
 ## Persisted application state
 
-`logic/storage.ts` remains the owner of the persisted `AppState` schema, migrations, JSON import
-and export, and shared URL encoding. `state/appStateReducer.ts` owns pure transitions of that
-existing shape. It must not read or write storage, schedule timers, access the clipboard, or run
-domain calculations.
+`logic/storage.ts` owns the persisted `AppState` schema, migrations, bounded JSON import and
+export, and local-storage revival. `logic/share.ts` owns the independent, minimal layout-share
+schema, URL-safe encoding, legacy v3 link compatibility, and hash resource limits.
+`state/appStateReducer.ts` owns pure transitions of the persisted shape. It must not read or write
+storage, schedule timers, access the clipboard, or run domain calculations.
 
 `App.tsx` initializes and saves the state, dispatches explicit transitions, and composes the major
 screens. `hooks/useVoyageAnalysis.ts` owns memoized derived scoring, connectivity, strategy,
@@ -19,8 +20,9 @@ library selection, placement, and cell swapping through explicit reducer actions
 `hooks/useVoyageWorkflows.ts` owns the transient copy sequence and preserved-chart confirmation.
 The sequence order remains pure and tested in `state/copySequence.ts`; Voyage consumption remains
 an explicit reducer transition. `hooks/useAppChrome.ts` owns onboarding, theme, modifier-browser,
-and share-link UI state while retaining the existing storage keys. Importing a complete state still
-uses the reducer's explicit replacement action, so storage and share compatibility remain unchanged.
+and share-link UI state while retaining the existing storage keys. `App.tsx` keeps state opened
+from a share hash isolated from local persistence until the user explicitly adopts the layout.
+Importing a complete JSON state still uses the reducer's explicit replacement action.
 
 `components/app/AppHeader.tsx`, `VoyageWorkflowPrompts.tsx`, `VoyageBoardStatus.tsx`, and
 `components/VoyageRewards.tsx` render the extracted summary and workflow surfaces without changing

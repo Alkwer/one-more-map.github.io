@@ -29,21 +29,42 @@ import { useVoyageWorkflows } from './hooks/useVoyageWorkflows'
 import { generateDemoCharts } from './logic/demo'
 import { LATEST_UPDATE_DATE } from './data/updates'
 import { clampRerollsUsed } from './logic/rerollAdvice'
-import { decodeShare, defaultState, loadLocal, saveLocal, type AppState } from './logic/storage'
+import { decodeShare, type ShareDecodeResult } from './logic/share'
+import { defaultState, loadLocal, saveLocal, type AppState } from './logic/storage'
 import { appStateReducer } from './state/appStateReducer'
 import type { ChartData } from './types'
 
-function initialState(): AppState {
+type ShareSession =
+  | { kind: 'valid'; format: Extract<ShareDecodeResult, { ok: true }>['format'] }
+  | { kind: 'invalid'; message: string }
+
+interface InitialStateResult {
+  state: AppState
+  shareSession: ShareSession | null
+}
+
+function initialState(): InitialStateResult {
   const hash = window.location.hash.replace(/^#/, '')
-  if (hash.length > 20) {
+  if (hash.length > 0) {
     const shared = decodeShare(hash)
-    if (shared) return shared
+    if (shared.ok) {
+      return {
+        state: shared.state,
+        shareSession: { kind: 'valid', format: shared.format },
+      }
+    }
+    return {
+      state: defaultState(),
+      shareSession: { kind: 'invalid', message: shared.message },
+    }
   }
-  return loadLocal() ?? defaultState()
+  return { state: loadLocal() ?? defaultState(), shareSession: null }
 }
 
 export default function App() {
-  const [state, dispatch] = useReducer(appStateReducer, undefined, initialState)
+  const [initial] = useState(initialState)
+  const [state, dispatch] = useReducer(appStateReducer, initial.state)
+  const [shareSession, setShareSession] = useState<ShareSession | null>(initial.shareSession)
   const chrome = useAppChrome(state)
   const analysis = useVoyageAnalysis(state)
   const selection = useBoardSelection(state.board, dispatch)
@@ -77,9 +98,24 @@ export default function App() {
   const saveTimer = useRef<number>()
 
   useEffect(() => {
+    if (shareSession) return
     window.clearTimeout(saveTimer.current)
     saveTimer.current = window.setTimeout(() => saveLocal(state), 300)
-  }, [state])
+    return () => window.clearTimeout(saveTimer.current)
+  }, [shareSession, state])
+
+  const clearShareHash = () => {
+    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
+  }
+  const openSavedState = () => {
+    dispatch({ type: 'replace', state: loadLocal() ?? defaultState() })
+    setShareSession(null)
+    clearShareHash()
+  }
+  const adoptSharedState = () => {
+    setShareSession(null)
+    clearShareHash()
+  }
 
   const patch = (patchState: Partial<AppState>) => dispatch({ type: 'patch', patch: patchState })
   const addCharts = (charts: ChartData[]) => dispatch({ type: 'charts/add', charts })
@@ -103,6 +139,25 @@ export default function App() {
   return (
     <div className="app">
       <TooltipLayer />
+      {shareSession && (
+        <div
+          className={`share-banner ${shareSession.kind === 'invalid' ? 'error' : ''}`}
+          role={shareSession.kind === 'invalid' ? 'alert' : 'status'}
+        >
+          <span>
+            {shareSession.kind === 'invalid'
+              ? `This shared layout could not be opened: ${shareSession.message}. Your saved state was left unchanged.`
+              : shareSession.format === 'legacy-v3'
+                ? 'Viewing a legacy shared state. Your saved state has not been changed.'
+                : 'Viewing a shared layout. Your saved state has not been changed.'}
+          </span>
+          <button onClick={shareSession.kind === 'valid' ? adoptSharedState : openSavedState}>
+            {shareSession.kind === 'valid'
+              ? 'Replace my saved state with this layout'
+              : 'Open my saved state'}
+          </button>
+        </div>
+      )}
       {chrome.showOnboarding && (
         <Onboarding
           onClose={chrome.closeOnboarding}
