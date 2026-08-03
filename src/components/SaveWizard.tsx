@@ -5,14 +5,17 @@ import {
   customKey,
   customLabel,
   matchesPiece,
+  selectPieceBank,
   type PieceType,
 } from '../logic/pieceKeeps'
+import type { StrategyReservationPreferences } from '../data/strategies'
 import type { ChartData } from '../types'
 
 interface Props {
   pool: ChartData[]
   /** current keep-count overrides from app state */
   keeps: Record<string, number>
+  reservations: StrategyReservationPreferences
   onApply: (keeps: Record<string, number>) => void
   onClose: () => void
 }
@@ -29,7 +32,7 @@ for (const p of PIECE_TYPES) {
 
 /** Guided popup: step through the strategies and set how many of each
  *  recommended chart type to bank. The solver holds the best X of each. */
-export function SaveWizard({ pool, keeps, onApply, onClose }: Props) {
+export function SaveWizard({ pool, keeps, reservations, onApply, onClose }: Props) {
   const [step, setStep] = useState(0)
   const [draft, setDraft] = useState<Record<string, number>>({ ...keeps })
   const [query, setQuery] = useState('')
@@ -46,6 +49,18 @@ export function SaveWizard({ pool, keeps, onApply, onClose }: Props) {
   const keepOf = (p: PieceType) => draft[p.key] ?? p.defaultKeep
   const bumpKey = (key: string, base: number, delta: number) =>
     setDraft((d) => ({ ...d, [key]: Math.max(0, (d[key] ?? base) + delta) }))
+  const moveToStep = (nextStep: number) => {
+    setQuery('')
+    setStep(nextStep)
+  }
+
+  const bankedByStrategy = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const piece of selectPieceBank(pool, draft, reservations).values()) {
+      counts.set(piece.strategyId, (counts.get(piece.strategyId) ?? 0) + 1)
+    }
+    return counts
+  }, [draft, pool, reservations])
 
   // ---- user-added chart types for the current step ----
   const customsOf = (strategyId: string) =>
@@ -104,13 +119,19 @@ export function SaveWizard({ pool, keeps, onApply, onClose }: Props) {
                     <span className="spacer" />
                     <span className="sw-stepper">
                       <button
+                        aria-label={`Keep one fewer ${p.label}`}
                         onClick={() => bumpKey(p.key, p.defaultKeep, -1)}
                         disabled={keep === 0}
                       >
                         −
                       </button>
                       <span className={`sw-keep ${keep > owned ? 'short' : ''}`}>{keep}</span>
-                      <button onClick={() => bumpKey(p.key, p.defaultKeep, 1)}>+</button>
+                      <button
+                        aria-label={`Keep one more ${p.label}`}
+                        onClick={() => bumpKey(p.key, p.defaultKeep, 1)}
+                      >
+                        +
+                      </button>
                     </span>
                   </div>
                 )
@@ -126,15 +147,25 @@ export function SaveWizard({ pool, keeps, onApply, onClose }: Props) {
                     <span className="sw-mod muted">your addition · you have {owned}</span>
                     <span className="spacer" />
                     <span className="sw-stepper">
-                      <button onClick={() => bumpKey(c.key, 0, -1)} disabled={keep === 0}>
+                      <button
+                        aria-label={`Keep one fewer ${customLabel(c.modIds)}`}
+                        onClick={() => bumpKey(c.key, 0, -1)}
+                        disabled={keep === 0}
+                      >
                         −
                       </button>
                       <span className={`sw-keep ${keep > owned ? 'short' : ''}`}>{keep}</span>
-                      <button onClick={() => bumpKey(c.key, 0, 1)}>+</button>
+                      <button
+                        aria-label={`Keep one more ${customLabel(c.modIds)}`}
+                        onClick={() => bumpKey(c.key, 0, 1)}
+                      >
+                        +
+                      </button>
                     </span>
                     <button
                       className="sw-remove"
                       title="Remove this chart type"
+                      aria-label={`Remove ${customLabel(c.modIds)}`}
                       onClick={() =>
                         setDraft((d) => {
                           const next = { ...d }
@@ -150,7 +181,11 @@ export function SaveWizard({ pool, keeps, onApply, onClose }: Props) {
               })}
             </div>
             <div className="sw-add">
+              <label className="sr-only" htmlFor="sw-chart-type-search">
+                Search chart types to add
+              </label>
               <input
+                id="sw-chart-type-search"
                 placeholder="+ Add a chart type… search (e.g. Diviner, Lantern, Barrel)"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -193,11 +228,14 @@ export function SaveWizard({ pool, keeps, onApply, onClose }: Props) {
             <div className="sw-list">
               {STEPS.map((s) => {
                 const total = pinnedTotal(s.strategyId, s.pieces)
+                const banked = bankedByStrategy.get(s.strategyId) ?? 0
                 return (
                   <div key={s.strategyId} className="sw-row summary">
                     <span className="sw-pin">{total > 0 ? '🔖' : '·'}</span>
                     <span className="sw-name">{s.strategyName}</span>
-                    <span className="sw-mod muted">keeping up to {total}</span>
+                    <span className="sw-mod muted">
+                      banking {banked} now · limit {total}
+                    </span>
                   </div>
                 )
               })}
@@ -206,11 +244,11 @@ export function SaveWizard({ pool, keeps, onApply, onClose }: Props) {
         )}
 
         <div className="sw-actions">
-          <button disabled={step === 0} onClick={() => setStep((s) => s - 1)}>
+          <button disabled={step === 0} onClick={() => moveToStep(step - 1)}>
             ← Back
           </button>
           <span className="spacer" />
-          {!summary && <button onClick={() => setStep((s) => s + 1)}>Next →</button>}
+          {!summary && <button onClick={() => moveToStep(step + 1)}>Next →</button>}
           {summary && (
             <button
               className="primary sw-save"

@@ -10,6 +10,7 @@ import {
   serializeState,
   STATE_VERSION,
 } from './storage'
+import { customKey } from './pieceKeeps'
 
 const chart = (overrides: Partial<ChartData> = {}): ChartData => ({
   uid: 'chart-1',
@@ -249,6 +250,50 @@ describe('state decoding', () => {
     expect(
       decoded(persisted({ strategyReservations: granular })).state.strategyReservations,
     ).toEqual(granular)
+  })
+
+  it('migrates broad Divine keep overrides to every granular subtype', () => {
+    const oldFeeders = 'divine-border-rares:adj-star-1|adj-star-2|adj-box-1|adj-box-2|adj-box-3'
+    const oldRares = 'divine-border-rares:adj-rare-1|adj-rare-2|voy-rare'
+    const oldStrongboxes =
+      'cutedog-divine-boxes:adj-box-1|adj-box-2|adj-box-3|adj-divbox-1|adj-divbox-2|adj-arcbox-1|adj-arcbox-2|adj-opbox-1|adj-opbox-2'
+    const result = decoded(
+      persisted({
+        pieceKeeps: {
+          [oldFeeders]: 2,
+          [oldRares]: 4,
+          [oldStrongboxes]: 1,
+          // A value saved by the granular UI must not be overwritten.
+          'divine-border-rares:adj-star-1|adj-star-2': 7,
+        },
+      }),
+    )
+
+    expect(result.state.pieceKeeps).toEqual({
+      'divine-border-rares:adj-star-1|adj-star-2': 7,
+      'divine-border-rares:adj-box-2|adj-box-3': 2,
+      'divine-border-rares:adj-box-1': 2,
+      'divine-border-rares:voy-rare': 4,
+      'divine-border-rares:adj-rare-1|adj-rare-2': 4,
+      'cutedog-divine-boxes:adj-divbox-1|adj-divbox-2': 1,
+      'cutedog-divine-boxes:adj-arcbox-1|adj-arcbox-2': 1,
+      'cutedog-divine-boxes:adj-opbox-1|adj-opbox-2': 1,
+    })
+    expect(result.warnings).toEqual([
+      `pieceKeeps.${oldFeeders} was migrated to granular chart types`,
+      `pieceKeeps.${oldRares} was migrated to granular chart types`,
+      `pieceKeeps.${oldStrongboxes} was migrated to granular chart types`,
+    ])
+  })
+
+  it('round-trips user-added chart types', () => {
+    const state = defaultState()
+    state.pieceKeeps = {
+      [customKey('milky-ethereal', ['adj-barrel-1', 'adj-barrel-2'])]: 2,
+    }
+
+    expect(decoded(JSON.parse(serializeState(state))).state.pieceKeeps).toEqual(state.pieceKeeps)
+    expect(decodeShare(encodeShare(state))?.pieceKeeps).toEqual(state.pieceKeeps)
   })
 
   it('round-trips a normal export and shared URL state', () => {

@@ -344,4 +344,48 @@ describe('granular keep-count solve pools', () => {
     expect(bank.get('big-barrel')?.strategyId).toBe('milky-ethereal')
     expect(bank.has('small-barrel')).toBe(false)
   })
+
+  it('gates a user-added type with its matching granular protection', () => {
+    const starfishFamily = CUSTOM_OPTIONS.find((option) => option.modIds.includes('adj-star-1'))
+    expect(starfishFamily).toBeDefined()
+    const pool = [chart('starfish', { modIds: ['adj-star-2'] })]
+    const keeps = {
+      [keyOf('Giant Starfish chart')]: 0,
+      [customKey('milky-ethereal', starfishFamily!.modIds)]: 1,
+    }
+
+    expect(selectPieceBank(pool, keeps, reservations({ starfish: false })).size).toBe(0)
+    expect(selectPieceBank(pool, keeps, reservations()).get('starfish')?.strategyId).toBe(
+      'milky-ethereal',
+    )
+  })
+
+  it('keeps an explicit custom type outside the known protection categories', () => {
+    const barrelFamily = CUSTOM_OPTIONS.find((option) => option.modIds.includes('adj-barrel-1'))!
+    const keeps = {
+      [customKey('milky-ethereal', barrelFamily.modIds)]: 1,
+    }
+    const bank = selectPieceBank(
+      // An unrelated mod on the same chart must not make the Barrel type obey
+      // that mod's category toggle.
+      [chart('barrel', { modIds: ['adj-barrel-2', 'adj-star-2'] })],
+      keeps,
+      reservations({
+        genericStrongboxes: false,
+        divinerStrongboxes: false,
+        arcanistStrongboxes: false,
+        operativeStrongboxes: false,
+        messages: false,
+        starfish: false,
+        globalRares: false,
+        adjacentRares: false,
+        seaPillars: false,
+        pelagicAbyss: false,
+        meatfish: false,
+        ethereal: false,
+      }),
+    )
+
+    expect(bank.get('barrel')?.strategyId).toBe('milky-ethereal')
+  })
 })

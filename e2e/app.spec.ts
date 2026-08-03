@@ -97,6 +97,53 @@ test('lets low-investment strategies persist independent chart protections', asy
   ).not.toBeChecked()
 })
 
+test('searches, edits, summarizes, and persists a custom keeper type', async ({ appPage }) => {
+  await openApp(appPage)
+  const barrelChart = ENGLISH_CHART.replace(
+    "20% increased Dead Man's Sulphur found in this Area",
+    'Adjacent Areas contain 16-20 additional Clusters of Mysterious Barrels',
+  )
+  await pasteText(appPage, barrelChart)
+
+  await appPage.getByRole('button', { name: /Save charts for strategies/ }).click()
+  const search = appPage.getByRole('textbox', { name: 'Search chart types to add' })
+  await search.fill('Barrels')
+  await appPage.getByRole('button', { name: /Barrels \(any tier\).*adjacent/ }).click()
+  await expect(appPage.getByRole('button', { name: 'Remove Barrels (any tier)' })).toBeVisible()
+
+  await search.fill('Lantern')
+  await appPage.getByRole('button', { name: /Next/ }).click()
+  await expect(search).toHaveValue('')
+  await appPage.getByRole('button', { name: /Back/ }).click()
+  await appPage.getByRole('button', { name: 'Remove Barrels (any tier)' }).click()
+  await expect(appPage.getByRole('button', { name: 'Remove Barrels (any tier)' })).toHaveCount(0)
+
+  await search.fill('Barrels')
+  await appPage.getByRole('button', { name: /Barrels \(any tier\).*adjacent/ }).click()
+  while (await appPage.getByRole('button', { name: /Next/ }).count()) {
+    await appPage.getByRole('button', { name: /Next/ }).click()
+  }
+  await expect(
+    appPage.locator('.sw-row.summary').filter({ hasText: 'Divine Border Rares' }),
+  ).toContainText('banking 1 now')
+  await appPage.getByRole('button', { name: /Save keep counts/ }).click()
+
+  await expect
+    .poll(() =>
+      appPage.evaluate(() => {
+        const stored = JSON.parse(localStorage.getItem('allflame-voyage-solver') ?? '{}')
+        return Object.entries(stored.pieceKeeps ?? {}).find(([key]) =>
+          key.startsWith('custom:divine-border-rares:adj-barrel-'),
+        )?.[1]
+      }),
+    )
+    .toBe(1)
+
+  await appPage.reload()
+  await appPage.getByRole('button', { name: /Save charts for strategies/ }).click()
+  await expect(appPage.getByRole('button', { name: 'Remove Barrels (any tier)' })).toBeVisible()
+})
+
 test('globally imports English, Korean, and border clipboard payloads', async ({ appPage }) => {
   const workerUrls: string[] = []
   appPage.on('worker', (worker) => workerUrls.push(worker.url()))
