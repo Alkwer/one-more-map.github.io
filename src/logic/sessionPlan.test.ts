@@ -159,4 +159,22 @@ describe('session planner', () => {
     expect(plan.allocated).toBe(9)
     expect(plan.leftover).toBe(0)
   })
+
+  it('reports unresolved shapes as blocked instead of allocating them', () => {
+    const unresolved: ChartData = {
+      ...chart(['adj-opbox-1']),
+      edges: [false, false, false, false],
+      shapeResolved: false,
+      shapeInput: 'Spiral',
+    }
+    const pool = [...junk(8), unresolved]
+
+    const plan = planSession(pool, emptyBorders())
+
+    expect(plan.eligible).toBe(8)
+    expect(plan.blocked).toBe(1)
+    expect(plan.allocated).toBe(0)
+    expect(plan.leftover).toBe(9)
+    expect(plan.entries.some((entry) => entry.status === 'ready')).toBe(false)
+  })
 })

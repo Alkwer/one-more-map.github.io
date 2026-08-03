@@ -1,11 +1,12 @@
 import { useId, useMemo } from 'react'
 import { planSession } from '../logic/sessionPlan'
 import type { StrategyReservationPreferences } from '../data/strategies'
-import type { Borders, ChartData } from '../types'
+import type { Borders, ChartData, ConnectivityMode } from '../types'
 import { useModalDialog } from './ModalDialog'
 
 interface Props {
   pool: ChartData[]
+  mode: ConnectivityMode
   borders: Borders
   reservations: StrategyReservationPreferences
   pieceKeeps: Record<string, number>
@@ -16,6 +17,7 @@ interface Props {
 /** Overlay that sequences the whole library into a session of voyages. */
 export function SessionPlanner({
   pool,
+  mode,
   borders,
   reservations,
   pieceKeeps,
@@ -25,8 +27,8 @@ export function SessionPlanner({
   const titleId = useId()
   const { dialogProps } = useModalDialog({ labelledBy: titleId, onClose })
   const plan = useMemo(
-    () => planSession(pool, borders, reservations, pieceKeeps),
-    [pool, borders, reservations, pieceKeeps],
+    () => planSession(pool, borders, reservations, pieceKeeps, mode),
+    [pool, borders, reservations, pieceKeeps, mode],
   )
   const ready = plan.entries.filter((e) => e.status === 'ready')
   const waiting = plan.entries.filter((e) => e.status === 'waiting')
@@ -50,8 +52,16 @@ export function SessionPlanner({
           Your whole library, sequenced: run these top to bottom, pressing Finish Voyage between
           runs. Each entry only uses charts the ones above it left behind.
         </p>
-        {pool.length < 9 && (
-          <div className="muted pad">Fewer than 9 charts - import some first.</div>
+        {plan.blocked > 0 && (
+          <div className="muted pad">
+            {plan.blocked} chart{plan.blocked === 1 ? ' needs' : 's need'} shape confirmation and
+            cannot be planned in strict connector mode.
+          </div>
+        )}
+        {plan.eligible < 9 && (
+          <div className="muted pad">
+            Fewer than 9 runnable charts - import or confirm some first.
+          </div>
         )}
         <div className="plan-list">
           {ready.map((e) => {
@@ -80,7 +90,7 @@ export function SessionPlanner({
               </div>
             )
           })}
-          {ready.length === 0 && pool.length >= 9 && (
+          {ready.length === 0 && plan.eligible >= 9 && (
             <div className="muted pad">
               Nothing is ready to run - see what each strategy is waiting on below.
             </div>

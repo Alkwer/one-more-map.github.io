@@ -5,7 +5,7 @@ import type {
 } from '../logic/strategySuggestions'
 import { createStrategyInventoryKey } from '../logic/solverRequestKeys'
 import { isWorkerRequestCancelled, SolverWorkerClient } from '../logic/solverWorkerClient'
-import { isChartShapeResolved } from '../logic/chartShapes'
+import { selectSolverEligibleCharts } from '../logic/chartShapes'
 import type { Borders, ChartData } from '../types'
 
 const CACHE_LIMIT = 20
@@ -39,7 +39,10 @@ export function useStrategyInventory(
   borders: Borders,
   options: StrategyEvaluationOptions,
 ) {
-  const eligiblePool = useMemo(() => pool.filter(isChartShapeResolved), [pool])
+  const eligiblePool = useMemo(
+    () => selectSolverEligibleCharts(pool, options.mode),
+    [pool, options.mode],
+  )
   const key = useMemo(
     () => createStrategyInventoryKey(eligiblePool, borders, options),
     [eligiblePool, borders, options],

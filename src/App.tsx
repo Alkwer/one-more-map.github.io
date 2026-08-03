@@ -215,6 +215,7 @@ export default function App() {
       {showPlanner && (
         <SessionPlanner
           pool={state.pool}
+          mode={state.mode}
           borders={state.borders}
           reservations={state.strategyReservations}
           pieceKeeps={state.pieceKeeps}
@@ -352,7 +353,7 @@ export default function App() {
           />
           <StrategiesPanel
             activeId={state.strategyId}
-            pool={analysis.resolvedPool}
+            pool={analysis.solverEligiblePool}
             borders={state.borders}
             onSelect={(id) => patch({ strategyId: id })}
           />
