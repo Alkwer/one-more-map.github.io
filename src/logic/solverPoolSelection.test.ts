@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { defaultStrategyReservations } from '../data/strategies'
 import { chartRewardKey } from './rewards'
 import type { ChartData } from '../types'
+import { CUSTOM_OPTIONS, PIECE_TYPES, customKey, selectPieceBank } from './pieceKeeps'
 import { KEEP_BEST_CHARTS, selectFillerPool, selectStrategySolvePool } from './solverPoolSelection'
 
 const chart = (uid: string, overrides: Partial<ChartData> = {}): ChartData => ({
@@ -269,5 +270,78 @@ describe('solver pool selection', () => {
       heldBack: 1,
       heldBackFor: ['Voyage-wide Rare Monsters'],
     })
+  })
+})
+
+describe('granular keep-count solve pools', () => {
+  const keyOf = (label: string) => {
+    const piece = PIECE_TYPES.find((candidate) => candidate.label === label)
+    if (!piece) throw new Error(`no piece type labelled ${label}`)
+    return piece.key
+  }
+
+  it('banks big generic boxes for Divine while leaving smaller generic boxes free', () => {
+    const pool = [
+      chart('big4', { modIds: ['adj-box-2'] }),
+      chart('big5', { modIds: ['adj-box-3'] }),
+      chart('small', { modIds: ['adj-box-1'] }),
+      chart('diviner', { modIds: ['adj-divbox-2'] }),
+    ]
+
+    const bank = selectPieceBank(pool, {}, reservations())
+    expect(bank.get('big4')?.strategyId).toBe('divine-border-rares')
+    expect(bank.get('big5')?.strategyId).toBe('divine-border-rares')
+    expect(bank.has('small')).toBe(false)
+    expect(bank.get('diviner')?.strategyId).toBe('milky-speedrun')
+
+    const withDiviners = selectPieceBank(
+      pool,
+      { [keyOf("Diviner's Strongbox chart")]: 1 },
+      reservations(),
+    )
+    expect(withDiviners.get('diviner')?.strategyId).toBe('cutedog-divine-boxes')
+  })
+
+  it('banks six voyage-wide rares while adjacent rares remain spendable by default', () => {
+    const pool = [
+      ...Array.from({ length: 8 }, (_, index) => chart(`voy-${index}`, { modIds: ['voy-rare'] })),
+      chart('adjacent', { modIds: ['adj-rare-2'] }),
+    ]
+
+    const selection = selectStrategySolvePool(pool, null, reservations(), new Set(), {})
+    expect(selection.heldBack).toBe(6)
+    expect(selection.solvePool.map(({ uid }) => uid)).toEqual(['voy-6', 'voy-7', 'adjacent'])
+  })
+
+  it('ranks matching charts by their rolls within a kept type', () => {
+    const pool = [
+      chart('weak', { modIds: ['voy-rare'] }),
+      chart('rolled', {
+        modIds: ['voy-rare'],
+        rewards: [{ stat: 'quantity', percent: 70 }],
+      }),
+    ]
+    const bank = selectPieceBank(
+      pool,
+      { [keyOf('Increased Rares chart (voyage-wide)')]: 1 },
+      reservations(),
+    )
+    expect(bank.has('rolled')).toBe(true)
+    expect(bank.has('weak')).toBe(false)
+  })
+
+  it('banks user-added tier families for their selected strategy', () => {
+    const barrelFamily = CUSTOM_OPTIONS.find((option) => option.modIds.includes('adj-barrel-1'))
+    expect(barrelFamily).toBeDefined()
+    const pool = [
+      chart('small-barrel', { modIds: ['adj-barrel-1'] }),
+      chart('big-barrel', { modIds: ['adj-barrel-2'] }),
+    ]
+    const keeps = {
+      [customKey('milky-ethereal', barrelFamily!.modIds)]: 1,
+    }
+    const bank = selectPieceBank(pool, keeps, reservations())
+    expect(bank.get('big-barrel')?.strategyId).toBe('milky-ethereal')
+    expect(bank.has('small-barrel')).toBe(false)
   })
 })

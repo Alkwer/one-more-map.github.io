@@ -3093,6 +3093,44 @@ textarea {
 .sw-keep.short {
   color: var(--muted);
 }
+.sw-remove {
+  padding: 2px 8px;
+  font-size: 12px;
+  color: #c98b8b;
+}
+.sw-add {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.sw-add input {
+  flex: 1;
+}
+.sw-add-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 4px;
+  background: var(--panel2);
+}
+.sw-add-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 8px;
+  text-align: left;
+  font-size: 12.5px;
+}
+.sw-add-scope {
+  font-size: 11px;
+  letter-spacing: 0.3px;
+}
 .sw-actions {
   display: flex;
   gap: 8px;

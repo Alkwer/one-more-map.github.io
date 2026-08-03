@@ -108,6 +108,15 @@ export interface StrategyDef {
     }
     label: string
   }[]
+  /** Explicit keep-wizard chart types. When present they replace the
+   * requirement-derived types, allowing banking to be more granular than
+   * readiness requirements. */
+  bankTypes?: {
+    label: string
+    modIds?: string[]
+    areaTypes?: ChartAreaType[]
+    keep: number
+  }[]
   /** a border roll the strategy hinges on (readiness warns if not entered) */
   requiresBorderId?: { id: string; label: string }
   /** what to do instead while pieces are missing */
@@ -599,6 +608,24 @@ export const STRATEGIES: StrategyDef[] = [
         label: 'Increased Rares chart',
       },
     ],
+    // Banking is more granular than readiness: typed boxes remain available
+    // to Speedrun, while voyage-wide rares outrank adjacent rares.
+    bankTypes: [
+      { label: 'Sea-Pillar chart', areaTypes: ['sea-pillars'], keep: 1 },
+      { label: 'Giant Starfish chart', modIds: ['adj-star-1', 'adj-star-2'], keep: 3 },
+      {
+        label: 'Strongbox chart (+2-4 / +5)',
+        modIds: ['adj-box-2', 'adj-box-3'],
+        keep: 3,
+      },
+      { label: 'Strongbox chart (+1)', modIds: ['adj-box-1'], keep: 0 },
+      { label: 'Increased Rares chart (voyage-wide)', modIds: ['voy-rare'], keep: 6 },
+      {
+        label: 'Increased Rares chart (adjacent)',
+        modIds: ['adj-rare-1', 'adj-rare-2'],
+        keep: 0,
+      },
+    ],
     requiresBorderId: {
       id: 'b-divine',
       label: 'a "+1 Divine Orb" border roll (enter your borders)',
@@ -687,6 +714,34 @@ export const STRATEGIES: StrategyDef[] = [
         countByBorderNeighbours: { borderId: 'b-divine', two: 6, three: 5 },
         label: 'Increased Rares (voyage) chart',
       },
+    ],
+    bankTypes: [
+      {
+        label: 'Pelagic Abyss chart (high pack size)',
+        areaTypes: ['pelagic-abyss'],
+        keep: 1,
+      },
+      {
+        label: 'Strongbox chart (+2-4 / +5)',
+        modIds: ['adj-box-2', 'adj-box-3'],
+        keep: 3,
+      },
+      {
+        label: "Diviner's Strongbox chart",
+        modIds: ['adj-divbox-1', 'adj-divbox-2'],
+        keep: 0,
+      },
+      {
+        label: "Arcanist's Strongbox chart",
+        modIds: ['adj-arcbox-1', 'adj-arcbox-2'],
+        keep: 0,
+      },
+      {
+        label: "Operative's Strongbox chart",
+        modIds: ['adj-opbox-1', 'adj-opbox-2'],
+        keep: 0,
+      },
+      { label: 'Increased Rares chart (voyage-wide)', modIds: ['voy-rare'], keep: 6 },
     ],
     requiresBorderId: {
       id: 'b-divine',
