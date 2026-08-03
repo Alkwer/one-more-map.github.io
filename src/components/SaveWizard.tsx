@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import {
+  CUSTOM_OPTIONS,
   PIECE_TYPES,
   customKey,
+  customLabel,
   matchesPiece,
   type PieceType,
 } from '../logic/pieceKeeps'
-import { VOYAGE_MODS, voyageModById } from '../data/mods'
 import type { ChartData } from '../types'
 
 interface Props {
@@ -31,7 +32,7 @@ for (const p of PIECE_TYPES) {
 export function SaveWizard({ pool, keeps, onApply, onClose }: Props) {
   const [step, setStep] = useState(0)
   const [draft, setDraft] = useState<Record<string, number>>({ ...keeps })
-  const [pendingMod, setPendingMod] = useState('')
+  const [query, setQuery] = useState('')
 
   const summary = step >= STEPS.length
   const current = summary ? null : STEPS[step]
@@ -51,16 +52,19 @@ export function SaveWizard({ pool, keeps, onApply, onClose }: Props) {
   const customsOf = (strategyId: string) =>
     Object.keys(draft)
       .filter((k) => k.startsWith(`custom:${strategyId}:`))
-      .map((k) => ({ key: k, modId: k.split(':')[2] }))
+      .map((k) => ({ key: k, modIds: k.split(':')[2].split('+') }))
 
   const customs = current ? customsOf(current.strategyId) : []
-  // dropdown: any non-self mod this step doesn't already cover
+  // searchable list of tier families this step doesn't already cover
+  const q = query.trim().toLowerCase()
   const addable = current
-    ? VOYAGE_MODS.filter(
-        (m) =>
-          m.scope !== 'self' &&
-          !current.pieces.some((p) => p.modIds?.includes(m.id)) &&
-          !customs.some((c) => c.modId === m.id),
+    ? CUSTOM_OPTIONS.filter(
+        (o) =>
+          !o.modIds.every((id) =>
+            current.pieces.some((p) => p.modIds?.includes(id)),
+          ) &&
+          !customs.some((c) => c.modIds.join('+') === o.value) &&
+          (!q || o.label.toLowerCase().includes(q)),
       )
     : []
 
@@ -112,12 +116,13 @@ export function SaveWizard({ pool, keeps, onApply, onClose }: Props) {
                 )
               })}
               {customs.map((c) => {
-                const mod = voyageModById.get(c.modId)
                 const keep = draft[c.key] ?? 0
-                const owned = pool.filter((ch) => ch.modIds.includes(c.modId)).length
+                const owned = pool.filter((ch) =>
+                  ch.modIds.some((id) => c.modIds.includes(id)),
+                ).length
                 return (
                   <div key={c.key} className={`sw-row ${keep > 0 ? 'pinned' : ''}`}>
-                    <span className="sw-name">{mod?.short ?? mod?.text ?? c.modId}</span>
+                    <span className="sw-name">{customLabel(c.modIds)}</span>
                     <span className="sw-mod muted">your addition · you have {owned}</span>
                     <span className="spacer" />
                     <span className="sw-stepper">
@@ -145,28 +150,35 @@ export function SaveWizard({ pool, keeps, onApply, onClose }: Props) {
               })}
             </div>
             <div className="sw-add">
-              <select value={pendingMod} onChange={(e) => setPendingMod(e.target.value)}>
-                <option value="">+ Add a chart type to this strategy…</option>
-                {addable.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.short ?? m.text} ({m.scope === 'global' ? 'voyage' : 'adjacent'})
-                  </option>
-                ))}
-              </select>
-              <button
-                disabled={!pendingMod}
-                onClick={() => {
-                  if (!current || !pendingMod) return
-                  setDraft((d) => ({
-                    ...d,
-                    [customKey(current.strategyId, pendingMod)]: 1,
-                  }))
-                  setPendingMod('')
-                }}
-              >
-                Add
-              </button>
+              <input
+                placeholder="+ Add a chart type… search (e.g. Diviner, Lantern, Barrel)"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
             </div>
+            {q && (
+              <div className="sw-add-list">
+                {addable.map((o) => (
+                  <button
+                    key={o.value}
+                    className="sw-add-option"
+                    onClick={() => {
+                      setDraft((d) => ({
+                        ...d,
+                        [customKey(current.strategyId, o.modIds)]: 1,
+                      }))
+                      setQuery('')
+                    }}
+                  >
+                    <span>{o.label}</span>
+                    <span className={`sw-add-scope scope-${o.scope === 'voyage' ? 'global' : 'adjacent'}`}>
+                      {o.scope}
+                    </span>
+                  </button>
+                ))}
+                {addable.length === 0 && <span className="muted pad">No matches</span>}
+              </div>
+            )}
           </>
         )}
 

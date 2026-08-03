@@ -101,6 +101,17 @@ describe('keep-count solve pools', () => {
     expect(withDiviners.get('diviner')?.strategyId).toBe('cutedog-divine-boxes')
   })
 
+  it('banks a whole tier family from one custom entry, best tier first', () => {
+    const pool = [
+      chart({ uid: 'small-barrel', modIds: ['adj-barrel-1'] }),
+      chart({ uid: 'big-barrel', modIds: ['adj-barrel-2'] }),
+    ]
+    const keeps = { 'custom:milky-ethereal:adj-barrel-1+adj-barrel-2': 1 }
+    const bank = selectPieceBank(pool, keeps, ALL_ON)
+    expect(bank.get('big-barrel')?.strategyId).toBe('milky-ethereal')
+    expect(bank.has('small-barrel')).toBe(false)
+  })
+
   it('banks user-added custom chart types for their strategy', () => {
     const pool = [chart({ uid: 'barrel', modIds: ['adj-barrel-1'] })]
     expect(selectStrategySolvePool(pool, null, ALL_ON).solvePool).toHaveLength(1)

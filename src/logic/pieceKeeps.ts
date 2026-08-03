@@ -9,7 +9,7 @@ import {
   type StrategyReservationId,
   type StrategyReservationPreferences,
 } from '../data/strategies'
-import { voyageModById } from '../data/mods'
+import { VOYAGE_MODS, voyageModById } from '../data/mods'
 import type { ChartData } from '../types'
 
 export interface PieceType {
@@ -153,26 +153,64 @@ export function strategyWantsChart(strategyId: string | undefined, c: ChartData)
   return PIECE_TYPES.some((p) => p.strategyId === strategyId && matchesPiece(c, p))
 }
 
-/** key encoding a user-added chart type in the keeps record */
-export const customKey = (strategyId: string, modId: string) =>
-  `custom:${strategyId}:${modId}`
+/** key encoding a user-added chart type in the keeps record; multi-tier
+ *  families join their mod ids with '+' */
+export const customKey = (strategyId: string, modIds: string[]) =>
+  `custom:${strategyId}:${modIds.join('+')}`
 
-/** user-added chart types, derived from `custom:<strategyId>:<modId>` keys */
+const stripTier = (s: string) => s.replace(/^\+?\d+(\s*[-–]\s*\d+)?%?\s*/, '').trim()
+
+/** display label for a custom type: family name across tiers, or the mod */
+export function customLabel(modIds: string[]): string {
+  const mod = voyageModById.get(modIds[0])
+  if (!mod) return modIds.join(' + ')
+  if (modIds.length === 1) return mod.short ?? mod.text
+  return `${stripTier(mod.short ?? mod.text)} (any tier)`
+}
+
+export interface CustomOption {
+  /** the '+'-joined mod ids, ready for customKey */
+  value: string
+  label: string
+  modIds: string[]
+  scope: 'adjacent' | 'voyage'
+}
+
+/** every addable chart type, grouped into tier families ("Diviner's Boxes"
+ *  covers +2 and +3) so users pick a TYPE, not an individual roll */
+export const CUSTOM_OPTIONS: CustomOption[] = (() => {
+  const families = new Map<string, string[]>()
+  for (const m of VOYAGE_MODS) {
+    if (m.scope === 'self') continue
+    const family = `${m.scope}:${m.id.replace(/^(adj|voy)-/, '').replace(/-\d+$/, '')}`
+    families.set(family, [...(families.get(family) ?? []), m.id])
+  }
+  return [...families.entries()]
+    .map(([family, modIds]) => ({
+      value: modIds.join('+'),
+      label: customLabel(modIds),
+      modIds,
+      scope: (family.startsWith('global') ? 'voyage' : 'adjacent') as 'adjacent' | 'voyage',
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label))
+})()
+
+/** user-added chart types, derived from `custom:<strategyId>:<modIds>` keys */
 export function customPieceTypes(keeps: Record<string, number>): PieceType[] {
   const out: PieceType[] = []
   for (const key of Object.keys(keeps)) {
     if (!key.startsWith('custom:')) continue
-    const [, strategyId, modId] = key.split(':')
+    const [, strategyId, joined] = key.split(':')
     const s = STRATEGIES.find((x) => x.id === strategyId)
-    const mod = voyageModById.get(modId)
-    if (!s || !mod) continue
+    const modIds = (joined ?? '').split('+').filter((id) => voyageModById.has(id))
+    if (!s || modIds.length === 0) continue
     out.push({
       key,
       strategyId,
       strategyName: s.name,
       reservationId: RESERVATION_OF[strategyId] ?? null,
-      label: mod.short ?? mod.text,
-      modIds: [modId],
+      label: customLabel(modIds),
+      modIds,
       recommended: 0,
       defaultKeep: 0,
       banks: true,
