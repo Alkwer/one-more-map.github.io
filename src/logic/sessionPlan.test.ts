@@ -78,7 +78,7 @@ describe('session planner', () => {
       const entry = plan.entries.find((candidate) => candidate.strategyId === strategyId)
 
       expect(entry?.status).toBe('waiting')
-      expect(entry?.note).toContain(`6× ${rareLabel}`)
+      expect(entry?.note).toContain(`1× ${rareLabel}`)
       expect(entry?.note).not.toContain(`3× ${feederLabel}`)
       expect(plan.allocated + plan.leftover).toBe(pool.length)
     })
@@ -89,7 +89,7 @@ describe('session planner', () => {
       const entry = plan.entries.find((candidate) => candidate.strategyId === strategyId)
 
       expect(entry?.status).toBe('waiting')
-      expect(entry?.note).toContain(`3× ${feederLabel}`)
+      expect(entry?.note).toContain(`1× ${feederLabel}`)
       expect(plan.allocated + plan.leftover).toBe(pool.length)
     })
   })
@@ -136,6 +136,27 @@ describe('session planner', () => {
     // meatfish takes its 9; the 1 centre + 8 junk feed exactly one speedrun
     expect(plan.entries.find((e) => e.strategyId === 'milky-speedrun')?.runs).toBe(1)
     expect(plan.entries.find((e) => e.strategyId === 'alc-and-go')).toBeUndefined()
+    expect(plan.leftover).toBe(0)
+  })
+
+  it('reassigns an overlapping chart when a complete distinct kit exists', () => {
+    const pool = [
+      chart(['adj-star-1'], 'sea-pillars'),
+      chart(['adj-star-1']),
+      chart(['adj-star-2']),
+      chart([], 'sea-pillars'),
+      chart(['adj-pantheon']),
+      chart(['adj-lantern']),
+      chart(['adj-lantern']),
+      chart(['voy-possess']),
+      chart(['voy-noequip']),
+    ]
+
+    const plan = planSession(pool, emptyBorders())
+    const meatfish = plan.entries.find((entry) => entry.strategyId === 'milky-meatfish')
+
+    expect(meatfish?.status).toBe('ready')
+    expect(plan.allocated).toBe(9)
     expect(plan.leftover).toBe(0)
   })
 })
