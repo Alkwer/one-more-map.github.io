@@ -104,8 +104,32 @@ body {
   color: #f0b0a6;
 }
 
-.share-banner button {
+.share-banner-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.share-merge-error {
+  color: #f0b0a6;
+}
+
+.share-banner-actions {
+  display: flex;
   flex: none;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+@media (max-width: 760px) {
+  .share-banner {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .share-banner-actions {
+    justify-content: flex-start;
+  }
 }
 
 /* ------- header ------- */

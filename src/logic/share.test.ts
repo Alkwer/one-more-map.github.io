@@ -9,10 +9,11 @@ import {
   encodeShare,
   MAX_LEGACY_SHARE_HASH_LENGTH,
   MAX_SHARE_HASH_LENGTH,
+  mergeSharedLayout,
   SHARE_PREFIX,
   ShareEncodeError,
 } from './share'
-import { defaultState, serializeState, type AppState } from './storage'
+import { defaultState, MAX_POOL_CHARTS, serializeState, type AppState } from './storage'
 
 const chart = (uid: string, overrides: Partial<ChartData> = {}): ChartData => ({
   uid,
@@ -131,6 +132,62 @@ describe('layout sharing', () => {
     expect(result.state.board.map((placement) => placement?.rotation)).toEqual(
       state.board.map((placement) => placement?.rotation),
     )
+  })
+
+  it('merges a shared board into the saved library without duplicating matching charts', () => {
+    const saved = defaultState()
+    saved.pool = [
+      chart('saved-match', { name: 'Matching Chart', rawText: 'recipient-only details' }),
+      chart('saved-only', { name: 'Recipient Library Chart' }),
+    ]
+    saved.allowRotation = false
+    saved.pieceKeeps = { 'saved-preference': 2 }
+
+    const shared = defaultState()
+    shared.pool = [
+      chart('shared-0', { name: 'Matching Chart' }),
+      chart('shared-1', { name: 'New Shared Chart' }),
+    ]
+    shared.board[0] = { chartUid: 'shared-0', rotation: 1 }
+    shared.board[1] = { chartUid: 'shared-1', rotation: 2 }
+    shared.borders[0] = 'b-divine'
+
+    const result = mergeSharedLayout(saved, shared)
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.state.pool).toHaveLength(3)
+    expect(result.state.pool[0]).toMatchObject({
+      uid: 'saved-match',
+      rawText: 'recipient-only details',
+    })
+    expect(result.state.pool.map((entry) => entry.name)).toEqual([
+      'Matching Chart',
+      'Recipient Library Chart',
+      'New Shared Chart',
+    ])
+    expect(result.state.board[0]).toEqual({ chartUid: 'saved-match', rotation: 1 })
+    expect(result.state.board[1]?.chartUid).toBe(result.state.pool[2].uid)
+    expect(result.state.borders[0]).toBe('b-divine')
+    expect(result.state.allowRotation).toBe(false)
+    expect(result.state.pieceKeeps).toEqual({ 'saved-preference': 2 })
+  })
+
+  it('refuses a merge that would overflow the saved library', () => {
+    const saved = defaultState()
+    saved.pool = Array.from({ length: MAX_POOL_CHARTS }, (_, index) =>
+      chart(`saved-${index}`, { name: `Saved Chart ${index}` }),
+    )
+    const shared = defaultState()
+    shared.pool = [chart('shared-0', { name: 'New Shared Chart' })]
+    shared.board[0] = { chartUid: 'shared-0', rotation: 0 }
+
+    expect(mergeSharedLayout(saved, shared)).toEqual({
+      ok: false,
+      message:
+        'The shared layout needs 1 new chart, but your library has room for 0. Remove charts or replace your saved state instead.',
+    })
+    expect(saved.pool).toHaveLength(MAX_POOL_CHARTS)
   })
 
   it.each([

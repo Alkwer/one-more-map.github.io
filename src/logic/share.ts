@@ -13,6 +13,7 @@ import {
   decodeState,
   decodeStateJson,
   defaultState,
+  MAX_POOL_CHARTS,
   STATE_VERSION,
   type AppState,
   type StateDecodeErrorCode,
@@ -60,6 +61,8 @@ export type ShareDecodeResult =
       format: 'layout-v1' | 'legacy-v3'
     }
   | { ok: false; code: ShareDecodeErrorCode; message: string }
+
+export type ShareMergeResult = { ok: true; state: AppState } | { ok: false; message: string }
 
 export class ShareEncodeError extends Error {}
 
@@ -194,6 +197,78 @@ function sharedChart(chart: ChartData): SharedChart {
     result.rewards = chart.rewards.map((reward) => ({ ...reward }))
   }
   return result
+}
+
+function chartMergeKey(chart: ChartData): string {
+  const rewards = chart.rewards
+    ?.map((reward) => ({ ...reward }))
+    .sort((first, second) => JSON.stringify(first).localeCompare(JSON.stringify(second)))
+  return JSON.stringify({
+    name: chart.name,
+    level: chart.level,
+    edges: chart.edges,
+    areaType: chart.areaType ?? null,
+    modIds: [...chart.modIds].sort(),
+    rewards: rewards ?? null,
+  })
+}
+
+function nextMergedChartUid(usedUids: Set<string>, start: number): [string, number] {
+  let index = start
+  while (usedUids.has(`shared-import-${index}`)) index++
+  return [`shared-import-${index}`, index + 1]
+}
+
+/** Keep the recipient's library while adopting the shared board and scoring inputs. */
+export function mergeSharedLayout(saved: AppState, shared: AppState): ShareMergeResult {
+  const availableSavedCharts = new Map<string, ChartData[]>()
+  for (const chart of saved.pool) {
+    const key = chartMergeKey(chart)
+    const matches = availableSavedCharts.get(key) ?? []
+    matches.push(chart)
+    availableSavedCharts.set(key, matches)
+  }
+
+  const uidMap = new Map<string, string>()
+  const chartsToAdd: ChartData[] = []
+  for (const chart of shared.pool) {
+    const matches = availableSavedCharts.get(chartMergeKey(chart))
+    const existing = matches?.shift()
+    if (existing) uidMap.set(chart.uid, existing.uid)
+    else chartsToAdd.push(chart)
+  }
+
+  const availableSlots = Math.max(0, MAX_POOL_CHARTS - saved.pool.length)
+  if (chartsToAdd.length > availableSlots) {
+    return {
+      ok: false,
+      message: `The shared layout needs ${chartsToAdd.length} new chart${chartsToAdd.length === 1 ? '' : 's'}, but your library has room for ${availableSlots}. Remove charts or replace your saved state instead.`,
+    }
+  }
+
+  const usedUids = new Set(saved.pool.map((chart) => chart.uid))
+  let nextUid = 1
+  const addedCharts = chartsToAdd.map((chart) => {
+    const [uid, followingUid] = nextMergedChartUid(usedUids, nextUid)
+    nextUid = followingUid
+    usedUids.add(uid)
+    uidMap.set(chart.uid, uid)
+    return { ...chart, uid }
+  })
+
+  return {
+    ok: true,
+    state: {
+      ...shared,
+      pool: [...saved.pool, ...addedCharts],
+      board: shared.board.map((placement) =>
+        placement ? { ...placement, chartUid: uidMap.get(placement.chartUid)! } : null,
+      ),
+      allowRotation: saved.allowRotation,
+      strategyReservations: saved.strategyReservations,
+      pieceKeeps: saved.pieceKeeps,
+    },
+  }
 }
 
 export function encodeShare(state: AppState): string {

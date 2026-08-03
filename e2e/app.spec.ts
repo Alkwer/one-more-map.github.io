@@ -814,3 +814,102 @@ test('round-trips JSON and isolates minimal shared layouts from saved state', as
   await expect(libraryHeading(appPage)).toContainText('(1)')
   await expect(appPage).not.toHaveURL(/#/)
 })
+
+test('requires an explicit adopt, merge, or discard decision for shared layouts', async ({
+  appPage,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: ORIGIN })
+  await openApp(appPage)
+  await pasteText(appPage, ENGLISH_CHART)
+  await appPage
+    .getByRole('button', { name: 'Select Armoured Coral Reef Chart of Ice for placement' })
+    .click()
+  await appPage.getByRole('button', { name: 'Board cell 7, row 3, column 1, start: empty' }).click()
+  await appPage.waitForTimeout(400)
+
+  const shareButton = appPage.getByRole('button', { name: 'Share layout' })
+  await shareButton.click()
+  await expect(shareButton).toContainText('Link copied!')
+  const shareUrl = await appPage.evaluate(() => navigator.clipboard.readText())
+  expect(shareUrl).toContain(`${ORIGIN}${APP_PATH}#layout.v1.`)
+  const recipientSavedState = await appPage.evaluate(() => {
+    const key = 'allflame-voyage-solver'
+    const state = JSON.parse(localStorage.getItem(key)!)
+    state.pool = state.pool.map((chart: { uid: string; name: string }) => ({
+      ...chart,
+      uid: 'recipient-only-chart',
+      name: 'Recipient Only Chart',
+    }))
+    state.board = Array(9).fill(null)
+    const raw = JSON.stringify(state)
+    localStorage.setItem(key, raw)
+    return raw
+  })
+
+  await appPage.goto(shareUrl)
+  await appPage.reload()
+  await expect(
+    appPage.getByText('Viewing a shared layout. Your saved state has not been changed.'),
+  ).toBeVisible()
+  await expect(libraryHeading(appPage)).toContainText('(1)')
+  await expect(
+    appPage.getByRole('button', {
+      name: 'Select Armoured Coral Reef Chart of Ice for placement',
+    }),
+  ).toBeVisible()
+  await expect(
+    appPage.getByRole('button', { name: 'Select Recipient Only Chart for placement' }),
+  ).toHaveCount(0)
+  await appPage.waitForTimeout(400)
+  expect(await appPage.evaluate(() => localStorage.getItem('allflame-voyage-solver'))).toBe(
+    recipientSavedState,
+  )
+
+  await appPage.getByRole('button', { name: 'Discard shared layout' }).click()
+  await expect(libraryHeading(appPage)).toContainText('(1)')
+  await expect(
+    appPage.getByRole('button', { name: 'Select Recipient Only Chart for placement' }),
+  ).toBeVisible()
+  await expect(appPage).not.toHaveURL(/#/)
+
+  await appPage.goto(shareUrl)
+  await appPage.reload()
+  await appPage.getByRole('button', { name: 'Merge with my library' }).click()
+  await expect(libraryHeading(appPage)).toContainText('(2)')
+  await expect(
+    appPage.getByRole('button', { name: 'Select Recipient Only Chart for placement' }),
+  ).toBeVisible()
+  await expect(
+    appPage.getByRole('button', {
+      name: 'Select Armoured Coral Reef Chart of Ice for placement',
+    }),
+  ).toBeVisible()
+  await expect(appPage).not.toHaveURL(/#/)
+  await appPage.waitForTimeout(400)
+  expect(
+    await appPage.evaluate(() => {
+      const saved = JSON.parse(localStorage.getItem('allflame-voyage-solver')!)
+      return saved.pool.map((chart: { name: string }) => chart.name)
+    }),
+  ).toEqual(['Recipient Only Chart', 'Armoured Coral Reef Chart of Ice'])
+
+  await appPage.evaluate((raw) => {
+    localStorage.setItem('allflame-voyage-solver', raw)
+  }, recipientSavedState)
+  await appPage.goto(shareUrl)
+  await appPage.reload()
+  await appPage.getByRole('button', { name: 'Replace my saved state' }).click()
+  await expect(libraryHeading(appPage)).toContainText('(1)')
+  await expect(
+    appPage.getByRole('button', { name: 'Select Recipient Only Chart for placement' }),
+  ).toHaveCount(0)
+  await expect(appPage).not.toHaveURL(/#/)
+  await appPage.waitForTimeout(400)
+  expect(
+    await appPage.evaluate(() => {
+      const saved = JSON.parse(localStorage.getItem('allflame-voyage-solver')!)
+      return saved.pool.map((chart: { name: string }) => chart.name)
+    }),
+  ).toEqual(['Armoured Coral Reef Chart of Ice'])
+})
