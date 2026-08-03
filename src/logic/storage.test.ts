@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import englishChart from './__fixtures__/charted.en.txt?raw'
+import koreanChart from './__fixtures__/charted.ko.txt?raw'
 import type { AppState } from './storage'
 import type { ChartData, ModEffect } from '../types'
 import {
@@ -6,6 +8,7 @@ import {
   decodeStateFile,
   decodeStateJson,
   defaultState,
+  loadLocal,
   MAX_CHART_NAME_LENGTH,
   MAX_MOD_IDS_PER_CHART,
   MAX_POOL_CHARTS,
@@ -13,11 +16,13 @@ import {
   MAX_REWARDS_PER_CHART,
   MAX_STATE_JSON_CHARS,
   MAX_STATE_FILE_BYTES,
+  saveLocal,
   serializeState,
   STATE_VERSION,
 } from './storage'
 import { decodeShare } from './share'
 import { customKey } from './pieceKeeps'
+import { parseChartText } from './parser'
 
 const chart = (overrides: Partial<ChartData> = {}): ChartData => ({
   uid: 'chart-1',
@@ -40,6 +45,10 @@ function decoded(value: unknown) {
   if (!result.ok) throw new Error(result.message)
   return result
 }
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe('state decoding', () => {
   it('preserves defaults when optional fields are absent', () => {
@@ -108,6 +117,23 @@ describe('state decoding', () => {
     expect(decodeState(persisted({ weights: { [weightKey]: 'high' } }))).toMatchObject({
       ok: false,
       message: `weights.${weightKey} must be a finite number`,
+    })
+  })
+
+  it('validates optional chart area types', () => {
+    expect(decoded(persisted({ pool: [chart()] })).state.pool[0].areaType).toBeUndefined()
+    expect(
+      decoded(persisted({ pool: [chart({ areaType: 'sea-pillars' })] })).state.pool[0].areaType,
+    ).toBe('sea-pillars')
+    expect(
+      decodeState(persisted({ pool: [{ ...chart(), areaType: 'unsupported-area' }] })),
+    ).toMatchObject({
+      ok: false,
+      message: 'pool[0].areaType is not supported',
+    })
+    expect(decodeState(persisted({ pool: [{ ...chart(), areaType: 42 }] }))).toMatchObject({
+      ok: false,
+      message: 'pool[0].areaType must be a string',
     })
   })
 
@@ -324,6 +350,32 @@ describe('state decoding', () => {
     const json = serializeState(state, 2)
     expect(JSON.parse(json).v).toBe(STATE_VERSION)
     expect(decoded(JSON.parse(json)).state).toEqual(state)
+  })
+
+  it.each([
+    ['English', englishChart, 'undersea-groves'],
+    ['Korean', koreanChart, 'seafloor-ridges'],
+  ])('preserves %s chart area types through JSON and local storage', (_, source, areaType) => {
+    const parsed = parseChartText(source)
+    expect(parsed.rejected).toEqual([])
+    expect(parsed.charts).toHaveLength(1)
+    expect(parsed.charts[0].areaType).toBe(areaType)
+
+    const state = { ...defaultState(), pool: parsed.charts }
+    const jsonResult = decodeStateJson(serializeState(state))
+    expect(jsonResult).toMatchObject({
+      ok: true,
+      state: { pool: [expect.objectContaining({ areaType })] },
+    })
+
+    const values = new Map<string, string>()
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+    })
+    saveLocal(state)
+
+    expect(loadLocal()?.pool[0].areaType).toBe(areaType)
   })
 
   it('enforces state resource limits at their boundaries', () => {

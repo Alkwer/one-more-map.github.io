@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { strategyById } from '../data/strategies'
+import englishChart from './__fixtures__/charted.en.txt?raw'
+import koreanChart from './__fixtures__/charted.ko.txt?raw'
 import type { ChartData, ModEffect } from '../types'
+import { parseChartText } from './parser'
 import {
   decodeShare,
   encodeShare,
@@ -128,6 +131,27 @@ describe('layout sharing', () => {
     expect(result.state.board.map((placement) => placement?.rotation)).toEqual(
       state.board.map((placement) => placement?.rotation),
     )
+  })
+
+  it.each([
+    ['English', englishChart, 'undersea-groves'],
+    ['Korean', koreanChart, 'seafloor-ridges'],
+  ])('preserves %s chart area types through shared layouts', (_, source, areaType) => {
+    const parsed = parseChartText(source)
+    expect(parsed.rejected).toEqual([])
+    expect(parsed.charts).toHaveLength(1)
+    expect(parsed.charts[0].areaType).toBe(areaType)
+
+    const state = defaultState()
+    state.pool = parsed.charts
+    state.board[0] = { chartUid: parsed.charts[0].uid, rotation: 0 }
+
+    const result = decodeShare(encodeShare(state))
+
+    expect(result).toMatchObject({
+      ok: true,
+      state: { pool: [expect.objectContaining({ areaType })] },
+    })
   })
 
   it('keeps bounded legacy v3 links compatible', () => {

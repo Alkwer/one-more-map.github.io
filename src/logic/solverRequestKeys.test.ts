@@ -58,6 +58,33 @@ describe('solver request keys', () => {
     expect(changedDisabledMods).not.toBe(original)
   })
 
+  it('invalidates inventory and interactive results when chart area type changes', () => {
+    const borders = Array(12).fill(null)
+    const seaPillars = chart({ areaType: 'sea-pillars' })
+    const pelagicAbyss = chart({ areaType: 'pelagic-abyss' })
+    const inventory = createStrategyInventoryKey([seaPillars], borders, inventoryOptions)
+    const changedInventory = createStrategyInventoryKey([pelagicAbyss], borders, inventoryOptions)
+    const state = {
+      pool: [seaPillars],
+      borders,
+      mode: 'strict' as const,
+      allowRotation: true,
+      adjacencyMode: 'physical' as const,
+      adjacentAffectsSelf: false,
+      disabledMods: [],
+      strategyReservations: defaultStrategyReservations(),
+    }
+    const interactive = createSolverStateKey(state, {}, 'divine-border-rares')
+    const changedInteractive = createSolverStateKey(
+      { ...state, pool: [pelagicAbyss] },
+      {},
+      'divine-border-rares',
+    )
+
+    expect(changedInventory).not.toBe(inventory)
+    expect(changedInteractive).not.toBe(interactive)
+  })
+
   it('invalidates interactive results when filler preservation changes', () => {
     const state = {
       pool: [chart()],
