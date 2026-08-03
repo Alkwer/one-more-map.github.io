@@ -228,6 +228,7 @@ function confidenceFor(
 function addRunnableRequirements(
   readiness: StrategyReadiness,
   eligibleCharts: number,
+  potentialFound: boolean,
   potentialValidForMode: boolean,
 ): StrategyReadiness {
   const missing = [...readiness.missing]
@@ -239,6 +240,8 @@ function addRunnableRequirements(
         9 - eligibleCharts === 1 ? '' : 's'
       } for a full voyage`,
     )
+  } else if (!potentialFound) {
+    missing.push('a board containing every mandatory strategy piece in an allowed position')
   } else if (!potentialValidForMode) {
     missing.push('a fully reachable connector layout from the available chart shapes')
   }
@@ -273,22 +276,26 @@ export function evaluateStrategyInventory(
       undefined,
       opts.pieceKeeps,
     ).solvePool
-    const potential =
-      solve(eligiblePool, borders, strategy.weights, {
-        ...opts,
-        topK: 1,
-        strategyRules: strategy.rules,
-        strategyLayout: strategy.layout,
-        strategyLayoutPenalty: strategy.layoutPenalty,
-        forceHeuristic: true,
-        searchRestarts: POTENTIAL_SEARCH_RESTARTS,
-        searchIterations: POTENTIAL_SEARCH_ITERATIONS,
-        seed: stableSeed(strategy.id),
-      })[0] ?? null
+    const libraryReadiness = strategyReadiness(strategy, pool, borders)
+    const potential = libraryReadiness.ready
+      ? (solve(eligiblePool, borders, strategy.weights, {
+          ...opts,
+          topK: 1,
+          strategyRules: strategy.rules,
+          strategyRequirements: strategy.requirements,
+          strategyLayout: strategy.layout,
+          strategyLayoutPenalty: strategy.layoutPenalty,
+          forceHeuristic: true,
+          searchRestarts: POTENTIAL_SEARCH_RESTARTS,
+          searchIterations: POTENTIAL_SEARCH_ITERATIONS,
+          seed: stableSeed(strategy.id),
+        })[0] ?? null)
+      : null
     const potentialBoard = potential?.board ?? (Array(9).fill(null) as Board)
     const readiness = addRunnableRequirements(
-      strategyReadiness(strategy, pool, borders),
+      libraryReadiness,
       eligiblePool.length,
+      potential !== null,
       potential?.valid ?? false,
     )
     const potentialAppraisal = appraiseBorders(

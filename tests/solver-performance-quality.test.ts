@@ -24,38 +24,31 @@ describe('25-chart solver quality budget', () => {
     assert.ok(results[4].score >= 144 - QUALITY_EPSILON)
   })
 
-  it('does not regress known strategy inventory quality or ranking', () => {
+  it('keeps canonical strategy inventory requirement-safe', () => {
     const { pool, charts, borders, commonOptions } = createPerformanceScenario()
     const inventory = evaluateStrategyInventory(borders, charts, pool, commonOptions)
 
     assert.deepEqual(
       inventory.evaluations.map((entry) => entry.strategy.id),
       [
+        'alc-and-go',
         'milky-meatfish',
         'divine-border-rares',
-        'alc-and-go',
         'cutedog-divine-boxes',
         'milky-ethereal',
         'milky-speedrun',
       ],
     )
-    const qualityFloor = new Map([
-      // Intentional recalibration: Lanterns are supporting rather than primary
-      // until monster-loot field reports are resolved.
-      ['milky-meatfish', 293.28],
-      ['divine-border-rares', 200.4],
-      ['milky-ethereal', 10.02],
-      ['cutedog-divine-boxes', 34.62],
-    ])
-    for (const evaluation of inventory.evaluations) {
-      const minimum = qualityFloor.get(evaluation.strategy.id)
-      if (minimum === undefined) continue
-      assert.ok(
-        evaluation.potentialScore >= minimum - QUALITY_EPSILON,
-        `${evaluation.strategy.id} score ${evaluation.potentialScore} fell below ${minimum}`,
-      )
-      assert.equal(evaluation.potentialLaunchable, true)
-      assert.equal(evaluation.potentialFullyReachable, true)
+    const alcAndGo = inventory.evaluations[0]
+    assert.ok(alcAndGo.potentialScore > 0)
+
+    for (const evaluation of inventory.evaluations.filter(
+      (entry) => entry.strategy.requirements?.length,
+    )) {
+      assert.equal(evaluation.readiness.ready, false)
+      assert.equal(evaluation.potentialScore, 0)
+      assert.equal(evaluation.potentialLaunchable, false)
+      assert.equal(evaluation.potentialFullyReachable, false)
     }
   })
 })

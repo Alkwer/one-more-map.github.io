@@ -49,7 +49,7 @@ export interface StrategyReservationGroup {
   areaTypes?: ChartAreaType[]
 }
 
-export interface PositionRule {
+export interface StrategyPosition {
   /** board cells this rule targets (row-major, 4 = centre) */
   cells?: number[]
   /** or resolve cells dynamically: tiles touched by border segments rolled
@@ -57,16 +57,34 @@ export interface PositionRule {
   nearBorderId?: string
   /** with nearBorderId: target the NEIGHBOURS of the border tile instead */
   adjacentToBorder?: boolean
+}
+
+export interface StrategyChartMatcher {
   /** chart implicit mod ids that satisfy the rule */
   modIds?: string[]
   /** or match by chart name (case-insensitive substring, e.g. Sea-Pillar) */
   nameMatch?: string
   /** or match a locale-independent Chart destination */
   areaTypes?: ChartAreaType[]
+}
+
+export interface PositionRule extends StrategyPosition, StrategyChartMatcher {
   /** or a header reward stat, scored as percent/100 × per */
   rewardStat?: { stat: Stat; per: number }
   /** objective bonus per matching placement */
   bonus: number
+}
+
+export interface StrategyRequirementDef extends StrategyPosition, StrategyChartMatcher {
+  count: number
+  /** adapt the required count to the number of physical neighbours around
+   *  the best currently rolled border tile (2 for a corner, 3 for an edge) */
+  countByBorderNeighbours?: {
+    borderId: string
+    two: number
+    three: number
+  }
+  label: string
 }
 
 export interface StrategyDef {
@@ -94,20 +112,7 @@ export interface StrategyDef {
   reservationGroups?: StrategyReservationGroup[]
   /** pieces the strategy needs before it can receive a PLAY recommendation;
    *  the UI lists any missing requirements as diagnostic context */
-  requirements?: {
-    modIds?: string[]
-    nameMatch?: string
-    areaTypes?: ChartAreaType[]
-    count: number
-    /** adapt the required count to the number of physical neighbours around
-     *  the best currently rolled border tile (2 for a corner, 3 for an edge) */
-    countByBorderNeighbours?: {
-      borderId: string
-      two: number
-      three: number
-    }
-    label: string
-  }[]
+  requirements?: StrategyRequirementDef[]
   /** Explicit keep-wizard chart types. When present they replace the
    * requirement-derived types, allowing banking to be more granular than
    * readiness requirements. */
@@ -405,6 +410,7 @@ export const STRATEGIES: StrategyDef[] = [
     requirements: [
       {
         modIds: SPEEDRUN_CENTER_MODS,
+        cells: CENTER,
         count: 1,
         label: 'Operative’s / Arcanist’s / Diviner’s / Message chart (centre)',
       },
@@ -469,15 +475,22 @@ export const STRATEGIES: StrategyDef[] = [
     layoutPenalty: 6,
     requirements: [
       // Milky's sheet composition (2+1+2+2+1+1 = 9 charts)
-      { modIds: ['adj-star-1', 'adj-star-2'], count: 2, label: 'Giant Starfish chart' },
+      {
+        modIds: ['adj-star-1', 'adj-star-2'],
+        cells: [1, 7],
+        count: 2,
+        label: 'Giant Starfish chart',
+      },
       {
         modIds: ['adj-pantheon', 'adj-wisps-1', 'adj-wisps-2'],
+        cells: [5],
         count: 1,
         label: 'Pantheon (or 4k Wisp) chart',
       },
       {
         nameMatch: 'pillar',
         areaTypes: ['sea-pillars'],
+        cells: [0, 2, 6, 8],
         count: 2,
         label: 'Sea-Pillar chart (corners)',
       },
@@ -533,8 +546,18 @@ export const STRATEGIES: StrategyDef[] = [
     layout: ETHEREAL_LAYOUT,
     layoutPenalty: 6,
     requirements: [
-      { modIds: ['adj-wisps-1', 'adj-wisps-2'], count: 4, label: 'Wildwood Wisp chart' },
-      { modIds: ['adj-lantern'], count: 3, label: 'Golden Lantern chart' },
+      {
+        modIds: ['adj-wisps-1', 'adj-wisps-2'],
+        cells: EDGES,
+        count: 4,
+        label: 'Wildwood Wisp chart',
+      },
+      {
+        modIds: ['adj-lantern'],
+        cells: [0, 2, 8],
+        count: 3,
+        label: 'Golden Lantern chart',
+      },
       { modIds: ['voy-minmagic'], count: 1, label: 'All Monsters at least Magic chart' },
       { modIds: ['voy-noequip'], count: 1, label: 'No-Equipment chart' },
       {
@@ -594,9 +617,17 @@ export const STRATEGIES: StrategyDef[] = [
       },
     ],
     requirements: [
-      { nameMatch: 'pillar', areaTypes: ['sea-pillars'], count: 1, label: 'Sea-Pillar chart' },
+      {
+        nameMatch: 'pillar',
+        areaTypes: ['sea-pillars'],
+        nearBorderId: 'b-divine',
+        count: 1,
+        label: 'Sea-Pillar chart',
+      },
       {
         modIds: ['adj-star-1', 'adj-star-2', 'adj-box-1', 'adj-box-2', 'adj-box-3'],
+        nearBorderId: 'b-divine',
+        adjacentToBorder: true,
         count: 3,
         countByBorderNeighbours: { borderId: 'b-divine', two: 2, three: 3 },
         label: 'Starfish or Strongbox feeder chart',
@@ -689,6 +720,7 @@ export const STRATEGIES: StrategyDef[] = [
       {
         nameMatch: 'pelagic',
         areaTypes: ['pelagic-abyss'],
+        nearBorderId: 'b-divine',
         count: 1,
         label: 'Pelagic Abyss chart (high pack size)',
       },
@@ -704,6 +736,8 @@ export const STRATEGIES: StrategyDef[] = [
           'adj-opbox-1',
           'adj-opbox-2',
         ],
+        nearBorderId: 'b-divine',
+        adjacentToBorder: true,
         count: 3,
         countByBorderNeighbours: { borderId: 'b-divine', two: 2, three: 3 },
         label: 'Strongbox adjacent chart (any type)',

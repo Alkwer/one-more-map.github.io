@@ -95,6 +95,29 @@ describe('border-aware strategy readiness', () => {
     expect(readiness.need).toBe(9)
     expect(readiness.missing).toContain('1× Sea-Pillar chart (corners)')
   })
+
+  it('builds canonical potential only from a requirement-complete board', () => {
+    const center = crossing('operative', ['adj-opbox-2'])
+    const fillers = Array.from({ length: 9 }, (_, index) => ({
+      ...crossing(`high-score-${index}`, []),
+      rewards: [{ stat: 'quantity' as const, percent: 20_000 }],
+    }))
+    const pool = [center, ...fillers]
+    const charts = new Map(pool.map((entry) => [entry.uid, entry]))
+
+    const inventory = evaluateStrategyInventory(emptyBorders(), charts, pool, {
+      ...options,
+      mode: 'any',
+      allowRotation: false,
+    })
+    const speedrun = inventory.evaluations.find((entry) => entry.strategy.id === 'milky-speedrun')!
+
+    expect(speedrun.readiness.ready).toBe(true)
+    expect(speedrun.potentialBoard[4]?.chartUid).toBe(center.uid)
+    expect(
+      speedrun.potentialBoard.filter((placement) => placement?.chartUid === center.uid),
+    ).toHaveLength(1)
+  })
 })
 
 describe('Divine strategy selection', () => {
