@@ -36,7 +36,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh issue list --state all --label "border-roll:accepted" --limit 1000 --json number,body,labels > "$RUNNER_TEMP/accepted-border-roll-issues.json"
+          output="$RUNNER_TEMP/accepted-border-roll-issues.json"
+          partial="${output}.partial"
+          # REST returns at most 100 issues per request. --paginate follows every
+          # Link header; --slurp lets jq flatten and sort the complete corpus.
+          # Any failed page exits this step before the partial file is promoted.
+          gh api --method GET --paginate --slurp \
+            -f state=all \
+            -f per_page=100 \
+            -f labels="border-roll:accepted" \
+            "repos/$GITHUB_REPOSITORY/issues" \
+            --jq 'flatten | map(select(.pull_request == null) | {number, body, labels}) | sort_by(.number)' \
+            > "$partial"
+          jq -e 'type == "array"' "$partial" >/dev/null
+          mv "$partial" "$output"
 
       - id: validate
         name: Validate and normalize issue JSON

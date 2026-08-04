@@ -122,6 +122,28 @@ test('builds a stable deduplicated dataset from accepted issues', () => {
   )
 })
 
+test('keeps every sample when the accepted corpus exceeds 1,000 issues', () => {
+  const acceptedIssues = Array.from({ length: 1001 }, (_, index) => ({
+    number: 1001 - index,
+    body: issueBody(
+      dataset([
+        sample(0, {
+          sampleId: `roll-bulk-${index}`,
+          sequenceId: `voyage-bulk-${index}`,
+          capturedAt: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, index)).toISOString(),
+        }),
+      ]),
+    ),
+  }))
+
+  const built = buildCanonicalDataset(acceptedIssues, knownIds)
+
+  assert.equal(built.sampleCount, 1001)
+  assert.equal(new Set(built.samples.map(({ sampleId }) => sampleId)).size, 1001)
+  assert.equal(built.samples[0].sampleId, 'roll-bulk-0')
+  assert.equal(built.samples.at(-1).sampleId, 'roll-bulk-1000')
+})
+
 test('excludes issues manually labelled as test data', () => {
   const built = buildCanonicalDataset(
     [
