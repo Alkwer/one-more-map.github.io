@@ -434,7 +434,6 @@ function decodeStrategyReservations(value: unknown): StrategyReservationPreferen
   const legacySpeedrun = optionalBoolean(value, 'speedrun', true)
   const legacyDivine = optionalBoolean(value, 'divine', true)
   const legacyMeatfish = optionalBoolean(value, 'meatfish', true)
-  const legacyEthereal = optionalBoolean(value, 'ethereal', true)
 
   return {
     genericStrongboxes: optionalBoolean(value, 'genericStrongboxes', legacyDivine),
@@ -460,7 +459,6 @@ function decodeStrategyReservations(value: unknown): StrategyReservationPreferen
     seaPillars: optionalBoolean(value, 'seaPillars', legacyDivine || legacyMeatfish),
     pelagicAbyss: optionalBoolean(value, 'pelagicAbyss', legacyDivine),
     meatfish: legacyMeatfish,
-    ethereal: legacyEthereal,
   }
 }
 

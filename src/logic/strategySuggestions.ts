@@ -504,9 +504,7 @@ export function evaluateStrategyInventory(
   })
 
   return {
-    suggestions: evaluations
-      .filter((evaluation) => evaluation.strategy.autoRecommend !== false)
-      .slice(0, Math.max(0, limit)),
+    suggestions: evaluations.slice(0, Math.max(0, limit)),
     evaluations,
     enteredBorders,
     availableCharts: solverEligiblePool.length,

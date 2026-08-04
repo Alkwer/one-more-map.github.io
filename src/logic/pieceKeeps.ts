@@ -38,7 +38,6 @@ const STRATEGY_ORDER = [
   'divine-border-rares',
   'cutedog-divine-boxes',
   'milky-meatfish',
-  'milky-ethereal',
   'milky-speedrun',
 ]
 
@@ -59,7 +58,6 @@ const RESERVATIONS_OF: Record<string, StrategyReservationId[]> = {
     'pelagicAbyss',
   ],
   'milky-meatfish': ['starfish', 'seaPillars', 'meatfish'],
-  'milky-ethereal': ['ethereal'],
   'milky-speedrun': [
     'divinerStrongboxes',
     'arcanistStrongboxes',
@@ -106,19 +104,6 @@ const matchesReservation = (
         'adj-wisps-1',
         'adj-wisps-2',
       )
-    case 'ethereal':
-      return (
-        chart.areaType === 'infested-bathyspheres' ||
-        has(
-          'adj-lantern',
-          'voy-noequip',
-          'adj-wisps-1',
-          'adj-wisps-2',
-          'adj-magic-1',
-          'adj-magic-2',
-          'voy-minmagic',
-        )
-      )
   }
 }
 
@@ -139,8 +124,7 @@ function buildPieceTypes(): PieceType[] {
   const out: PieceType[] = []
   // a later type whose matcher is a SUBSET of an earlier banking type must not
   // double-bank the same family (e.g. both Divine strats want increased-rares
-  // charts) - one keep knob per family, sized for the HUNGRIEST strategy
-  // (Ethereal wants 4 wisps even though Meatfish's knob only asks for 1).
+  // charts) - one keep knob per family, sized for the HUNGRIEST strategy.
   // The later type still exists so its strategy "wants" those charts and may
   // spend the shared bank.
   const familyOwner = (p: { modIds?: string[]; areaTypes?: string[] }) =>

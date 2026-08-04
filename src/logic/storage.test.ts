@@ -244,7 +244,7 @@ describe('state decoding', () => {
     expect(
       decoded(
         persisted({
-          strategyReservations: { divine: false, meatfish: true, ethereal: false },
+          strategyReservations: { divine: false, meatfish: true },
         }),
       ).state.strategyReservations,
     ).toEqual({
@@ -259,7 +259,6 @@ describe('state decoding', () => {
       seaPillars: true,
       pelagicAbyss: false,
       meatfish: true,
-      ethereal: false,
     })
 
     expect(
@@ -269,7 +268,6 @@ describe('state decoding', () => {
             speedrun: false,
             divine: true,
             meatfish: false,
-            ethereal: false,
           },
         }),
       ).state.strategyReservations,
@@ -285,7 +283,6 @@ describe('state decoding', () => {
       seaPillars: true,
       pelagicAbyss: true,
       meatfish: false,
-      ethereal: false,
     })
 
     const granular = {
@@ -336,7 +333,7 @@ describe('state decoding', () => {
   it('round-trips user-added chart types', () => {
     const state = defaultState()
     state.pieceKeeps = {
-      [customKey('milky-ethereal', ['adj-barrel-1', 'adj-barrel-2'])]: 2,
+      [customKey('milky-speedrun', ['adj-barrel-1', 'adj-barrel-2'])]: 2,
     }
 
     expect(decoded(JSON.parse(serializeState(state))).state.pieceKeeps).toEqual(state.pieceKeeps)
