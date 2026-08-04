@@ -102,12 +102,14 @@ One community comment gives `75k` for five rerolls, but its written sequence is
   no evidence that it matches the game. It must not be used as the probability
   model for a real reroll recommendation.
 
-Still unknown:
+Current evidence and remaining unknowns:
 
 1. Weight of each family and tier.
 2. Whether the 12 slots are independent.
-3. Whether duplicate modifiers can occur on one board and, if so, without limit.
-4. Whether paid rerolls use the same distribution as a newly generated board.
+3. Exact duplicates are confirmed, including three copies of one modifier on a
+   board; any higher duplicate limit remains unknown.
+4. No natural-versus-paid distribution difference is detected in the first
+   seven complete sequences, but equivalence is not yet established.
 5. Whether the third reroll constant really enforces a five-reroll cap.
 6. Precisely when the doubling counter resets.
 
@@ -115,12 +117,17 @@ Still unknown:
 
 - A deterministic **current-roll appraiser** is unblocked: score the 12 observed
   borders against the user's planned charts and preferences.
-- A mathematically honest **"reroll or keep" recommendation** is still blocked
-  on the roll distribution. Do not label a uniform-pool calculation as expected
-  value.
-- Until probabilities are measured, a later strategy feature may expose a
-  clearly labelled heuristic (for example, compare the current board score with
-  a user-selected keep threshold), but not a claimed optimal decision.
+- Experimental **"reroll or keep" guidance** is now available from version 1 of
+  the observed-roll model. It uses smoothed, non-uniform probabilities and shows
+  its sequence count and confidence instead of presenting the estimate as fact.
+- The model compares the current layout with posterior-predictive paid rerolls,
+  but it does not price Sulphur or claim an optimal stopping policy. The existing
+  3,000/6,000 cost guardrail remains in force.
+- Strategy ranking uses a small modeled-paid-reroll compatibility component when
+  the current border is incomplete. A complete observed border roll still takes
+  priority over the forecast.
+- The model imports the canonical JSON dataset directly, so every accepted
+  dataset rebuild updates probabilities on the next application build.
 
 ### Minimal in-game data collection needed
 
@@ -409,8 +416,9 @@ A static React + TypeScript SPA deployed to GitHub Pages with no backend:
       reachability behavior.
 - [x] Collect the current public border-modifier records.
 - [ ] Confirm the paid-reroll cap and exact counter-reset event in the live UI.
-- [ ] Collect unbiased natural and paid-reroll samples to estimate weights, tier
-      gates, duplicate rules, and slot independence.
+- [x] Confirm that exact duplicate border modifiers can occur on one board.
+- [ ] Collect more unbiased natural and paid-reroll samples to stabilize weights,
+      tier gates, natural/paid comparisons, Vesper splits, and slot independence.
 - [ ] Add live fixtures for additional client languages and newly observed chart
       modifier text.
 

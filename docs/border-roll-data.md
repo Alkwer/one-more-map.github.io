@@ -156,3 +156,30 @@ progress is unknown should be reported separately. Samples from one sequence
 must remain grouped so duplicate limits and within-board dependence can be
 tested. Paid rerolls must not be mixed with natural boards until the two
 distributions are shown to agree.
+
+## Experimental roll model
+
+The application builds experimental model version 1 directly from
+`data/border-rolls-v2.json` at compile time. Dataset-update pull requests
+therefore update the shipped estimates automatically without a separately
+maintained weight table.
+
+Version 1:
+
+- estimates the next paid reroll from paid-reroll samples only; natural boards
+  remain separate until equivalence is supported;
+- uses a symmetric Dirichlet(1) prior across every canonical modifier, so a
+  known but not-yet-observed modifier never receives zero probability;
+- samples the 12 slots independently from the posterior mean weights to compare
+  a concrete chart layout with a paid reroll;
+- labels confidence from the number of complete Voyage sequences: low below
+  30, medium from 30 to 99, and high from 100;
+- keeps the 3,000/6,000 Sulphur guardrail and does not convert score into
+  currency expected value.
+
+The UI reports the current roll percentile, the estimated chance that a fresh
+paid reroll scores higher for the selected strategy layout, and the model sample
+size.
+These are posterior-predictive diagnostics, not a claim of optimal stopping.
+Future model versions may introduce Vesper, generation, patch, or slot profiles
+once those strata have enough complete sequences.

@@ -10,6 +10,13 @@ export const DEFAULT_MAX_REROLL_COST = 6_000
  */
 export const KEEP_FIT_LINES = [0.6, 0.5, 0.5, 0.5, 0.5] as const
 
+/**
+ * Experimental posterior-percentile keep lines. A cheap first reroll asks the
+ * current board to beat 60% of modeled paid rerolls; later steps use the median.
+ * Sulphur is still protected separately by DEFAULT_MAX_REROLL_COST.
+ */
+export const KEEP_MODEL_PERCENTILE_LINES = [0.6, 0.5, 0.5, 0.5, 0.5] as const
+
 export const clampRerollsUsed = (value: number): number =>
   Math.max(0, Math.min(REROLL_COSTS.length, Math.floor(Number.isFinite(value) ? value : 0)))
 

@@ -1,4 +1,5 @@
 import type { StrategySuggestionResult } from '../logic/strategySuggestions'
+import { BORDER_ROLL_MODEL } from '../logic/borderRollModel'
 
 interface Props {
   result: StrategySuggestionResult
@@ -98,6 +99,14 @@ export function StrategySuggestions({
                     </strong>
                   </span>
                   <span>
+                    Expected reroll{' '}
+                    <strong>
+                      {suggestion.modeledBorderFit === null
+                        ? '—'
+                        : `${Math.round(suggestion.modeledBorderFit * 100)}%`}
+                    </strong>
+                  </span>
+                  <span>
                     Combined <strong>{Math.round(suggestion.combinedFit * 100)}%</strong>
                   </span>
                   <span>
@@ -141,8 +150,8 @@ export function StrategySuggestions({
       )}
 
       <div className="suggestion-disclaimer">
-        Diagnostic only — experimental strategies are excluded, and reroll guidance is not expected
-        value.
+        Diagnostic only — expected-reroll compatibility uses the {BORDER_ROLL_MODEL.confidence}
+        -confidence experimental model; reroll guidance is not Sulphur expected value.
       </div>
     </section>
   )

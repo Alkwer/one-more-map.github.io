@@ -89,6 +89,38 @@ describe('strategy suggestion regressions', () => {
     assert.equal(result.hasEvidence, false)
   })
 
+  it('adds modeled fresh-roll compatibility to strategy evidence', () => {
+    const pool = [
+      chart('modeled-star-1', ['adj-star-1']),
+      chart('modeled-star-2', ['adj-star-2']),
+      chart('modeled-pantheon', ['adj-pantheon']),
+      chart('modeled-pillar-1', [], 'Sea-Pillar Model A'),
+      chart('modeled-pillar-2', [], 'Sea-Pillar Model B'),
+      chart('modeled-lantern-1', ['adj-lantern']),
+      chart('modeled-lantern-2', ['adj-lantern']),
+      chart('modeled-possess', ['voy-possess']),
+      chart('modeled-no-equipment', ['voy-noequip']),
+    ]
+    const result = suggestStrategies(
+      emptyBoard(),
+      emptyBorders(),
+      new Map(pool.map((entry) => [entry.uid, entry])),
+      pool,
+      options,
+    )
+    const suggestion = result.evaluations.find(
+      (evaluation) => evaluation.strategy.id === 'milky-meatfish',
+    )!
+
+    assert.ok(suggestion.modeledBorderFit !== null)
+    assert.ok(suggestion.modeledBorderFit! >= 0)
+    assert.ok(
+      suggestion.reasons.some((reason) =>
+        /paid reroll is modeled at .* contextual fit/.test(reason),
+      ),
+    )
+  })
+
   it('does not promote an incomplete recipe over a runnable strategy', () => {
     const pool = Array.from({ length: 9 }, (_, index) => chart(`ready-filler-${index}`))
     const charts = new Map(pool.map((entry) => [entry.uid, entry]))
