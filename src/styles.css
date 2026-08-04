@@ -426,6 +426,18 @@ button.primary:hover {
   gap: 8px;
   justify-content: flex-end;
 }
+
+.auxiliary-store-recovery {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--bad);
+  border-radius: 4px;
+  background: rgba(120, 34, 34, 0.12);
+}
+.auxiliary-store-recovery h3,
+.auxiliary-store-recovery p {
+  margin: 0 0 8px;
+}
 .saved-state-recovery-actions .danger {
   color: #f0b0aa;
   border-color: #925d50;

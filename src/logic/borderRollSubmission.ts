@@ -4,8 +4,13 @@ import {
   type BorderRollDataset,
   type BorderRollSample,
 } from './borderRollResearch'
+import {
+  incompatibleAuxiliaryStore,
+  unavailableAuxiliaryStore,
+  type AuxiliaryStorageRecovery,
+} from './auxiliaryStorageRecovery'
 
-const STORAGE_KEY = 'allflame-border-roll-submission'
+export const BORDER_SUBMISSION_STORAGE_KEY = 'allflame-border-roll-submission'
 const STORE_VERSION = 2
 
 const PRODUCTION_INTAKE_URL =
@@ -30,6 +35,8 @@ export interface BorderSubmissionStore {
   version: typeof STORE_VERSION
   settings: BorderSubmissionSettings
   queue: QueuedBorderSubmission[]
+  /** Present only in memory while incompatible or unavailable storage blocks writes. */
+  recovery?: AuxiliaryStorageRecovery
 }
 
 export interface BorderSubmissionResponse {
@@ -62,14 +69,37 @@ function isQueuedSubmission(value: unknown): value is QueuedBorderSubmission {
 }
 
 export function loadBorderSubmissionStore(): BorderSubmissionStore {
+  let raw: string | null
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return createBorderSubmissionStore()
-    const value = JSON.parse(raw) as {
-      version?: number
-      settings?: Partial<BorderSubmissionSettings>
-      queue?: unknown[]
+    raw = localStorage.getItem(BORDER_SUBMISSION_STORAGE_KEY)
+  } catch {
+    return {
+      ...createBorderSubmissionStore(),
+      recovery: unavailableAuxiliaryStore('Border submission storage is unavailable.'),
     }
+  }
+  if (!raw) return createBorderSubmissionStore()
+
+  let value: {
+    version?: number
+    settings?: Partial<BorderSubmissionSettings>
+    queue?: unknown[]
+  }
+  try {
+    value = JSON.parse(raw) as typeof value
+  } catch {
+    return {
+      ...createBorderSubmissionStore(),
+      recovery: incompatibleAuxiliaryStore(
+        BORDER_SUBMISSION_STORAGE_KEY,
+        raw,
+        'invalid',
+        'Border submission queue is malformed JSON.',
+      ),
+    }
+  }
+
+  try {
     if (
       (value.version !== 1 && value.version !== STORE_VERSION) ||
       !value.settings ||
@@ -77,9 +107,21 @@ export function loadBorderSubmissionStore(): BorderSubmissionStore {
       !Array.isArray(value.queue) ||
       !value.queue.every(isQueuedSubmission)
     ) {
-      const clean = createBorderSubmissionStore()
-      saveBorderSubmissionStore(clean)
-      return clean
+      const newer =
+        typeof value.version === 'number' &&
+        Number.isInteger(value.version) &&
+        value.version > STORE_VERSION
+      return {
+        ...createBorderSubmissionStore(),
+        recovery: incompatibleAuxiliaryStore(
+          BORDER_SUBMISSION_STORAGE_KEY,
+          raw,
+          newer ? 'incompatible' : 'invalid',
+          newer
+            ? `Border submission version ${value.version} is newer than supported version ${STORE_VERSION}.`
+            : 'Border submission queue failed validation.',
+        ),
+      }
     }
     const clean: BorderSubmissionStore = {
       version: STORE_VERSION,
@@ -91,19 +133,32 @@ export function loadBorderSubmissionStore(): BorderSubmissionStore {
     }
     // Version 1 persisted the key. Rewriting immediately is the migration and
     // rotation boundary: the old credential is removed before React renders.
-    saveBorderSubmissionStore(clean)
-    return clean
+    return saveBorderSubmissionStore(clean)
+      ? clean
+      : {
+          ...clean,
+          recovery: unavailableAuxiliaryStore(
+            'The migrated border submission queue could not be saved because storage is unavailable.',
+          ),
+        }
   } catch {
-    const clean = createBorderSubmissionStore()
-    saveBorderSubmissionStore(clean)
-    return clean
+    return {
+      ...createBorderSubmissionStore(),
+      recovery: incompatibleAuxiliaryStore(
+        BORDER_SUBMISSION_STORAGE_KEY,
+        raw,
+        'invalid',
+        'Border submission queue could not be decoded.',
+      ),
+    }
   }
 }
 
-export function saveBorderSubmissionStore(store: BorderSubmissionStore): void {
+export function saveBorderSubmissionStore(store: BorderSubmissionStore): boolean {
+  if (store.recovery) return false
   try {
     localStorage.setItem(
-      STORAGE_KEY,
+      BORDER_SUBMISSION_STORAGE_KEY,
       JSON.stringify({
         version: STORE_VERSION,
         settings: { enabled: store.settings.enabled },
@@ -113,9 +168,20 @@ export function saveBorderSubmissionStore(store: BorderSubmissionStore): void {
         })),
       }),
     )
+    return true
   } catch {
-    /* storage full or unavailable */
+    return false
   }
+}
+
+export function resetBorderSubmissionStore(): BorderSubmissionStore {
+  const clean = createBorderSubmissionStore()
+  return saveBorderSubmissionStore(clean)
+    ? clean
+    : {
+        ...clean,
+        recovery: unavailableAuxiliaryStore('Border submission storage is unavailable.'),
+      }
 }
 
 export function updateBorderSubmissionSettings(

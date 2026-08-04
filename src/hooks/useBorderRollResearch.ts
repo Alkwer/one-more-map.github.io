@@ -9,6 +9,7 @@ import {
   loadBorderResearch,
   nextBorderRollIndex,
   removeBorderRollSample,
+  resetBorderResearch,
   restoreBorderRollSequence,
   saveBorderResearch,
   setCurrentVesperUpgradeCount,
@@ -20,11 +21,13 @@ import {
   enqueueBorderRollSequence,
   loadBorderSubmissionStore,
   removeQueuedBorderSubmission,
+  resetBorderSubmissionStore,
   saveBorderSubmissionStore,
   sendQueuedBorderSubmission,
   updateBorderSubmissionSettings,
   type BorderSubmissionStore,
 } from '../logic/borderRollSubmission'
+import { unavailableAuxiliaryStore } from '../logic/auxiliaryStorageRecovery'
 import { REROLL_COSTS } from '../logic/rerollAdvice'
 import type { Borders } from '../types'
 
@@ -48,6 +51,10 @@ export interface BorderRollResearchController {
   removeSample: (sampleId: string) => void
   archiveSequence: (sequenceId: string) => void
   restoreSequence: (sequenceId: string) => void
+  retryResearchRecovery: () => void
+  resetResearchStore: () => void
+  retrySubmissionRecovery: () => void
+  resetSubmissionStore: () => void
   finishVoyage: () => string
 }
 
@@ -71,20 +78,49 @@ export function useBorderRollResearch(): BorderRollResearchController {
   const displayedNextRerollCost = REROLL_COSTS[nextRollIndex] ?? null
 
   const commitStore = useCallback((next: BorderResearchStore) => {
+    if (storeRef.current.recovery) {
+      setMessage('Border research writes are paused until storage recovery is resolved.')
+      return false
+    }
+    if (!saveBorderResearch(next)) {
+      const blocked = {
+        ...next,
+        recovery: unavailableAuxiliaryStore('Border research storage became unavailable.'),
+      }
+      storeRef.current = blocked
+      setStore(blocked)
+      setMessage('Border research storage became unavailable; further writes are paused.')
+      return false
+    }
     storeRef.current = next
     setStore(next)
-    saveBorderResearch(next)
+    return true
   }, [])
 
   const commitSubmissionStore = useCallback((next: BorderSubmissionStore) => {
+    if (submissionRef.current.recovery) {
+      setMessage('Submission queue writes are paused until storage recovery is resolved.')
+      return false
+    }
+    if (!saveBorderSubmissionStore(next)) {
+      const blocked = {
+        ...next,
+        recovery: unavailableAuxiliaryStore('Border submission storage became unavailable.'),
+      }
+      submissionRef.current = blocked
+      setSubmissionStore(blocked)
+      setMessage('Border submission storage became unavailable; further writes are paused.')
+      return false
+    }
     submissionRef.current = next
     setSubmissionStore(next)
-    saveBorderSubmissionStore(next)
+    return true
   }, [])
 
   const flushQueue = useCallback(async () => {
     if (submittingRef.current) return
     const current = submissionRef.current
+    if (current.recovery) return
     const item = current.queue[0]
     if (
       !item ||
@@ -146,7 +182,9 @@ export function useBorderRollResearch(): BorderRollResearchController {
         setMessage(conflict)
         return conflict
       }
-      commitStore(added.store)
+      if (!commitStore(added.store)) {
+        return 'Border research storage needs recovery; the roll was not saved.'
+      }
       const saved = `${automatic ? 'Auto-saved' : 'Saved'} ${
         rerollIndex === 0 ? 'natural board' : `paid reroll ${rerollIndex}`
       }`
@@ -260,6 +298,50 @@ export function useBorderRollResearch(): BorderRollResearchController {
     void flushQueue()
   }, [flushQueue])
 
+  const retryResearchRecovery = useCallback(() => {
+    const next = loadBorderResearch()
+    storeRef.current = next
+    setStore(next)
+    setMessage(
+      next.recovery
+        ? next.recovery.message
+        : 'Border research storage was decoded and normal writes resumed.',
+    )
+  }, [])
+
+  const resetResearchStore = useCallback(() => {
+    const next = resetBorderResearch()
+    storeRef.current = next
+    setStore(next)
+    setMessage(
+      next.recovery
+        ? next.recovery.message
+        : 'Border research was explicitly reset; the quarantined backup was preserved.',
+    )
+  }, [])
+
+  const retrySubmissionRecovery = useCallback(() => {
+    const next = loadBorderSubmissionStore()
+    submissionRef.current = next
+    setSubmissionStore(next)
+    setMessage(
+      next.recovery
+        ? next.recovery.message
+        : 'Submission queue storage was decoded and normal writes resumed.',
+    )
+  }, [])
+
+  const resetSubmissionStore = useCallback(() => {
+    const next = resetBorderSubmissionStore()
+    submissionRef.current = next
+    setSubmissionStore(next)
+    setMessage(
+      next.recovery
+        ? next.recovery.message
+        : 'Submission queue was explicitly reset; the quarantined backup was preserved.',
+    )
+  }, [])
+
   const removeSample = useCallback(
     (sampleId: string) => {
       commitStore(removeBorderRollSample(storeRef.current, sampleId))
@@ -304,6 +386,10 @@ export function useBorderRollResearch(): BorderRollResearchController {
     removeSample,
     archiveSequence,
     restoreSequence,
+    retryResearchRecovery,
+    resetResearchStore,
+    retrySubmissionRecovery,
+    resetSubmissionStore,
     finishVoyage,
   }
 }
