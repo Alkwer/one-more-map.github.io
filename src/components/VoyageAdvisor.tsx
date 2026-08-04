@@ -68,6 +68,10 @@ export function VoyageAdvisor({
   const action = decision.action
   const forecast = decision.rollForecast
   const rollPercentile = forecast ? Math.round(forecast.currentPercentile * 100) : null
+  const modelKeepLinePercent =
+    forecast && decision.keepModelPercentileLine !== null
+      ? Math.round(decision.keepModelPercentileLine * 100)
+      : null
   const improveChance = forecast ? Math.round(forecast.chanceNextRollBeatsCurrent * 100) : null
 
   return (
@@ -95,30 +99,10 @@ export function VoyageAdvisor({
         <div className="voyage-context">
           <span>{contextLabelFor(decision)}</span>
           <strong>{decision.strategyName ?? 'Import charts to compare'}</strong>
-          {fitPercent === null ? (
-            <small>Enter the border roll to measure best-found fit.</small>
-          ) : (
-            <div className="voyage-fit-summary">
-              <div>
-                <span>Best-found roll fit</span>
-                <strong>{fitPercent}%</strong>
-              </div>
-              <div>
-                <span>Decision line</span>
-                <strong>{linePercent}%</strong>
-              </div>
-            </div>
-          )}
-          {fitPercent !== null && (
-            <div className="voyage-fit-track" aria-hidden="true">
-              <span style={{ width: `${fitPercent}%` }} />
-              <i style={{ left: `${linePercent}%` }} />
-            </div>
-          )}
           {forecast && (
             <div className="voyage-model" data-testid="experimental-roll-model">
               <div className="voyage-model-head">
-                <span>Experimental roll model v{forecast.modelVersion}</span>
+                <span>Paid-reroll model v{forecast.modelVersion}</span>
                 <strong className={forecast.modelConfidence}>
                   {forecast.modelConfidence} confidence
                 </strong>
@@ -129,13 +113,69 @@ export function VoyageAdvisor({
                   <strong>{rollPercentile}%</strong>
                 </div>
                 <div>
-                  <span>Paid reroll scores higher</span>
-                  <strong>{improveChance}%</strong>
+                  <span>Keep percentile</span>
+                  <strong>
+                    {modelKeepLinePercent === null ? '—' : `${modelKeepLinePercent}%`}
+                  </strong>
                 </div>
               </div>
+              <div className="voyage-fit-track voyage-percentile-track" aria-hidden="true">
+                <span style={{ width: `${rollPercentile}%` }} />
+                {modelKeepLinePercent !== null && (
+                  <i style={{ left: `${modelKeepLinePercent}%` }} />
+                )}
+              </div>
+              <p className="voyage-model-insight">
+                <strong>{improveChance}%</strong> of modeled paid rerolls score higher than this
+                roll.
+              </p>
               <small>
                 {forecast.sampleCount} paid-reroll boards · {forecast.sequenceCount} complete Voyage
                 sequences
+              </small>
+            </div>
+          )}
+          {!forecast &&
+            (fitPercent === null ? (
+              <small>Enter the border roll to measure contextual border fit.</small>
+            ) : (
+              <>
+                <div className="voyage-fit-summary">
+                  <div>
+                    <span>Contextual border fit</span>
+                    <strong>{fitPercent}%</strong>
+                  </div>
+                  <div>
+                    <span>Contextual fit line</span>
+                    <strong>{linePercent}%</strong>
+                  </div>
+                </div>
+                <div className="voyage-fit-track" aria-hidden="true">
+                  <span style={{ width: `${fitPercent}%` }} />
+                  <i style={{ left: `${linePercent}%` }} />
+                </div>
+                <small>
+                  Heuristic scale: border contribution versus the best-known border mix for this
+                  chart layout.
+                </small>
+              </>
+            ))}
+          {forecast && fitPercent !== null && (
+            <div className="voyage-fit-diagnostic">
+              <div className="voyage-fit-diagnostic-head">Secondary border-fit heuristic</div>
+              <div className="voyage-fit-summary">
+                <div>
+                  <span>Contextual border fit</span>
+                  <strong>{fitPercent}%</strong>
+                </div>
+                <div>
+                  <span>Contextual fit line</span>
+                  <strong>{linePercent}%</strong>
+                </div>
+              </div>
+              <small>
+                Separate scale: border contribution versus the best-known border mix for this chart
+                layout — not a percentile or the combined charts + borders score.
               </small>
             </div>
           )}
