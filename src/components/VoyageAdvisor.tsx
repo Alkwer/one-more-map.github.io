@@ -119,12 +119,7 @@ export function VoyageAdvisor({
                   </strong>
                 </div>
               </div>
-              <div
-                className="voyage-fit-track voyage-percentile-track"
-                aria-label={`Current roll percentile ${rollPercentile}%${
-                  modelKeepLinePercent === null ? '' : `; keep percentile ${modelKeepLinePercent}%`
-                }`}
-              >
+              <div className="voyage-fit-track voyage-percentile-track" aria-hidden="true">
                 <span style={{ width: `${rollPercentile}%` }} />
                 {modelKeepLinePercent !== null && (
                   <i style={{ left: `${modelKeepLinePercent}%` }} />
@@ -155,10 +150,7 @@ export function VoyageAdvisor({
                     <strong>{linePercent}%</strong>
                   </div>
                 </div>
-                <div
-                  className="voyage-fit-track"
-                  aria-label={`Contextual border fit ${fitPercent}%; contextual fit line ${linePercent}%`}
-                >
+                <div className="voyage-fit-track" aria-hidden="true">
                   <span style={{ width: `${fitPercent}%` }} />
                   <i style={{ left: `${linePercent}%` }} />
                 </div>
