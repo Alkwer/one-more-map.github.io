@@ -20,6 +20,9 @@ export function BorderRollResearch({ borders, controller }: Props) {
   const { store } = controller
   const researchBlocked = !!store.recovery
   const submissionBlocked = !!controller.submissionStore.recovery
+  const failedSubmissionCount = controller.submissionStore.queue.filter(
+    (item) => item.delivery.status === 'failed',
+  ).length
   const [showArchived, setShowArchived] = useState(false)
   const missingBorders = useMemo(() => borders.filter((id) => id === null).length, [borders])
   const sequenceView = useMemo(() => {
@@ -208,7 +211,7 @@ export function BorderRollResearch({ borders, controller }: Props) {
       <div className="roll-research-status">
         <span>
           {controller.endpointConfigured
-            ? `${controller.submissionStore.queue.length} Voyage sequence${controller.submissionStore.queue.length === 1 ? '' : 's'} queued`
+            ? `${controller.submissionStore.queue.length} Voyage sequence${controller.submissionStore.queue.length === 1 ? '' : 's'} queued${failedSubmissionCount > 0 ? ` · ${failedSubmissionCount} needs retry` : ''}`
             : 'Automatic submission service is not configured in this build'}
         </span>
       </div>
@@ -218,7 +221,7 @@ export function BorderRollResearch({ borders, controller }: Props) {
           {sequenceView.visibleSequences.map((sequence) => {
             const sequenceId = sequence[0].sequenceId
             const archived = sequenceView.archivedIds.has(sequenceId)
-            const queued = controller.submissionStore.queue.some(
+            const queuedItem = controller.submissionStore.queue.find(
               (item) => item.sequenceId === sequenceId,
             )
             return (
@@ -235,9 +238,32 @@ export function BorderRollResearch({ borders, controller }: Props) {
                       : `${sequence[0].vesperUpgradeCount}/5`}
                   </span>
                   <div className="roll-sequence-actions">
-                    {queued && (
+                    {queuedItem && (
                       <>
-                        <span className="sample-incomplete">Queued</span>
+                        <span
+                          className={
+                            queuedItem.delivery.status === 'failed'
+                              ? 'sample-incomplete'
+                              : 'sample-ready'
+                          }
+                        >
+                          {queuedItem.delivery.status === 'failed' ? 'Submission failed' : 'Queued'}
+                        </span>
+                        {queuedItem.delivery.status === 'failed' && (
+                          <>
+                            <span className="roll-research-status">
+                              {queuedItem.delivery.lastError ?? 'Automatic submission failed'} ·{' '}
+                              {queuedItem.delivery.attemptCount}{' '}
+                              {queuedItem.delivery.attemptCount === 1 ? 'attempt' : 'attempts'}
+                            </span>
+                            <button
+                              disabled={submissionBlocked}
+                              onClick={() => controller.retryQueuedSequence(sequenceId)}
+                            >
+                              Retry submission
+                            </button>
+                          </>
+                        )}
                         <button onClick={() => controller.cancelQueuedSequence(sequenceId)}>
                           Cancel queued submission
                         </button>
@@ -257,7 +283,9 @@ export function BorderRollResearch({ borders, controller }: Props) {
                       <>
                         <button
                           disabled={
-                            queued || researchBlocked || !isCompleteBorderRollSequence(sequence)
+                            !!queuedItem ||
+                            researchBlocked ||
+                            !isCompleteBorderRollSequence(sequence)
                           }
                           onClick={() =>
                             window.open(

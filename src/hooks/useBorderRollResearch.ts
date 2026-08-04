@@ -20,8 +20,11 @@ import {
   BORDER_ROLL_INTAKE_URL,
   enqueueBorderRollSequence,
   loadBorderSubmissionStore,
+  markQueuedBorderSubmissionFailed,
+  nextPendingBorderSubmission,
   removeQueuedBorderSubmission,
   resetBorderSubmissionStore,
+  retryQueuedBorderSubmission,
   saveBorderSubmissionStore,
   sendQueuedBorderSubmission,
   updateBorderSubmissionSettings,
@@ -52,6 +55,7 @@ export interface BorderRollResearchController {
   archiveSequence: (sequenceId: string) => void
   restoreSequence: (sequenceId: string) => void
   cancelQueuedSequence: (sequenceId: string) => void
+  retryQueuedSequence: (sequenceId: string) => void
   retryResearchRecovery: () => void
   resetResearchStore: () => void
   retrySubmissionRecovery: () => void
@@ -126,7 +130,7 @@ export function useBorderRollResearch(): BorderRollResearchController {
     if (submittingRef.current) return
     const current = submissionRef.current
     if (current.recovery) return
-    const item = current.queue[0]
+    const item = nextPendingBorderSubmission(current)
     if (
       !item ||
       !current.settings.enabled ||
@@ -155,11 +159,21 @@ export function useBorderRollResearch(): BorderRollResearchController {
       queueMicrotask(() => void flushQueue())
     } catch (error) {
       if (!submissionRef.current.queue.some((queued) => queued.sequenceId === item.sequenceId)) {
+        queueMicrotask(() => void flushQueue())
+        return
+      }
+      const errorMessage = error instanceof Error ? error.message : 'Automatic submission failed'
+      if (
+        !commitSubmissionStore(
+          markQueuedBorderSubmissionFailed(submissionRef.current, item.sequenceId, errorMessage),
+        )
+      ) {
         return
       }
       setMessage(
-        `${error instanceof Error ? error.message : 'Automatic submission failed'} The Voyage remains queued locally.`,
+        `${errorMessage} The Voyage remains queued for an explicit retry; later Voyages will continue.`,
       )
+      queueMicrotask(() => void flushQueue())
     } finally {
       if (activeSubmissionRef.current?.sequenceId === item.sequenceId) {
         activeSubmissionRef.current = null
@@ -416,8 +430,22 @@ export function useBorderRollResearch(): BorderRollResearchController {
         return
       }
       setMessage(`Canceled queued Voyage ${sequenceId.slice(-8)}.`)
+      queueMicrotask(() => void flushQueue())
     },
-    [commitSubmissionStore],
+    [commitSubmissionStore, flushQueue],
+  )
+
+  const retryQueuedSequence = useCallback(
+    (sequenceId: string) => {
+      const item = submissionRef.current.queue.find((queued) => queued.sequenceId === sequenceId)
+      if (!item || item.delivery.status !== 'failed') return
+      if (!commitSubmissionStore(retryQueuedBorderSubmission(submissionRef.current, sequenceId))) {
+        return
+      }
+      setMessage(`Retrying queued Voyage ${sequenceId.slice(-8)}.`)
+      queueMicrotask(() => void flushQueue())
+    },
+    [commitSubmissionStore, flushQueue],
   )
 
   const archiveSequence = useCallback(
@@ -457,6 +485,7 @@ export function useBorderRollResearch(): BorderRollResearchController {
     archiveSequence,
     restoreSequence,
     cancelQueuedSequence,
+    retryQueuedSequence,
     retryResearchRecovery,
     resetResearchStore,
     retrySubmissionRecovery,

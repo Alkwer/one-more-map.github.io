@@ -11,7 +11,7 @@ import {
 } from './auxiliaryStorageRecovery'
 
 export const BORDER_SUBMISSION_STORAGE_KEY = 'allflame-border-roll-submission'
-const STORE_VERSION = 2
+const STORE_VERSION = 3
 
 const PRODUCTION_INTAKE_URL =
   'https://allflame-border-roll-intake.green-loom-6865.chatgpt.site/api/border-rolls'
@@ -29,6 +29,12 @@ export interface BorderSubmissionSettings {
 export interface QueuedBorderSubmission {
   sequenceId: string
   dataset: BorderRollDataset
+  delivery: {
+    status: 'pending' | 'failed'
+    attemptCount: number
+    lastAttemptAt: string | null
+    lastError: string | null
+  }
 }
 
 export interface BorderSubmissionStore {
@@ -53,7 +59,25 @@ export function createBorderSubmissionStore(): BorderSubmissionStore {
   }
 }
 
-function isQueuedSubmission(value: unknown): value is QueuedBorderSubmission {
+function isDeliveryState(value: unknown): value is QueuedBorderSubmission['delivery'] {
+  if (!value || typeof value !== 'object') return false
+  const delivery = value as Partial<QueuedBorderSubmission['delivery']>
+  return (
+    (delivery.status === 'pending' || delivery.status === 'failed') &&
+    typeof delivery.attemptCount === 'number' &&
+    Number.isInteger(delivery.attemptCount) &&
+    delivery.attemptCount >= 0 &&
+    (delivery.lastAttemptAt === null ||
+      (typeof delivery.lastAttemptAt === 'string' &&
+        Number.isFinite(Date.parse(delivery.lastAttemptAt)))) &&
+    (delivery.lastError === null || typeof delivery.lastError === 'string')
+  )
+}
+
+function isQueuedSubmission(
+  value: unknown,
+  requireDelivery = true,
+): value is QueuedBorderSubmission {
   if (!value || typeof value !== 'object') return false
   const item = value as Partial<QueuedBorderSubmission>
   return (
@@ -64,11 +88,15 @@ function isQueuedSubmission(value: unknown): value is QueuedBorderSubmission {
     Array.isArray(item.dataset.samples) &&
     item.dataset.samples.length > 0 &&
     item.dataset.sampleCount === item.dataset.samples.length &&
-    item.dataset.samples.every((sample) => sample.sequenceId === item.sequenceId)
+    item.dataset.samples.every((sample) => sample.sequenceId === item.sequenceId) &&
+    (!requireDelivery || isDeliveryState(item.delivery))
   )
 }
 
-function migrateQueuedSubmission(item: QueuedBorderSubmission): QueuedBorderSubmission {
+function migrateQueuedSubmission(
+  item: QueuedBorderSubmission,
+  keepDelivery: boolean,
+): QueuedBorderSubmission {
   return {
     sequenceId: item.sequenceId,
     dataset: {
@@ -77,6 +105,10 @@ function migrateQueuedSubmission(item: QueuedBorderSubmission): QueuedBorderSubm
         sample.vesperUpgradeCount === undefined ? { ...sample, vesperUpgradeCount: null } : sample,
       ),
     },
+    delivery:
+      keepDelivery && isDeliveryState(item.delivery)
+        ? item.delivery
+        : { status: 'pending', attemptCount: 0, lastAttemptAt: null, lastError: null },
   }
 }
 
@@ -112,12 +144,13 @@ export function loadBorderSubmissionStore(): BorderSubmissionStore {
   }
 
   try {
+    const legacyVersion = value.version === 1 || value.version === 2
     if (
-      (value.version !== 1 && value.version !== STORE_VERSION) ||
+      (!legacyVersion && value.version !== STORE_VERSION) ||
       !value.settings ||
       typeof value.settings.enabled !== 'boolean' ||
       !Array.isArray(value.queue) ||
-      !value.queue.every(isQueuedSubmission)
+      !value.queue.every((item) => isQueuedSubmission(item, !legacyVersion))
     ) {
       const newer =
         typeof value.version === 'number' &&
@@ -138,7 +171,9 @@ export function loadBorderSubmissionStore(): BorderSubmissionStore {
     const clean: BorderSubmissionStore = {
       version: STORE_VERSION,
       settings: { enabled: value.settings.enabled, submissionKey: '' },
-      queue: value.queue.filter(isQueuedSubmission).map(migrateQueuedSubmission),
+      queue: value.queue
+        .filter((item) => isQueuedSubmission(item, !legacyVersion))
+        .map((item) => migrateQueuedSubmission(item, !legacyVersion)),
     }
     // Version 1 persisted the key. Rewriting immediately is the migration and
     // rotation boundary: the old credential is removed before React renders.
@@ -174,6 +209,7 @@ export function saveBorderSubmissionStore(store: BorderSubmissionStore): boolean
         queue: store.queue.map((item) => ({
           sequenceId: item.sequenceId,
           dataset: item.dataset,
+          delivery: item.delivery,
         })),
       }),
     )
@@ -218,8 +254,56 @@ export function enqueueBorderRollSequence(
         dataset: createBorderRollDataset(
           [...samples].sort((a, b) => a.rerollIndex - b.rerollIndex),
         ),
+        delivery: { status: 'pending', attemptCount: 0, lastAttemptAt: null, lastError: null },
       },
     ],
+  }
+}
+
+export function nextPendingBorderSubmission(
+  store: BorderSubmissionStore,
+): QueuedBorderSubmission | undefined {
+  return store.queue.find((item) => item.delivery.status === 'pending')
+}
+
+export function markQueuedBorderSubmissionFailed(
+  store: BorderSubmissionStore,
+  sequenceId: string,
+  error: string,
+  attemptedAt = new Date().toISOString(),
+): BorderSubmissionStore {
+  return {
+    ...store,
+    queue: store.queue.map((item) =>
+      item.sequenceId === sequenceId
+        ? {
+            ...item,
+            delivery: {
+              status: 'failed',
+              attemptCount: item.delivery.attemptCount + 1,
+              lastAttemptAt: attemptedAt,
+              lastError: error,
+            },
+          }
+        : item,
+    ),
+  }
+}
+
+export function retryQueuedBorderSubmission(
+  store: BorderSubmissionStore,
+  sequenceId: string,
+): BorderSubmissionStore {
+  return {
+    ...store,
+    queue: store.queue.map((item) =>
+      item.sequenceId === sequenceId
+        ? {
+            ...item,
+            delivery: { ...item.delivery, status: 'pending', lastError: null },
+          }
+        : item,
+    ),
   }
 }
 

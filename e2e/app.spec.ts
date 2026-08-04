@@ -518,6 +518,131 @@ test('archives a Voyage only after the automatic outbox receives a success respo
   expect(submission).not.toContain('e2e-private-key')
 })
 
+test('continues the automatic outbox after one Voyage fails', async ({ appPage }) => {
+  const makeSample = (sequenceId: string, sampleId: string) => ({
+    schema: 'allflame-border-roll/v2',
+    sampleId,
+    sequenceId,
+    capturedAt: '2026-08-04T18:20:00.000Z',
+    gamePatch: '3.29',
+    vesperUpgradeCount: null,
+    generation: 'natural',
+    rerollIndex: 0,
+    displayedNextRerollCost: 3000,
+    borderModIds: [
+      'b-crabboss',
+      'b-curr-1',
+      'b-minmagic',
+      'b-anchor-2',
+      'b-mag-2',
+      'b-izaro',
+      'b-rare-1',
+      'b-rare-1',
+      'b-crabs-2',
+      'b-locker',
+      'b-locker',
+      'b-mag-3',
+    ],
+  })
+  const firstSample = makeSample('voyage-failing-e2e', 'roll-failing-e2e')
+  const secondSample = makeSample('voyage-delivered-e2e', 'roll-delivered-e2e')
+  const postedSequences: string[] = []
+
+  await appPage.route(
+    'https://allflame-border-roll-intake.green-loom-6865.chatgpt.site/api/border-rolls',
+    async (route) => {
+      if (route.request().method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 204,
+          headers: {
+            'Access-Control-Allow-Origin': ORIGIN,
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+          },
+        })
+        return
+      }
+      const dataset = route.request().postDataJSON() as { samples: Array<{ sequenceId: string }> }
+      const sequenceId = dataset.samples[0].sequenceId
+      postedSequences.push(sequenceId)
+      if (sequenceId === firstSample.sequenceId) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          headers: { 'Access-Control-Allow-Origin': ORIGIN },
+          body: '{}',
+        })
+        return
+      }
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        headers: { 'Access-Control-Allow-Origin': ORIGIN },
+        body: JSON.stringify({
+          status: 'created',
+          issueNumber: 1000,
+          issueUrl: 'https://github.com/Alkwer/one-more-map.github.io/issues/1000',
+        }),
+      })
+    },
+  )
+  await appPage.addInitScript(
+    ({ first, second }) => {
+      localStorage.setItem(
+        'allflame-border-roll-research',
+        JSON.stringify({
+          version: 4,
+          activeSequenceId: 'voyage-next-e2e',
+          vesperUpgradeCount: null,
+          samples: [first, second],
+          archivedSequenceIds: [],
+        }),
+      )
+      const queued = (sample: typeof first) => ({
+        sequenceId: sample.sequenceId,
+        dataset: {
+          schema: 'allflame-border-roll-dataset/v2',
+          exportedAt: '2026-08-04T18:21:00.000Z',
+          sampleCount: 1,
+          samples: [sample],
+        },
+        delivery: {
+          status: 'pending',
+          attemptCount: 0,
+          lastAttemptAt: null,
+          lastError: null,
+        },
+      })
+      localStorage.setItem(
+        'allflame-border-roll-submission',
+        JSON.stringify({
+          version: 3,
+          settings: { enabled: true },
+          queue: [queued(first), queued(second)],
+        }),
+      )
+    },
+    { first: firstSample, second: secondSample },
+  )
+
+  await openApp(appPage)
+  const research = appPage.locator('details.roll-research')
+  await research.locator('summary').click()
+  await expect(research.getByText('2 Voyage sequences queued')).toBeVisible()
+  await research.getByLabel('Private submission key').fill('e2e-private-key')
+
+  await expect
+    .poll(() => postedSequences)
+    .toEqual([firstSample.sequenceId, secondSample.sequenceId])
+  await expect(research.getByText('1 Voyage sequence queued · 1 needs retry')).toBeVisible()
+  await expect(research.getByText('Submission failed')).toBeVisible()
+  await expect(research.getByRole('button', { name: 'Retry submission' })).toBeVisible()
+  await expect(research.getByText(/Submitted Voyage .* as issue #1000/)).toBeVisible()
+
+  await research.getByRole('button', { name: 'Cancel queued submission' }).click()
+  await expect(research.getByText('0 Voyage sequences queued')).toBeVisible()
+})
+
 test('recovers an unknown shape and places it on the board with the keyboard', async ({
   appPage,
 }) => {
