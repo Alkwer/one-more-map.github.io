@@ -5,6 +5,7 @@ playwright-report/
 test-results/
 node_modules/
 .codex-remote-attachments/
+**/.worktrees/**
 package-lock.json
 public/harvest.html
 public/mockups.html

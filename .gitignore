@@ -4,6 +4,7 @@ staging/
 playwright-report/
 test-results/
 .sites/
+.worktrees/
 
 # personal local tooling (not part of the site)
 *.ahk

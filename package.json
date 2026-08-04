@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --exclude \"tests/performance/**\" --exclude \"e2e/**\" --exclude \".sites/**\"",
+    "test": "vitest run --exclude \"**/tests/performance/**\" --exclude \"**/e2e/**\" --exclude \"**/.sites/**\" --exclude \"**/.worktrees/**\"",
     "test:data": "node --test scripts/border-roll-data.node-test.mjs",
     "test:performance": "vitest run tests/performance/solver-performance-budget.test.ts",
     "lint": "eslint . --max-warnings 0",
