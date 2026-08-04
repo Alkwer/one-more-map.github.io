@@ -75,19 +75,32 @@ describe('border roll automatic submission queue', () => {
 
   it('scrubs a previously persisted version 1 key while preserving its outbox', () => {
     const queued = enqueueBorderRollSequence(createBorderSubmissionStore(), [sample()]).queue
+    const legacySample = { ...queued[0].dataset.samples[0] }
+    delete (legacySample as { vesperUpgradeCount?: number | null }).vesperUpgradeCount
     values.set(
       'allflame-border-roll-submission',
       JSON.stringify({
         version: 1,
         settings: { enabled: true, submissionKey: 'rotate-this-key' },
-        queue: queued.map((item) => ({ ...item, queuedAt: '2026-08-01T13:00:00.000Z' })),
+        queue: [
+          {
+            ...queued[0],
+            queuedAt: '2026-08-01T13:00:00.000Z',
+            dataset: { ...queued[0].dataset, samples: [legacySample] },
+          },
+        ],
       }),
     )
 
     expect(loadBorderSubmissionStore()).toMatchObject({
       version: 2,
       settings: { enabled: true, submissionKey: '' },
-      queue: [{ sequenceId: 'voyage-auto-test' }],
+      queue: [
+        {
+          sequenceId: 'voyage-auto-test',
+          dataset: { samples: [{ vesperUpgradeCount: null }] },
+        },
+      ],
     })
     const migrated = values.get('allflame-border-roll-submission')!
     expect(migrated).not.toContain('rotate-this-key')

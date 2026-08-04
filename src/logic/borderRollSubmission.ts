@@ -68,6 +68,18 @@ function isQueuedSubmission(value: unknown): value is QueuedBorderSubmission {
   )
 }
 
+function migrateQueuedSubmission(item: QueuedBorderSubmission): QueuedBorderSubmission {
+  return {
+    sequenceId: item.sequenceId,
+    dataset: {
+      ...item.dataset,
+      samples: item.dataset.samples.map((sample) =>
+        sample.vesperUpgradeCount === undefined ? { ...sample, vesperUpgradeCount: null } : sample,
+      ),
+    },
+  }
+}
+
 export function loadBorderSubmissionStore(): BorderSubmissionStore {
   let raw: string | null
   try {
@@ -126,10 +138,7 @@ export function loadBorderSubmissionStore(): BorderSubmissionStore {
     const clean: BorderSubmissionStore = {
       version: STORE_VERSION,
       settings: { enabled: value.settings.enabled, submissionKey: '' },
-      queue: value.queue.filter(isQueuedSubmission).map((item) => ({
-        sequenceId: item.sequenceId,
-        dataset: item.dataset,
-      })),
+      queue: value.queue.filter(isQueuedSubmission).map(migrateQueuedSubmission),
     }
     // Version 1 persisted the key. Rewriting immediately is the migration and
     // rotation boundary: the old credential is removed before React renders.
