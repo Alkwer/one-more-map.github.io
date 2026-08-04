@@ -2,6 +2,12 @@ import { BORDER_MODS, borderModById } from '../data/mods'
 import type { Board, Borders, ChartData, Stat, Weights } from '../types'
 import { ALL_STATS, borderTouches, emptyBorders } from '../types'
 import { scoreBoard, type ScoreOptions } from './scoring'
+import {
+  forecastBorderRoll,
+  type BorderContributionTable,
+  type BorderRollForecast,
+  type BorderRollModel,
+} from './borderRollModel'
 
 const EPSILON = 1e-9
 
@@ -57,6 +63,8 @@ export interface BorderAppraisal {
   attentionSegments: number
   perStat: Record<Stat, number>
   segments: BorderSegmentAppraisal[]
+  /** Experimental posterior-predictive comparison with a newly rolled board. */
+  rollForecast: BorderRollForecast | null
 }
 
 interface BestSlot {
@@ -95,6 +103,7 @@ export function appraiseBorders(
   charts: Map<string, ChartData>,
   weights: Weights,
   opts: ScoreOptions,
+  rollModel: BorderRollModel | null = null,
 ): BorderAppraisal {
   const noBorders = emptyBorders()
   const base = scoreBoard(board, noBorders, charts, weights, opts)
@@ -116,18 +125,22 @@ export function appraiseBorders(
   }
 
   const bestByTile = new Map<number, BestSlot>()
+  const contributionsByTile = new Map<number, BorderContributionTable>()
   for (const [tile, segment] of representativeSegment) {
     let best: BestSlot = { contribution: 0, modId: null }
+    const contributions: Record<string, number> = {}
     for (const mod of BORDER_MODS) {
       if (disabled.has(mod.id)) continue
       const candidate = emptyBorders()
       candidate[segment] = mod.id
       const contribution = scoreBoard(board, candidate, charts, weights, opts).total - base.total
+      contributions[mod.id] = contribution
       if (contribution > best.contribution + EPSILON) {
         best = { contribution, modId: mod.id }
       }
     }
     bestByTile.set(tile, best)
+    contributionsByTile.set(tile, contributions)
   }
 
   const segments: BorderSegmentAppraisal[] = Array.from({ length: 12 }, (_, segment) => {
@@ -184,6 +197,14 @@ export function appraiseBorders(
   const attentionSegments = segments.filter(
     (segment) => segment.modId && segment.issue !== null && segment.issue !== 'empty-tile',
   ).length
+  const rollForecast = rollModel
+    ? forecastBorderRoll(
+        rollModel,
+        relevant.map((segment) => contributionsByTile.get(borderTouches(segment)) ?? {}),
+        score,
+        ceiling,
+      )
+    : null
 
   return {
     score,
@@ -197,5 +218,6 @@ export function appraiseBorders(
     attentionSegments,
     perStat,
     segments,
+    rollForecast,
   }
 }

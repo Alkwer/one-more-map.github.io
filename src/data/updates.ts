@@ -13,6 +13,13 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    date: '2026-08-04',
+    tag: 'new',
+    title: 'Border rolls learn from observed data',
+    detail:
+      'Voyage Recommendation now uses a versioned experimental probability model built from accepted paid-reroll samples. It shows the current roll percentile, the chance a paid reroll scores higher, model confidence, and expected-reroll compatibility for each strategy while retaining the 3k/6k Sulphur guardrail.',
+  },
+  {
     date: '2026-08-03',
     tag: 'reworked',
     title: 'Granular Divine keeps + custom chart types',

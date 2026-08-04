@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'vitest'
 import type { RequiredBorderStatus, StrategySuggestion } from '../src/logic/strategySuggestions'
+import type { BorderRollForecast } from '../src/logic/borderRollModel'
 import {
   ABSOLUTE_PLAYABLE_FIT,
   decideVoyage,
@@ -16,6 +17,7 @@ interface CandidateOptions {
   rankScore?: number
   jackpot?: boolean
   requiredBorderStatus?: RequiredBorderStatus
+  rollForecast?: BorderRollForecast
 }
 
 const candidate = ({
@@ -27,6 +29,7 @@ const candidate = ({
   rankScore = fit ?? 0,
   jackpot = false,
   requiredBorderStatus = 'not-required',
+  rollForecast,
 }: CandidateOptions): StrategySuggestion =>
   ({
     strategy: { id, name },
@@ -38,7 +41,25 @@ const candidate = ({
     rankScore,
     jackpot,
     requiredBorderStatus,
+    potentialAppraisal: rollForecast ? { rollForecast } : undefined,
   }) as StrategySuggestion
+
+const forecast = (
+  currentPercentile: number,
+  chanceNextRollBeatsCurrent: number,
+): BorderRollForecast => ({
+  modelVersion: 1,
+  modelProfile: 'paid-reroll',
+  modelConfidence: 'low',
+  sampleCount: 21,
+  sequenceCount: 7,
+  expectedScore: 10,
+  expectedFit: 0.2,
+  medianFit: 0.18,
+  sixtiethPercentileFit: 0.22,
+  currentPercentile,
+  chanceNextRollBeatsCurrent,
+})
 
 const decide = ({
   evaluations,
@@ -159,6 +180,41 @@ describe('Voyage decision regressions', () => {
     assert.equal(decision.kind, 'reroll')
     assert.equal(decision.nextCost, 3_000)
     assert.equal(decision.label, 'CONSIDER REROLL — next costs 3,000 Sulphur')
+  })
+
+  it('keeps a contextually weak board that already beats the modeled keep percentile', () => {
+    const decision = decide({
+      evaluations: [
+        candidate({
+          id: 'active',
+          fit: 0.2,
+          rollForecast: forecast(0.8, 0.15),
+        }),
+      ],
+    })
+
+    assert.equal(decision.kind, 'play')
+    assert.equal(decision.rollForecast?.currentPercentile, 0.8)
+    assert.match(
+      decision.reason,
+      /experimental v1 model ranks this board at the 80th percentile of paid rerolls/,
+    )
+  })
+
+  it('explains the modeled upside when recommending an early reroll', () => {
+    const decision = decide({
+      evaluations: [
+        candidate({
+          id: 'active',
+          fit: 0.2,
+          rollForecast: forecast(0.2, 0.7),
+        }),
+      ],
+    })
+
+    assert.equal(decision.kind, 'reroll')
+    assert.match(decision.reason, /70% chance that a paid reroll scores higher/)
+    assert.match(decision.reason, /low confidence/)
   })
 
   it('stops paying for an equally weak late roll', () => {

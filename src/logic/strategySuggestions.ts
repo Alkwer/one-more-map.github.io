@@ -17,6 +17,7 @@ import { scoreBoard, type ScoreOptions } from './scoring'
 import { solve } from './solver'
 import { selectStrategySolvePool } from './solverPoolSelection'
 import { allocateStrategyRequirements } from './strategyRequirements'
+import { BORDER_ROLL_MODEL, chanceModAppearsOnBoard } from './borderRollModel'
 
 const EPSILON = 1e-9
 const POTENTIAL_SEARCH_RESTARTS = 12
@@ -69,6 +70,10 @@ export interface StrategyInventorySuggestion {
   borderFit: number
   /** Combined charts + borders score used to rank runnable strategies. */
   combinedFit: number
+  /** Expected border fit of a paid reroll under the experimental probability model. */
+  modeledBorderFit: number | null
+  /** Smoothed chance that a mandatory border appears at least once on a 12-slot board. */
+  requiredBorderChance: number | null
   eligibleCharts: number
   jackpot: boolean
   /** A +1 Divine border is present for a strategy explicitly built around it. */
@@ -312,6 +317,7 @@ export function evaluateStrategyInventory(
       charts,
       strategy.weights,
       opts,
+      BORDER_ROLL_MODEL,
     )
     const contributions = borderContributions(
       potentialBoard,
@@ -347,6 +353,9 @@ export function evaluateStrategyInventory(
         : enteredBorders < 12
           ? 'unknown'
           : 'missing'
+    const requiredBorderChance = strategy.requiresBorderId
+      ? chanceModAppearsOnBoard(BORDER_ROLL_MODEL, strategy.requiresBorderId.id)
+      : null
 
     const reasons: string[] = [
       `Evaluated all ${eligiblePool.length} eligible imported charts; the best layout found is ${
@@ -369,7 +378,17 @@ export function evaluateStrategyInventory(
     }
     if (requiredBorderStatus === 'missing') {
       reasons.push(
-        `The completed current roll does not contain ${strategy.requiresBorderId!.label}; this strategy requires a border reroll.`,
+        `The completed current roll does not contain ${strategy.requiresBorderId!.label}; this strategy requires a border reroll. The experimental v${BORDER_ROLL_MODEL.version} model estimates a ${Math.round(
+          (requiredBorderChance ?? 0) * 100,
+        )}% chance to see it at least once on a paid reroll (${BORDER_ROLL_MODEL.confidence} confidence).`,
+      )
+    }
+
+    if (potentialAppraisal.rollForecast) {
+      reasons.push(
+        `A paid reroll is modeled at ${Math.round(
+          potentialAppraisal.rollForecast.expectedFit * 100,
+        )}% contextual fit for this layout from ${BORDER_ROLL_MODEL.sampleCount} observed paid-reroll boards.`,
       )
     }
 
@@ -410,6 +429,8 @@ export function evaluateStrategyInventory(
       libraryFit: 0,
       borderFit: 0,
       combinedFit: 0,
+      modeledBorderFit: potentialAppraisal.rollForecast?.expectedFit ?? null,
+      requiredBorderChance,
       eligibleCharts: eligiblePool.length,
       jackpot,
       divineJackpot,
@@ -434,14 +455,18 @@ export function evaluateStrategyInventory(
     EPSILON,
     ...rawEvaluations.map((evaluation) => evaluation.rollAffinity),
   )
-  const borderWeight = 0.5 * Math.min(1, enteredBorders / 12)
-  const libraryWeight = 1 - borderWeight
+  const enteredBorderRatio = Math.min(1, enteredBorders / 12)
+  const borderWeight = 0.5 * enteredBorderRatio
+  const modeledBorderWeight = 0.15 * (1 - enteredBorderRatio)
+  const libraryWeight = 1 - borderWeight - modeledBorderWeight
 
   const evaluations: StrategyInventorySuggestion[] = rawEvaluations.map((raw) => {
     const { libraryAffinity, rollAffinity, equipmentJackpot, ...evaluation } = raw
     const libraryFit = clamp01(libraryAffinity / maxLibraryAffinity)
     const borderFit = clamp01(raw.potentialAppraisal.fit ?? rollAffinity / maxRollAffinity)
-    const combinedFit = libraryFit * libraryWeight + borderFit * borderWeight
+    const modeledBorderFit = raw.modeledBorderFit ?? 0
+    const combinedFit =
+      libraryFit * libraryWeight + borderFit * borderWeight + modeledBorderFit * modeledBorderWeight
     const rankScore = raw.readiness.ready
       ? combinedFit
       : raw.readiness.ratio * 0.5 + combinedFit * 0.4 + (equipmentJackpot ? 0.1 : 0)
@@ -455,7 +480,9 @@ export function evaluateStrategyInventory(
       reasons: [
         `Combined match: ${Math.round(
           combinedFit * 100,
-        )}% (${Math.round(libraryFit * 100)}% charts, ${Math.round(borderFit * 100)}% borders).`,
+        )}% (${Math.round(libraryFit * 100)}% charts, ${Math.round(
+          borderFit * 100,
+        )}% current borders, ${Math.round(modeledBorderFit * 100)}% modeled paid reroll).`,
         ...raw.reasons,
       ],
     }

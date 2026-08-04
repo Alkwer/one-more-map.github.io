@@ -2250,6 +2250,43 @@ textarea {
   background: var(--gold-bright);
   box-shadow: 0 0 6px rgba(231, 215, 171, 0.55);
 }
+.voyage-model {
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(200, 170, 110, 0.3);
+}
+.voyage-model-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: var(--sc);
+  font-size: 9.5px;
+  letter-spacing: 0.35px;
+}
+.voyage-model-head > span {
+  color: var(--gold-dim);
+}
+.voyage-model-head > strong {
+  color: var(--good);
+  font-weight: 400;
+  text-transform: uppercase;
+}
+.voyage-model-head > strong.low {
+  color: var(--gold-bright);
+}
+.voyage-model-head > strong.medium {
+  color: #b8d59a;
+}
+.voyage-model-summary {
+  margin-top: 6px;
+}
+.voyage-model > small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 9.5px;
+}
 .voyage-cost-heading {
   margin-bottom: 4px;
 }

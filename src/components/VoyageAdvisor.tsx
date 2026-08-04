@@ -66,6 +66,9 @@ export function VoyageAdvisor({
   const fitPercent = decision.fit === null ? null : Math.round(decision.fit * 100)
   const linePercent = Math.round(decision.decisionFitLine * 100)
   const action = decision.action
+  const forecast = decision.rollForecast
+  const rollPercentile = forecast ? Math.round(forecast.currentPercentile * 100) : null
+  const improveChance = forecast ? Math.round(forecast.chanceNextRollBeatsCurrent * 100) : null
 
   return (
     <section
@@ -112,6 +115,30 @@ export function VoyageAdvisor({
               <i style={{ left: `${linePercent}%` }} />
             </div>
           )}
+          {forecast && (
+            <div className="voyage-model" data-testid="experimental-roll-model">
+              <div className="voyage-model-head">
+                <span>Experimental roll model v{forecast.modelVersion}</span>
+                <strong className={forecast.modelConfidence}>
+                  {forecast.modelConfidence} confidence
+                </strong>
+              </div>
+              <div className="voyage-fit-summary voyage-model-summary">
+                <div>
+                  <span>Current roll percentile</span>
+                  <strong>{rollPercentile}%</strong>
+                </div>
+                <div>
+                  <span>Paid reroll scores higher</span>
+                  <strong>{improveChance}%</strong>
+                </div>
+              </div>
+              <small>
+                {forecast.sampleCount} paid-reroll boards · {forecast.sequenceCount} complete Voyage
+                sequences
+              </small>
+            </div>
+          )}
         </div>
 
         <div className="voyage-costs">
@@ -152,8 +179,10 @@ export function VoyageAdvisor({
       </div>
 
       <div className="voyage-disclaimer">
-        <span>Heuristic guidance</span>
-        Border-roll probabilities remain unknown; this is not expected value.
+        <span>{forecast ? 'Experimental probability model' : 'Heuristic guidance'}</span>
+        {forecast
+          ? 'Smoothed paid-reroll frequencies update with the canonical dataset; slot-independence remains provisional. This is not Sulphur expected value.'
+          : 'A modeled comparison is unavailable for this layout; this is not expected value.'}
       </div>
     </section>
   )

@@ -1,11 +1,13 @@
 import {
   DEFAULT_MAX_REROLL_COST,
   KEEP_FIT_LINES,
+  KEEP_MODEL_PERCENTILE_LINES,
   REROLL_COSTS,
   clampRerollsUsed,
   sulphurSpentAfter,
 } from './rerollAdvice'
 import type { RequiredBorderStatus, StrategySuggestion } from './strategySuggestions'
+import type { BorderRollForecast } from './borderRollModel'
 
 export const ABSOLUTE_PLAYABLE_FIT = 0.5
 
@@ -31,8 +33,10 @@ export interface VoyageDecision {
   spent: number
   nextCost: number | null
   keepFitLine: number | null
+  keepModelPercentileLine: number | null
   decisionFitLine: number
   preserveRoll: boolean
+  rollForecast: BorderRollForecast | null
 }
 
 export interface VoyageDecisionInput {
@@ -54,6 +58,7 @@ interface DecisionCandidate {
   jackpot: boolean
   divineJackpot: boolean
   requiredBorderStatus: RequiredBorderStatus
+  rollForecast: BorderRollForecast | null
 }
 
 const percent = (fit: number | null) =>
@@ -76,6 +81,7 @@ const candidateFrom = (evaluation: StrategySuggestion): DecisionCandidate => ({
         evaluation.strategy.id === 'divine-border-rares' ||
         evaluation.strategy.id === 'cutedog-divine-boxes')),
   requiredBorderStatus: evaluation.requiredBorderStatus ?? 'not-required',
+  rollForecast: evaluation.potentialAppraisal?.rollForecast ?? null,
 })
 
 const actionFor = (
@@ -97,6 +103,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
   const rerollsUsed = clampRerollsUsed(input.rerollsUsed)
   const nextCost = REROLL_COSTS[rerollsUsed] ?? null
   const keepFitLine = KEEP_FIT_LINES[rerollsUsed] ?? null
+  const keepModelPercentileLine = KEEP_MODEL_PERCENTILE_LINES[rerollsUsed] ?? null
   const decisionFitLine = Math.max(ABSOLUTE_PLAYABLE_FIT, keepFitLine ?? ABSOLUTE_PLAYABLE_FIT)
   const base = {
     rerollsUsed,
@@ -104,8 +111,10 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     spent: sulphurSpentAfter(rerollsUsed),
     nextCost,
     keepFitLine,
+    keepModelPercentileLine,
     decisionFitLine,
     preserveRoll: false,
+    rollForecast: null,
   }
 
   const ranked = input.evaluations
@@ -140,6 +149,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
         missing: divine.missing,
         action: null,
         preserveRoll: true,
+        rollForecast: divine.rollForecast,
       }
     }
 
@@ -155,6 +165,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
       missing: [],
       action: actionFor(input.activeStrategyId, divine),
       preserveRoll: true,
+      rollForecast: divine.rollForecast,
     }
   }
 
@@ -175,6 +186,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
       fit: null,
       missing: [],
       action: null,
+      rollForecast: bestInventory?.rollForecast ?? null,
     }
   }
 
@@ -191,6 +203,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
       fit: bestInventory.fit,
       missing: bestInventory.missing,
       action: null,
+      rollForecast: bestInventory.rollForecast,
     }
   }
 
@@ -208,6 +221,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
       fit: bestReady.fit,
       missing: [],
       action: actionFor(input.activeStrategyId, bestReady),
+      rollForecast: bestReady.rollForecast,
     }
   }
 
@@ -222,11 +236,29 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
       fit: null,
       missing: [],
       action: actionFor(input.activeStrategyId, bestReady),
+      rollForecast: bestReady.rollForecast,
     }
   }
 
-  if (hasFit(bestReady, decisionFitLine)) {
+  const meetsContextFitLine = hasFit(bestReady, decisionFitLine)
+  const meetsModelKeepLine =
+    bestReady.rollForecast !== null &&
+    keepModelPercentileLine !== null &&
+    bestReady.rollForecast.currentPercentile >= keepModelPercentileLine
+
+  if (meetsContextFitLine || meetsModelKeepLine) {
     const alreadyActive = input.activeStrategyId === bestReady.strategyId
+    const modeledReason = meetsModelKeepLine
+      ? ` The experimental v${bestReady.rollForecast!.modelVersion} model ranks this board at the ${Math.round(
+          bestReady.rollForecast!.currentPercentile * 100,
+        )}th percentile of paid rerolls, meeting the ${Math.round(
+          keepModelPercentileLine! * 100,
+        )}th-percentile keep line (${bestReady.rollForecast!.modelConfidence} confidence).`
+      : bestReady.rollForecast
+        ? ` The model ranks it at the ${Math.round(
+            bestReady.rollForecast.currentPercentile * 100,
+          )}th percentile (${bestReady.rollForecast.modelConfidence} confidence).`
+        : ''
     return {
       ...base,
       kind: alreadyActive ? 'play' : 'switch',
@@ -235,29 +267,42 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
         : `SWITCH TO: ${bestReady.strategyName}`,
       reason: `${bestReady.strategyName} is the best ready strategy after combining all ${input.availableCharts} imported charts with the current border roll. The best layout found reaches ${percent(
         bestReady.fit,
-      )}, meeting the ${Math.round(decisionFitLine * 100)}% decision line.`,
+      )}${
+        meetsContextFitLine
+          ? `, meeting the ${Math.round(decisionFitLine * 100)}% contextual decision line.`
+          : ', below the contextual decision line.'
+      }${modeledReason}`,
       strategyId: bestReady.strategyId,
       strategyName: bestReady.strategyName,
       fit: bestReady.fit,
       missing: [],
       action: actionFor(input.activeStrategyId, bestReady),
+      rollForecast: bestReady.rollForecast,
     }
   }
 
   const linePercent = Math.round(decisionFitLine * 100)
   if (nextCost !== null && nextCost <= DEFAULT_MAX_REROLL_COST) {
+    const modeledReason = bestReady.rollForecast
+      ? ` The experimental model places this board at the ${Math.round(
+          bestReady.rollForecast.currentPercentile * 100,
+        )}th percentile and estimates a ${Math.round(
+          bestReady.rollForecast.chanceNextRollBeatsCurrent * 100,
+        )}% chance that a paid reroll scores higher (${bestReady.rollForecast.modelConfidence} confidence).`
+      : ' Border probabilities are not available for this layout.'
     return {
       ...base,
       kind: 'reroll',
       label: `CONSIDER REROLL — next costs ${sulphur(nextCost)} Sulphur`,
       reason: `After combining all ${input.availableCharts} imported charts with the current border roll, the best ready strategy is ${bestReady.strategyName}. The best layout found reaches ${percent(
         bestReady.fit,
-      )}, below the ${linePercent}% decision line while the next roll remains inside the 3k/6k default guardrail. This is heuristic guidance because border probabilities remain unknown.`,
+      )}, below the ${linePercent}% contextual decision line while the next roll remains inside the 3k/6k default guardrail.${modeledReason} This is experimental guidance, not Sulphur expected value.`,
       strategyId: bestReady.strategyId,
       strategyName: bestReady.strategyName,
       fit: bestReady.fit,
       missing: [],
       action: null,
+      rollForecast: bestReady.rollForecast,
     }
   }
 
@@ -265,17 +310,25 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     nextCost === null
       ? 'No further configured reroll remains.'
       : `Another attempt costs ${sulphur(nextCost)} Sulphur.`
+  const modeledReason = bestReady.rollForecast
+    ? ` The current board is at the ${Math.round(
+        bestReady.rollForecast.currentPercentile * 100,
+      )}th modeled percentile, with a ${Math.round(
+        bestReady.rollForecast.chanceNextRollBeatsCurrent * 100,
+      )}% estimated chance that a paid reroll scores higher.`
+    : ''
   return {
     ...base,
     kind: 'stop',
     label: 'STOP REROLLING — KEEP THE CURRENT BOARD',
     reason: `${bestReady.strategyName} is the best ready strategy after combining all ${input.availableCharts} imported charts with the current border roll, but the best layout found reaches only ${percent(
       bestReady.fit,
-    )}; this is not a quality endorsement. ${costReason}`,
+    )}; this is not a quality endorsement.${modeledReason} ${costReason}`,
     strategyId: bestReady.strategyId,
     strategyName: bestReady.strategyName,
     fit: bestReady.fit,
     missing: [],
     action: null,
+    rollForecast: bestReady.rollForecast,
   }
 }

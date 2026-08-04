@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'vitest'
 import type { ChartData } from '../src/types'
 import { appraiseBorders } from '../src/logic/borderAppraisal'
+import { BORDER_ROLL_MODEL } from '../src/logic/borderRollModel'
 
 const options = {
   adjacencyMode: 'physical',
@@ -89,5 +90,26 @@ describe('border appraisal regressions', () => {
 
     assert.equal(result.segments[0].issue, 'unscored')
     assert.equal(result.attentionSegments, 1)
+  })
+
+  it('compares a concrete layout with posterior-predictive paid rerolls', () => {
+    const charts = Array.from({ length: 9 }, (_, index) => chart(String(index)))
+    const board = charts.map((entry) => ({ chartUid: entry.uid, rotation: 0 }))
+    const borders = Array(12).fill('b-curr-1')
+    const result = appraiseBorders(
+      board,
+      borders,
+      new Map(charts.map((entry) => [entry.uid, entry])),
+      { 'border:curr': 10 },
+      options,
+      BORDER_ROLL_MODEL,
+    )
+
+    assert.equal(result.rollForecast?.modelVersion, 1)
+    assert.equal(result.rollForecast?.sampleCount, BORDER_ROLL_MODEL.sampleCount)
+    assert.ok((result.rollForecast?.currentPercentile ?? -1) >= 0)
+    assert.ok((result.rollForecast?.currentPercentile ?? 2) <= 1)
+    assert.ok((result.rollForecast?.chanceNextRollBeatsCurrent ?? -1) >= 0)
+    assert.ok((result.rollForecast?.chanceNextRollBeatsCurrent ?? 2) <= 1)
   })
 })
