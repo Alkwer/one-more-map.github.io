@@ -144,6 +144,15 @@ again, deduplicates by sample ID, sorts samples deterministically, and opens a
 pull request updating `data/border-rolls-v2.json` when the result changes. Issue
 events never write untrusted input directly to `main`.
 
+Both validation and rebuild workflows read the accepted corpus through the
+GitHub REST issues endpoint with 100 results per page and follow every pagination
+link. The completed response is flattened and sorted by issue number before it
+replaces the temporary input file. A failed or malformed page stops the workflow
+before validation or dataset output, so a partial corpus cannot remove older
+samples. This consumes one core REST request per 100 accepted issues; operators
+should check the workflow token's core rate limit if the corpus grows into the
+hundreds of thousands.
+
 The repository must allow GitHub Actions to create pull requests for the final
 PR-opening step. Until an accepted sequence exists, the workflow makes no data
 file and no PR.
