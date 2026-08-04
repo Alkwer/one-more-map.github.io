@@ -68,6 +68,18 @@ function isQueuedSubmission(value: unknown): value is QueuedBorderSubmission {
   )
 }
 
+function migrateQueuedSubmission(item: QueuedBorderSubmission): QueuedBorderSubmission {
+  return {
+    sequenceId: item.sequenceId,
+    dataset: {
+      ...item.dataset,
+      samples: item.dataset.samples.map((sample) =>
+        sample.vesperUpgradeCount === undefined ? { ...sample, vesperUpgradeCount: null } : sample,
+      ),
+    },
+  }
+}
+
 export function loadBorderSubmissionStore(): BorderSubmissionStore {
   let raw: string | null
   try {
@@ -126,10 +138,7 @@ export function loadBorderSubmissionStore(): BorderSubmissionStore {
     const clean: BorderSubmissionStore = {
       version: STORE_VERSION,
       settings: { enabled: value.settings.enabled, submissionKey: '' },
-      queue: value.queue.filter(isQueuedSubmission).map((item) => ({
-        sequenceId: item.sequenceId,
-        dataset: item.dataset,
-      })),
+      queue: value.queue.filter(isQueuedSubmission).map(migrateQueuedSubmission),
     }
     // Version 1 persisted the key. Rewriting immediately is the migration and
     // rotation boundary: the old credential is removed before React renders.
@@ -221,14 +230,36 @@ export function removeQueuedBorderSubmission(
   return { ...store, queue: store.queue.filter((item) => item.sequenceId !== sequenceId) }
 }
 
+export function queuedBorderSubmissionMatchesSamples(
+  item: QueuedBorderSubmission,
+  samples: BorderRollSample[],
+): boolean {
+  if (!isCompleteBorderRollSequence(samples)) return false
+  const ordered = [...samples].sort((left, right) => left.rerollIndex - right.rerollIndex)
+  return (
+    item.dataset.sampleCount === ordered.length &&
+    item.dataset.samples.length === ordered.length &&
+    item.dataset.samples.every(
+      (queuedSample, index) => JSON.stringify(queuedSample) === JSON.stringify(ordered[index]),
+    )
+  )
+}
+
 export async function sendQueuedBorderSubmission(
   item: QueuedBorderSubmission,
   options: {
     endpoint: string
     submissionKey: string
+    currentSamples: BorderRollSample[]
+    signal?: AbortSignal
     fetcher?: typeof fetch
   },
 ): Promise<BorderSubmissionResponse> {
+  if (!queuedBorderSubmissionMatchesSamples(item, options.currentSamples)) {
+    throw new Error(
+      'The queued Voyage no longer matches its current local sequence. Cancel it or rebuild it explicitly.',
+    )
+  }
   const endpoint = options.endpoint.trim()
   const submissionKey = options.submissionKey.trim()
   if (!endpoint) throw new Error('The automatic submission endpoint is not configured.')
@@ -241,6 +272,7 @@ export async function sendQueuedBorderSubmission(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(item.dataset),
+    signal: options.signal,
   })
   const body = (await response.json().catch(() => null)) as Partial<BorderSubmissionResponse> | null
   if (

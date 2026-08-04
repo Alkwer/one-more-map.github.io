@@ -218,6 +218,9 @@ export function BorderRollResearch({ borders, controller }: Props) {
           {sequenceView.visibleSequences.map((sequence) => {
             const sequenceId = sequence[0].sequenceId
             const archived = sequenceView.archivedIds.has(sequenceId)
+            const queued = controller.submissionStore.queue.some(
+              (item) => item.sequenceId === sequenceId,
+            )
             return (
               <li
                 className={`roll-sequence${archived ? ' roll-sequence-archived' : ''}`}
@@ -232,6 +235,14 @@ export function BorderRollResearch({ borders, controller }: Props) {
                       : `${sequence[0].vesperUpgradeCount}/5`}
                   </span>
                   <div className="roll-sequence-actions">
+                    {queued && (
+                      <>
+                        <span className="sample-incomplete">Queued</span>
+                        <button onClick={() => controller.cancelQueuedSequence(sequenceId)}>
+                          Cancel queued submission
+                        </button>
+                      </>
+                    )}
                     {archived ? (
                       <>
                         <span className="sample-ready">Archived</span>
@@ -245,7 +256,9 @@ export function BorderRollResearch({ borders, controller }: Props) {
                     ) : (
                       <>
                         <button
-                          disabled={researchBlocked || !isCompleteBorderRollSequence(sequence)}
+                          disabled={
+                            queued || researchBlocked || !isCompleteBorderRollSequence(sequence)
+                          }
                           onClick={() =>
                             window.open(
                               buildBorderRollSequenceSubmissionUrl(sequence),

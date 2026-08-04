@@ -8,6 +8,7 @@ import {
   createBorderSubmissionStore,
   enqueueBorderRollSequence,
   loadBorderSubmissionStore,
+  queuedBorderSubmissionMatchesSamples,
   removeQueuedBorderSubmission,
   saveBorderSubmissionStore,
   sendQueuedBorderSubmission,
@@ -74,19 +75,32 @@ describe('border roll automatic submission queue', () => {
 
   it('scrubs a previously persisted version 1 key while preserving its outbox', () => {
     const queued = enqueueBorderRollSequence(createBorderSubmissionStore(), [sample()]).queue
+    const legacySample = { ...queued[0].dataset.samples[0] }
+    delete (legacySample as { vesperUpgradeCount?: number | null }).vesperUpgradeCount
     values.set(
       'allflame-border-roll-submission',
       JSON.stringify({
         version: 1,
         settings: { enabled: true, submissionKey: 'rotate-this-key' },
-        queue: queued.map((item) => ({ ...item, queuedAt: '2026-08-01T13:00:00.000Z' })),
+        queue: [
+          {
+            ...queued[0],
+            queuedAt: '2026-08-01T13:00:00.000Z',
+            dataset: { ...queued[0].dataset, samples: [legacySample] },
+          },
+        ],
       }),
     )
 
     expect(loadBorderSubmissionStore()).toMatchObject({
       version: 2,
       settings: { enabled: true, submissionKey: '' },
-      queue: [{ sequenceId: 'voyage-auto-test' }],
+      queue: [
+        {
+          sequenceId: 'voyage-auto-test',
+          dataset: { samples: [{ vesperUpgradeCount: null }] },
+        },
+      ],
     })
     const migrated = values.get('allflame-border-roll-submission')!
     expect(migrated).not.toContain('rotate-this-key')
@@ -168,6 +182,7 @@ describe('border roll automatic submission queue', () => {
       sendQueuedBorderSubmission(queued.queue[0], {
         endpoint: 'https://intake.example/api/border-rolls',
         submissionKey: 'limited-key',
+        currentSamples: queued.queue[0].dataset.samples,
         fetcher,
       }),
     ).resolves.toMatchObject({ status: 'created', issueNumber: 58 })
@@ -187,8 +202,40 @@ describe('border roll automatic submission queue', () => {
       sendQueuedBorderSubmission(queued.queue[0], {
         endpoint: 'https://intake.example/api/border-rolls',
         submissionKey: 'wrong-key',
+        currentSamples: queued.queue[0].dataset.samples,
         fetcher: vi.fn(async () => new Response('{}', { status: 401 })),
       }),
     ).rejects.toThrow('private submission key was rejected')
+  })
+
+  it('never retries a failed snapshot after a local sample is removed', async () => {
+    const samples = [sample(0), sample(1)]
+    const queued = enqueueBorderRollSequence(createBorderSubmissionStore(), samples)
+    const firstAttempt = vi.fn(async () => {
+      throw new Error('network unavailable')
+    })
+
+    await expect(
+      sendQueuedBorderSubmission(queued.queue[0], {
+        endpoint: 'https://intake.example/api/border-rolls',
+        submissionKey: 'limited-key',
+        currentSamples: samples,
+        fetcher: firstAttempt,
+      }),
+    ).rejects.toThrow('network unavailable')
+
+    const afterRemoval = [samples[0]]
+    const retry = vi.fn()
+    expect(queuedBorderSubmissionMatchesSamples(queued.queue[0], afterRemoval)).toBe(false)
+    await expect(
+      sendQueuedBorderSubmission(queued.queue[0], {
+        endpoint: 'https://intake.example/api/border-rolls',
+        submissionKey: 'limited-key',
+        currentSamples: afterRemoval,
+        fetcher: retry,
+      }),
+    ).rejects.toThrow('no longer matches')
+    expect(retry).not.toHaveBeenCalled()
+    expect(removeQueuedBorderSubmission(queued, samples[0].sequenceId).queue).toEqual([])
   })
 })
