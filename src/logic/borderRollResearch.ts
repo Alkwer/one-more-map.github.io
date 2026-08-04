@@ -1,5 +1,10 @@
 import { borderModById } from '../data/mods'
 import type { Borders } from '../types'
+import {
+  incompatibleAuxiliaryStore,
+  unavailableAuxiliaryStore,
+  type AuxiliaryStorageRecovery,
+} from './auxiliaryStorageRecovery'
 
 export const BORDER_ROLL_SAMPLE_SCHEMA = 'allflame-border-roll/v2' as const
 export const BORDER_ROLL_DATASET_SCHEMA = 'allflame-border-roll-dataset/v2' as const
@@ -9,7 +14,7 @@ const LEGACY_STORE_VERSION = 1
 const PREVIOUS_STORE_VERSION = 2
 const ARCHIVE_STORE_VERSION = 3
 const STORE_VERSION = 4
-const STORAGE_KEY = 'allflame-border-roll-research'
+export const BORDER_RESEARCH_STORAGE_KEY = 'allflame-border-roll-research'
 const SUBMISSION_URL = 'https://github.com/Alkwer/one-more-map.github.io/issues/new'
 
 export type OrderedBorderIds = [
@@ -52,6 +57,8 @@ export interface BorderResearchStore {
   vesperUpgradeCount: number | null
   samples: BorderRollSample[]
   archivedSequenceIds: string[]
+  /** Present only in memory while incompatible or unavailable storage blocks writes. */
+  recovery?: AuxiliaryStorageRecovery
 }
 
 export interface BorderRollDataset {
@@ -355,16 +362,39 @@ function migrateLegacySample(sample: LegacyBorderRollSample): BorderRollSample {
 }
 
 export function loadBorderResearch(): BorderResearchStore {
+  let raw: string | null
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return createBorderResearchStore()
-    const value = JSON.parse(raw) as {
-      version?: unknown
-      activeSequenceId?: unknown
-      vesperUpgradeCount?: unknown
-      samples?: unknown
-      archivedSequenceIds?: unknown
+    raw = localStorage.getItem(BORDER_RESEARCH_STORAGE_KEY)
+  } catch {
+    return {
+      ...createBorderResearchStore(),
+      recovery: unavailableAuxiliaryStore('Border research storage is unavailable.'),
     }
+  }
+  if (!raw) return createBorderResearchStore()
+
+  let value: {
+    version?: unknown
+    activeSequenceId?: unknown
+    vesperUpgradeCount?: unknown
+    samples?: unknown
+    archivedSequenceIds?: unknown
+  }
+  try {
+    value = JSON.parse(raw) as typeof value
+  } catch {
+    return {
+      ...createBorderResearchStore(),
+      recovery: incompatibleAuxiliaryStore(
+        BORDER_RESEARCH_STORAGE_KEY,
+        raw,
+        'invalid',
+        'Border research data is malformed JSON.',
+      ),
+    }
+  }
+
+  try {
     if (
       value.version === STORE_VERSION &&
       typeof value.activeSequenceId === 'string' &&
@@ -391,8 +421,14 @@ export function loadBorderResearch(): BorderResearchStore {
         samples: value.samples.map(migratePreviousSample),
         archivedSequenceIds: value.archivedSequenceIds,
       }
-      saveBorderResearch(migrated)
-      return migrated
+      return saveBorderResearch(migrated)
+        ? migrated
+        : {
+            ...migrated,
+            recovery: unavailableAuxiliaryStore(
+              'Migrated border research could not be saved because storage is unavailable.',
+            ),
+          }
     }
     if (
       value.version === PREVIOUS_STORE_VERSION &&
@@ -407,8 +443,14 @@ export function loadBorderResearch(): BorderResearchStore {
         samples: value.samples.map(migratePreviousSample),
         archivedSequenceIds: [],
       }
-      saveBorderResearch(migrated)
-      return migrated
+      return saveBorderResearch(migrated)
+        ? migrated
+        : {
+            ...migrated,
+            recovery: unavailableAuxiliaryStore(
+              'Migrated border research could not be saved because storage is unavailable.',
+            ),
+          }
     }
     if (
       value.version === LEGACY_STORE_VERSION &&
@@ -423,21 +465,61 @@ export function loadBorderResearch(): BorderResearchStore {
         samples: value.samples.map(migrateLegacySample),
         archivedSequenceIds: [],
       }
-      saveBorderResearch(migrated)
-      return migrated
+      return saveBorderResearch(migrated)
+        ? migrated
+        : {
+            ...migrated,
+            recovery: unavailableAuxiliaryStore(
+              'Migrated border research could not be saved because storage is unavailable.',
+            ),
+          }
     }
-    return createBorderResearchStore()
+    const newer =
+      typeof value.version === 'number' &&
+      Number.isInteger(value.version) &&
+      value.version > STORE_VERSION
+    return {
+      ...createBorderResearchStore(),
+      recovery: incompatibleAuxiliaryStore(
+        BORDER_RESEARCH_STORAGE_KEY,
+        raw,
+        newer ? 'incompatible' : 'invalid',
+        newer
+          ? `Border research version ${value.version} is newer than supported version ${STORE_VERSION}.`
+          : 'Border research data failed validation.',
+      ),
+    }
   } catch {
-    return createBorderResearchStore()
+    return {
+      ...createBorderResearchStore(),
+      recovery: incompatibleAuxiliaryStore(
+        BORDER_RESEARCH_STORAGE_KEY,
+        raw,
+        'invalid',
+        'Border research data could not be decoded.',
+      ),
+    }
   }
 }
 
-export function saveBorderResearch(store: BorderResearchStore): void {
+export function saveBorderResearch(store: BorderResearchStore): boolean {
+  if (store.recovery) return false
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(store))
+    localStorage.setItem(BORDER_RESEARCH_STORAGE_KEY, JSON.stringify(store))
+    return true
   } catch {
-    /* storage full or unavailable */
+    return false
   }
+}
+
+export function resetBorderResearch(): BorderResearchStore {
+  const clean = createBorderResearchStore()
+  return saveBorderResearch(clean)
+    ? clean
+    : {
+        ...clean,
+        recovery: unavailableAuxiliaryStore('Border research storage is unavailable.'),
+      }
 }
 
 export function serializeBorderRollDataset(

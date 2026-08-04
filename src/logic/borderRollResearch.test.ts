@@ -4,6 +4,7 @@ import type { Borders } from '../types'
 import {
   addBorderRollSample,
   archiveBorderRollSequence,
+  BORDER_RESEARCH_STORAGE_KEY,
   BORDER_ROLL_DATASET_SCHEMA,
   BORDER_ROLL_SAMPLE_SCHEMA,
   buildBorderRollSequenceSubmissionUrl,
@@ -17,6 +18,7 @@ import {
   nextBorderRollIndex,
   removeBorderRollSample,
   restoreBorderRollSequence,
+  saveBorderResearch,
   serializeBorderRollDataset,
   setCurrentVesperUpgradeCount,
 } from './borderRollResearch'
@@ -178,6 +180,51 @@ describe('border roll research samples', () => {
         samples: [{ sampleId: current.sampleId, vesperUpgradeCount: null }],
         archivedSequenceIds: ['voyage-test'],
       })
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it.each([
+    ['malformed JSON', '{not-json', 'invalid'],
+    ['a newer store from a downgrade', JSON.stringify({ version: 99 }), 'incompatible'],
+  ])('quarantines %s without overwriting the active research payload', (_name, raw, code) => {
+    const values = new Map([[BORDER_RESEARCH_STORAGE_KEY, raw]])
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn((key: string) => values.get(key) ?? null),
+      setItem: vi.fn((key: string, value: string) => values.set(key, value)),
+    })
+
+    try {
+      const loaded = loadBorderResearch()
+      expect(loaded.recovery).toMatchObject({ code, raw })
+      expect(loaded.recovery?.backupKey).toMatch(/^allflame-border-roll-research-recovery-/)
+      expect(values.get(BORDER_RESEARCH_STORAGE_KEY)).toBe(raw)
+      expect(values.get(loaded.recovery!.backupKey!)).toBe(raw)
+      expect(saveBorderResearch(loaded)).toBe(false)
+      expect(values.get(BORDER_RESEARCH_STORAGE_KEY)).toBe(raw)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('distinguishes unavailable research storage from invalid data', () => {
+    const setItem = vi.fn()
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn(() => {
+        throw new Error('storage denied')
+      }),
+      setItem,
+    })
+
+    try {
+      expect(loadBorderResearch().recovery).toEqual({
+        code: 'unavailable',
+        message: 'Border research storage is unavailable.',
+        raw: null,
+        backupKey: null,
+      })
+      expect(setItem).not.toHaveBeenCalled()
     } finally {
       vi.unstubAllGlobals()
     }

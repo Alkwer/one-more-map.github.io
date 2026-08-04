@@ -7,6 +7,7 @@ import {
 } from '../logic/borderRollResearch'
 import type { BorderRollResearchController } from '../hooks/useBorderRollResearch'
 import type { Borders } from '../types'
+import { AuxiliaryStoreRecovery } from './AuxiliaryStoreRecovery'
 
 interface Props {
   borders: Borders
@@ -17,6 +18,8 @@ const VESPER_UPGRADE_OPTIONS = [0, 1, 2, 3, 4, 5] as const
 
 export function BorderRollResearch({ borders, controller }: Props) {
   const { store } = controller
+  const researchBlocked = !!store.recovery
+  const submissionBlocked = !!controller.submissionStore.recovery
   const [showArchived, setShowArchived] = useState(false)
   const missingBorders = useMemo(() => borders.filter((id) => id === null).length, [borders])
   const sequenceView = useMemo(() => {
@@ -74,6 +77,25 @@ export function BorderRollResearch({ borders, controller }: Props) {
         Sovereign progress once so quest-gated border pools can be tested separately.
       </p>
 
+      {store.recovery && (
+        <AuxiliaryStoreRecovery
+          label="Border research"
+          filename="allflame-border-research-recovery.json"
+          recovery={store.recovery}
+          onRetry={controller.retryResearchRecovery}
+          onReset={controller.resetResearchStore}
+        />
+      )}
+      {controller.submissionStore.recovery && (
+        <AuxiliaryStoreRecovery
+          label="Border submission queue"
+          filename="allflame-border-submission-recovery.json"
+          recovery={controller.submissionStore.recovery}
+          onRetry={controller.retrySubmissionRecovery}
+          onReset={controller.resetSubmissionStore}
+        />
+      )}
+
       <div className="roll-research-grid">
         <label>
           Game patch
@@ -81,6 +103,7 @@ export function BorderRollResearch({ borders, controller }: Props) {
             value={controller.gamePatch}
             maxLength={32}
             placeholder="3.29.0"
+            disabled={researchBlocked}
             onChange={(event) => controller.setGamePatch(event.target.value)}
           />
         </label>
@@ -88,6 +111,7 @@ export function BorderRollResearch({ borders, controller }: Props) {
           Vesper upgrades (Superior Sovereign)
           <select
             value={controller.vesperUpgradeCount ?? ''}
+            disabled={researchBlocked}
             onChange={(event) => {
               const value = event.target.value
               controller.setVesperUpgradeCount(value === '' ? null : Number(value))
@@ -137,11 +161,13 @@ export function BorderRollResearch({ borders, controller }: Props) {
       <div className="import-actions roll-research-actions">
         <button
           onClick={() => controller.recordCurrentRoll(borders)}
-          disabled={missingBorders > 0 || controller.vesperUpgradeCount === null}
+          disabled={researchBlocked || missingBorders > 0 || controller.vesperUpgradeCount === null}
         >
           Save current roll
         </button>
-        <button onClick={controller.startNextSequence}>Start next Voyage</button>
+        <button disabled={researchBlocked} onClick={controller.startNextSequence}>
+          Start next Voyage
+        </button>
         <button onClick={exportSamples} disabled={store.samples.length === 0}>
           Export dataset
         </button>
@@ -159,7 +185,7 @@ export function BorderRollResearch({ borders, controller }: Props) {
           <input
             type="checkbox"
             checked={controller.submissionStore.settings.enabled}
-            disabled={!controller.endpointConfigured}
+            disabled={!controller.endpointConfigured || submissionBlocked}
             onChange={(event) => controller.setAutoSubmitEnabled(event.target.checked)}
           />
           <span>Automatic submission on Finish Voyage</span>
@@ -170,7 +196,7 @@ export function BorderRollResearch({ borders, controller }: Props) {
             type="password"
             autoComplete="off"
             value={controller.submissionStore.settings.submissionKey}
-            disabled={!controller.endpointConfigured}
+            disabled={!controller.endpointConfigured || submissionBlocked}
             onChange={(event) => controller.setSubmissionKey(event.target.value)}
           />
         </label>
@@ -209,14 +235,17 @@ export function BorderRollResearch({ borders, controller }: Props) {
                     {archived ? (
                       <>
                         <span className="sample-ready">Archived</span>
-                        <button onClick={() => controller.restoreSequence(sequenceId)}>
+                        <button
+                          disabled={researchBlocked}
+                          onClick={() => controller.restoreSequence(sequenceId)}
+                        >
                           Restore
                         </button>
                       </>
                     ) : (
                       <>
                         <button
-                          disabled={!isCompleteBorderRollSequence(sequence)}
+                          disabled={researchBlocked || !isCompleteBorderRollSequence(sequence)}
                           onClick={() =>
                             window.open(
                               buildBorderRollSequenceSubmissionUrl(sequence),
@@ -228,7 +257,10 @@ export function BorderRollResearch({ borders, controller }: Props) {
                           Submit Voyage
                         </button>
                         {sequenceId !== store.activeSequenceId && (
-                          <button onClick={() => controller.archiveSequence(sequenceId)}>
+                          <button
+                            disabled={researchBlocked}
+                            onClick={() => controller.archiveSequence(sequenceId)}
+                          >
                             Archive
                           </button>
                         )}
@@ -245,6 +277,7 @@ export function BorderRollResearch({ borders, controller }: Props) {
                           : `paid reroll ${sample.rerollIndex}`}
                       </span>
                       <button
+                        disabled={researchBlocked}
                         aria-label={`Remove ${sample.generation} sample captured ${sample.capturedAt}`}
                         onClick={() => {
                           controller.removeSample(sample.sampleId)

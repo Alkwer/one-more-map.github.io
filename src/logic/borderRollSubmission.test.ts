@@ -4,6 +4,7 @@ import type { Borders } from '../types'
 import { createBorderRollSample } from './borderRollResearch'
 import {
   BORDER_ROLL_INTAKE_URL,
+  BORDER_SUBMISSION_STORAGE_KEY,
   createBorderSubmissionStore,
   enqueueBorderRollSequence,
   loadBorderSubmissionStore,
@@ -91,6 +92,56 @@ describe('border roll automatic submission queue', () => {
     expect(migrated).not.toContain('rotate-this-key')
     expect(migrated).not.toContain('submissionKey')
     expect(migrated).not.toContain('queuedAt')
+  })
+
+  it.each([
+    ['malformed JSON', '{not-json', 'invalid'],
+    ['a newer store from a downgrade', JSON.stringify({ version: 99 }), 'incompatible'],
+  ])('quarantines %s without overwriting the active queue', (_name, raw, code) => {
+    values.set(BORDER_SUBMISSION_STORAGE_KEY, raw)
+
+    const loaded = loadBorderSubmissionStore()
+
+    expect(loaded.recovery).toMatchObject({ code, raw })
+    expect(loaded.recovery?.backupKey).toMatch(/^allflame-border-roll-submission-recovery-/)
+    expect(values.get(BORDER_SUBMISSION_STORAGE_KEY)).toBe(raw)
+    expect(values.get(loaded.recovery!.backupKey!)).toBe(raw)
+    expect(saveBorderSubmissionStore(loaded)).toBe(false)
+    expect(values.get(BORDER_SUBMISSION_STORAGE_KEY)).toBe(raw)
+  })
+
+  it('quarantines a partially invalid queue instead of dropping the bad item', () => {
+    const valid = enqueueBorderRollSequence(createBorderSubmissionStore(), [sample()]).queue[0]
+    const raw = JSON.stringify({
+      version: 2,
+      settings: { enabled: true },
+      queue: [valid, { sequenceId: 'broken', dataset: { samples: [] } }],
+    })
+    values.set(BORDER_SUBMISSION_STORAGE_KEY, raw)
+
+    const loaded = loadBorderSubmissionStore()
+
+    expect(loaded.recovery).toMatchObject({ code: 'invalid', raw })
+    expect(values.get(BORDER_SUBMISSION_STORAGE_KEY)).toBe(raw)
+    expect(values.get(loaded.recovery!.backupKey!)).toBe(raw)
+  })
+
+  it('distinguishes unavailable queue storage from invalid data', () => {
+    const setItem = vi.fn()
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn(() => {
+        throw new Error('storage denied')
+      }),
+      setItem,
+    })
+
+    expect(loadBorderSubmissionStore().recovery).toEqual({
+      code: 'unavailable',
+      message: 'Border submission storage is unavailable.',
+      raw: null,
+      backupKey: null,
+    })
+    expect(setItem).not.toHaveBeenCalled()
   })
 
   it('rejects incomplete sequences before they enter the queue', () => {
