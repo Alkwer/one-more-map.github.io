@@ -14,6 +14,7 @@ export default defineConfig(
     'test-results/',
     '.codex-remote-attachments/',
     '.sites/',
+    '**/.worktrees/**',
   ]),
   {
     files: ['**/*.{ts,tsx}'],
