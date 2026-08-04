@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { STRATEGIES, type StrategyDef } from '../data/strategies'
 import { strategyReadiness } from '../logic/strategySuggestions'
+import { writeClipboardText } from '../logic/clipboard'
 import type { Borders, ChartData } from '../types'
 
 interface Props {
@@ -48,6 +49,7 @@ function Readiness({
  */
 function RegexRow({ regex }: { regex: string }) {
   const [copied, setCopied] = useState(false)
+  const [copyMessage, setCopyMessage] = useState('')
   return (
     <div className="strat-regex-row">
       <span
@@ -58,14 +60,23 @@ function RegexRow({ regex }: { regex: string }) {
       </span>
       <input readOnly value={regex} onFocus={(e) => e.target.select()} />
       <button
-        onClick={() => {
-          navigator.clipboard.writeText(regex).catch(() => {})
+        onClick={async () => {
+          const result = await writeClipboardText(regex)
+          if (!result.ok) {
+            setCopied(false)
+            setCopyMessage(`${result.detail} Select the keeper search and copy it manually.`)
+            return
+          }
+          setCopyMessage('Keeper search copied.')
           setCopied(true)
           window.setTimeout(() => setCopied(false), 1500)
         }}
       >
         {copied ? '✓' : 'Copy'}
       </button>
+      <span className="sr-only" role="status" aria-live="polite">
+        {copyMessage}
+      </span>
     </div>
   )
 }

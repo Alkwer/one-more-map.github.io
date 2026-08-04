@@ -2020,6 +2020,25 @@ textarea {
   padding: 2px 7px;
   font-size: 12px;
 }
+.tile-copy-fallback {
+  position: absolute;
+  inset: auto 4px 4px 4px;
+  z-index: 5;
+  display: grid;
+  gap: 3px;
+  padding: 5px;
+  border: 1px solid var(--bad);
+  border-radius: 3px;
+  background: rgba(6, 8, 10, 0.96);
+  color: var(--bad);
+  font-size: 10px;
+}
+.tile-copy-fallback input {
+  min-width: 0;
+  width: 100%;
+  font-family: monospace;
+  font-size: 10px;
+}
 
 /* connector paths - ink-style lines through the tile, like the in-game board */
 .path-bar {

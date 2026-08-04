@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { voyageModById } from '../../data/mods'
 import { rotateEdges } from '../../logic/connectivity'
 import { buildSingleChartSearch } from '../../logic/regex'
+import { writeClipboardText } from '../../logic/clipboard'
 import type { ChartData, Placement } from '../../types'
 import { STAT_LABELS, STAT_SHORT } from '../../types'
 import { tooltipProps } from '../Tooltip'
@@ -39,6 +40,9 @@ export function BoardCell({
   onTogglePreserve,
 }: BoardCellProps) {
   const [copied, setCopied] = useState(false)
+  const [copyFailure, setCopyFailure] = useState<{ detail: string; manualText: string } | null>(
+    null,
+  )
   const row = Math.floor(cellIndex / 3) + 1
   const column = (cellIndex % 3) + 1
   const position = `Board cell ${cellIndex + 1}, row ${row}, column ${column}${isStart ? ', start' : ''}`
@@ -174,9 +178,15 @@ export function BoardCell({
             copied ? `Search copied for ${chart.name}` : `Copy in-game search for ${chart.name}`
           }
           title="Copy an in-game search string (name + modifier) to find this exact chart"
-          onClick={(event) => {
+          onClick={async (event) => {
             event.stopPropagation()
-            navigator.clipboard.writeText(buildSingleChartSearch(chart)).catch(() => {})
+            const result = await writeClipboardText(buildSingleChartSearch(chart))
+            if (!result.ok) {
+              setCopied(false)
+              setCopyFailure(result)
+              return
+            }
+            setCopyFailure(null)
             setCopied(true)
             window.setTimeout(() => setCopied(false), 1200)
           }}
@@ -206,6 +216,19 @@ export function BoardCell({
           ✕
         </button>
       </div>
+      {copyFailure && (
+        <label className="tile-copy-fallback">
+          <span role="status" aria-live="polite">
+            {copyFailure.detail} Select the search text and copy it manually.
+          </span>
+          <input
+            aria-label={`Manual in-game search for ${chart.name}`}
+            readOnly
+            value={copyFailure.manualText}
+            onFocus={(event) => event.target.select()}
+          />
+        </label>
+      )}
     </div>
   )
 }

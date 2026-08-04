@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { buildChartSearch } from '../logic/regex'
+import { writeClipboardText } from '../logic/clipboard'
 import type { ScoreBreakdown } from '../logic/scoring'
 import type { Board, ChartData } from '../types'
 import { ALL_STATS, STAT_LABELS } from '../types'
@@ -28,11 +29,11 @@ export function VoyageRewards({ score, board, pool, chartMap, notables }: Props)
       .filter((chart) => !board.some((placement) => placement?.chartUid === chart.uid))
       .map((chart) => chart.name)
     const search = buildChartSearch(placed.filter(Boolean), others)
-    try {
-      await navigator.clipboard.writeText(search)
+    const result = await writeClipboardText(search)
+    if (result.ok) {
       setSearchMessage('Copied!')
-    } catch {
-      setSearchMessage(search)
+    } else {
+      setSearchMessage(`${result.detail} Copy manually: ${result.manualText}`)
     }
     window.setTimeout(() => setSearchMessage(''), 2500)
   }
