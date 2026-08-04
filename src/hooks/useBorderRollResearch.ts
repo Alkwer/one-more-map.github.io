@@ -51,6 +51,7 @@ export interface BorderRollResearchController {
   removeSample: (sampleId: string) => void
   archiveSequence: (sequenceId: string) => void
   restoreSequence: (sequenceId: string) => void
+  cancelQueuedSequence: (sequenceId: string) => void
   retryResearchRecovery: () => void
   resetResearchStore: () => void
   retrySubmissionRecovery: () => void
@@ -69,6 +70,10 @@ export function useBorderRollResearch(): BorderRollResearchController {
   const storeRef = useRef(store)
   const submissionRef = useRef(submissionStore)
   const submittingRef = useRef(false)
+  const activeSubmissionRef = useRef<{
+    sequenceId: string
+    controller: AbortController
+  } | null>(null)
 
   const activeSamples = useMemo(
     () => getBorderRollSequence(store.samples, store.activeSequenceId),
@@ -132,10 +137,15 @@ export function useBorderRollResearch(): BorderRollResearchController {
     }
 
     submittingRef.current = true
+    const abortController = new AbortController()
+    activeSubmissionRef.current = { sequenceId: item.sequenceId, controller: abortController }
     try {
+      const currentSamples = getBorderRollSequence(storeRef.current.samples, item.sequenceId)
       const result = await sendQueuedBorderSubmission(item, {
         endpoint: BORDER_ROLL_INTAKE_URL,
         submissionKey: current.settings.submissionKey,
+        currentSamples,
+        signal: abortController.signal,
       })
       commitStore(archiveBorderRollSequence(storeRef.current, item.sequenceId))
       commitSubmissionStore(removeQueuedBorderSubmission(submissionRef.current, item.sequenceId))
@@ -144,10 +154,16 @@ export function useBorderRollResearch(): BorderRollResearchController {
       )
       queueMicrotask(() => void flushQueue())
     } catch (error) {
+      if (!submissionRef.current.queue.some((queued) => queued.sequenceId === item.sequenceId)) {
+        return
+      }
       setMessage(
         `${error instanceof Error ? error.message : 'Automatic submission failed'} The Voyage remains queued locally.`,
       )
     } finally {
+      if (activeSubmissionRef.current?.sequenceId === item.sequenceId) {
+        activeSubmissionRef.current = null
+      }
       submittingRef.current = false
     }
   }, [commitStore, commitSubmissionStore])
@@ -238,16 +254,35 @@ export function useBorderRollResearch(): BorderRollResearchController {
         current.vesperUpgradeCount === null &&
         activeSamples.some((sample) => sample.vesperUpgradeCount === null)
       const updated = setCurrentVesperUpgradeCount(current, value)
-      commitStore(protectsLegacySequence ? startBorderRollSequence(updated) : updated)
+      const next = protectsLegacySequence ? startBorderRollSequence(updated) : updated
+      if (!commitStore(next)) return
+      const queuedSequenceChanged =
+        submissionRef.current.queue.some((item) => item.sequenceId === current.activeSequenceId) &&
+        JSON.stringify(getBorderRollSequence(current.samples, current.activeSequenceId)) !==
+          JSON.stringify(getBorderRollSequence(next.samples, current.activeSequenceId))
+      if (queuedSequenceChanged) {
+        if (activeSubmissionRef.current?.sequenceId === current.activeSequenceId) {
+          activeSubmissionRef.current.controller.abort()
+        }
+        if (
+          !commitSubmissionStore(
+            removeQueuedBorderSubmission(submissionRef.current, current.activeSequenceId),
+          )
+        ) {
+          return
+        }
+      }
       setMessage(
-        value === null
-          ? 'Select Superior Sovereign progress before saving another roll.'
-          : protectsLegacySequence
-            ? `Vesper ${value}/5 saved. Started a new Voyage so legacy samples remain unknown.`
-            : `New rolls will be tagged with Vesper ${value}/5.`,
+        queuedSequenceChanged
+          ? `Vesper progress changed; canceled the stale queued Voyage ${current.activeSequenceId.slice(-8)}.`
+          : value === null
+            ? 'Select Superior Sovereign progress before saving another roll.'
+            : protectsLegacySequence
+              ? `Vesper ${value}/5 saved. Started a new Voyage so legacy samples remain unknown.`
+              : `New rolls will be tagged with Vesper ${value}/5.`,
       )
     },
-    [commitStore],
+    [commitStore, commitSubmissionStore],
   )
 
   const finishVoyage = useCallback(() => {
@@ -344,10 +379,45 @@ export function useBorderRollResearch(): BorderRollResearchController {
 
   const removeSample = useCallback(
     (sampleId: string) => {
-      commitStore(removeBorderRollSample(storeRef.current, sampleId))
-      setMessage('Removed the local sample.')
+      const sample = storeRef.current.samples.find((candidate) => candidate.sampleId === sampleId)
+      if (!sample || !commitStore(removeBorderRollSample(storeRef.current, sampleId))) return
+
+      const wasQueued = submissionRef.current.queue.some(
+        (item) => item.sequenceId === sample.sequenceId,
+      )
+      if (wasQueued) {
+        if (activeSubmissionRef.current?.sequenceId === sample.sequenceId) {
+          activeSubmissionRef.current.controller.abort()
+        }
+        if (
+          !commitSubmissionStore(
+            removeQueuedBorderSubmission(submissionRef.current, sample.sequenceId),
+          )
+        ) {
+          return
+        }
+      }
+      setMessage(
+        wasQueued
+          ? 'Removed the local sample and canceled its stale queued submission.'
+          : 'Removed the local sample.',
+      )
     },
-    [commitStore],
+    [commitStore, commitSubmissionStore],
+  )
+
+  const cancelQueuedSequence = useCallback(
+    (sequenceId: string) => {
+      if (!submissionRef.current.queue.some((item) => item.sequenceId === sequenceId)) return
+      if (activeSubmissionRef.current?.sequenceId === sequenceId) {
+        activeSubmissionRef.current.controller.abort()
+      }
+      if (!commitSubmissionStore(removeQueuedBorderSubmission(submissionRef.current, sequenceId))) {
+        return
+      }
+      setMessage(`Canceled queued Voyage ${sequenceId.slice(-8)}.`)
+    },
+    [commitSubmissionStore],
   )
 
   const archiveSequence = useCallback(
@@ -386,6 +456,7 @@ export function useBorderRollResearch(): BorderRollResearchController {
     removeSample,
     archiveSequence,
     restoreSequence,
+    cancelQueuedSequence,
     retryResearchRecovery,
     resetResearchStore,
     retrySubmissionRecovery,

@@ -8,6 +8,7 @@ import {
   createBorderSubmissionStore,
   enqueueBorderRollSequence,
   loadBorderSubmissionStore,
+  queuedBorderSubmissionMatchesSamples,
   removeQueuedBorderSubmission,
   saveBorderSubmissionStore,
   sendQueuedBorderSubmission,
@@ -168,6 +169,7 @@ describe('border roll automatic submission queue', () => {
       sendQueuedBorderSubmission(queued.queue[0], {
         endpoint: 'https://intake.example/api/border-rolls',
         submissionKey: 'limited-key',
+        currentSamples: queued.queue[0].dataset.samples,
         fetcher,
       }),
     ).resolves.toMatchObject({ status: 'created', issueNumber: 58 })
@@ -187,8 +189,40 @@ describe('border roll automatic submission queue', () => {
       sendQueuedBorderSubmission(queued.queue[0], {
         endpoint: 'https://intake.example/api/border-rolls',
         submissionKey: 'wrong-key',
+        currentSamples: queued.queue[0].dataset.samples,
         fetcher: vi.fn(async () => new Response('{}', { status: 401 })),
       }),
     ).rejects.toThrow('private submission key was rejected')
+  })
+
+  it('never retries a failed snapshot after a local sample is removed', async () => {
+    const samples = [sample(0), sample(1)]
+    const queued = enqueueBorderRollSequence(createBorderSubmissionStore(), samples)
+    const firstAttempt = vi.fn(async () => {
+      throw new Error('network unavailable')
+    })
+
+    await expect(
+      sendQueuedBorderSubmission(queued.queue[0], {
+        endpoint: 'https://intake.example/api/border-rolls',
+        submissionKey: 'limited-key',
+        currentSamples: samples,
+        fetcher: firstAttempt,
+      }),
+    ).rejects.toThrow('network unavailable')
+
+    const afterRemoval = [samples[0]]
+    const retry = vi.fn()
+    expect(queuedBorderSubmissionMatchesSamples(queued.queue[0], afterRemoval)).toBe(false)
+    await expect(
+      sendQueuedBorderSubmission(queued.queue[0], {
+        endpoint: 'https://intake.example/api/border-rolls',
+        submissionKey: 'limited-key',
+        currentSamples: afterRemoval,
+        fetcher: retry,
+      }),
+    ).rejects.toThrow('no longer matches')
+    expect(retry).not.toHaveBeenCalled()
+    expect(removeQueuedBorderSubmission(queued, samples[0].sequenceId).queue).toEqual([])
   })
 })

@@ -221,14 +221,36 @@ export function removeQueuedBorderSubmission(
   return { ...store, queue: store.queue.filter((item) => item.sequenceId !== sequenceId) }
 }
 
+export function queuedBorderSubmissionMatchesSamples(
+  item: QueuedBorderSubmission,
+  samples: BorderRollSample[],
+): boolean {
+  if (!isCompleteBorderRollSequence(samples)) return false
+  const ordered = [...samples].sort((left, right) => left.rerollIndex - right.rerollIndex)
+  return (
+    item.dataset.sampleCount === ordered.length &&
+    item.dataset.samples.length === ordered.length &&
+    item.dataset.samples.every(
+      (queuedSample, index) => JSON.stringify(queuedSample) === JSON.stringify(ordered[index]),
+    )
+  )
+}
+
 export async function sendQueuedBorderSubmission(
   item: QueuedBorderSubmission,
   options: {
     endpoint: string
     submissionKey: string
+    currentSamples: BorderRollSample[]
+    signal?: AbortSignal
     fetcher?: typeof fetch
   },
 ): Promise<BorderSubmissionResponse> {
+  if (!queuedBorderSubmissionMatchesSamples(item, options.currentSamples)) {
+    throw new Error(
+      'The queued Voyage no longer matches its current local sequence. Cancel it or rebuild it explicitly.',
+    )
+  }
   const endpoint = options.endpoint.trim()
   const submissionKey = options.submissionKey.trim()
   if (!endpoint) throw new Error('The automatic submission endpoint is not configured.')
@@ -241,6 +263,7 @@ export async function sendQueuedBorderSubmission(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(item.dataset),
+    signal: options.signal,
   })
   const body = (await response.json().catch(() => null)) as Partial<BorderSubmissionResponse> | null
   if (
