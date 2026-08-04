@@ -48,12 +48,19 @@ describe('VoyageAdvisor', () => {
       />,
     )
 
-    assert.match(markup, /Experimental roll model v1/)
+    assert.match(markup, /Paid-reroll model v1/)
     assert.match(markup, /low confidence/)
     assert.match(markup, /Current roll percentile/)
     assert.match(markup, />80%?</)
-    assert.match(markup, /Paid reroll scores higher/)
-    assert.match(markup, />15%?</)
+    assert.match(markup, /Keep percentile/)
+    assert.match(markup, />60%?</)
+    assert.match(markup, /15%.*of modeled paid rerolls score higher than this roll/)
+    assert.match(markup, /Secondary border-fit heuristic/)
+    assert.match(markup, /Contextual border fit/)
+    assert.match(markup, /Contextual fit line/)
+    assert.match(markup, /not a percentile or the combined charts \+ borders score/)
+    assert.doesNotMatch(markup, /Best-found roll fit/)
+    assert.doesNotMatch(markup, />Decision line</)
     assert.match(markup, /14 paid-reroll boards · 7 complete Voyage sequences/)
   })
 
@@ -67,6 +74,9 @@ describe('VoyageAdvisor', () => {
     )
 
     assert.doesNotMatch(markup, /Experimental roll model v1/)
+    assert.match(markup, /Contextual border fit/)
+    assert.match(markup, /Contextual fit line/)
+    assert.match(markup, /Heuristic scale: border contribution versus the best-known border mix/)
     assert.match(markup, /A modeled comparison is unavailable for this layout/)
   })
 })
