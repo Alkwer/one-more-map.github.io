@@ -375,6 +375,14 @@ const adjacentImplicits: VoyageModDef[] = [
     effects: [{ stat: 'packsize', percent: 20 }],
   },
   {
+    id: 'adj-fracture',
+    short: '2% Fractured Items',
+    text: 'Items dropped in adjacent Areas have 2% chance to be Fractured',
+    aliases: ['인접 지역들에서 떨어지는 아이템이 2% 확률로 분열된 등급'],
+    scope: 'adjacent',
+    effects: [],
+  },
+  {
     id: 'adj-lantern',
     short: '+4 Gold Lanterns',
     text: 'Adjacent Areas contain 4 additional Golden Lanterns',
