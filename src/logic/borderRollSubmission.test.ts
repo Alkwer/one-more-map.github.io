@@ -8,8 +8,11 @@ import {
   createBorderSubmissionStore,
   enqueueBorderRollSequence,
   loadBorderSubmissionStore,
+  markQueuedBorderSubmissionFailed,
+  nextPendingBorderSubmission,
   queuedBorderSubmissionMatchesSamples,
   removeQueuedBorderSubmission,
+  retryQueuedBorderSubmission,
   saveBorderSubmissionStore,
   sendQueuedBorderSubmission,
   updateBorderSubmissionSettings,
@@ -18,9 +21,9 @@ import {
 const borders = (): Borders =>
   Array.from({ length: 12 }, (_, index) => BORDER_MODS[index % BORDER_MODS.length].id)
 
-function sample(rerollIndex = 0) {
+function sample(rerollIndex = 0, sequenceId = 'voyage-auto-test') {
   const result = createBorderRollSample({
-    sequenceId: 'voyage-auto-test',
+    sequenceId,
     gamePatch: '3.29.0',
     vesperUpgradeCount: 3,
     rerollIndex,
@@ -93,7 +96,7 @@ describe('border roll automatic submission queue', () => {
     )
 
     expect(loadBorderSubmissionStore()).toMatchObject({
-      version: 2,
+      version: 3,
       settings: { enabled: true, submissionKey: '' },
       queue: [
         {
@@ -106,6 +109,25 @@ describe('border roll automatic submission queue', () => {
     expect(migrated).not.toContain('rotate-this-key')
     expect(migrated).not.toContain('submissionKey')
     expect(migrated).not.toContain('queuedAt')
+  })
+
+  it('persists failed delivery state without a busy flag across reloads', () => {
+    let store = enqueueBorderRollSequence(createBorderSubmissionStore(), [sample()])
+    store = markQueuedBorderSubmissionFailed(
+      store,
+      'voyage-auto-test',
+      'permanent rejection',
+      '2026-08-04T18:00:00.000Z',
+    )
+    saveBorderSubmissionStore(store)
+
+    expect(loadBorderSubmissionStore().queue[0].delivery).toEqual({
+      status: 'failed',
+      attemptCount: 1,
+      lastAttemptAt: '2026-08-04T18:00:00.000Z',
+      lastError: 'permanent rejection',
+    })
+    expect(values.get(BORDER_SUBMISSION_STORAGE_KEY)).not.toContain('busy')
   })
 
   it.each([
@@ -237,5 +259,55 @@ describe('border roll automatic submission queue', () => {
     ).rejects.toThrow('no longer matches')
     expect(retry).not.toHaveBeenCalled()
     expect(removeQueuedBorderSubmission(queued, samples[0].sequenceId).queue).toEqual([])
+  })
+
+  it('delivers a later Voyage after the first fails and lets the first be retried or canceled', async () => {
+    let store = enqueueBorderRollSequence(createBorderSubmissionStore(), [
+      sample(0, 'voyage-first'),
+    ])
+    store = enqueueBorderRollSequence(store, [sample(0, 'voyage-second')])
+
+    const first = nextPendingBorderSubmission(store)!
+    await expect(
+      sendQueuedBorderSubmission(first, {
+        endpoint: 'https://intake.example/api/border-rolls',
+        submissionKey: 'limited-key',
+        currentSamples: first.dataset.samples,
+        fetcher: vi.fn(async () => new Response('{}', { status: 422 })),
+      }),
+    ).rejects.toThrow('could not accept')
+    store = markQueuedBorderSubmissionFailed(
+      store,
+      first.sequenceId,
+      'The border-roll service could not accept this Voyage yet.',
+      '2026-08-04T18:01:00.000Z',
+    )
+
+    const second = nextPendingBorderSubmission(store)!
+    expect(second.sequenceId).toBe('voyage-second')
+    await expect(
+      sendQueuedBorderSubmission(second, {
+        endpoint: 'https://intake.example/api/border-rolls',
+        submissionKey: 'limited-key',
+        currentSamples: second.dataset.samples,
+        fetcher: vi.fn(
+          async () =>
+            new Response(
+              JSON.stringify({
+                status: 'created',
+                issueNumber: 115,
+                issueUrl: 'https://github.com/Alkwer/one-more-map.github.io/issues/115',
+              }),
+              { status: 201, headers: { 'Content-Type': 'application/json' } },
+            ),
+        ),
+      }),
+    ).resolves.toMatchObject({ status: 'created', issueNumber: 115 })
+
+    store = removeQueuedBorderSubmission(store, second.sequenceId)
+    expect(nextPendingBorderSubmission(store)).toBeUndefined()
+    store = retryQueuedBorderSubmission(store, first.sequenceId)
+    expect(nextPendingBorderSubmission(store)?.sequenceId).toBe('voyage-first')
+    expect(removeQueuedBorderSubmission(store, first.sequenceId).queue).toEqual([])
   })
 })
