@@ -284,9 +284,9 @@ the initial strategy transcription:
   potential maximum, not a guaranteed yield.
 - **Conflicting field evidence:** Golden Lantern quantity and rarity are visible
   in character stats, but repeated reports describe little corresponding
-  monster loot. Lantern weights are reduced to a supporting role, and Magic
-  Ethereal is retained for manual experimentation but excluded from automatic
-  recommendations until better measurements or a game fix exists.
+  monster loot. Lantern weights are reduced to a supporting role, and the
+  magic-monster variant is omitted from curated strategies until better
+  measurements or a game fix exists.
 
 App policy resulting from this evidence:
 

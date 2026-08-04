@@ -34,7 +34,6 @@ describe('solver strategy protections', () => {
     expect(reservationInput(html, 'globalRares')).toContain('checked=""')
     expect(reservationInput(html, 'adjacentRares')).toContain('checked=""')
     expect(reservationInput(html, 'meatfish')).toContain('checked=""')
-    expect(reservationInput(html, 'ethereal')).toContain('checked=""')
   })
 
   it('renders a disabled protection as unchecked', () => {
@@ -58,7 +57,6 @@ describe('solver strategy protections', () => {
     expect(reservationInput(html, 'globalRares')).toContain('checked=""')
     expect(reservationInput(html, 'adjacentRares')).toContain('checked=""')
     expect(reservationInput(html, 'meatfish')).toContain('checked=""')
-    expect(reservationInput(html, 'ethereal')).toContain('checked=""')
   })
 
   it('shows separate Rare protections for non-Divine strategies without reservation groups', () => {

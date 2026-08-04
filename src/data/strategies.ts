@@ -20,7 +20,6 @@ export const STRATEGY_RESERVATION_OPTIONS = [
   { id: 'seaPillars', label: 'Sea-Pillar destinations' },
   { id: 'pelagicAbyss', label: 'Pelagic Abyss destinations' },
   { id: 'meatfish', label: 'Other Meatfish pieces' },
-  { id: 'ethereal', label: 'Other Magic Ethereal pieces' },
 ] as const
 
 export type StrategyReservationId = (typeof STRATEGY_RESERVATION_OPTIONS)[number]['id']
@@ -38,7 +37,6 @@ export const defaultStrategyReservations = (): StrategyReservationPreferences =>
   seaPillars: true,
   pelagicAbyss: true,
   meatfish: true,
-  ethereal: true,
 })
 
 export interface StrategyReservationGroup {
@@ -94,9 +92,6 @@ export interface StrategyDef {
   source: { label: string; url: string }
   /** the video's guidance, shown on the expanded card */
   guide: string[]
-  /** false keeps an experimental/reference strategy available for manual use
-   *  without allowing it to drive the canonical automatic recommendation */
-  autoRecommend?: boolean
   /** reward-weight override while active (unlisted rewards count as 0) */
   weights: Weights
   rules: PositionRule[]
@@ -145,7 +140,7 @@ export const MEATFISH_FUEL = ['voy-fracture'] as const
 
 /** Milky's master keeper regex - every mod worth saving, across all strats */
 export const ALL_GOOD_MODS_REGEX =
-  '"at least|cannot drop|poss|fract|bottle|divine|arca|oper|star|pantheon|belt|lantern|4000 w|strongbo|rare monsters in all voy|sulphur found in all"'
+  '"cannot drop|poss|fract|bottle|divine|arca|oper|star|pantheon|belt|lantern|4000 w|strongbo|rare monsters in all voy|sulphur found in all"'
 
 const CENTER = [4]
 const EDGES = [1, 3, 5, 7]
@@ -165,20 +160,6 @@ const MEATFISH_LAYOUT: Edges[] = [
   [T, F, T, T], // 5 T-junction
   [T, F, T, F], // 6 straight (start; south dangles off-board)
   [T, T, F, F], // 7 corner
-  [T, F, F, T], // 8 corner
-]
-
-// Milky's exact Magic Ethereal board: a full cross at centre, 11 connections;
-// cells 6 and 7 have south arms dangling off-board.
-const ETHEREAL_LAYOUT: Edges[] = [
-  [F, T, T, F], // 0 corner
-  [F, T, T, T], // 1 T-junction
-  [F, F, T, T], // 2 corner
-  [T, T, T, F], // 3 T-junction
-  [T, T, T, T], // 4 crossing
-  [T, F, T, T], // 5 T-junction
-  [T, F, T, F], // 6 straight (start)
-  [T, T, T, F], // 7 T-junction
   [T, F, F, T], // 8 corner
 ]
 
@@ -280,21 +261,6 @@ const MEATFISH_RESERVATION: StrategyReservationGroup = {
   ],
 }
 
-const ETHEREAL_RESERVATION: StrategyReservationGroup = {
-  id: 'ethereal',
-  label: 'Other Magic Ethereal pieces',
-  modIds: [
-    'adj-lantern',
-    'voy-noequip',
-    'adj-wisps-1',
-    'adj-wisps-2',
-    'adj-magic-1',
-    'adj-magic-2',
-    'voy-minmagic',
-  ],
-  areaTypes: ['infested-bathyspheres'],
-}
-
 const DIVINE_RESERVATIONS: StrategyReservationGroup[] = [
   GENERIC_STRONGBOX_RESERVATION,
   STARFISH_RESERVATION,
@@ -309,7 +275,6 @@ export const MANUAL_STRATEGY_RESERVATIONS: StrategyReservationGroup[] = [
   ...SPEEDRUN_RESERVATIONS,
   ...DIVINE_RESERVATIONS,
   MEATFISH_RESERVATION,
-  ETHEREAL_RESERVATION,
 ]
 
 // "Alc & Go" highway: three vertical lanes capped at the top,
@@ -347,12 +312,7 @@ export const STRATEGIES: StrategyDef[] = [
     rules: [],
     layout: ALC_GO_LAYOUT,
     layoutPenalty: 15, // a preference, not a law - "whatever works"
-    reservationGroups: [
-      ...SPEEDRUN_RESERVATIONS,
-      ...DIVINE_RESERVATIONS,
-      MEATFISH_RESERVATION,
-      ETHEREAL_RESERVATION,
-    ],
+    reservationGroups: [...SPEEDRUN_RESERVATIONS, ...DIVINE_RESERVATIONS, MEATFISH_RESERVATION],
   },
   {
     id: 'milky-speedrun',
@@ -370,7 +330,7 @@ export const STRATEGIES: StrategyDef[] = [
       'Take Alchemy, Scouring and Exalted orbs in to juice every box before opening.',
       'If a Filthscrabble border appears (a ~4,000-sulphur boss), the solver pins your highest-sulphur chart to its tile.',
       'Speed matters: place lanterns, click everything, open the boxes, leave. Even a junk voyage yields a div or two of scattered loot.',
-      'Never burns your juice pieces: Starfish, Pantheon, Lantern, Possessed, Fracture, Rares, No-Equipment, Wisp, Magic, Strongbox and Sea-Pillar charts are held back for the other strats.',
+      'Never burns your juice pieces: Starfish, Pantheon, Lantern, Possessed, Fracture, Rares, No-Equipment, Wisp, Strongbox and Sea-Pillar charts are held back for the other strats.',
     ],
     weights: {
       'adjacent:opbox': 10,
@@ -386,7 +346,7 @@ export const STRATEGIES: StrategyDef[] = [
       'border:exalt': 3,
       'border:ancient': 3,
     },
-    reservationGroups: [...DIVINE_RESERVATIONS, MEATFISH_RESERVATION, ETHEREAL_RESERVATION],
+    reservationGroups: [...DIVINE_RESERVATIONS, MEATFISH_RESERVATION],
     rules: [
       // one centre chart, never a second one wasted elsewhere. Operative's
       // outranks the fallbacks (Milky: "won't yield as much, but consistent")
@@ -501,72 +461,6 @@ export const STRATEGIES: StrategyDef[] = [
     waitHint: 'Speedrun Strongboxes in the meantime.',
     searchRegex: '"cannot|poss|lantern|pantheon"',
     allowFractureCharts: true,
-  },
-  {
-    id: 'milky-ethereal',
-    name: 'Magic Ethereal',
-    tagline: 'Milky’s magic-monster variant - wisps, lanterns and everything at least Magic.',
-    source: {
-      label: 'Milkybk_ - Allflame Buffs and My Strategy',
-      url: 'https://www.youtube.com/watch?v=gVKQhYxeavk',
-    },
-    // Kept for manual experimentation, but current field reports do not support
-    // letting it outrank the more repeatable Strongbox/Divine strategies.
-    autoRecommend: false,
-    guide: [
-      '⚠ Experimental reference strategy. Current field reports for Lantern/rarity stacking are underwhelming, so it is excluded from automatic recommendations.',
-      'Builds Milky’s exact board layout: 3 Corners, 4 T-junctions, 1 Crossing, 1 Straight - 11 connections.',
-      'Wisp charts on the four sides, Golden Lanterns on the corners, the Crossing chart dead centre.',
-      'Instead of rares, go wide on magic monsters: All Monsters at least Magic + increased Magic Monsters.',
-      'Use Infested Bathysphere zones - they spawn far more monsters to convert.',
-      'Leans harder on "Monsters cannot drop Equipment" than Meatfish - it’s the big multiplier here.',
-    ],
-    weights: {
-      'adjacent:wisps': 10,
-      'voyage:minmagic': 10,
-      'adjacent:magic': 9,
-      'voyage:magic': 9,
-      'adjacent:lantern': 3,
-      'border:minmagic': 8,
-      'self:quant': 4,
-      'self:pack': 3,
-    },
-    rules: [
-      // icon cells from Milky's planner: wisps on the cross, lanterns on corners
-      { cells: EDGES, modIds: ['adj-wisps-1', 'adj-wisps-2'], bonus: 6 },
-      { cells: [0, 2, 8], modIds: ['adj-lantern'], bonus: 5 },
-      {
-        cells: CENTER,
-        modIds: ['adj-magic-1', 'adj-magic-2', 'adj-wisps-1', 'adj-wisps-2'],
-        bonus: 5,
-      },
-      { cells: ALL_CELLS, modIds: ['voy-minmagic'], bonus: 80 },
-      { cells: ALL_CELLS, modIds: ['voy-noequip'], bonus: 100 },
-    ],
-    layout: ETHEREAL_LAYOUT,
-    layoutPenalty: 6,
-    requirements: [
-      {
-        modIds: ['adj-wisps-1', 'adj-wisps-2'],
-        cells: EDGES,
-        count: 4,
-        label: 'Wildwood Wisp chart',
-      },
-      {
-        modIds: ['adj-lantern'],
-        cells: [0, 2, 8],
-        count: 3,
-        label: 'Golden Lantern chart',
-      },
-      { modIds: ['voy-minmagic'], count: 1, label: 'All Monsters at least Magic chart' },
-      { modIds: ['voy-noequip'], count: 1, label: 'No-Equipment chart' },
-      {
-        areaTypes: ['infested-bathyspheres'],
-        count: 1,
-        label: 'Infested Bathyspheres chart',
-      },
-    ],
-    waitHint: 'Speedrun Strongboxes in the meantime.',
   },
   {
     id: 'divine-border-rares',

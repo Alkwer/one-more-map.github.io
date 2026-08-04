@@ -52,17 +52,3 @@ describe('voyage reroll guardrail', () => {
     expect(decideVoyage(inputFor([playable], 2)).kind).toBe('play')
   })
 })
-
-describe('experimental strategies', () => {
-  it('does not let Magic Ethereal drive the automatic recommendation', () => {
-    const experimental = evaluation('milky-ethereal', { rankScore: 1, fit: 0.9 })
-    const established = evaluation('alc-and-go', { rankScore: 0.4, fit: 0.7 })
-    const decision = decideVoyage({
-      ...inputFor([experimental, established], 0),
-      activeStrategyId: null,
-    })
-
-    expect(decision.strategyId).toBe('alc-and-go')
-    expect(decision.kind).toBe('switch')
-  })
-})

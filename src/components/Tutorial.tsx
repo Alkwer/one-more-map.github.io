@@ -54,7 +54,7 @@ const STEPS: Step[] = [
     where: 'Strategies (right column)',
     target: '.strategies',
     body: [
-      'Curated community builds: Alc & Go for burning spares, Speedrun Strongboxes as the daily farm, Meatfish and Magic Ethereal as the juiced boards, and two Divine-border jackpot builds.',
+      'Curated community builds: Alc & Go for burning spares, Speedrun Strongboxes as the daily farm, Meatfish as the juiced board, and two Divine-border jackpot builds.',
       'Each card shows the guide, the in-game rolling regexes, and whether you actually have the pieces - if not, it tells you what is missing and what to run in the meantime.',
       'Prefer your own priorities? Stay on "None (manual)" and set per-reward weights in Solver Settings.',
     ],

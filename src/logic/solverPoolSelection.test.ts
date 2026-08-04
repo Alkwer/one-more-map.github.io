@@ -36,11 +36,6 @@ describe('solver pool selection', () => {
         label: 'Meatfish',
         modIds: ['meatfish-mod'],
       },
-      {
-        id: 'ethereal' as const,
-        label: 'Magic Ethereal',
-        modIds: ['ethereal-mod'],
-      },
     ],
   }
 
@@ -50,7 +45,6 @@ describe('solver pool selection', () => {
     chart('divine-name', { name: 'Pelagic Abyss Chart' }),
     chart('divine-area', { areaType: 'sea-pillars' }),
     chart('meatfish', { modIds: ['meatfish-mod'] }),
-    chart('ethereal', { modIds: ['ethereal-mod'] }),
   ]
 
   it('holds back only enabled reservation groups and reports why', () => {
@@ -59,10 +53,9 @@ describe('solver pool selection', () => {
         ...reservations(),
         genericStrongboxes: true,
         meatfish: false,
-        ethereal: false,
       }),
     ).toEqual({
-      solvePool: [eligiblePool[0], eligiblePool[4], eligiblePool[5]],
+      solvePool: [eligiblePool[0], eligiblePool[4]],
       heldBack: 3,
       heldBackFor: ['Generic Strongboxes'],
     })
@@ -76,7 +69,6 @@ describe('solver pool selection', () => {
         adjacentRares: false,
         globalRares: false,
         meatfish: false,
-        ethereal: false,
       }),
     ).toEqual({ solvePool: eligiblePool, heldBack: 0, heldBackFor: [] })
   })
@@ -85,7 +77,7 @@ describe('solver pool selection', () => {
     const eligiblePool = [
       chart('ordinary'),
       chart('modifier', { modIds: ['reserved-mod'] }),
-      chart('named', { name: 'Ethereal Paradise Chart' }),
+      chart('named', { name: 'Dream Paradise Chart' }),
       chart('area', { areaType: 'sea-pillars' }),
     ]
 
@@ -96,7 +88,7 @@ describe('solver pool selection', () => {
             id: 'genericStrongboxes',
             label: 'Generic Strongboxes',
             modIds: ['reserved-mod'],
-            nameMatches: ['ethereal paradise'],
+            nameMatches: ['dream paradise'],
             areaTypes: ['sea-pillars'],
           },
         ],
@@ -113,17 +105,12 @@ describe('solver pool selection', () => {
       chart('ordinary'),
       chart('adjacent-rares', { modIds: ['adj-rare-1'] }),
       chart('meatfish', { modIds: ['voy-possess'] }),
-      chart('ethereal', { modIds: ['voy-minmagic'] }),
     ]
 
     expect(selectStrategySolvePool(manualPool, null)).toEqual({
       solvePool: [manualPool[0]],
-      heldBack: 3,
-      heldBackFor: [
-        'Adjacent Rare Monsters',
-        'Other Meatfish pieces',
-        'Other Magic Ethereal pieces',
-      ],
+      heldBack: 2,
+      heldBackFor: ['Adjacent Rare Monsters', 'Other Meatfish pieces'],
     })
     expect(
       selectStrategySolvePool(
@@ -133,11 +120,10 @@ describe('solver pool selection', () => {
           adjacentRares: false,
           globalRares: false,
           meatfish: true,
-          ethereal: false,
         }),
       ),
     ).toEqual({
-      solvePool: [manualPool[0], manualPool[1], manualPool[3]],
+      solvePool: [manualPool[0], manualPool[1]],
       heldBack: 1,
       heldBackFor: ['Other Meatfish pieces'],
     })
@@ -194,7 +180,6 @@ describe('solver pool selection', () => {
         }),
       ),
       chart('speedrun-message', { modIds: ['adj-msg-1'] }),
-      chart('ethereal-area', { areaType: 'infested-bathyspheres' }),
     ]
 
     const protectedPool = selectFillerPool(
@@ -338,10 +323,10 @@ describe('granular keep-count solve pools', () => {
       chart('big-barrel', { modIds: ['adj-barrel-2'] }),
     ]
     const keeps = {
-      [customKey('milky-ethereal', barrelFamily!.modIds)]: 1,
+      [customKey('milky-speedrun', barrelFamily!.modIds)]: 1,
     }
     const bank = selectPieceBank(pool, keeps, reservations())
-    expect(bank.get('big-barrel')?.strategyId).toBe('milky-ethereal')
+    expect(bank.get('big-barrel')?.strategyId).toBe('milky-speedrun')
     expect(bank.has('small-barrel')).toBe(false)
   })
 
@@ -351,19 +336,19 @@ describe('granular keep-count solve pools', () => {
     const pool = [chart('starfish', { modIds: ['adj-star-2'] })]
     const keeps = {
       [keyOf('Giant Starfish chart')]: 0,
-      [customKey('milky-ethereal', starfishFamily!.modIds)]: 1,
+      [customKey('milky-speedrun', starfishFamily!.modIds)]: 1,
     }
 
     expect(selectPieceBank(pool, keeps, reservations({ starfish: false })).size).toBe(0)
     expect(selectPieceBank(pool, keeps, reservations()).get('starfish')?.strategyId).toBe(
-      'milky-ethereal',
+      'milky-speedrun',
     )
   })
 
   it('keeps an explicit custom type outside the known protection categories', () => {
     const barrelFamily = CUSTOM_OPTIONS.find((option) => option.modIds.includes('adj-barrel-1'))!
     const keeps = {
-      [customKey('milky-ethereal', barrelFamily.modIds)]: 1,
+      [customKey('milky-speedrun', barrelFamily.modIds)]: 1,
     }
     const bank = selectPieceBank(
       // An unrelated mod on the same chart must not make the Barrel type obey
@@ -382,10 +367,9 @@ describe('granular keep-count solve pools', () => {
         seaPillars: false,
         pelagicAbyss: false,
         meatfish: false,
-        ethereal: false,
       }),
     )
 
-    expect(bank.get('barrel')?.strategyId).toBe('milky-ethereal')
+    expect(bank.get('barrel')?.strategyId).toBe('milky-speedrun')
   })
 })

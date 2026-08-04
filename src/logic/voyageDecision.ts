@@ -117,17 +117,14 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     rollForecast: null,
   }
 
-  const ranked = input.evaluations
-    .filter((evaluation) => evaluation.strategy.autoRecommend !== false)
-    .map(candidateFrom)
-    .sort((a, b) => {
-      const aMissingRequiredBorder = a.requiredBorderStatus === 'missing'
-      const bMissingRequiredBorder = b.requiredBorderStatus === 'missing'
-      if (aMissingRequiredBorder !== bMissingRequiredBorder) {
-        return aMissingRequiredBorder ? 1 : -1
-      }
-      return b.rankScore - a.rankScore
-    })
+  const ranked = input.evaluations.map(candidateFrom).sort((a, b) => {
+    const aMissingRequiredBorder = a.requiredBorderStatus === 'missing'
+    const bMissingRequiredBorder = b.requiredBorderStatus === 'missing'
+    if (aMissingRequiredBorder !== bMissingRequiredBorder) {
+      return aMissingRequiredBorder ? 1 : -1
+    }
+    return b.rankScore - a.rankScore
+  })
 
   // A Divine border remains the single exception that can be acted on before
   // every border is entered. Never lose it to an ordinary reroll prompt.

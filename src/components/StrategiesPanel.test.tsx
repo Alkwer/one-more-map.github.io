@@ -47,20 +47,6 @@ describe('Korean clipboard aliases feed strategy readiness', () => {
     expect(html).toContain('1/1× Operative’s / Arcanist’s / Diviner’s / Message chart (centre)')
   })
 
-  it('subtracts Korean Wisp and Golden Lantern charts from Magic Ethereal shortages', () => {
-    const wisp = parseKoreanImplicit('몬스터가 일정 확률로 야생림 도깨비불 2000마리로 강화')
-    const lantern = parseKoreanImplicit('인접 지역들에 황금 등불 4개 추가 등장')
-
-    expect(wisp.modIds).toEqual(['adj-wisps-1'])
-    expect(lantern.modIds).toEqual(['adj-lantern'])
-
-    const html = renderStrategy('milky-ethereal', [wisp, lantern])
-
-    expect(html).toContain('class="strat-notready"')
-    expect(html).toContain('3× Wildwood Wisp chart')
-    expect(html).toContain('2× Golden Lantern chart')
-  })
-
   it('counts Korean Sea Pillars by destination instead of the rare Chart name', () => {
     const first = parseKoreanArea('바다 기둥')
     const second = { ...first, uid: `${first.uid}-second` }

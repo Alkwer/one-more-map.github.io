@@ -73,7 +73,7 @@ export const UPDATES: UpdateEntry[] = [
     tag: 'new',
     title: 'Configurable keeper protections',
     detail:
-      'Solver Settings now has "Protect charts for other strategies" checkboxes (Divine / Meatfish / Magic Ethereal). Switch a category off to let Alc & Go and Speedrun spend its charts - the solve note tells you what was held back and why. Community contribution by Alkwer.',
+      'Solver Settings now has "Protect charts for other strategies" checkboxes (Divine / Meatfish). Switch a category off to let Alc & Go and Speedrun spend its charts - the solve note tells you what was held back and why. Community contribution by Alkwer.',
   },
   {
     date: '2026-08-01',
@@ -129,7 +129,7 @@ export const UPDATES: UpdateEntry[] = [
     tag: 'new',
     title: 'Curated Strategies tab',
     detail:
-      'Pick a community strategy (Milkybk_’s Speedrun Strongboxes, Meatfish and Magic Ethereal, plus Divine Border Rares) and the solver builds its exact board: piece placements, connector layout, reserved charts, readiness warnings when you lack the pieces, and rolling regexes.',
+      'Pick a community strategy (Milkybk_’s Speedrun Strongboxes and Meatfish, plus Divine Border Rares) and the solver builds its exact board: piece placements, connector layout, reserved charts, readiness warnings when you lack the pieces, and rolling regexes.',
   },
   {
     date: '2026-07-27',
