@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { encodeShare } from '../logic/share'
+import { writeClipboardText } from '../logic/clipboard'
 import type { AppState } from '../logic/storage'
 
 export function useAppChrome(state: AppState) {
@@ -45,10 +46,10 @@ export function useAppChrome(state: AppState) {
     }
 
     const url = `${location.origin}${location.pathname}#${hash}`
-    try {
-      await navigator.clipboard.writeText(url)
+    const result = await writeClipboardText(url)
+    if (result.ok) {
       setShareMessage('Link copied!')
-    } catch {
+    } else {
       window.location.hash = hash
       setShareMessage('Link set in address bar')
     }

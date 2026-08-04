@@ -1,5 +1,8 @@
 import { buildSingleChartSearch } from '../logic/regex'
+import { writeClipboardText, type ClipboardWriter } from '../logic/clipboard'
 import type { Board, ChartData } from '../types'
+
+export type { ClipboardWriter } from '../logic/clipboard'
 
 export const BOARD_FILL_ORDER = [6, 7, 8, 3, 4, 5, 0, 1, 2] as const
 
@@ -11,10 +14,6 @@ export interface CopySequenceEntry {
 export interface CopySequenceState {
   order: CopySequenceEntry[]
   step: number
-}
-
-export interface ClipboardWriter {
-  writeText(text: string): Promise<void>
 }
 
 export type CopySequenceWriteResult =
@@ -54,22 +53,8 @@ export async function writeCurrentCopyAndAdvance(
   clipboard: ClipboardWriter | undefined,
 ): Promise<CopySequenceWriteResult> {
   const manualText = buildSingleChartSearch(chart)
-  if (!clipboard?.writeText) {
-    return {
-      ok: false,
-      next: sequence,
-      reason: 'unavailable',
-      detail: 'The Clipboard API is unavailable in this browser.',
-      manualText,
-    }
-  }
-
-  try {
-    await clipboard.writeText(manualText)
-    return { ok: true, next: advanceCopySequence(sequence) }
-  } catch (error) {
-    const detail =
-      error instanceof Error && error.message ? error.message : 'Clipboard access was denied.'
-    return { ok: false, next: sequence, reason: 'rejected', detail, manualText }
-  }
+  const result = await writeClipboardText(manualText, clipboard)
+  return result.ok
+    ? { ok: true, next: advanceCopySequence(sequence) }
+    : { ...result, next: sequence }
 }

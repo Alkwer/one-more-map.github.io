@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { StrategyDef } from '../data/strategies'
 import { selectSolverEligibleCharts } from '../logic/chartShapes'
 import { buildBestModRegex } from '../logic/regex'
+import { writeClipboardText } from '../logic/clipboard'
 import type { AppState } from '../logic/storage'
 import type { Board } from '../types'
 import { useSolverRequests } from '../hooks/useSolverRequests'
@@ -22,6 +23,7 @@ interface Props {
 export function SolverPanel({ state, activeStrategy, onPatch, onApply, onOpenPlanner }: Props) {
   const [regexCap, setRegexCap] = useState(50)
   const [copied, setCopied] = useState(false)
+  const [copyMessage, setCopyMessage] = useState('')
   // While a strategy is active it overrides the manual weights everywhere here.
   const weights = activeStrategy ? activeStrategy.weights : state.weights
   const eligiblePool = useMemo(
@@ -41,13 +43,15 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply, onOpenPla
   )
 
   const copyRegex = async () => {
-    try {
-      await navigator.clipboard.writeText(bestRegex.regex)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 2000)
-    } catch {
-      /* user can select the text manually */
+    const result = await writeClipboardText(bestRegex.regex)
+    if (!result.ok) {
+      setCopied(false)
+      setCopyMessage(`${result.detail} Select the best-charts regex and copy it manually.`)
+      return
     }
+    setCopyMessage('Best-charts regex copied.')
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 2000)
   }
 
   return (
@@ -78,6 +82,9 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply, onOpenPla
         onCopy={copyRegex}
         onRegexCapChange={setRegexCap}
       />
+      <span className="sr-only" role="status" aria-live="polite">
+        {copyMessage}
+      </span>
 
       <SolverResults results={results} onApply={onApply} />
     </section>
