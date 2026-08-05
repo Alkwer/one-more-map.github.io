@@ -260,6 +260,7 @@ const adjacentImplicits: VoyageModDef[] = [
     id: 'adj-atziri',
     short: "Atziri's Influence",
     text: "Atziri's Influence",
+    aliases: ['앗지리의 영향력'],
     scope: 'adjacent',
     effects: [{ stat: 'treasure', percent: 40 }],
   },
