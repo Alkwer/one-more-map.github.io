@@ -5,7 +5,7 @@ const MOD_SETS = [
   ['cm-sulph-30', 'adj-star-2'],
   ['cm-rarity-18', 'adj-pantheon'],
   ['cm-pack-16', 'adj-lantern'],
-  ['cm-gold-50', 'voy-possess'],
+  ['cm-rarity-50', 'voy-possess'],
   ['cm-quant-28', 'adj-box-2'],
   ['cm-rarity-30', 'adj-ess-2'],
   ['cm-pack-18', 'voy-quant-1'],

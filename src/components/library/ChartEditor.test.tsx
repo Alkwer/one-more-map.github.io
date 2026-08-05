@@ -25,6 +25,15 @@ const importedChart = (): ChartData => ({
 })
 
 describe('ChartEditor imported rewards', () => {
+  it('offers the 3.29.2 Rarity tiers instead of obsolete Chart Gold modifiers', () => {
+    const chart = { ...importedChart(), modIds: ['cm-rarity-50'], rewards: undefined }
+    const html = renderToStaticMarkup(<ChartEditor chart={chart} onUpdate={() => undefined} />)
+
+    expect(html).toContain('50% increased Rarity of Items found in this Area')
+    expect(html).toContain('70% increased Rarity of Items found in this Area')
+    expect(html).not.toContain('increased Gold found in this Area')
+  })
+
   it('shows authoritative imported values instead of ignored manual self modifiers', () => {
     const html = renderToStaticMarkup(
       <ChartEditor chart={importedChart()} onUpdate={() => undefined} />,

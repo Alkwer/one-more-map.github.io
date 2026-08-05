@@ -47,7 +47,9 @@ const ENGLISH_DIALECT: ClipboardDialect = {
   headerStats: [
     { re: /Item Quantity:\s*\+?(\d+)%/i, stat: 'quantity' },
     { re: /Item Rarity:\s*\+?(\d+)%/i, stat: 'rarity' },
-    { re: /Gold Found:\s*\+?(\d+)%/i, stat: 'gold' },
+    // Legacy 3.29.0/3.29.1 clipboard text. Patch 3.29.2 converted these
+    // modifiers to Rarity, so stale copied/exported text follows the live stat.
+    { re: /Gold Found:\s*\+?(\d+)%/i, stat: 'rarity' },
     { re: /Dead Man's Sulphur:\s*\+?(\d+)%/i, stat: 'sulphur' },
     { re: /Pack Size:\s*\+?(\d+)%/i, stat: 'packsize' },
     { re: /Scarabs Found:\s*\+?(\d+)%/i, stat: 'scarabs' },
@@ -79,7 +81,7 @@ const KOREAN_DIALECT: ClipboardDialect = {
   headerStats: [
     { re: /아이템 수량\s*[:：]\s*\+?(\d+)%/i, stat: 'quantity' },
     { re: /아이템 희귀도\s*[:：]\s*\+?(\d+)%/i, stat: 'rarity' },
-    { re: /골드 발견량\s*[:：]\s*\+?(\d+)%/i, stat: 'gold' },
+    { re: /골드 발견량\s*[:：]\s*\+?(\d+)%/i, stat: 'rarity' },
     { re: /망자의 유황\s*[:：]\s*\+?(\d+)%/i, stat: 'sulphur' },
     { re: /몬스터 무리 규모\s*[:：]\s*\+?(\d+)%/i, stat: 'packsize' },
   ],
@@ -276,7 +278,11 @@ export function parseChartText(text: string): ParseResult {
     const rewards: ModEffect[] = []
     for (const { re, stat } of dialect.headerStats) {
       const match = item.match(re)
-      if (match) rewards.push({ stat, percent: parseInt(match[1], 10) })
+      if (!match) continue
+      const percent = parseInt(match[1], 10)
+      const existing = rewards.find((reward) => reward.stat === stat)
+      if (existing) existing.percent += percent
+      else rewards.push({ stat, percent })
     }
 
     const shapeMatch = item.match(dialect.shape)

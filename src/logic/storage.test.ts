@@ -132,6 +132,34 @@ describe('state decoding', () => {
     })
   })
 
+  it('silently migrates pre-3.29.2 Chart Gold data without touching conversion rewards', () => {
+    const result = decoded(
+      persisted({
+        pool: [
+          chart({
+            modIds: ['cm-gold-50', 'adj-gold-1'],
+            rewards: [
+              { stat: 'rarity', percent: 12 },
+              { stat: 'gold', percent: 70 },
+            ],
+          }),
+        ],
+        disabledMods: ['cm-gold-70', 'adj-gold-1'],
+        weights: { ...defaultState().weights, 'self:gold': 9 },
+      }),
+    )
+
+    expect(result.state.pool[0]).toMatchObject({
+      modIds: ['cm-rarity-50', 'adj-gold-1'],
+      rewards: [{ stat: 'rarity', percent: 82 }],
+    })
+    expect(result.state.disabledMods).toEqual(['cm-rarity-70', 'adj-gold-1'])
+    expect(result.state.weights).not.toHaveProperty('self:gold')
+    expect(result.state.weights).toHaveProperty('adjacent:gold')
+    expect(result.state.weights).toHaveProperty('border:gold')
+    expect(result.warnings).toEqual([])
+  })
+
   it('validates optional chart area types', () => {
     expect(decoded(persisted({ pool: [chart()] })).state.pool[0].areaType).toBeUndefined()
     expect(

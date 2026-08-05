@@ -5,7 +5,7 @@ Armoured Coral Reef Chart of Ice
 Undersea Groves
 Area Level: 63
 Item Quantity: +20% (augmented)
-Gold Found: +50% (augmented)
+Item Rarity: +50% (augmented)
 --------
 Item Level: 63
 --------
