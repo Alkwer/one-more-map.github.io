@@ -72,7 +72,7 @@ jobs:
             gh issue edit "$ISSUE_NUMBER" --remove-label "$label" >/dev/null 2>&1 || true
           done
           gh issue edit "$ISSUE_NUMBER" --add-label "$RESULT_LABEL"
-          gh issue comment "$ISSUE_NUMBER" --body-file "$RUNNER_TEMP/border-roll-comment.md"
+          node scripts/upsert-border-roll-comment.mjs "$RUNNER_TEMP/border-roll-comment.md"
           if [ "$SHOULD_CLOSE" = "true" ]; then
             gh issue close "$ISSUE_NUMBER" --reason "$CLOSE_REASON"
           elif [ "${{ github.event.issue.state }}" = "closed" ]; then
