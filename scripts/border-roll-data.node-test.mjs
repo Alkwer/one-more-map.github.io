@@ -14,6 +14,10 @@ import {
   validateBorderRollIssueBody,
   validateBorderRollPayload,
 } from './border-roll-data.mjs'
+import {
+  BORDER_ROLL_COMMENT_MARKER,
+  upsertBorderRollComment,
+} from './upsert-border-roll-comment.mjs'
 
 const knownIds = await loadKnownBorderIds()
 const borderModIds = [...knownIds].slice(0, 12)
@@ -196,4 +200,67 @@ test('issue processor emits an accepted label, close decision, and audit comment
   } finally {
     await rm(directory, { recursive: true, force: true })
   }
+})
+
+test('creates the validation comment when the issue has no bot marker comment', async () => {
+  const requests = []
+  const fetchImpl = async (url, options = {}) => {
+    requests.push({ url, options })
+    if (!options.method) return Response.json([])
+    return Response.json({ id: 101 }, { status: 201 })
+  }
+
+  const result = await upsertBorderRollComment({
+    repository: 'example/voyage-solver',
+    issueNumber: 56,
+    token: 'test-token',
+    body: `${BORDER_ROLL_COMMENT_MARKER}\nCurrent result`,
+    fetchImpl,
+  })
+
+  assert.deepEqual(result, { action: 'created', commentId: 101 })
+  assert.equal(requests.length, 2)
+  assert.match(requests[0].url, /issues\/56\/comments\?per_page=100&page=1$/)
+  assert.equal(requests[1].options.method, 'POST')
+  assert.deepEqual(JSON.parse(requests[1].options.body), {
+    body: `${BORDER_ROLL_COMMENT_MARKER}\nCurrent result`,
+  })
+})
+
+test('updates the bot validation comment while leaving user marker comments alone', async () => {
+  const requests = []
+  const fetchImpl = async (url, options = {}) => {
+    requests.push({ url, options })
+    if (!options.method) {
+      return Response.json([
+        {
+          id: 70,
+          body: `${BORDER_ROLL_COMMENT_MARKER}\nUser-authored text`,
+          user: { type: 'User' },
+        },
+        {
+          id: 77,
+          body: `${BORDER_ROLL_COMMENT_MARKER}\nPrevious result`,
+          user: { type: 'Bot' },
+        },
+      ])
+    }
+    return Response.json({ id: 77 })
+  }
+
+  const result = await upsertBorderRollComment({
+    repository: 'example/voyage-solver',
+    issueNumber: 56,
+    token: 'test-token',
+    body: `${BORDER_ROLL_COMMENT_MARKER}\nUpdated result`,
+    fetchImpl,
+  })
+
+  assert.deepEqual(result, { action: 'updated', commentId: 77 })
+  assert.equal(requests.length, 2)
+  assert.match(requests[1].url, /issues\/comments\/77$/)
+  assert.equal(requests[1].options.method, 'PATCH')
+  assert.deepEqual(JSON.parse(requests[1].options.body), {
+    body: `${BORDER_ROLL_COMMENT_MARKER}\nUpdated result`,
+  })
 })
