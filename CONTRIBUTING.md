@@ -101,5 +101,16 @@ search.
 5. Describe the user-visible effect, model assumptions, and verification in the
    pull request.
 
+Use `agent/<issue-or-short-description>` or
+`codex/<issue-or-short-description>` for task branches and
+`automation/<workflow>-<run-id>` for disposable workflow branches. Branches
+with open pull requests or work not integrated into `main` must be retained;
+merged heads are deleted automatically. The full audit, expected-SHA deletion,
+retention, and recovery procedure is documented in
+[docs/branch-maintenance.md](docs/branch-maintenance.md).
+
+Branch maintenance is limited to `origin`. This repository does not maintain an
+upstream synchronization workflow.
+
 Pull requests run the quality job but do not deploy. A merge to `main` deploys
 only after that same quality gate succeeds.
