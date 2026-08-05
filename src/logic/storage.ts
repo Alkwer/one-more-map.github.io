@@ -116,6 +116,11 @@ const knownStats = new Set<Stat>(ALL_STATS)
 const knownShapes = new Set<ChartShape>(CHART_SHAPES)
 const knownWeightKeys = new Set(Object.keys(DEFAULT_WEIGHTS))
 const knownAreaTypes = new Set<ChartAreaType>(CHART_AREAS.map(({ id }) => id))
+const PATCH_3292_CHART_MOD_MIGRATIONS = new Map([
+  ['cm-gold-50', 'cm-rarity-50'],
+  ['cm-gold-70', 'cm-rarity-70'],
+])
+const PATCH_3292_REMOVED_WEIGHT_KEYS = new Set(['self:gold'])
 
 const isRecord = (value: unknown): value is UnknownRecord =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -172,7 +177,7 @@ function decodeRewards(value: unknown, path: string): ModEffect[] | undefined {
   if (value.length > MAX_REWARDS_PER_CHART) {
     fail(`${path} must contain at most ${MAX_REWARDS_PER_CHART} entries`)
   }
-  return value.map((rawEffect, index) => {
+  const decoded = value.map((rawEffect, index) => {
     const effectPath = `${path}[${index}]`
     if (!isRecord(rawEffect)) fail(`${effectPath} must be an object`)
     if (typeof rawEffect.stat !== 'string' || !knownStats.has(rawEffect.stat as Stat)) {
@@ -182,10 +187,21 @@ function decodeRewards(value: unknown, path: string): ModEffect[] | undefined {
       fail(`${effectPath}.percent must be a finite number`)
     }
     return {
-      stat: rawEffect.stat as Stat,
+      // Patch 3.29.2 converted every Chart Gold-found modifier into Rarity.
+      // ChartData.rewards only contains imported self-scope header values, so
+      // equipment-to-Gold implicits and borders are not affected here.
+      stat: rawEffect.stat === 'gold' ? ('rarity' as const) : (rawEffect.stat as Stat),
       percent: rawEffect.percent,
     }
   })
+
+  // A pre-patch Chart could contain both native Rarity and Gold-found. They
+  // now contribute to one aggregate Item Rarity header value.
+  const merged = new Map<Stat, number>()
+  for (const effect of decoded) {
+    merged.set(effect.stat, (merged.get(effect.stat) ?? 0) + effect.percent)
+  }
+  return [...merged].map(([stat, percent]) => ({ stat, percent }))
 }
 
 function decodeChart(value: unknown, index: number, warnings: string[]): ChartData {
@@ -234,15 +250,17 @@ function decodeChart(value: unknown, index: number, warnings: string[]): ChartDa
   }
 
   const seenModIds = new Set<string>()
-  const modIds = value.modIds.filter((id): id is string => {
-    if (typeof id !== 'string' || seenModIds.has(id)) return false
+  const modIds: string[] = []
+  for (const rawId of value.modIds as string[]) {
+    const id = PATCH_3292_CHART_MOD_MIGRATIONS.get(rawId) ?? rawId
+    if (seenModIds.has(id)) continue
     seenModIds.add(id)
     if (!voyageModById.has(id)) {
-      warnings.push(`${path}.modIds removed unknown id "${id}"`)
-      return false
+      warnings.push(`${path}.modIds removed unknown id "${rawId}"`)
+      continue
     }
-    return true
-  })
+    modIds.push(id)
+  }
 
   const level = Math.max(1, Math.min(100, Math.floor(value.level)))
   if (level !== value.level) {
@@ -376,6 +394,9 @@ function decodeWeights(value: unknown, warnings: string[]): Weights {
 
   for (const [key, rawWeight] of Object.entries(value)) {
     boundedString(key, 'weights key', MAX_ID_LENGTH)
+    // self:gold represented Chart header Gold, which no longer exists after
+    // 3.29.2. Adjacent and border Gold preferences use different keys.
+    if (PATCH_3292_REMOVED_WEIGHT_KEYS.has(key)) continue
     if (!knownWeightKeys.has(key)) {
       warnings.push(`weights removed unknown key "${key}"`)
       continue
@@ -402,11 +423,13 @@ function decodeDisabledMods(value: unknown, warnings: string[]): string[] {
     fail('disabledMods must be an array of strings')
   }
   const disabled = new Set<string>()
-  for (const [index, id] of value.entries()) {
-    boundedString(id, `disabledMods[${index}]`, MAX_ID_LENGTH)
-    if (typeof id !== 'string' || disabled.has(id)) continue
+  for (const [index, rawId] of value.entries()) {
+    boundedString(rawId, `disabledMods[${index}]`, MAX_ID_LENGTH)
+    if (typeof rawId !== 'string') continue
+    const id = PATCH_3292_CHART_MOD_MIGRATIONS.get(rawId) ?? rawId
+    if (disabled.has(id)) continue
     if (!knownModifierIds.has(id)) {
-      warnings.push(`disabledMods removed unknown id "${id}"`)
+      warnings.push(`disabledMods removed unknown id "${rawId}"`)
       continue
     }
     disabled.add(id)

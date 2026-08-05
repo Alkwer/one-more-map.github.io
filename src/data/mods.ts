@@ -14,7 +14,8 @@ import type { BorderModDef, VoyageModDef } from '../types'
 const chartMapMods: VoyageModDef[] = [
   // Canonical reward lines (families share these; downside lines vary and are
   // kept as raw text on import). Tiers: quantity 20/28/32/45, sulphur 30/45,
-  // rarity 12/18/20/30, pack 14/16/18, gold 50/70.
+  // rarity 12/18/20/30/50/70, pack 14/16/18. Patch 3.29.2 converted
+  // the former 50/70% Gold-found families into Item Rarity.
   {
     id: 'cm-quant-20',
     text: '20% increased Quantity of Items found in this Area',
@@ -94,16 +95,16 @@ const chartMapMods: VoyageModDef[] = [
     effects: [{ stat: 'packsize', percent: 18 }],
   },
   {
-    id: 'cm-gold-50',
-    text: '50% increased Gold found in this Area',
+    id: 'cm-rarity-50',
+    text: '50% increased Rarity of Items found in this Area',
     scope: 'self',
-    effects: [{ stat: 'gold', percent: 50 }],
+    effects: [{ stat: 'rarity', percent: 50 }],
   },
   {
-    id: 'cm-gold-70',
-    text: '70% increased Gold found in this Area',
+    id: 'cm-rarity-70',
+    text: '70% increased Rarity of Items found in this Area',
     scope: 'self',
-    effects: [{ stat: 'gold', percent: 70 }],
+    effects: [{ stat: 'rarity', percent: 70 }],
   },
 ]
 

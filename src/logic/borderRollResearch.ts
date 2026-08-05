@@ -172,7 +172,7 @@ function completeBorders(borders: Borders): OrderedBorderIds | null {
 export function createBorderRollSample(input: CreateSampleInput): CreateSampleResult {
   const gamePatch = input.gamePatch.trim()
   if (!gamePatch || gamePatch.length > 32) {
-    return { ok: false, message: 'Enter the current game patch (for example 3.29.0).' }
+    return { ok: false, message: 'Enter the current game patch (for example 3.29.2).' }
   }
   if (!Number.isInteger(input.rerollIndex) || input.rerollIndex < 0 || input.rerollIndex > 20) {
     return { ok: false, message: 'Reroll number must be a whole number from 0 to 20.' }

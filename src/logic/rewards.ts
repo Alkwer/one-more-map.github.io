@@ -72,7 +72,6 @@ const CHART_REWARD_FAMILY: Record<Stat, string> = {
 export const CHART_REWARD_STATS: Stat[] = [
   'quantity',
   'rarity',
-  'gold',
   'sulphur',
   'packsize',
   'scarabs',

@@ -68,7 +68,7 @@ export function useBorderRollResearch(): BorderRollResearchController {
   const [submissionStore, setSubmissionStore] =
     useState<BorderSubmissionStore>(loadBorderSubmissionStore)
   const [gamePatch, setGamePatch] = useState(
-    () => store.samples[store.samples.length - 1]?.gamePatch ?? '3.29',
+    () => store.samples[store.samples.length - 1]?.gamePatch ?? '3.29.2',
   )
   const [message, setMessage] = useState('')
   const storeRef = useRef(store)

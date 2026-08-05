@@ -105,7 +105,7 @@ export function BorderRollResearch({ borders, controller }: Props) {
           <input
             value={controller.gamePatch}
             maxLength={32}
-            placeholder="3.29.0"
+            placeholder="3.29.2"
             disabled={researchBlocked}
             onChange={(event) => controller.setGamePatch(event.target.value)}
           />

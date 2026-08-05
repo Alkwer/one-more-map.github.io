@@ -19,9 +19,9 @@ describe('25-chart solver quality budget', () => {
     assert.equal(results.length, 5)
     assert.equal(new Set(results.map((result) => JSON.stringify(result.board))).size, 5)
     assert.ok(results.every((result) => result.valid && result.launchable && result.fullyReachable))
-    assert.ok(results[0].score >= 145.68 - QUALITY_EPSILON)
-    assert.ok(results[0].reward >= 144.48 - QUALITY_EPSILON)
-    assert.ok(results[4].score >= 144 - QUALITY_EPSILON)
+    assert.ok(results[0].score >= 141.112 - QUALITY_EPSILON)
+    assert.ok(results[0].reward >= 139.912 - QUALITY_EPSILON)
+    assert.ok(results[4].score >= 139.512 - QUALITY_EPSILON)
   })
 
   it('keeps canonical strategy inventory requirement-safe', () => {

@@ -13,6 +13,13 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    date: '2026-08-06',
+    tag: 'reworked',
+    title: 'PoE 3.29.2 Chart rewards',
+    detail:
+      'Chart modifiers that previously granted Gold found now correctly count as Item Rarity. Existing saved Charts migrate automatically, while equipment-to-Gold implicit and border modifiers remain unchanged.',
+  },
+  {
     date: '2026-08-04',
     tag: 'new',
     title: 'Border rolls learn from observed data',

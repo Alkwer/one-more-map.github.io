@@ -201,8 +201,9 @@ The following observations came from ZiggyD's early hands-on video
 implementation; the confirmed live sections above and below supersede them if
 they conflict.
 
-- **Chart item tooltip anatomy** (seen on "Armoured Coral Forest Chart of Power" -
-  magic-rarity naming): Area Level 47 · Item Quantity: +20% · **Gold Found: +70%** ·
+- **Historical Chart item tooltip anatomy before 3.29.2** (seen on "Armoured Coral
+  Forest Chart of Power" - magic-rarity naming): Area Level 47 · Item Quantity:
+  +20% · **Gold Found: +70%** ·
   Requires Level 36 · an explicit "**Adjacent Modifier:**" section ("Adjacent Areas
   contains 5 additional Giant Starfish") · area mods incl. downsides ("+6% Monster
   Physical Damage Reduction", "Monsters gain a Power Charge on Hit") · footer "Take
@@ -225,8 +226,10 @@ they conflict.
 
 - `Item Class: Chart` (not "Lost Charts"). Rarity: Magic. Name on line after Rarity.
 - Header block after `Area Level:` lists aggregated reward "quality" stats:
-  `Item Quantity: +N%`, `Gold Found: +N%`, `Dead Man's Sulphur: +N%` (also Item
-  Rarity / Pack Size likely). These are SUMS across the chart's mods (e.g. Fecund
+  `Item Quantity: +N%`, `Item Rarity: +N%`, `Dead Man's Sulphur: +N%` (also Pack
+  Size). Patch 3.29.2 converted the former Gold-found Chart modifiers into Item
+  Rarity; equipment-to-Gold adjacent and border modifiers were not changed.
+  These are SUMS across the chart's mods (e.g. Fecund
   +20% and of Insulation +20% show as "Item Quantity: +40%"). Parser reads these
   directly into ChartData.rewards (self-scope), NOT snapped to mod tiers.
 - `Chart Shape:` gives the connector shape: End(1), Corner(2 adjacent L),
@@ -257,7 +260,7 @@ they conflict.
   VoyageModDef (effect × connection count, or × (4 − connections)). No real mod
   texts known yet - wire them in as they're found.
 
-## Strategy calibration after 3.29.1
+## Strategy calibration after 3.29.2
 
 The curated strategies remain decision-support heuristics rather than profit or
 expected-value calculations. The following evidence changed the defaults after
@@ -271,6 +274,10 @@ the initial strategy transcription:
   and added Sunken Opulence and Sunken Gems chests. These changes strengthen the
   general Strongbox speedrun direction but do not establish currency-per-hour
   ratios between Strongbox families.
+- **Confirmed:** patch 3.29.2 replaced every increased-Gold-found Chart modifier
+  with increased Item Rarity. Imported header totals and legacy saved Charts are
+  therefore scored on the Rarity axis; equipment-to-Gold conversion modifiers
+  remain on the Gold axis.
 - **Strongly supported:** a `+1 Divine Orb` border should be preserved and the
   touched tile should be fed with Rare Monsters. Current reports support both a
   Sea-Pillars/Starfish approach and a Strongbox approach, but do not establish a
@@ -306,6 +313,8 @@ Strategy-calibration sources:
   https://www.pathofexile.com/forum/view-thread/3989412
 - Official 3.29.1 notes:
   https://www.pathofexile.com/forum/view-thread/3991672
+- Official 3.29.2 notes:
+  https://www.pathofexile.com/forum/view-thread/3994431
 - Current Voyage strategy discussion:
   https://www.reddit.com/r/PathOfExileBuilds/comments/1v90lxh/voyage_strategies_discussion/
 - Current practical Chart/Voyage discussion:

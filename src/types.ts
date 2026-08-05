@@ -87,7 +87,7 @@ export const STAT_LABELS: Record<Stat, string> = {
 export const STAT_DESC: Record<Stat, string> = {
   currency:
     'Currency orbs - from Arcanist Strongboxes and border orb-drop rolls (Divine, Exalted, Chaos…)',
-  gold: 'Gold - from equipment-to-Gold conversion mods and ground-effect charts',
+  gold: 'Gold - from equipment-to-Gold conversion modifiers',
   scarabs: 'Scarabs - from Operative Strongboxes and scarab border rolls',
   divcards: 'Divination Cards - from Diviner Strongboxes and Stacked Deck borders',
   essences: 'Imprisoned Monsters (Essences) - extra essence-caged monsters in adjacent areas',

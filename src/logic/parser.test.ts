@@ -63,7 +63,7 @@ describe('parseChartText', () => {
       modIds: ['voy-sulph-2'],
       rewards: [
         { stat: 'quantity', percent: 20 },
-        { stat: 'gold', percent: 50 },
+        { stat: 'rarity', percent: 50 },
       ],
       rawText: '+8% Monster Physical Damage Reduction',
     })
@@ -108,7 +108,7 @@ describe('parseChartText', () => {
     expect(result.charts[0].rewards).toEqual(
       expect.arrayContaining([
         { stat: 'packsize', percent: 36 },
-        { stat: 'gold', percent: 50 },
+        { stat: 'rarity', percent: 50 },
         { stat: 'sulphur', percent: 75 },
       ]),
     )
@@ -145,7 +145,7 @@ describe('parseChartText', () => {
     expect(result.charts[2].implicitText).toBe('인접 지역에 게 무리 8(8-10)개 추가 등장')
   })
 
-  it('parses the Korean Gold Found header observed in supplied clipboard text', () => {
+  it('migrates a legacy Korean Gold Found header into the 3.29.2 Rarity total', () => {
     const chart = parseOnlyChart(
       koreanChart.replace(
         '망자의 유황: +30% (augmented)',
@@ -153,7 +153,8 @@ describe('parseChartText', () => {
       ),
     )
 
-    expect(chart.rewards).toContainEqual({ stat: 'gold', percent: 70 })
+    expect(chart.rewards).toContainEqual({ stat: 'rarity', percent: 90 })
+    expect(chart.rewards).not.toContainEqual(expect.objectContaining({ stat: 'gold' }))
   })
 
   const shapeCases: [string, string, string, Edges][] = [
