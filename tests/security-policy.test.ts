@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 describe('page script trust boundary', () => {
@@ -19,5 +19,41 @@ describe('page script trust boundary', () => {
     expect(html).toContain("script-src 'self'")
     expect(html).toContain("object-src 'none'")
     expect(html).toContain("base-uri 'self'")
+  })
+})
+
+describe('workflow dependency trust boundary', () => {
+  const workflowsDirectory = new URL('../.github/workflows/', import.meta.url)
+  const workflowSources = readdirSync(workflowsDirectory)
+    .filter((name) => /\.ya?ml$/.test(name))
+    .map((name) => ({
+      name,
+      source: readFileSync(new URL(name, workflowsDirectory), 'utf8'),
+    }))
+
+  it('pins every external action to a full commit SHA and records its release tag', () => {
+    const actionReferences = workflowSources.flatMap(({ name, source }) =>
+      [...source.matchAll(/^\s*(?:-\s*)?uses:\s+([^\s#]+)(?:\s+#\s*(\S+))?\s*$/gm)].map(
+        (match) => ({ name, reference: match[1], release: match[2] }),
+      ),
+    )
+
+    expect(actionReferences.length).toBeGreaterThan(0)
+    for (const { name, reference, release } of actionReferences) {
+      if (reference.startsWith('./')) continue
+
+      const separator = reference.lastIndexOf('@')
+      expect(separator, `${name}: ${reference}`).toBeGreaterThan(0)
+      expect(reference.slice(separator + 1), `${name}: ${reference}`).toMatch(/^[0-9a-f]{40}$/)
+      expect(release, `${name}: ${reference}`).toMatch(/^v\d+\.\d+\.\d+$/)
+    }
+  })
+
+  it('enables controlled Dependabot updates for GitHub Actions', () => {
+    const dependabot = readFileSync(new URL('../.github/dependabot.yml', import.meta.url), 'utf8')
+
+    expect(dependabot).toContain('package-ecosystem: github-actions')
+    expect(dependabot).toContain('interval: weekly')
+    expect(dependabot).toContain('open-pull-requests-limit: 5')
   })
 })
