@@ -9,8 +9,9 @@ CoordMode "ToolTip", "Screen"
 ;  Allflame Voyage - bulk chart + board-border importer  (AutoHotkey v2)
 ;
 ;  Three phases:
-;    Phase 1 - stays in PoE, hovers every cell and Ctrl+C's it, appending
-;              each chart's text into one buffer (no window switching).
+;    Phase 1 - stays in PoE, switches through both chart-stash tabs, hovers
+;              every cell and Ctrl+C's it, appending each chart's text into
+;              one buffer (no window switching).
 ;    Phase 2 - hovers the 12 board-border modifiers and the optional reroll
 ;              button. A temporary PowerShell helper captures the PoE window
 ;              and reads each tooltip with the Windows OCR engine. Screenshots
@@ -50,6 +51,8 @@ CoordMode "ToolTip", "Screen"
 ;   - Hover the CENTRE of the TOP-LEFT chart, press  F7.
 ;   - Hover the CENTRE of the BOTTOM-RIGHT cell of the 6-wide grid
 ;     (the far corner cell, even if it's empty), press  F8.
+;   - Hover the CENTRE of chart-stash tab 1, press Shift+F7.
+;   - Hover the CENTRE of chart-stash tab 2, press Shift+F8.
 ;   - Set GridCols / GridRows below to match your panel.
 ;
 ;  RUN
@@ -71,6 +74,7 @@ GridCols := 6    ; columns in the Chart panel
 GridRows := 10   ; rows to sweep (overshooting is fine - empty cells skip)
 
 ActivateDelay := 60    ; ms after focusing a window (paid only ~twice total now)
+TabSwitchDelay := 180  ; ms for the selected chart-stash tab to redraw
 HoverDelay    := 28    ; ms for PoE to register the cursor before Ctrl+C
 BorderHoverDelay := 250 ; ms for a border tooltip to appear before OCR capture
 RerollHoverDelay := 350 ; ms for the reroll-cost tooltip to appear
@@ -88,6 +92,10 @@ TLx := IniRead(IniFile, "grid", "TLx", "0") + 0
 TLy := IniRead(IniFile, "grid", "TLy", "0") + 0
 BRx := IniRead(IniFile, "grid", "BRx", "0") + 0
 BRy := IniRead(IniFile, "grid", "BRy", "0") + 0
+Tab1X := IniRead(IniFile, "grid", "Tab1X", "0") + 0
+Tab1Y := IniRead(IniFile, "grid", "Tab1Y", "0") + 0
+Tab2X := IniRead(IniFile, "grid", "Tab2X", "0") + 0
+Tab2Y := IniRead(IniFile, "grid", "Tab2Y", "0") + 0
 BorderTLx := IniRead(IniFile, "board", "TopLeftX", "0") + 0
 BorderTLy := IniRead(IniFile, "board", "TopY", "0") + 0
 BorderBRx := IniRead(IniFile, "board", "BottomRightX", "0") + 0
@@ -148,7 +156,20 @@ CellPos(row, col) {
     return [Round(TLx + col * dx), Round(TLy + row * dy)]
 }
 
-Calibrated() => (TLx != 0 && TLy != 0 && BRx != 0 && BRy != 0)
+GridCalibrated() => (TLx != 0 && TLy != 0 && BRx != 0 && BRy != 0)
+
+StashTabsCalibrated() {
+    global Tab1X, Tab1Y, Tab2X, Tab2Y
+    return Tab1X != 0 && Tab1Y != 0 && Tab2X != 0 && Tab2Y != 0
+        && (Tab1X != Tab2X || Tab1Y != Tab2Y)
+}
+
+Calibrated() => GridCalibrated() && StashTabsCalibrated()
+
+ChartTabPoints() {
+    global Tab1X, Tab1Y, Tab2X, Tab2Y
+    return [[Tab1X, Tab1Y], [Tab2X, Tab2Y]]
+}
 
 ExactBordersCalibrated() {
     global ExactBorderPoints
@@ -845,6 +866,24 @@ F8:: {
     Flash "Bottom-right set: " BRx ", " BRy
 }
 
+; ---- Shift+F7 / Shift+F8: capture the two chart-stash tabs ----
++F7:: {
+    global
+    MouseGetPos &x, &y
+    Tab1X := x, Tab1Y := y
+    IniWrite Tab1X, IniFile, "grid", "Tab1X"
+    IniWrite Tab1Y, IniFile, "grid", "Tab1Y"
+    Flash "Chart-stash tab 1 set: " Tab1X ", " Tab1Y
+}
++F8:: {
+    global
+    MouseGetPos &x, &y
+    Tab2X := x, Tab2Y := y
+    IniWrite Tab2X, IniFile, "grid", "Tab2X"
+    IniWrite Tab2Y, IniFile, "grid", "Tab2Y"
+    Flash "Chart-stash tab 2 set: " Tab2X ", " Tab2Y
+}
+
 ; ---- F10: abort ----
 F10:: {
     global Running, ExactBorderNext
@@ -920,7 +959,9 @@ F10:: {
 F9:: {
     global
     if !Calibrated() {
-        MsgBox "Calibrate first (F7 top-left, F8 bottom-right)."
+        MsgBox "Calibrate the chart stash first:`n"
+            . "F7 = top-left slot, F8 = bottom-right slot`n"
+            . "Shift+F7 = tab 1, Shift+F8 = tab 2."
         return
     }
     if !WinExist(PoeWinTitle) {
@@ -935,7 +976,7 @@ F9:: {
     Running := true
     copied := 0, skipped := 0, scannedCharts := 0
     blob := "", borderBlob := "", rerollCostBlob := "", seen := Map()
-    firstChart := "", allIdentical := true
+    firstChart := "", allIdentical := true, firstTabSignature := "", tabsIdentical := false
 
     ; ---- Phase 1: copy every chart while staying in PoE ----
     WinActivate PoeWinTitle
@@ -946,51 +987,81 @@ F9:: {
     }
     Sleep ActivateDelay
 
-    Loop GridRows {
+    tabPoints := ChartTabPoints()
+    for tabIndex, tabPoint in tabPoints {
         if !Running
             break
-        r := A_Index - 1
-        Loop GridCols {
+        MouseMove tabPoint[1], tabPoint[2], 0
+        Click
+        Sleep TabSwitchDelay
+        tabSignature := ""
+
+        Loop GridRows {
             if !Running
                 break
-            c := A_Index - 1
-            p := CellPos(r, c)
-            A_Clipboard := ""
-            MouseMove p[1], p[2], 0
-            Sleep HoverDelay
-            Send "^c"
-            if !ClipWait(ClipTimeout) {
-                skipped++                 ; empty slot - nothing copied
-                continue
+            r := A_Index - 1
+            Loop GridCols {
+                if !Running
+                    break
+                c := A_Index - 1
+                p := CellPos(r, c)
+                A_Clipboard := ""
+                MouseMove p[1], p[2], 0
+                Sleep HoverDelay
+                Send "^c"
+                if !ClipWait(ClipTimeout) {
+                    tabSignature .= "|0:"
+                    skipped++                 ; empty slot - nothing copied
+                    continue
+                }
+                clip := Trim(A_Clipboard, " `t`r`n")
+                tabSignature .= "|" StrLen(clip) ":" clip
+                if !InStr(clip, "Item Class") {
+                    skipped++                 ; not an item
+                    continue
+                }
+                scannedCharts++
+                if (firstChart = "")
+                    firstChart := clip
+                else if (clip != firstChart)
+                    allIdentical := false
+                if seen.Has(clip) {
+                    skipped++                 ; duplicate
+                    continue
+                }
+                seen[clip] := true
+                blob .= (blob = "" ? "" : "`n") clip
+                copied++
+                ToolTip "Copying tab " tabIndex "/" tabPoints.Length
+                    . "... row " (r+1) " col " (c+1)
+                    . "`ncharts " copied "   skipped " skipped
+                    . "`n(F10 to abort)"
             }
-            clip := Trim(A_Clipboard, " `t`r`n")
-            if !InStr(clip, "Item Class") {
-                skipped++                 ; not an item
-                continue
-            }
-            scannedCharts++
-            if (firstChart = "")
-                firstChart := clip
-            else if (clip != firstChart)
-                allIdentical := false
-            if seen.Has(clip) {
-                skipped++                 ; duplicate
-                continue
-            }
-            seen[clip] := true
-            blob .= (blob = "" ? "" : "`n") clip
-            copied++
-            ToolTip "Copying... row " (r+1) " col " (c+1)
-                . "`ncharts " copied "   skipped " skipped
-                . "`n(F10 to abort)"
         }
+
+        if (tabIndex = 1)
+            firstTabSignature := tabSignature
+        else if (tabSignature = firstTabSignature)
+            tabsIdentical := true
+    }
+
+    ; Leave the stash on tab 1, matching the game's default view.
+    if Running {
+        MouseMove Tab1X, Tab1Y, 0
+        Click
+        Sleep TabSwitchDelay
     }
 
     ; Distinct physical Charts always differ in their rolled values. If every
     ; occupied cell copied the same text, the mouse stayed on one item and the
     ; saved grid corners are no longer valid.
     calibWarn := ""
-    if Running && scannedCharts >= 5 && allIdentical {
+    if Running && tabsIdentical {
+        blob := "", copied := 0
+        calibWarn := "Both chart-stash tabs produced identical slot data, so none were sent"
+            . " - a tab click probably missed. Recalibrate tab 1 with Shift+F7"
+            . " and tab 2 with Shift+F8, then try again."
+    } else if Running && scannedCharts >= 5 && allIdentical {
         blob := "", copied := 0
         calibWarn := "Every occupied grid cell copied the SAME chart, so none were sent"
             . " - your grid calibration looks wrong (or PoE's window moved)."
@@ -1034,6 +1105,6 @@ F9:: {
         Flash calibWarn borderNote costNote, 10000
         return
     }
-    Flash "Done. Sent " copied " charts" borderNote costNote
+    Flash "Done. Sent " copied " charts from 2 stash tabs" borderNote costNote
         . "; skipped " skipped " empty/dup cells.", 6000
 }

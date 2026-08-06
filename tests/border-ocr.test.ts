@@ -201,14 +201,26 @@ describe('border OCR regressions', () => {
     assert.ok(borderRefreshStart >= 0, 'Ctrl+F9 border-only refresh hotkey is missing')
     assert.ok(fullImportStart > borderRefreshStart, 'full F9 import hotkey is missing')
     const borderRefreshHotkey = ahkImporter.slice(borderRefreshStart, fullImportStart)
+    const fullImportHotkey = ahkImporter.slice(fullImportStart)
     assert.match(borderRefreshHotkey, /borderBlob := ScanBorders\(\)/)
     assert.match(borderRefreshHotkey, /rerollCostBlob := ScanRerollCost\(\)/)
     assert.match(borderRefreshHotkey, /payload := borderBlob/)
     assert.match(borderRefreshHotkey, /PasteIntoSolver\(\s*payload/)
     assert.match(ahkImporter, /\^F7:: \{/)
+    assert.match(ahkImporter, /\+F7:: \{/)
+    assert.match(ahkImporter, /\+F8:: \{/)
+    assert.match(ahkImporter, /Tab1X := IniRead/)
+    assert.match(ahkImporter, /Tab2X := IniRead/)
+    assert.match(fullImportHotkey, /for tabIndex, tabPoint in tabPoints/)
+    assert.match(fullImportHotkey, /MouseMove tabPoint\[1\], tabPoint\[2\], 0\s+Click/)
+    assert.match(fullImportHotkey, /tabsIdentical := true/)
+    assert.match(fullImportHotkey, /MouseMove Tab1X, Tab1Y, 0\s+Click/)
     assert.match(ahkImporter, /MouseMove RerollX, RerollY, 0/)
     assert.match(ahkImporter, /-Unfiltered:\$RerollCost/)
-    assert.doesNotMatch(borderRefreshHotkey, /CellPos|GridRows|GridCols|Send "\^c"/)
+    assert.doesNotMatch(
+      borderRefreshHotkey,
+      /CellPos|GridRows|GridCols|ChartTabPoints|Tab1X|Tab2X|Send "\^c"/,
+    )
     assert.doesNotMatch(
       ahkImporter,
       /throw 'Windows OCR is unavailable for English \(United States\)\.'/,
