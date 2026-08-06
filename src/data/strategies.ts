@@ -51,6 +51,8 @@ export interface PositionRule {
 export interface StrategyDef {
   id: string
   name: string
+  /** highlight chip on the strategy card (e.g. 'NEW') */
+  badge?: string
   tagline: string
   source: { label: string; url: string }
   /** the video's guidance, shown on the expanded card */
@@ -240,6 +242,39 @@ export const STRATEGIES: StrategyDef[] = [
     layout: ALC_GO_LAYOUT,
     layoutPenalty: 15, // a preference, not a law - "whatever works"
     reservationGroups: [divineReservation(true), MEATFISH_RESERVATION, ETHEREAL_RESERVATION],
+  },
+  {
+    id: 'anchorfield-fishing',
+    name: 'ANCHORFIELD FISHING',
+    badge: 'NEW',
+    tagline:
+      'Fish for the chaos→divine blessing, then crack the Anchorfield open - jackpot or go next.',
+    source: { label: 'Community strat', url: '' },
+    guide: [
+      'Put ONE Anchorfield chart in - any of them, just reroll it to decent Quantity. One is all you need.',
+      'Fill the rest with increased Quantity charts, and reroll your junk to high quant with chaos.',
+      'Got the "+1 Chaos Orb per Rare Monster" border? Consider increased Rare Monsters charts instead of quant (adjacent-rares charts are free to spend by default).',
+      'Run the voyage normally, hunting ONE blessing: Chaos Orbs become Divine Orbs. Explore every area EXCEPT the Anchorfield - blast through it, open NO Sunken Loot there yet.',
+      'Found the blessing? Sprint back to the Anchorfield and open every single Sunken Loot - each drops a few chaos, and the 20% chaos→divine conversion turns them into Divines.',
+      'No blessing and ~6 lanterns left? Open the Anchorfield loot anyway for scraps, or just leave and go next - you are fishing for the jackpot, not peasant loot.',
+    ],
+    weights: {
+      'self:quant': 10,
+      'voyage:quant': 8,
+      'border:chaos': 6,
+      'border:quantconn': 5,
+      'self:pack': 2,
+      'voyage:sulph': 1,
+    },
+    rules: [
+      // the ONE Anchorfield chart can sit anywhere - it just has to be aboard
+      { cells: [0, 1, 2, 3, 4, 5, 6, 7, 8], areaTypes: ['anchorfield'], bonus: 40 },
+    ],
+    requirements: [
+      { areaTypes: ['anchorfield'], count: 1, label: 'Anchorfield chart' },
+    ],
+    waitHint: 'Alc & Go or Speedrun until an Anchorfield chart drops - any rarity works.',
+    searchRegex: '"anchorfield|m q.*(1[2-9].|[2-9]..)%"',
   },
   {
     id: 'milky-speedrun',

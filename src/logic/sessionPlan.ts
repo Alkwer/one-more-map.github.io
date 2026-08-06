@@ -35,7 +35,13 @@ export interface SessionPlan {
 }
 
 /** the one-off juiced strategies, in the order they're worth running */
-const JUICED_ORDER = ['divine-border-rares', 'cutedog-divine-boxes', 'milky-meatfish', 'milky-ethereal']
+const JUICED_ORDER = [
+  'divine-border-rares',
+  'cutedog-divine-boxes',
+  'milky-meatfish',
+  'milky-ethereal',
+  'anchorfield-fishing',
+]
 
 const byId = new Map(STRATEGIES.map((s) => [s.id, s]))
 

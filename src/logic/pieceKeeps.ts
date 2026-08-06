@@ -37,6 +37,7 @@ const STRATEGY_ORDER = [
   'cutedog-divine-boxes',
   'milky-meatfish',
   'milky-ethereal',
+  'anchorfield-fishing',
   'milky-speedrun',
 ]
 
@@ -45,6 +46,7 @@ const RESERVATION_OF: Record<string, StrategyReservationId | null> = {
   'cutedog-divine-boxes': 'divine',
   'milky-meatfish': 'meatfish',
   'milky-ethereal': 'ethereal',
+  'anchorfield-fishing': null,
   'milky-speedrun': null,
 }
 
