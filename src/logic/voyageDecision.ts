@@ -6,11 +6,18 @@ import {
   clampRerollsUsed,
   sulphurSpentAfter,
 } from './rerollAdvice'
-import { strategyRecommendationPriority, type StrategyRecommendationTier } from '../data/strategies'
-import type { RequiredBorderStatus, StrategySuggestion } from './strategySuggestions'
+import {
+  contextualStrategyRecommendationPriority,
+  type StrategyRecommendationTier,
+} from '../data/strategies'
+import {
+  ABSOLUTE_STRATEGY_FIT,
+  type RequiredBorderStatus,
+  type StrategySuggestion,
+} from './strategySuggestions'
 import type { BorderRollForecast } from './borderRollModel'
 
-export const ABSOLUTE_PLAYABLE_FIT = 0.5
+export const ABSOLUTE_PLAYABLE_FIT = ABSOLUTE_STRATEGY_FIT
 
 export type VoyageDecisionKind = 'needs-data' | 'play' | 'switch' | 'wait' | 'reroll' | 'stop'
 
@@ -128,8 +135,14 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     }
     if (a.ready !== b.ready) return a.ready ? -1 : 1
     if (a.ready && b.ready) {
+      // A higher-tier strategy wins only when its current borders are actually
+      // playable. This lets a well-matched Alc & Go board beat a possible but
+      // poorly supported Strongbox/Meatfish board.
+      const aFitsCurrentBorders = input.enteredBorders === 12 ? hasFit(a, decisionFitLine) : null
+      const bFitsCurrentBorders = input.enteredBorders === 12 ? hasFit(b, decisionFitLine) : null
       const priorityDifference =
-        strategyRecommendationPriority(b) - strategyRecommendationPriority(a)
+        contextualStrategyRecommendationPriority(b, bFitsCurrentBorders) -
+        contextualStrategyRecommendationPriority(a, aFitsCurrentBorders)
       if (priorityDifference !== 0) return priorityDifference
     }
     return b.rankScore - a.rankScore
@@ -254,6 +267,14 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
 
   if (meetsContextFitLine || meetsModelKeepLine) {
     const alreadyActive = input.activeStrategyId === bestReady.strategyId
+    const fallbackReason =
+      bestReady.recommendationTier === 'fallback'
+        ? meetsContextFitLine
+          ? ` No ready specialized strategy reaches the ${Math.round(
+              decisionFitLine * 100,
+            )}% contextual decision line, so the fitting fallback is preferred.`
+          : ` No ready specialized strategy reaches the contextual decision line; Alc & Go remains the fallback candidate.`
+        : ''
     const modeledReason = meetsModelKeepLine
       ? ` The experimental v${bestReady.rollForecast!.modelVersion} model ranks this board at the ${Math.round(
           bestReady.rollForecast!.currentPercentile * 100,
@@ -277,7 +298,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
         meetsContextFitLine
           ? `, meeting the ${Math.round(decisionFitLine * 100)}% contextual decision line.`
           : ', below the contextual decision line.'
-      }${modeledReason}`,
+      }${fallbackReason}${modeledReason}`,
       strategyId: bestReady.strategyId,
       strategyName: bestReady.strategyName,
       fit: bestReady.fit,

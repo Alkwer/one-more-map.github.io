@@ -147,6 +147,18 @@ export const strategyRecommendationPriority = (strategy: {
   recommendationTier?: StrategyRecommendationTier
 }): number => RECOMMENDATION_TIER_PRIORITY[strategy.recommendationTier ?? 'specialized']
 
+/** Apply contextual fit without losing the fallback semantics: a fitting
+ * specialized strategy wins, then fallback, then non-fitting specializations. */
+export const contextualStrategyRecommendationPriority = (
+  strategy: { recommendationTier?: StrategyRecommendationTier },
+  fitsCurrentBorders: boolean | null,
+): number => {
+  const tier = strategy.recommendationTier ?? 'specialized'
+  if (fitsCurrentBorders === null) return strategyRecommendationPriority(strategy)
+  if (tier === 'fallback') return 1
+  return fitsCurrentBorders ? 2 + strategyRecommendationPriority(strategy) : 0
+}
+
 /** Rare-monster implicit charts are Divine-strategy fuel. */
 export const RARE_IMPLICITS = ['adj-rare-1', 'adj-rare-2', 'voy-rare'] as const
 

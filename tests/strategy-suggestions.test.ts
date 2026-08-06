@@ -211,7 +211,9 @@ describe('strategy suggestion regressions', () => {
     const withPiecesPlaced = suggestStrategies(pieceBoard, borders, charts, pool, options)
     const withPiecesUnplaced = suggestStrategies(junkBoard, borders, charts, pool, options)
 
-    assert.equal(withPiecesUnplaced.suggestions[0].strategy.id, 'milky-meatfish')
+    // The Meatfish recipe is complete, but a magnitude-only roll does not meet
+    // its contextual fit line, so the inventory ranking correctly falls back.
+    assert.equal(withPiecesUnplaced.suggestions[0].strategy.id, 'alc-and-go')
     assert.deepEqual(
       withPiecesPlaced.evaluations.map((entry) => entry.strategy.id),
       withPiecesUnplaced.evaluations.map((entry) => entry.strategy.id),
