@@ -1,7 +1,7 @@
 # Windows chart import and border OCR
 
 `public/voyage-import.ahk` is an optional Windows helper for the Allflame Voyage
-Solver. It copies Charted Charts from Path of Exile, reads the 12 visible
+Solver. It copies Charted Charts from both chart-stash tabs in Path of Exile, reads the 12 visible
 Corruption Current tooltips, and optionally reads the next border-reroll cost
 with Windows Runtime OCR before pasting the combined text into the browser.
 
@@ -90,13 +90,17 @@ border points.
 - Hover the center of the top-left chart slot and press `F7`.
 - Hover the center of the bottom-right slot of the visible six-column chart grid
   and press `F8`.
+- Hover the center of chart-stash tab `1` and press `Shift+F7`.
+- Hover the center of chart-stash tab `2` and press `Shift+F8`.
 
 The script defaults to a six-column, ten-row grid. Edit `GridCols` and `GridRows`
 near the top of the script if the visible chart stash uses a different size.
+The two tab positions are stored with the grid calibration in `voyage-import.ini`.
 
 ## Run
 
-- `F9` copies the calibrated chart grid, reads all 12 border tooltips and the
+- `F9` switches through both calibrated chart-stash tabs, copies each grid, returns
+  the stash to tab `1`, reads all 12 border tooltips and the
   calibrated reroll-cost tooltip, activates the solver tab, and pastes the
   combined payload.
 - `Ctrl+F9` reads and pastes only the borders and reroll cost, which is useful
@@ -144,8 +148,8 @@ export it or create a share URL.
   calibration, and press `Ctrl+F4` to verify the 12 points.
 - **Reroll count does not update:** hover the reroll button until the cost is
   visible, repeat `Ctrl+F7`, and use `Ctrl+F4` to preview the saved point.
-- **Wrong charts are copied:** repeat `F7` and `F8`; adjust `GridCols` or
-  `GridRows` if necessary.
+- **Wrong charts are copied:** repeat `F7` and `F8`, then recalibrate tabs `1` and
+  `2` with `Shift+F7` and `Shift+F8`; adjust `GridCols` or `GridRows` if necessary.
 - **The browser is not selected:** ensure the tab title contains
   `Allflame Voyage Solver` and click the page body before pressing a run hotkey.
 - **Tooltips appear too slowly:** increase `HoverDelay` near the top of the
