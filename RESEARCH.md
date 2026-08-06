@@ -294,6 +294,13 @@ the initial strategy transcription:
   monster loot. Lantern weights are reduced to a supporting role, and the
   magic-monster variant is omitted from curated strategies until better
   measurements or a game fix exists.
+- **Supported as workflow, not EV:** players commonly preserve a Divine border,
+  otherwise use complete high-value recipes or a premium Strongbox centre, and
+  burn leftovers with a quick generic layout. Reports do not provide enough
+  controlled samples to put all strategies on one numeric profit scale.
+- **Conflicting field evidence:** the exact Meatfish composition is being run in
+  practice, but reported uniques and juiced-tile loot are inconsistent. It stays
+  a complete specialized recipe rather than receiving a universal EV premium.
 
 App policy resulting from this evidence:
 
@@ -306,6 +313,12 @@ App policy resulting from this evidence:
    Fracture remains a degraded manual fallback.
 5. Limit the default reroll suggestion to the 3,000 and 6,000 Sulphur steps.
    This is a community-informed guardrail, not optimal stopping or EV.
+6. Treat strategy weights as within-strategy layout preferences and same-tier
+   tie-breakers. Recommendation tiers are Divine-border jackpot, complete
+   specialized recipe, then Alc & Go fallback.
+7. Accept 4,000 Wisps, but not 2,000 Wisps, as the documented Meatfish
+   Pantheon substitute. Do not score Fracture or spare Rare-chart families in
+   the exact nine-chart Meatfish recipe.
 
 Strategy-calibration sources:
 
@@ -323,6 +336,8 @@ Strategy-calibration sources:
   https://www.reddit.com/r/pathofexile/comments/1v9qoh7/optimizing_divine_voyage/
 - Golden Lantern field reports:
   https://www.reddit.com/r/pathofexile/comments/1vblw8w/golden_lanterns_are_irrelevant/
+- Exact Meatfish composition and inconsistent loot report:
+  https://www.reddit.com/r/pathofexile/comments/1vcjkre/underwater_loot_findings/
 
 League: **Path of Exile 3.29 - Curse of the Allflame**, launched July 24, 2026.
 

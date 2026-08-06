@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'vitest'
+import type { StrategyRecommendationTier } from '../src/data/strategies'
 import type { RequiredBorderStatus, StrategySuggestion } from '../src/logic/strategySuggestions'
 import type { BorderRollForecast } from '../src/logic/borderRollModel'
 import {
@@ -18,6 +19,7 @@ interface CandidateOptions {
   jackpot?: boolean
   requiredBorderStatus?: RequiredBorderStatus
   rollForecast?: BorderRollForecast
+  recommendationTier?: StrategyRecommendationTier
 }
 
 const candidate = ({
@@ -30,9 +32,10 @@ const candidate = ({
   jackpot = false,
   requiredBorderStatus = 'not-required',
   rollForecast,
+  recommendationTier = 'specialized',
 }: CandidateOptions): StrategySuggestion =>
   ({
-    strategy: { id, name },
+    strategy: { id, name, recommendationTier },
     fit,
     readiness: {
       ready,
@@ -104,6 +107,31 @@ describe('Voyage decision regressions', () => {
     assert.match(decision.label, /^SWITCH TO: Best Library Strategy$/)
     assert.equal(decision.action.strategyId, 'alternative')
     assert.match(decision.reason, /all 25 imported charts/)
+  })
+
+  it('uses Alc & Go only when no ready specialized strategy applies', () => {
+    const decision = decide({
+      activeStrategyId: null,
+      evaluations: [
+        candidate({
+          id: 'alc-and-go',
+          name: 'Alc & Go',
+          fit: 0.9,
+          rankScore: 100,
+          recommendationTier: 'fallback',
+        }),
+        candidate({
+          id: 'milky-speedrun',
+          name: 'Speedrun Strongboxes',
+          fit: 0.75,
+          rankScore: 1,
+          recommendationTier: 'specialized',
+        }),
+      ],
+    })
+
+    assert.equal(decision.kind, 'switch')
+    assert.equal(decision.strategyId, 'milky-speedrun')
   })
 
   it('does not play a relative winner without absolute fit', () => {

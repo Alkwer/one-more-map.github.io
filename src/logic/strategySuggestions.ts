@@ -1,6 +1,7 @@
 import { borderModById } from '../data/mods'
 import {
   STRATEGIES,
+  strategyRecommendationPriority,
   type StrategyDef,
   type StrategyReservationPreferences,
 } from '../data/strategies'
@@ -499,6 +500,15 @@ export function evaluateStrategyInventory(
     }
     if (a.readiness.ready !== b.readiness.ready) {
       return a.readiness.ready ? -1 : 1
+    }
+    // A strategy's weights are calibrated for arranging that strategy, not as
+    // currency EV on a universal scale. Use them only after the coarse policy
+    // tier so Alc & Go cannot beat a runnable specialized strategy merely
+    // because its shorter weight list normalizes more favorably.
+    if (a.readiness.ready && b.readiness.ready) {
+      const priorityDifference =
+        strategyRecommendationPriority(b.strategy) - strategyRecommendationPriority(a.strategy)
+      if (priorityDifference !== 0) return priorityDifference
     }
     return b.rankScore - a.rankScore
   })

@@ -6,6 +6,7 @@ import {
   clampRerollsUsed,
   sulphurSpentAfter,
 } from './rerollAdvice'
+import { strategyRecommendationPriority, type StrategyRecommendationTier } from '../data/strategies'
 import type { RequiredBorderStatus, StrategySuggestion } from './strategySuggestions'
 import type { BorderRollForecast } from './borderRollModel'
 
@@ -55,6 +56,7 @@ interface DecisionCandidate {
   ready: boolean
   missing: string[]
   rankScore: number
+  recommendationTier: StrategyRecommendationTier
   jackpot: boolean
   divineJackpot: boolean
   requiredBorderStatus: RequiredBorderStatus
@@ -73,6 +75,7 @@ const candidateFrom = (evaluation: StrategySuggestion): DecisionCandidate => ({
   ready: evaluation.readiness.ready,
   missing: evaluation.readiness.missing,
   rankScore: evaluation.rankScore,
+  recommendationTier: evaluation.strategy.recommendationTier ?? 'specialized',
   jackpot: evaluation.jackpot,
   divineJackpot:
     evaluation.divineJackpot ??
@@ -122,6 +125,12 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     const bMissingRequiredBorder = b.requiredBorderStatus === 'missing'
     if (aMissingRequiredBorder !== bMissingRequiredBorder) {
       return aMissingRequiredBorder ? 1 : -1
+    }
+    if (a.ready !== b.ready) return a.ready ? -1 : 1
+    if (a.ready && b.ready) {
+      const priorityDifference =
+        strategyRecommendationPriority(b) - strategyRecommendationPriority(a)
+      if (priorityDifference !== 0) return priorityDifference
     }
     return b.rankScore - a.rankScore
   })

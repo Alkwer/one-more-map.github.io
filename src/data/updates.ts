@@ -15,6 +15,13 @@ export const UPDATES: UpdateEntry[] = [
   {
     date: '2026-08-06',
     tag: 'reworked',
+    title: 'Strategy recommendations recalibrated',
+    detail:
+      'Alc & Go is now an explicit fallback whenever a complete specialized strategy is available. Meatfish now accepts only the documented 4k-Wisp substitute, and inactive recipe weights no longer distort comparisons.',
+  },
+  {
+    date: '2026-08-06',
+    tag: 'reworked',
     title: 'PoE 3.29.2 Chart rewards',
     detail:
       'Chart modifiers that previously granted Gold found now correctly count as Item Rarity. Existing saved Charts migrate automatically, while equipment-to-Gold implicit and border modifiers remain unchanged.',
