@@ -168,27 +168,34 @@ distributions are shown to agree.
 
 ## Experimental roll model
 
-The application builds experimental model version 1 directly from
+The application builds experimental model version 2 directly from
 `data/border-rolls-v2.json` at compile time. Dataset-update pull requests
 therefore update the shipped estimates automatically without a separately
 maintained weight table.
 
-Version 1:
+Version 2:
 
 - estimates the next paid reroll from paid-reroll samples only; natural boards
   remain separate until equivalence is supported;
-- uses a symmetric Dirichlet(1) prior across every canonical modifier, so a
-  known but not-yet-observed modifier never receives zero probability;
-- samples the 12 slots independently from the posterior mean weights to compare
-  a concrete chart layout with a paid reroll;
+- maintains a separate posterior for each physical border slot instead of
+  applying one pooled modifier distribution to all 12 positions;
+- starts currency/drop, rarity, scarab-more, and experience families in their
+  observed middle-side slots. A contradictory future observation widens the
+  affected modifier's eligibility instead of being discarded;
+- uses a symmetric Dirichlet(1) prior within each slot's eligible pool, so a
+  known but not-yet-observed eligible modifier never receives zero probability;
+- marks an individual modifier estimate as `prior-only` until that modifier is
+  observed in the selected generation profile;
+- samples slots independently from their position-specific posterior means to
+  compare a concrete chart layout with a paid reroll;
 - labels confidence from the number of complete Voyage sequences: low below
   30, medium from 30 to 99, and high from 100;
 - keeps the 3,000/6,000 Sulphur guardrail and does not convert score into
   currency expected value.
 
 The UI reports the current roll percentile, the estimated chance that a fresh
-paid reroll scores higher for the selected strategy layout, and the model sample
-size.
+paid reroll scores higher for the selected strategy layout, the model sample
+size, and `prior-only` status for mandatory modifiers with no observed hits.
 These are posterior-predictive diagnostics, not a claim of optimal stopping.
-Future model versions may introduce Vesper, generation, patch, or slot profiles
-once those strata have enough complete sequences.
+Future model versions may introduce Vesper or patch profiles once those strata
+have enough complete sequences.

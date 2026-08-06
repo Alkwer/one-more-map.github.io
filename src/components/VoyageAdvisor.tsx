@@ -102,7 +102,7 @@ export function VoyageAdvisor({
           {forecast && (
             <div className="voyage-model" data-testid="experimental-roll-model">
               <div className="voyage-model-head">
-                <span>Paid-reroll model v{forecast.modelVersion}</span>
+                <span>Paid-reroll slot model v{forecast.modelVersion}</span>
                 <strong className={forecast.modelConfidence}>
                   {forecast.modelConfidence} confidence
                 </strong>
@@ -221,7 +221,7 @@ export function VoyageAdvisor({
       <div className="voyage-disclaimer">
         <span>{forecast ? 'Experimental probability model' : 'Heuristic guidance'}</span>
         {forecast
-          ? 'Smoothed paid-reroll frequencies update with the canonical dataset; slot-independence remains provisional. This is not Sulphur expected value.'
+          ? 'Slot-aware paid-reroll frequencies update with the canonical dataset. Fixed-slot family rules remain experimental, and prior-only estimates are not observed drops. This is not Sulphur expected value.'
           : 'A modeled comparison is unavailable for this layout; this is not expected value.'}
       </div>
     </section>

@@ -587,6 +587,13 @@ button.primary:hover {
   display: block;
   font-weight: 400;
 }
+.suggestion-prior-only {
+  color: var(--gold-bright);
+  font-size: 9px;
+  font-style: normal;
+  letter-spacing: 0.25px;
+  text-transform: uppercase;
+}
 .suggestion-reasons {
   margin: 7px 0 2px;
   padding: 7px 8px 6px 22px;

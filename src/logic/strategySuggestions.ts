@@ -18,7 +18,11 @@ import { scoreBoard, type ScoreOptions } from './scoring'
 import { solve } from './solver'
 import { selectStrategySolvePool } from './solverPoolSelection'
 import { allocateStrategyRequirements } from './strategyRequirements'
-import { BORDER_ROLL_MODEL, chanceModAppearsOnBoard } from './borderRollModel'
+import {
+  BORDER_ROLL_MODEL,
+  estimateModBoardChance,
+  type BorderRollChanceEvidence,
+} from './borderRollModel'
 
 const EPSILON = 1e-9
 const POTENTIAL_SEARCH_RESTARTS = 12
@@ -79,6 +83,9 @@ export interface StrategyInventorySuggestion {
   modeledBorderFit: number | null
   /** Smoothed chance that a mandatory border appears at least once on a 12-slot board. */
   requiredBorderChance: number | null
+  /** Whether that estimate has real hits in the selected generation profile. */
+  requiredBorderEvidence: BorderRollChanceEvidence | null
+  requiredBorderObservations: number | null
   eligibleCharts: number
   jackpot: boolean
   /** A +1 Divine border is present for a strategy explicitly built around it. */
@@ -358,9 +365,10 @@ export function evaluateStrategyInventory(
         : enteredBorders < 12
           ? 'unknown'
           : 'missing'
-    const requiredBorderChance = strategy.requiresBorderId
-      ? chanceModAppearsOnBoard(BORDER_ROLL_MODEL, strategy.requiresBorderId.id)
+    const requiredBorderEstimate = strategy.requiresBorderId
+      ? estimateModBoardChance(BORDER_ROLL_MODEL, strategy.requiresBorderId.id)
       : null
+    const requiredBorderChance = requiredBorderEstimate?.chance ?? null
 
     const reasons: string[] = [
       `Evaluated all ${eligiblePool.length} eligible imported charts; the best layout found is ${
@@ -382,10 +390,14 @@ export function evaluateStrategyInventory(
       )
     }
     if (requiredBorderStatus === 'missing') {
+      const evidence =
+        requiredBorderEstimate?.evidence === 'prior-only'
+          ? 'prior-only; 0 observed paid-reroll hits'
+          : `${requiredBorderEstimate?.observations ?? 0} observed paid-reroll hits`
       reasons.push(
         `The completed current roll does not contain ${strategy.requiresBorderId!.label}; this strategy requires a border reroll. The experimental v${BORDER_ROLL_MODEL.version} model estimates a ${Math.round(
           (requiredBorderChance ?? 0) * 100,
-        )}% chance to see it at least once on a paid reroll (${BORDER_ROLL_MODEL.confidence} confidence).`,
+        )}% chance to see it at least once on a paid reroll (${BORDER_ROLL_MODEL.confidence} confidence; ${evidence}).`,
       )
     }
 
@@ -436,6 +448,8 @@ export function evaluateStrategyInventory(
       combinedFit: 0,
       modeledBorderFit: potentialAppraisal.rollForecast?.expectedFit ?? null,
       requiredBorderChance,
+      requiredBorderEvidence: requiredBorderEstimate?.evidence ?? null,
+      requiredBorderObservations: requiredBorderEstimate?.observations ?? null,
       eligibleCharts: eligiblePool.length,
       jackpot,
       divineJackpot,

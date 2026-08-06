@@ -4,6 +4,7 @@ import {
   BORDER_ROLL_MODEL,
   buildBorderRollModel,
   chanceModAppearsOnBoard,
+  estimateModBoardChance,
   forecastBorderRoll,
   type BorderRollDatasetInput,
 } from '../src/logic/borderRollModel'
@@ -33,6 +34,105 @@ describe('experimental border roll model', () => {
       Math.abs(Object.values(model.probabilities).reduce((sum, value) => sum + value, 0) - 1) <
         1e-12,
     )
+    assert.ok(model.probabilitiesBySlot[0].a > model.probabilitiesBySlot[0].b)
+    assert.ok(
+      Math.abs(
+        Object.values(model.probabilitiesBySlot[0]).reduce((sum, value) => sum + value, 0) - 1,
+      ) < 1e-12,
+    )
+  })
+
+  it('keeps data-backed reward families in their physical slots', () => {
+    const general = 'general'
+    const board = Array(12).fill(general)
+    board[1] = 'b-chaos'
+    board[4] = 'b-rarity-1'
+    board[7] = 'b-scarab-1'
+    board[10] = 'b-exp-1'
+    const model = buildBorderRollModel(
+      dataset([{ sequenceId: 'one', generation: 'paid-reroll', borderModIds: board }]),
+      [general, 'b-chaos', 'b-divine', 'b-rarity-1', 'b-scarab-1', 'b-exp-1'],
+      'paid-reroll',
+    )
+
+    assert.ok(model.probabilitiesBySlot[1]['b-divine'] > 0)
+    assert.equal(model.probabilitiesBySlot[0]['b-divine'], 0)
+    assert.equal(model.probabilitiesBySlot[4]['b-divine'], 0)
+    assert.deepEqual(estimateModBoardChance(model, 'b-divine')?.eligibleSlots, [1])
+    assert.equal(
+      chanceModAppearsOnBoard(model, 'b-divine'),
+      model.probabilitiesBySlot[1]['b-divine'],
+    )
+  })
+
+  it('separates prior-only chances from estimates backed by observed hits', () => {
+    const board = Array(12).fill('general')
+    board[1] = 'b-chaos'
+    const model = buildBorderRollModel(
+      dataset([{ sequenceId: 'one', generation: 'paid-reroll', borderModIds: board }]),
+      ['general', 'b-chaos', 'b-divine'],
+      'paid-reroll',
+    )
+
+    assert.deepEqual(estimateModBoardChance(model, 'b-divine'), {
+      chance: model.probabilitiesBySlot[1]['b-divine'],
+      evidence: 'prior-only',
+      observations: 0,
+      eligibleSlots: [1],
+    })
+    assert.equal(estimateModBoardChance(model, 'b-chaos')?.evidence, 'observed')
+    assert.equal(estimateModBoardChance(model, 'b-chaos')?.observations, 1)
+  })
+
+  it('widens a fixed-slot hypothesis when new observations contradict it', () => {
+    const board = Array(12).fill('general')
+    board[0] = 'b-chaos'
+    const model = buildBorderRollModel(
+      dataset([{ sequenceId: 'one', generation: 'paid-reroll', borderModIds: board }]),
+      ['general', 'b-chaos'],
+      'paid-reroll',
+    )
+
+    assert.deepEqual(estimateModBoardChance(model, 'b-chaos')?.eligibleSlots, [0, 1])
+    assert.ok(model.probabilitiesBySlot[0]['b-chaos'] > 0)
+    assert.ok(model.probabilitiesBySlot[1]['b-chaos'] > 0)
+  })
+
+  it('scores a layout against the posterior for each matching physical slot', () => {
+    const model = buildBorderRollModel(
+      dataset(
+        Array.from({ length: 4 }, (_, index) => ({
+          sequenceId: `sequence-${index}`,
+          generation: 'paid-reroll' as const,
+          borderModIds: ['top-mod', 'right-mod'],
+        })),
+      ),
+      ['top-mod', 'right-mod'],
+      'paid-reroll',
+    )
+    const aligned = forecastBorderRoll(
+      model,
+      [
+        { 'top-mod': 1, 'right-mod': 0 },
+        { 'top-mod': 0, 'right-mod': 1 },
+      ],
+      0,
+      2,
+      1_000,
+    )!
+    const swapped = forecastBorderRoll(
+      model,
+      [
+        { 'top-mod': 0, 'right-mod': 1 },
+        { 'top-mod': 1, 'right-mod': 0 },
+      ],
+      0,
+      2,
+      1_000,
+    )!
+
+    assert.ok(aligned.expectedScore > swapped.expectedScore)
+    assert.ok(aligned.expectedFit > swapped.expectedFit)
   })
 
   it('produces deterministic posterior-predictive comparisons', () => {
@@ -50,8 +150,9 @@ describe('experimental border roll model', () => {
     const weak = forecastBorderRoll(model, contributions, 0, 1, 2_000)!
     const strong = forecastBorderRoll(model, contributions, 1, 1, 2_000)!
 
-    assert.ok(weak.chanceNextRollBeatsCurrent > 0.75)
+    assert.ok(weak.chanceNextRollBeatsCurrent > 0.6)
     assert.ok(strong.currentPercentile > weak.currentPercentile)
+    assert.equal(weak.modelStructure, 'slot-aware')
     assert.deepEqual(
       forecastBorderRoll(model, contributions, 1, 1, 2_000),
       forecastBorderRoll(model, contributions, 1, 1, 2_000),
@@ -59,7 +160,7 @@ describe('experimental border roll model', () => {
   })
 
   it('builds the shipped paid-reroll model directly from the canonical dataset', () => {
-    assert.equal(BORDER_ROLL_MODEL.version, 1)
+    assert.equal(BORDER_ROLL_MODEL.version, 2)
     assert.equal(BORDER_ROLL_MODEL.profile, 'paid-reroll')
     assert.ok(BORDER_ROLL_MODEL.sampleCount > 0)
     assert.equal(BORDER_ROLL_MODEL.sampleCount, BORDER_ROLL_MODEL.paidRerollBoardCount)
@@ -71,5 +172,16 @@ describe('experimental border roll model', () => {
     const divineBoardChance = chanceModAppearsOnBoard(BORDER_ROLL_MODEL, 'b-divine')!
     assert.ok(divineBoardChance > 0)
     assert.ok(divineBoardChance < 1)
+    assert.equal(BORDER_ROLL_MODEL.probabilitiesBySlot[1]['b-divine'] > 0, true)
+    assert.equal(
+      BORDER_ROLL_MODEL.probabilitiesBySlot.filter((slot) => slot['b-divine'] > 0).length,
+      1,
+    )
+    const divineEstimate = estimateModBoardChance(BORDER_ROLL_MODEL, 'b-divine')!
+    assert.equal(divineEstimate.chance, divineBoardChance)
+    assert.equal(
+      divineEstimate.evidence,
+      divineEstimate.observations === 0 ? 'prior-only' : 'observed',
+    )
   })
 })

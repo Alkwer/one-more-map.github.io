@@ -105,7 +105,8 @@ describe('border appraisal regressions', () => {
       BORDER_ROLL_MODEL,
     )
 
-    assert.equal(result.rollForecast?.modelVersion, 1)
+    assert.equal(result.rollForecast?.modelVersion, 2)
+    assert.equal(result.rollForecast?.modelStructure, 'slot-aware')
     assert.equal(result.rollForecast?.sampleCount, BORDER_ROLL_MODEL.sampleCount)
     assert.ok((result.rollForecast?.currentPercentile ?? -1) >= 0)
     assert.ok((result.rollForecast?.currentPercentile ?? 2) <= 1)

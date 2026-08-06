@@ -51,9 +51,10 @@ const forecast = (
   currentPercentile: number,
   chanceNextRollBeatsCurrent: number,
 ): BorderRollForecast => ({
-  modelVersion: 1,
+  modelVersion: 2,
   modelProfile: 'paid-reroll',
   modelConfidence: 'low',
+  modelStructure: 'slot-aware',
   sampleCount: 21,
   sequenceCount: 7,
   expectedScore: 10,
@@ -276,7 +277,7 @@ describe('Voyage decision regressions', () => {
     assert.equal(decision.rollForecast?.currentPercentile, 0.8)
     assert.match(
       decision.reason,
-      /experimental v1 model ranks this board at the 80th percentile of paid rerolls/,
+      /experimental v2 model ranks this board at the 80th percentile of paid rerolls/,
     )
   })
 
