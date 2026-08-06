@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, it } from 'vitest'
 import type { Board, Borders, ChartData } from '../src/types'
+import { StrategySuggestions } from '../src/components/StrategySuggestions'
+import { BORDER_ROLL_MODEL, estimateModBoardChance } from '../src/logic/borderRollModel'
 import { strategyById } from '../src/data/strategies'
 import {
   strategyReadiness,
@@ -54,9 +58,35 @@ describe('strategy suggestion regressions', () => {
     const divine = result.evaluations.find((entry) => entry.strategy.id === 'divine-border-rares')!
 
     assert.equal(divine.requiredBorderStatus, 'missing')
+    const divineEstimate = estimateModBoardChance(BORDER_ROLL_MODEL, 'b-divine')!
+    assert.equal(divine.requiredBorderEvidence, divineEstimate.evidence)
+    assert.equal(divine.requiredBorderObservations, divineEstimate.observations)
+    assert.ok((divine.requiredBorderChance ?? 0) > 0)
     assert.notEqual(result.evaluations[0].strategy.id, 'divine-border-rares')
     assert.ok(divine.rankScore > result.evaluations[0].rankScore)
     assert.ok(divine.reasons.some((reason) => /requires a border reroll/.test(reason)))
+    assert.ok(
+      divine.reasons.some((reason) =>
+        divineEstimate.evidence === 'prior-only'
+          ? /prior-only; 0 observed/.test(reason)
+          : new RegExp(`${divineEstimate.observations} observed paid-reroll hits`).test(reason),
+      ),
+    )
+
+    const priorOnlyDivine = {
+      ...divine,
+      requiredBorderEvidence: 'prior-only' as const,
+      requiredBorderObservations: 0,
+    }
+    const markup = renderToStaticMarkup(
+      createElement(StrategySuggestions, {
+        result: { ...result, suggestions: [priorOnlyDivine] },
+        activeId: null,
+        onSelect: () => undefined,
+      }),
+    )
+    assert.match(markup, /Required border/)
+    assert.match(markup, /prior-only · 0 observed/)
   })
 
   it('uses the Meatfish library jackpot without a border roll', () => {

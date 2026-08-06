@@ -106,6 +106,15 @@ export function StrategySuggestions({
                         : `${Math.round(suggestion.modeledBorderFit * 100)}%`}
                     </strong>
                   </span>
+                  {suggestion.requiredBorderChance !== null && (
+                    <span>
+                      Required border
+                      <strong>{Math.round(suggestion.requiredBorderChance * 100)}%</strong>
+                      {suggestion.requiredBorderEvidence === 'prior-only' && (
+                        <em className="suggestion-prior-only">prior-only · 0 observed</em>
+                      )}
+                    </span>
+                  )}
                   <span>
                     Combined <strong>{Math.round(suggestion.combinedFit * 100)}%</strong>
                   </span>
@@ -150,8 +159,10 @@ export function StrategySuggestions({
       )}
 
       <div className="suggestion-disclaimer">
-        Diagnostic only — expected-reroll compatibility uses the {BORDER_ROLL_MODEL.confidence}
-        -confidence experimental model; reroll guidance is not Sulphur expected value.
+        Diagnostic only — expected-reroll compatibility uses the slot-aware v
+        {BORDER_ROLL_MODEL.version} model at {BORDER_ROLL_MODEL.confidence} confidence. Prior-only
+        estimates are model assumptions, not observed drops; reroll guidance is not Sulphur expected
+        value.
       </div>
     </section>
   )

@@ -23,9 +23,10 @@ const decision = (withForecast: boolean): VoyageDecision => ({
   preserveRoll: false,
   rollForecast: withForecast
     ? {
-        modelVersion: 1,
+        modelVersion: 2,
         modelProfile: 'paid-reroll',
         modelConfidence: 'low',
+        modelStructure: 'slot-aware',
         sampleCount: 14,
         sequenceCount: 7,
         expectedScore: 10,
@@ -48,7 +49,7 @@ describe('VoyageAdvisor', () => {
       />,
     )
 
-    assert.match(markup, /Paid-reroll model v1/)
+    assert.match(markup, /Paid-reroll slot model v2/)
     assert.match(markup, /low confidence/)
     assert.match(markup, /Current roll percentile/)
     assert.match(markup, />80%?</)
@@ -62,6 +63,7 @@ describe('VoyageAdvisor', () => {
     assert.doesNotMatch(markup, /Best-found roll fit/)
     assert.doesNotMatch(markup, />Decision line</)
     assert.match(markup, /14 paid-reroll boards · 7 complete Voyage sequences/)
+    assert.match(markup, /prior-only estimates are not observed drops/)
   })
 
   it('keeps a clear fallback when a layout has no modeled comparison', () => {

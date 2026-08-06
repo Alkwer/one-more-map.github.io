@@ -200,7 +200,9 @@ export function appraiseBorders(
   const rollForecast = rollModel
     ? forecastBorderRoll(
         rollModel,
-        relevant.map((segment) => contributionsByTile.get(borderTouches(segment)) ?? {}),
+        Array.from({ length: 12 }, (_, segment) =>
+          relevant.includes(segment) ? (contributionsByTile.get(borderTouches(segment)) ?? {}) : {},
+        ),
         score,
         ceiling,
       )

@@ -15,6 +15,13 @@ export const UPDATES: UpdateEntry[] = [
   {
     date: '2026-08-06',
     tag: 'reworked',
+    title: 'Border-roll forecasts are slot-aware',
+    detail:
+      'The experimental paid-reroll model now learns a separate distribution for each border position and applies observed fixed-slot reward families. Mandatory-mod chances with no real hits are clearly marked prior-only instead of looking equally evidence-backed.',
+  },
+  {
+    date: '2026-08-06',
+    tag: 'reworked',
     title: 'Strategy recommendations recalibrated',
     detail:
       'A specialized strategy now outranks Alc & Go only when it is complete and the current borders meet the contextual fit line. Meatfish accepts only the documented 4k-Wisp substitute, and inactive recipe weights no longer distort comparisons.',
