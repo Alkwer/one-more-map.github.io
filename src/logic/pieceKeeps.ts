@@ -38,6 +38,7 @@ const STRATEGY_ORDER = [
   'divine-border-rares',
   'cutedog-divine-boxes',
   'milky-meatfish',
+  'anchorfield-fishing',
   'milky-speedrun',
 ]
 
@@ -58,6 +59,7 @@ const RESERVATIONS_OF: Record<string, StrategyReservationId[]> = {
     'pelagicAbyss',
   ],
   'milky-meatfish': ['starfish', 'seaPillars', 'meatfish'],
+  'anchorfield-fishing': [],
   'milky-speedrun': [
     'divinerStrongboxes',
     'arcanistStrongboxes',
@@ -115,6 +117,7 @@ const protectionEnabled = (
   piece: PieceType,
   prefs: StrategyReservationPreferences,
 ) => {
+  if (piece.reservationIds.length === 0) return true
   const matchingReservations = piece.reservationIds.filter((id) => matchesReservation(chart, id))
   if (matchingReservations.length === 0) return piece.key.startsWith('custom:')
   return matchingReservations.some((id) => prefs[id])

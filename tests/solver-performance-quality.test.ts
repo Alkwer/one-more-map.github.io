@@ -35,6 +35,7 @@ describe('25-chart solver quality budget', () => {
         'milky-meatfish',
         'divine-border-rares',
         'cutedog-divine-boxes',
+        'anchorfield-fishing',
         'milky-speedrun',
       ],
     )

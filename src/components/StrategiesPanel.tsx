@@ -113,7 +113,10 @@ export function StrategiesPanel({ activeId, pool, borders, onSelect }: Props) {
               onClick={() => setExpanded(isOpen ? null : s.id)}
               title="Show details"
             >
-              <span className="strat-name">{s.name}</span>
+              <span className="strat-name">
+                {s.name}
+                {s.badge && <span className="strat-badge-new">{s.badge}</span>}
+              </span>
               <span className="strat-tagline">{s.tagline}</span>
             </button>
             {isOpen && (

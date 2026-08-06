@@ -27,6 +27,13 @@ export const UPDATES: UpdateEntry[] = [
       'Chart modifiers that previously granted Gold found now correctly count as Item Rarity. Existing saved Charts migrate automatically, while equipment-to-Gold implicit and border modifiers remain unchanged.',
   },
   {
+    date: '2026-08-06',
+    tag: 'new',
+    title: 'ANCHORFIELD FISHING strategy',
+    detail:
+      "Community jackpot-fishing strat: one Anchorfield chart plus a board of high-quant charts. Hunt the chaos→divine blessing in the other areas first, and only crack the Anchorfield's Sunken Loot once it pops - the solver banks your best Anchorfield chart and stacks the quant.",
+  },
+  {
     date: '2026-08-04',
     tag: 'new',
     title: 'Border rolls learn from observed data',
