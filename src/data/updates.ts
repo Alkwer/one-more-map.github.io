@@ -17,7 +17,7 @@ export const UPDATES: UpdateEntry[] = [
     tag: 'reworked',
     title: 'Strategy recommendations recalibrated',
     detail:
-      'Alc & Go is now an explicit fallback whenever a complete specialized strategy is available. Meatfish now accepts only the documented 4k-Wisp substitute, and inactive recipe weights no longer distort comparisons.',
+      'A specialized strategy now outranks Alc & Go only when it is complete and the current borders meet the contextual fit line. Meatfish accepts only the documented 4k-Wisp substitute, and inactive recipe weights no longer distort comparisons.',
   },
   {
     date: '2026-08-06',

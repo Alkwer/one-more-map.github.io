@@ -1,7 +1,7 @@
 import { borderModById } from '../data/mods'
 import {
+  contextualStrategyRecommendationPriority,
   STRATEGIES,
-  strategyRecommendationPriority,
   type StrategyDef,
   type StrategyReservationPreferences,
 } from '../data/strategies'
@@ -24,6 +24,10 @@ const EPSILON = 1e-9
 const POTENTIAL_SEARCH_RESTARTS = 12
 const POTENTIAL_SEARCH_ITERATIONS = 900
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value))
+
+/** Minimum contextual border fit before a ready strategy can outrank a
+ * fallback solely because it belongs to a higher recommendation tier. */
+export const ABSOLUTE_STRATEGY_FIT = 0.5
 
 export type SuggestionConfidence = 'low' | 'medium' | 'high'
 export type RequiredBorderStatus = 'not-required' | 'unknown' | 'met' | 'missing'
@@ -502,12 +506,16 @@ export function evaluateStrategyInventory(
       return a.readiness.ready ? -1 : 1
     }
     // A strategy's weights are calibrated for arranging that strategy, not as
-    // currency EV on a universal scale. Use them only after the coarse policy
-    // tier so Alc & Go cannot beat a runnable specialized strategy merely
-    // because its shorter weight list normalizes more favorably.
+    // currency EV on a universal scale. First require contextual border fit,
+    // then apply the coarse policy tier; only then use the weighted rank.
     if (a.readiness.ready && b.readiness.ready) {
+      const aFitsCurrentBorders =
+        enteredBorders === 12 ? a.fit !== null && a.fit >= ABSOLUTE_STRATEGY_FIT : null
+      const bFitsCurrentBorders =
+        enteredBorders === 12 ? b.fit !== null && b.fit >= ABSOLUTE_STRATEGY_FIT : null
       const priorityDifference =
-        strategyRecommendationPriority(b.strategy) - strategyRecommendationPriority(a.strategy)
+        contextualStrategyRecommendationPriority(b.strategy, bFitsCurrentBorders) -
+        contextualStrategyRecommendationPriority(a.strategy, aFitsCurrentBorders)
       if (priorityDifference !== 0) return priorityDifference
     }
     return b.rankScore - a.rankScore

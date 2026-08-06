@@ -109,7 +109,7 @@ describe('Voyage decision regressions', () => {
     assert.match(decision.reason, /all 25 imported charts/)
   })
 
-  it('uses Alc & Go only when no ready specialized strategy applies', () => {
+  it('prefers a fitting specialized strategy over a higher-scoring Alc & Go board', () => {
     const decision = decide({
       activeStrategyId: null,
       evaluations: [
@@ -132,6 +132,57 @@ describe('Voyage decision regressions', () => {
 
     assert.equal(decision.kind, 'switch')
     assert.equal(decision.strategyId, 'milky-speedrun')
+  })
+
+  it('prefers a fitting Alc & Go board over a ready specialized strategy with weak borders', () => {
+    const decision = decide({
+      activeStrategyId: null,
+      evaluations: [
+        candidate({
+          id: 'milky-speedrun',
+          name: 'Speedrun Strongboxes',
+          fit: 0.3,
+          rankScore: 100,
+          recommendationTier: 'specialized',
+        }),
+        candidate({
+          id: 'alc-and-go',
+          name: 'Alc & Go',
+          fit: 0.7,
+          rankScore: 1,
+          recommendationTier: 'fallback',
+        }),
+      ],
+    })
+
+    assert.equal(decision.kind, 'switch')
+    assert.equal(decision.strategyId, 'alc-and-go')
+    assert.match(decision.reason, /No ready specialized strategy reaches the 60%/)
+  })
+
+  it('keeps Alc & Go as the fallback when no ready strategy meets the fit line', () => {
+    const decision = decide({
+      activeStrategyId: null,
+      evaluations: [
+        candidate({
+          id: 'milky-speedrun',
+          name: 'Speedrun Strongboxes',
+          fit: 0.3,
+          rankScore: 100,
+          recommendationTier: 'specialized',
+        }),
+        candidate({
+          id: 'alc-and-go',
+          name: 'Alc & Go',
+          fit: 0.2,
+          rankScore: 1,
+          recommendationTier: 'fallback',
+        }),
+      ],
+    })
+
+    assert.equal(decision.kind, 'reroll')
+    assert.equal(decision.strategyId, 'alc-and-go')
   })
 
   it('does not play a relative winner without absolute fit', () => {

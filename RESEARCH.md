@@ -314,8 +314,10 @@ App policy resulting from this evidence:
 5. Limit the default reroll suggestion to the 3,000 and 6,000 Sulphur steps.
    This is a community-informed guardrail, not optimal stopping or EV.
 6. Treat strategy weights as within-strategy layout preferences and same-tier
-   tie-breakers. Recommendation tiers are Divine-border jackpot, complete
-   specialized recipe, then Alc & Go fallback.
+   tie-breakers. A complete specialized recipe outranks Alc & Go only when its
+   current border fit reaches the contextual decision line; otherwise a fitting
+   Alc & Go board is the fallback. Divine-border jackpots remain the preserve
+   exception.
 7. Accept 4,000 Wisps, but not 2,000 Wisps, as the documented Meatfish
    Pantheon substitute. Do not score Fracture or spare Rare-chart families in
    the exact nine-chart Meatfish recipe.
