@@ -85,10 +85,15 @@ export interface StrategyRequirementDef extends StrategyPosition, StrategyChartM
   label: string
 }
 
+export type StrategyRecommendationTier = 'fallback' | 'specialized' | 'jackpot'
+
 export interface StrategyDef {
   id: string
   name: string
   tagline: string
+  /** Coarse evidence-backed recommendation class. Reward weights optimize and
+   *  compare strategies only within a class; they are not calibrated profit/EV. */
+  recommendationTier: StrategyRecommendationTier
   source: { label: string; url: string }
   /** the video's guidance, shown on the expanded card */
   guide: string[]
@@ -131,6 +136,16 @@ export interface StrategyDef {
   /** extra links shown on the card (trade searches, guides) */
   extraLinks?: { label: string; url: string }[]
 }
+
+const RECOMMENDATION_TIER_PRIORITY: Record<StrategyRecommendationTier, number> = {
+  fallback: 0,
+  specialized: 1,
+  jackpot: 2,
+}
+
+export const strategyRecommendationPriority = (strategy: {
+  recommendationTier?: StrategyRecommendationTier
+}): number => RECOMMENDATION_TIER_PRIORITY[strategy.recommendationTier ?? 'specialized']
 
 /** Rare-monster implicit charts are Divine-strategy fuel. */
 export const RARE_IMPLICITS = ['adj-rare-1', 'adj-rare-2', 'voy-rare'] as const
@@ -296,6 +311,7 @@ export const STRATEGIES: StrategyDef[] = [
     id: 'alc-and-go',
     name: 'Alc & Go',
     tagline: 'Burn the charts nothing else wants - one-lane highways, hope for random encounters.',
+    recommendationTier: 'fallback',
     source: { label: 'Milky’s strat', url: '' },
     guide: [
       'Uses only charts no other strategy needs - every juice piece and centre box is held back automatically.',
@@ -318,6 +334,7 @@ export const STRATEGIES: StrategyDef[] = [
     id: 'milky-speedrun',
     name: 'Speedrun Strongboxes',
     tagline: 'Milky’s interim farm - burn spare charts, crack boxes, get in, get out.',
+    recommendationTier: 'specialized',
     source: {
       label: 'Milkybk_ - Allflame Buffs and My Strategy',
       url: 'https://www.youtube.com/watch?v=gVKQhYxeavk',
@@ -382,6 +399,7 @@ export const STRATEGIES: StrategyDef[] = [
     id: 'milky-meatfish',
     name: 'Meatfish',
     tagline: 'Milky’s big one - possessed, Pantheon-touched giga-starfish rares that rain uniques.',
+    recommendationTier: 'specialized',
     source: {
       label: 'Milkybk_ - Allflame Buffs and My Strategy',
       url: 'https://www.youtube.com/watch?v=gVKQhYxeavk',
@@ -396,13 +414,13 @@ export const STRATEGIES: StrategyDef[] = [
     weights: {
       'adjacent:star': 10,
       'adjacent:pantheon': 10,
+      // The guide accepts only the 4k version as the Pantheon substitute. It is
+      // strong enough to build around, but less established than Pantheon.
+      'adjacent:wisps': 8,
       // Current field reports show the visible Lantern quantity/rarity buff but
       // weak monster-loot returns. Keep it supportive until better data exists.
       'adjacent:lantern': 3,
       'voyage:possess': 10,
-      'voyage:fracture': 8,
-      'voyage:rare': 8,
-      'adjacent:rare': 6,
       'border:rare': 9,
       'self:quant': 4,
       'self:rarity': 3,
@@ -442,7 +460,7 @@ export const STRATEGIES: StrategyDef[] = [
         label: 'Giant Starfish chart',
       },
       {
-        modIds: ['adj-pantheon', 'adj-wisps-1', 'adj-wisps-2'],
+        modIds: ['adj-pantheon', 'adj-wisps-2'],
         cells: [5],
         count: 1,
         label: 'Pantheon (or 4k Wisp) chart',
@@ -467,6 +485,7 @@ export const STRATEGIES: StrategyDef[] = [
     name: 'Divine Border Rares',
     tagline:
       'Roll a Divine border, park a Sea-Pillar chart on it, and drown that tile in rares - every rare drops a Divine Orb.',
+    recommendationTier: 'jackpot',
     source: { label: 'Milky’s strat', url: '' },
     guide: [
       'If you hit "+1 Divine Orb per Rare Monster", preserve the roll. The app only suggests the two cheap default rerolls (3k and 6k); the unknown roll distribution does not justify chasing it at any cost.',
@@ -481,8 +500,6 @@ export const STRATEGIES: StrategyDef[] = [
       'border:rare': 10,
       'adjacent:star': 8,
       'adjacent:box': 8,
-      'voyage:possess': 6,
-      'voyage:fracture': 6,
       'border:divine': 10,
       'self:pack': 3,
     },
@@ -564,6 +581,7 @@ export const STRATEGIES: StrategyDef[] = [
     name: 'Divine Strongboxes',
     tagline:
       'cutedog_’s Divine-border variant - Pelagic Abyss on the Divine tile with strongboxes feeding potential rare guards into it.',
+    recommendationTier: 'jackpot',
     source: { label: 'cutedog_ (Twitch)', url: 'https://www.twitch.tv/cutedog_' },
     guide: [
       'Needs the "+1 Divine Orb per Rare" border. Put a Pelagic Abyss chart with high % Pack Size on that exact tile.',
@@ -574,7 +592,6 @@ export const STRATEGIES: StrategyDef[] = [
     ],
     weights: {
       'voyage:rare': 10,
-      'adjacent:rare': 8,
       'border:rare': 10,
       'adjacent:box': 9,
       'adjacent:divbox': 8,

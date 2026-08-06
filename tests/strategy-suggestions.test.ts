@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'vitest'
 import type { Board, Borders, ChartData } from '../src/types'
-import { suggestStrategies, type StrategyEvaluationOptions } from '../src/logic/strategySuggestions'
+import { strategyById } from '../src/data/strategies'
+import {
+  strategyReadiness,
+  suggestStrategies,
+  type StrategyEvaluationOptions,
+} from '../src/logic/strategySuggestions'
 
 const options = {
   adjacencyMode: 'physical',
@@ -121,6 +126,56 @@ describe('strategy suggestion regressions', () => {
       result.evaluations.find((entry) => entry.strategy.id === 'milky-meatfish').readiness.ready,
       false,
     )
+  })
+
+  it('keeps Alc & Go behind a runnable specialized strategy despite a higher raw rank', () => {
+    const premiumCenter = chart('fallback-operative', ['adj-opbox-1'])
+    const quantityFillers = Array.from({ length: 9 }, (_, index) => ({
+      ...chart(`fallback-quantity-${index}`),
+      rewards: [{ stat: 'quantity' as const, percent: 45 }],
+    }))
+    const pool = [premiumCenter, ...quantityFillers]
+    const charts = new Map(pool.map((entry) => [entry.uid, entry]))
+    const borders = [...Array(8).fill('b-mag-3'), ...Array(4).fill('b-quantconn-2')] as Borders
+    const result = suggestStrategies(emptyBoard(), borders, charts, pool, options)
+    const alc = result.evaluations.find((entry) => entry.strategy.id === 'alc-and-go')!
+    const speedrun = result.evaluations.find((entry) => entry.strategy.id === 'milky-speedrun')!
+
+    assert.equal(alc.readiness.ready, true)
+    assert.equal(speedrun.readiness.ready, true)
+    assert.ok(alc.rankScore > speedrun.rankScore)
+    assert.equal(result.suggestions[0].strategy.id, 'milky-speedrun')
+  })
+
+  it('accepts 4k Wisps, but not 2k Wisps, as the Meatfish Pantheon substitute', () => {
+    const meatfish = strategyById.get('milky-meatfish')!
+    const otherPieces = [
+      chart('wisp-star-1', ['adj-star-1']),
+      chart('wisp-star-2', ['adj-star-2']),
+      chart('wisp-pillar-1', [], 'Sea-Pillar Wisp A'),
+      chart('wisp-pillar-2', [], 'Sea-Pillar Wisp B'),
+      chart('wisp-lantern-1', ['adj-lantern']),
+      chart('wisp-lantern-2', ['adj-lantern']),
+      chart('wisp-possess', ['voy-possess']),
+      chart('wisp-no-equipment', ['voy-noequip']),
+    ]
+
+    const withFourThousand = strategyReadiness(
+      meatfish,
+      [...otherPieces, chart('wisp-4000', ['adj-wisps-2'])],
+      emptyBorders(),
+      'any',
+    )
+    const withTwoThousand = strategyReadiness(
+      meatfish,
+      [...otherPieces, chart('wisp-2000', ['adj-wisps-1'])],
+      emptyBorders(),
+      'any',
+    )
+
+    assert.equal(withFourThousand.ready, true)
+    assert.equal(withTwoThousand.ready, false)
+    assert.ok(withTwoThousand.missing.some((entry) => /Pantheon \(or 4k Wisp\)/.test(entry)))
   })
 
   it('ranks from the full imported library instead of the manual board', () => {
