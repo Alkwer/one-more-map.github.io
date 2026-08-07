@@ -207,39 +207,75 @@ export function findDuplicateSampleIds(result, acceptedIssues, knownBorderIds, c
     if (issue.number === currentIssueNumber || isTestIssue(issue)) continue
     const existing = validateBorderRollIssueBody(issue.body, knownBorderIds)
     if (existing.status !== 'accepted' || !existing.dataset) continue
-    for (const sample of existing.dataset.samples) accepted.set(sample.sampleId, issue.number)
+    for (const sample of existing.dataset.samples) {
+      const matches = accepted.get(sample.sampleId) ?? []
+      matches.push({ issueNumber: issue.number, sample })
+      accepted.set(sample.sampleId, matches)
+    }
   }
   return result.dataset.samples
     .filter((sample) => accepted.has(sample.sampleId))
-    .map((sample) => ({ sampleId: sample.sampleId, issueNumber: accepted.get(sample.sampleId) }))
+    .map((sample) => {
+      const matches = accepted.get(sample.sampleId)
+      return {
+        sampleId: sample.sampleId,
+        issueNumbers: [...new Set(matches.map(({ issueNumber }) => issueNumber))].sort(
+          (left, right) => left - right,
+        ),
+        kind: matches.some(
+          ({ sample: acceptedSample }) => JSON.stringify(acceptedSample) !== JSON.stringify(sample),
+        )
+          ? 'conflict'
+          : 'identical',
+      }
+    })
 }
 
 export function buildCanonicalDataset(acceptedIssues, knownBorderIds) {
   const samplesById = new Map()
-  for (const issue of acceptedIssues) {
+  const conflicts = []
+  const orderedIssues = acceptedIssues
+    .map((issue, index) => ({ issue, index }))
+    .sort(
+      (left, right) =>
+        (left.issue.number ?? Number.MAX_SAFE_INTEGER) -
+          (right.issue.number ?? Number.MAX_SAFE_INTEGER) || left.index - right.index,
+    )
+    .map(({ issue }) => issue)
+  for (const issue of orderedIssues) {
     if (isTestIssue(issue)) continue
     const result = validateBorderRollIssueBody(issue.body, knownBorderIds)
     if (result.status !== 'accepted' || !result.dataset) continue
     for (const sample of result.dataset.samples) {
       const previous = samplesById.get(sample.sampleId)
-      if (previous && JSON.stringify(previous) !== JSON.stringify(sample)) {
-        throw new Error(`Conflicting accepted samples use ID ${sample.sampleId}.`)
+      if (previous && JSON.stringify(previous.sample) !== JSON.stringify(sample)) {
+        conflicts.push({
+          sampleId: sample.sampleId,
+          keptIssueNumber: previous.issueNumber,
+          conflictingIssueNumber: issue.number,
+        })
+        continue
       }
-      samplesById.set(sample.sampleId, sample)
+      if (!previous) samplesById.set(sample.sampleId, { sample, issueNumber: issue.number })
     }
   }
-  const samples = [...samplesById.values()].sort(
-    (left, right) =>
-      left.capturedAt.localeCompare(right.capturedAt) ||
-      left.sequenceId.localeCompare(right.sequenceId) ||
-      left.rerollIndex - right.rerollIndex ||
-      left.sampleId.localeCompare(right.sampleId),
-  )
-  if (samples.length === 0) return null
+  const samples = [...samplesById.values()]
+    .map(({ sample }) => sample)
+    .sort(
+      (left, right) =>
+        left.capturedAt.localeCompare(right.capturedAt) ||
+        left.sequenceId.localeCompare(right.sequenceId) ||
+        left.rerollIndex - right.rerollIndex ||
+        left.sampleId.localeCompare(right.sampleId),
+    )
+  if (samples.length === 0) return { dataset: null, conflicts }
   return {
-    schema: DATASET_SCHEMA,
-    exportedAt: samples.at(-1).capturedAt,
-    sampleCount: samples.length,
-    samples,
+    dataset: {
+      schema: DATASET_SCHEMA,
+      exportedAt: samples.at(-1).capturedAt,
+      sampleCount: samples.length,
+      samples,
+    },
+    conflicts,
   }
 }

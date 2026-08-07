@@ -15,7 +15,12 @@ if (!inputPath || !outputPath) {
 
 const acceptedIssues = JSON.parse(await readFile(inputPath, 'utf8'))
 const knownBorderIds = await loadKnownBorderIds()
-const dataset = buildCanonicalDataset(acceptedIssues, knownBorderIds)
+const { dataset, conflicts } = buildCanonicalDataset(acceptedIssues, knownBorderIds)
+for (const conflict of conflicts) {
+  console.warn(
+    `Skipped conflicting sample ${conflict.sampleId} from issue #${conflict.conflictingIssueNumber}; keeping issue #${conflict.keptIssueNumber}.`,
+  )
+}
 if (!dataset) {
   console.log('No accepted complete Voyage sequences were found; dataset was not changed.')
   process.exit(0)

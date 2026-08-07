@@ -107,7 +107,19 @@ test('finds duplicate sample IDs in previously accepted issues', () => {
     56,
   )
 
-  assert.deepEqual(duplicates, [{ sampleId: 'roll-test-0', issueNumber: 41 }])
+  assert.deepEqual(duplicates, [{ sampleId: 'roll-test-0', issueNumbers: [41], kind: 'identical' }])
+})
+
+test('classifies conflicting IDs after a serialized first acceptance', () => {
+  const acceptedIssues = [{ number: 41, body: issueBody(dataset([sample(0)])) }]
+  const conflicting = validateBorderRollPayload(
+    dataset([sample(0, { borderModIds: [...borderModIds].reverse() })]),
+    knownIds,
+  )
+
+  assert.deepEqual(findDuplicateSampleIds(conflicting, acceptedIssues, knownIds, 57), [
+    { sampleId: 'roll-test-0', issueNumbers: [41], kind: 'conflict' },
+  ])
 })
 
 test('builds a stable deduplicated dataset from accepted issues', () => {
@@ -119,9 +131,10 @@ test('builds a stable deduplicated dataset from accepted issues', () => {
     knownIds,
   )
 
-  assert.equal(built.sampleCount, 2)
+  assert.equal(built.dataset.sampleCount, 2)
+  assert.deepEqual(built.conflicts, [])
   assert.deepEqual(
-    built.samples.map(({ sampleId }) => sampleId),
+    built.dataset.samples.map(({ sampleId }) => sampleId),
     ['roll-test-0', 'roll-test-1'],
   )
 })
@@ -142,10 +155,10 @@ test('keeps every sample when the accepted corpus exceeds 1,000 issues', () => {
 
   const built = buildCanonicalDataset(acceptedIssues, knownIds)
 
-  assert.equal(built.sampleCount, 1001)
-  assert.equal(new Set(built.samples.map(({ sampleId }) => sampleId)).size, 1001)
-  assert.equal(built.samples[0].sampleId, 'roll-bulk-0')
-  assert.equal(built.samples.at(-1).sampleId, 'roll-bulk-1000')
+  assert.equal(built.dataset.sampleCount, 1001)
+  assert.equal(new Set(built.dataset.samples.map(({ sampleId }) => sampleId)).size, 1001)
+  assert.equal(built.dataset.samples[0].sampleId, 'roll-bulk-0')
+  assert.equal(built.dataset.samples.at(-1).sampleId, 'roll-bulk-1000')
 })
 
 test('excludes issues manually labelled as test data', () => {
@@ -160,7 +173,36 @@ test('excludes issues manually labelled as test data', () => {
     knownIds,
   )
 
-  assert.equal(built, null)
+  assert.deepEqual(built, { dataset: null, conflicts: [] })
+})
+
+test('keeps the earliest accepted sample when historical IDs conflict', () => {
+  const first = sample(0)
+  const conflicting = sample(0, { borderModIds: [...borderModIds].reverse() })
+  const built = buildCanonicalDataset(
+    [
+      { number: 42, body: issueBody(dataset([conflicting])) },
+      { number: 41, body: issueBody(dataset([first])) },
+    ],
+    knownIds,
+  )
+
+  assert.deepEqual(built.dataset.samples, [first])
+  assert.deepEqual(built.conflicts, [
+    { sampleId: 'roll-test-0', keptIssueNumber: 41, conflictingIssueNumber: 42 },
+  ])
+})
+
+test('workflow serializes submissions and rechecks duplicates at the commit point', async () => {
+  const workflow = await readFile('.github/workflows/process-border-roll-data.yml', 'utf8')
+
+  assert.match(workflow, /group: border-roll-submission-validation/)
+  assert.match(workflow, /cancel-in-progress: false/)
+  assert.match(workflow, /Re-fetch accepted submissions at commit point/)
+  assert.ok(
+    workflow.indexOf('Re-fetch accepted submissions at commit point') <
+      workflow.indexOf('Apply result to issue'),
+  )
 })
 
 test('issue processor emits an accepted label, close decision, and audit comment', async () => {
@@ -197,6 +239,50 @@ test('issue processor emits an accepted label, close decision, and audit comment
     assert.equal(result.label, 'border-roll:accepted')
     assert.equal(result.close, true)
     assert.match(comment, /Canonical SHA-256/)
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+test('issue processor rejects a conflicting accepted ID with an audit comment', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'border-roll-conflict-test-'))
+  const eventPath = join(directory, 'event.json')
+  const acceptedPath = join(directory, 'accepted.json')
+  const resultPath = join(directory, 'result.json')
+  const commentPath = join(directory, 'comment.md')
+  try {
+    const conflict = sample(0, { borderModIds: [...borderModIds].reverse() })
+    await writeFile(
+      eventPath,
+      JSON.stringify({ issue: { number: 57, body: issueBody(dataset([conflict])) } }),
+    )
+    await writeFile(
+      acceptedPath,
+      JSON.stringify([{ number: 41, body: issueBody(dataset([sample(0)])) }]),
+    )
+    await execFileAsync(
+      process.execPath,
+      [
+        'scripts/process-border-roll-issue.mjs',
+        '--event',
+        eventPath,
+        '--accepted',
+        acceptedPath,
+        '--result',
+        resultPath,
+        '--comment',
+        commentPath,
+      ],
+      { cwd: process.cwd() },
+    )
+
+    const result = JSON.parse(await readFile(resultPath, 'utf8'))
+    const comment = await readFile(commentPath, 'utf8')
+    assert.equal(result.status, 'duplicate')
+    assert.equal(result.label, 'border-roll:duplicate')
+    assert.equal(result.duplicates[0].kind, 'conflict')
+    assert.match(comment, /different normalized content/)
+    assert.match(comment, /canonical dataset remains buildable/)
   } finally {
     await rm(directory, { recursive: true, force: true })
   }

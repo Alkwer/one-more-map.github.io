@@ -9,8 +9,8 @@ permissions:
   issues: write
 
 concurrency:
-  group: border-roll-issue-${{ github.event.issue.number }}
-  cancel-in-progress: true
+  group: border-roll-submission-validation
+  cancel-in-progress: false
 
 jobs:
   validate:
@@ -62,13 +62,40 @@ jobs:
             --result "$RUNNER_TEMP/border-roll-result.json" \
             --comment "$RUNNER_TEMP/border-roll-comment.md"
 
+      - name: Re-fetch accepted submissions at commit point
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          output="$RUNNER_TEMP/accepted-border-roll-issues.json"
+          pages="${output}.pages"
+          partial="${output}.partial"
+          gh api --method GET --paginate --slurp \
+            -f state=all \
+            -f per_page=100 \
+            -f labels="border-roll:accepted" \
+            "repos/$GITHUB_REPOSITORY/issues" \
+            > "$pages"
+          jq 'flatten | map(select(.pull_request == null) | {number, body, labels}) | sort_by(.number)' \
+            "$pages" > "$partial"
+          jq -e 'type == "array"' "$partial" >/dev/null
+          mv "$partial" "$output"
+
+      - id: commit
+        name: Revalidate duplicate IDs immediately before applying labels
+        run: |
+          node scripts/process-border-roll-issue.mjs \
+            --event "$GITHUB_EVENT_PATH" \
+            --accepted "$RUNNER_TEMP/accepted-border-roll-issues.json" \
+            --result "$RUNNER_TEMP/border-roll-result.json" \
+            --comment "$RUNNER_TEMP/border-roll-comment.md"
+
       - name: Apply result to issue
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
-          RESULT_LABEL: ${{ steps.validate.outputs.label }}
-          SHOULD_CLOSE: ${{ steps.validate.outputs.close }}
-          CLOSE_REASON: ${{ steps.validate.outputs.reason }}
+          RESULT_LABEL: ${{ steps.commit.outputs.label }}
+          SHOULD_CLOSE: ${{ steps.commit.outputs.close }}
+          CLOSE_REASON: ${{ steps.commit.outputs.reason }}
         run: |
           for label in "border-roll:accepted" "border-roll:partial" "border-roll:duplicate" "border-roll:invalid"; do
             gh issue edit "$ISSUE_NUMBER" --remove-label "$label" >/dev/null 2>&1 || true
