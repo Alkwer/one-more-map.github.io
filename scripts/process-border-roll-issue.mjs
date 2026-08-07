@@ -46,7 +46,17 @@ if (result.status === 'accepted') {
   const indexes = result.dataset.samples.map((sample) => sample.rerollIndex).join(', ')
   comment = `⚠️ The JSON is valid, but the submitted rolls (${indexes}) do not form a sequence starting at natural roll 0.\n\nThis observation is retained for reference but excluded from the canonical research dataset. This issue is now closed.${warnings}`
 } else if (result.status === 'duplicate') {
-  comment = `♻️ This submission repeats sample IDs already accepted in ${result.duplicates.map(({ issueNumber }) => `#${issueNumber}`).join(', ')}. No data was added, so this issue is now closed.`
+  const conflicts = result.duplicates.filter(({ kind }) => kind === 'conflict')
+  const references = (duplicates) =>
+    duplicates
+      .map(
+        ({ sampleId, issueNumbers }) =>
+          `\`${sampleId}\` (${issueNumbers.map((number) => `#${number}`).join(', ')})`,
+      )
+      .join('; ')
+  comment = conflicts.length
+    ? `⛔ This submission reuses accepted sample IDs with different normalized content: ${references(conflicts)}. Conflicting data was not accepted, so the canonical dataset remains buildable and this issue is now closed.`
+    : `♻️ This submission repeats sample IDs already accepted in ${references(result.duplicates)}. No data was added, so this issue is now closed.`
 } else {
   comment = `❌ This submission could not be accepted:\n\n${result.errors.map((error) => `- ${error}`).join('\n')}\n\nEdit the JSON in the issue body to trigger validation again.${warnings}`
 }
