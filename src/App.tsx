@@ -38,7 +38,7 @@ import {
   type AppState,
   type LocalStateRecovery,
 } from './logic/storage'
-import { appStateReducer } from './state/appStateReducer'
+import { persistableAppStateReducer } from './state/appStateReducer'
 import type { ChartData } from './types'
 
 type ShareSession =
@@ -83,7 +83,11 @@ function initialState(): InitialStateResult {
 
 export default function App() {
   const [initial] = useState(initialState)
-  const [state, dispatch] = useReducer(appStateReducer, initial.state)
+  const [persistableState, dispatch] = useReducer(persistableAppStateReducer, {
+    state: initial.state,
+    mutationError: null,
+  })
+  const { state, mutationError } = persistableState
   const [shareSession, setShareSession] = useState<ShareSession | null>(initial.shareSession)
   const [recovery, setRecovery] = useState<LocalStateRecovery | null>(initial.recovery)
   const chrome = useAppChrome(state)
@@ -213,6 +217,14 @@ export default function App() {
   return (
     <div className="app">
       <TooltipLayer />
+      {mutationError && (
+        <div className="share-banner error" role="alert">
+          <div className="share-banner-copy">
+            <strong>Your latest change was kept out of the library</strong>
+            <span>{mutationError} Your previous saved state is still intact.</span>
+          </div>
+        </div>
+      )}
       {recovery && (
         <SavedStateRecovery
           recovery={recovery}

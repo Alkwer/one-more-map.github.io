@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { defaultState, MAX_POOL_CHARTS, type AppState } from '../logic/storage'
+import {
+  defaultState,
+  MAX_CHART_NAME_LENGTH,
+  MAX_POOL_CHARTS,
+  MAX_RAW_TEXT_LENGTH,
+  validateStateForPersistence,
+  type AppState,
+} from '../logic/storage'
 import type { ChartData } from '../types'
-import { appStateReducer, summarizeVoyageFinish } from './appStateReducer'
+import {
+  appStateReducer,
+  persistableAppStateReducer,
+  summarizeVoyageFinish,
+} from './appStateReducer'
 
 const chart = (uid: string, overrides: Partial<ChartData> = {}): ChartData => ({
   uid,
@@ -102,6 +113,39 @@ describe('appStateReducer', () => {
 
     expect(limited.pool).toHaveLength(MAX_POOL_CHARTS)
     expect(limited.pool[MAX_POOL_CHARTS - 1]?.uid).toBe(`chart-${MAX_POOL_CHARTS - 1}`)
+  })
+
+  it('rejects field and aggregate mutations that could not be restored', () => {
+    const initial = { state: defaultState(), mutationError: null }
+    const overlongName = persistableAppStateReducer(initial, {
+      type: 'charts/add',
+      charts: [chart('overlong', { name: 'n'.repeat(MAX_CHART_NAME_LENGTH + 1) })],
+    })
+
+    expect(overlongName.state).toBe(initial.state)
+    expect(overlongName.mutationError).toContain(
+      `pool[0].name must be at most ${MAX_CHART_NAME_LENGTH} characters`,
+    )
+
+    const pool: ChartData[] = []
+    let nextChart: ChartData | null = null
+    for (let index = 0; index < MAX_POOL_CHARTS; index += 1) {
+      const candidate = chart(`large-${index}`, { rawText: 'r'.repeat(MAX_RAW_TEXT_LENGTH) })
+      if (!validateStateForPersistence({ ...defaultState(), pool: [...pool, candidate] }).ok) {
+        nextChart = candidate
+        break
+      }
+      pool.push(candidate)
+    }
+
+    expect(nextChart).not.toBeNull()
+    const nearLimit = { ...defaultState(), pool }
+    const aggregate = persistableAppStateReducer(
+      { state: nearLimit, mutationError: null },
+      { type: 'charts/add', charts: [nextChart!] },
+    )
+    expect(aggregate.state).toBe(nearLimit)
+    expect(aggregate.mutationError).toMatch(/could not be saved: .*exceeds the .* limit/)
   })
 
   it('finishes a voyage without touching library charts that were not on the board', () => {

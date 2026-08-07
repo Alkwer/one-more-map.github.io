@@ -1,7 +1,7 @@
 import type { ChartData, Board } from '../types'
 import { emptyBoard } from '../types'
 import type { AppState } from '../logic/storage'
-import { MAX_POOL_CHARTS } from '../logic/storage'
+import { MAX_POOL_CHARTS, validateStateForPersistence } from '../logic/storage'
 
 export type AppStateAction =
   | { type: 'replace'; state: AppState }
@@ -23,6 +23,27 @@ export type AppStateAction =
 export interface VoyageFinishSummary {
   consumed: number
   kept: number
+}
+
+export interface PersistableAppState {
+  state: AppState
+  mutationError: string | null
+}
+
+/** Reject UI mutations that would create a state which cannot be exported and restored. */
+export function persistableAppStateReducer(
+  current: PersistableAppState,
+  action: AppStateAction,
+): PersistableAppState {
+  const next = appStateReducer(current.state, action)
+  const persistence = validateStateForPersistence(next)
+  if (!persistence.ok) {
+    return {
+      state: current.state,
+      mutationError: `Change was not applied because it could not be saved: ${persistence.message}`,
+    }
+  }
+  return { state: next, mutationError: null }
 }
 
 export function summarizeVoyageFinish(

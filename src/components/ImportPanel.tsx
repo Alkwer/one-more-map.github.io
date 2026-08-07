@@ -5,7 +5,13 @@ import { generateDemoCharts } from '../logic/demo'
 import { applyBorderOcrSnapshot, parseBorderOcrPayload } from '../logic/borderOcr'
 import { isChartClipboardText, parseChartText } from '../logic/parser'
 import type { AppState } from '../logic/storage'
-import { decodeStateFile, defaultState, MAX_POOL_CHARTS, serializeState } from '../logic/storage'
+import {
+  decodeStateFile,
+  defaultState,
+  MAX_POOL_CHARTS,
+  serializeState,
+  validateStateForPersistence,
+} from '../logic/storage'
 import type { BorderRollResearchController } from '../hooks/useBorderRollResearch'
 import type { ChartData } from '../types'
 
@@ -42,14 +48,24 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
         return
       }
 
+      const nextState: AppState = {
+        ...state,
+        pool: charts.length > 0 ? [...state.pool, ...charts] : state.pool,
+        borders: hasOcrPayload ? borderApplication.borders : state.borders,
+        borderRerollsUsed:
+          hasOcrPayload && borderOcr.rerollCost
+            ? borderOcr.rerollCost.rerollsUsed
+            : state.borderRerollsUsed,
+      }
+      const persistence = validateStateForPersistence(nextState)
+      if (!persistence.ok) {
+        setMsg(`Import was not applied because it could not be saved: ${persistence.message}`)
+        return
+      }
+
       if (hasOcrPayload) {
         const borders = borderApplication.borders
-        onLoadState({
-          ...state,
-          pool: charts.length > 0 ? [...state.pool, ...charts] : state.pool,
-          borders,
-          borderRerollsUsed: borderOcr.rerollCost?.rerollsUsed ?? state.borderRerollsUsed,
-        })
+        onLoadState(nextState)
         if (borderApplication.status === 'complete') {
           const captureMessage = borderResearch.captureImportedRoll(borders, borderOcr.rerollCost)
           if (captureMessage) parts.push(captureMessage)
@@ -163,12 +179,18 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
   }, [doParse])
 
   const exportJson = () => {
-    const blob = new Blob([serializeState(state, 2)], { type: 'application/json' })
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = 'voyage-solver-state.json'
-    a.click()
-    URL.revokeObjectURL(a.href)
+    try {
+      const blob = new Blob([serializeState(state, 2)], { type: 'application/json' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = 'voyage-solver-state.json'
+      a.click()
+      URL.revokeObjectURL(a.href)
+    } catch (error) {
+      setMsg(
+        `State could not be exported: ${error instanceof Error ? error.message : 'serialization failed'}`,
+      )
+    }
   }
 
   const importJson = async (file: File) => {
