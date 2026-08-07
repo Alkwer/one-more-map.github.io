@@ -67,6 +67,8 @@ The development server is available at `http://localhost:5173`.
 | `npm run test:performance` | Enforce the noise-tolerant solver latency budget               |
 | `npm run typecheck`        | Check TypeScript without emitting files                        |
 | `npm run lint`             | Run ESLint with zero warnings allowed                          |
+| `npm run check:eol`        | Require LF endings in every tracked text file                  |
+| `npm run format:eol`       | Normalize every tracked text file to LF                        |
 | `npm run format:check`     | Check formatting with Prettier                                 |
 | `npm run format`           | Rewrite supported files with Prettier                          |
 | `npm run build`            | Create the production bundle in `dist/`                        |
@@ -78,7 +80,9 @@ The development server is available at `http://localhost:5173`.
 | `npm run validate`         | Run typecheck, tests, lint, formatting, and production build   |
 | `npm run bench:solver`     | Run the solver performance benchmark                           |
 
-Run `npm run validate` before opening a pull request. The deterministic solver
+Run `npm run validate` before opening a pull request. Git attributes, Prettier,
+and the EOL check keep tracked text on LF even when Git uses `core.autocrlf=true`.
+The deterministic solver
 fixture, quality floor, reference environment, and current before/after timings
 are documented in [docs/solver-performance.md](docs/solver-performance.md).
 
