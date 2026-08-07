@@ -16,6 +16,7 @@ import {
   MAX_MOD_IDS_PER_CHART,
   MAX_POOL_CHARTS,
   MAX_RAW_TEXT_LENGTH,
+  MAX_REWARD_PERCENT,
   MAX_REWARDS_PER_CHART,
   MAX_STATE_JSON_CHARS,
   MAX_STATE_FILE_BYTES,
@@ -131,6 +132,54 @@ describe('state decoding', () => {
       ok: false,
       message: `weights.${weightKey} must be a finite number`,
     })
+  })
+
+  it('rejects out-of-range rewards and merged totals before they reach scoring', () => {
+    const stateWithRewards = (rewards: ModEffect[]) => persisted({ pool: [chart({ rewards })] })
+
+    expect(decodeState(stateWithRewards([{ stat: 'quantity', percent: -1 }]))).toMatchObject({
+      ok: false,
+      message: `pool[0].rewards[0].percent must be between 0 and ${MAX_REWARD_PERCENT}`,
+    })
+    expect(decodeState(stateWithRewards([{ stat: 'quantity', percent: 1e308 }]))).toMatchObject({
+      ok: false,
+      message: `pool[0].rewards[0].percent must be between 0 and ${MAX_REWARD_PERCENT}`,
+    })
+    expect(
+      decodeState(
+        stateWithRewards([
+          { stat: 'quantity', percent: MAX_REWARD_PERCENT },
+          { stat: 'quantity', percent: 1 },
+        ]),
+      ),
+    ).toMatchObject({
+      ok: false,
+      message: `pool[0].rewards aggregate for quantity must be between 0 and ${MAX_REWARD_PERCENT}`,
+    })
+    expect(
+      decodeState(
+        stateWithRewards(
+          Array.from({ length: MAX_REWARDS_PER_CHART }, () => ({
+            stat: 'quantity' as const,
+            percent: 1e308,
+          })),
+        ),
+      ),
+    ).toMatchObject({ ok: false })
+
+    const accepted = decoded(
+      stateWithRewards([
+        { stat: 'quantity', percent: MAX_REWARD_PERCENT - 1 },
+        { stat: 'quantity', percent: 1 },
+      ]),
+    )
+    expect(accepted.state.pool[0].rewards).toEqual([
+      { stat: 'quantity', percent: MAX_REWARD_PERCENT },
+    ])
+    expect(accepted.state.pool[0].rewards?.every(({ percent }) => Number.isFinite(percent))).toBe(
+      true,
+    )
+    expect(decodeStateJson(serializeState(accepted.state))).toMatchObject({ ok: true })
   })
 
   it('silently migrates pre-3.29.2 Chart Gold data without touching conversion rewards', () => {
