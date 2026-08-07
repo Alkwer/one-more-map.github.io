@@ -33,9 +33,11 @@ const borderBlock = modSource.slice(
 )
 const modIds = [...borderBlock.matchAll(/\bid:\s*'(b-[a-z0-9-]+)'/g)].map((match) => match[1])
 const shortLabels = Object.fromEntries(
-  [...borderBlock.matchAll(/\{\s*id:\s*'(b-[a-z0-9-]+)',[\s\S]*?short:\s*(?:'([^']*)'|"([^"]*)")/g)].map(
-    (match) => [match[1], match[2] ?? match[3]],
-  ),
+  [
+    ...borderBlock.matchAll(
+      /\{\s*id:\s*'(b-[a-z0-9-]+)',[\s\S]*?short:\s*(?:'([^']*)'|"([^"]*)")/g,
+    ),
+  ].map((match) => [match[1], match[2] ?? match[3]]),
 )
 
 function countSlots(samples, transform = (value) => value) {
@@ -53,8 +55,7 @@ function wilson(successes, trials, z = 1.959963984540054) {
   const denominator = 1 + (z * z) / trials
   const center = (rate + (z * z) / (2 * trials)) / denominator
   const halfWidth =
-    (z * Math.sqrt((rate * (1 - rate)) / trials + (z * z) / (4 * trials * trials))) /
-    denominator
+    (z * Math.sqrt((rate * (1 - rate)) / trials + (z * z) / (4 * trials * trials))) / denominator
   return [center - halfWidth, center + halfWidth]
 }
 
@@ -146,9 +147,7 @@ function matchedGenerationTest(samples) {
   ).filter((sequence) => sequence.some((sample) => sample.generation === 'paid-reroll'))
 
   const observed = totalVariation(
-    sequences.flatMap((sequence) =>
-      sequence.filter((sample) => sample.generation === 'natural'),
-    ),
+    sequences.flatMap((sequence) => sequence.filter((sample) => sample.generation === 'natural')),
     sequences.flatMap((sequence) =>
       sequence.filter((sample) => sample.generation === 'paid-reroll'),
     ),
@@ -200,7 +199,7 @@ function slotAssociationStatistic(rows, transform = (value) => value) {
     for (const category of categories) {
       const expected = totals[category] / 12
       if (expected > 0) {
-        statistic += ((byPosition[position][category] - expected) ** 2) / expected
+        statistic += (byPosition[position][category] - expected) ** 2 / expected
       }
     }
   }
@@ -358,8 +357,7 @@ const results = {
     uniformSlotBenchmark: 1 / modIds.length,
     uniformBoardAppearanceBenchmark: 1 - (1 - 1 / modIds.length) ** 12,
     topEightSlotShare:
-      topMods.slice(0, 8).reduce((total, entry) => total + entry.slots, 0) /
-      (samples.length * 12),
+      topMods.slice(0, 8).reduce((total, entry) => total + entry.slots, 0) / (samples.length * 12),
     topMods: topMods.slice(0, 15),
   },
   slotStructure: {
@@ -379,15 +377,19 @@ const results = {
     [...new Set(samples.map((sample) => sample.rerollIndex))].map((rerollIndex) => [
       String(rerollIndex),
       Object.fromEntries(
-        [...new Set(samples.filter((sample) => sample.rerollIndex === rerollIndex).map((sample) => sample.displayedNextRerollCost))].map(
-          (cost) => [
-            String(cost),
-            samples.filter(
-              (sample) =>
-                sample.rerollIndex === rerollIndex && sample.displayedNextRerollCost === cost,
-            ).length,
-          ],
-        ),
+        [
+          ...new Set(
+            samples
+              .filter((sample) => sample.rerollIndex === rerollIndex)
+              .map((sample) => sample.displayedNextRerollCost),
+          ),
+        ].map((cost) => [
+          String(cost),
+          samples.filter(
+            (sample) =>
+              sample.rerollIndex === rerollIndex && sample.displayedNextRerollCost === cost,
+          ).length,
+        ]),
       ),
     ]),
   ),

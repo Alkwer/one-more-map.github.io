@@ -21,10 +21,10 @@
 
 ## Chart map
 
-| Report segment | Analytical question | Family / type | Fields | Supported claim | Palette |
-|---|---|---|---|---|---|
-| Slot structure | Are semantic mod families independent of border position? | Compact lookup table | family, expected_position, observed, match_rate | Four reward families occupy their corresponding middle-side slot in all 21 observations. | n/a |
-| Pool concentration | Are canonical modifiers close to uniformly weighted? | Ranked horizontal bar | label, slot_share, boards, sequences, natural_slots, paid_slots, rank | The top eight mods account for 40.7% of 504 slots; the uniform 1/64 benchmark is not credible. | single blue root |
+| Report segment     | Analytical question                                       | Family / type         | Fields                                                                | Supported claim                                                                                | Palette          |
+| ------------------ | --------------------------------------------------------- | --------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------- |
+| Slot structure     | Are semantic mod families independent of border position? | Compact lookup table  | family, expected_position, observed, match_rate                       | Four reward families occupy their corresponding middle-side slot in all 21 observations.       | n/a              |
+| Pool concentration | Are canonical modifiers close to uniformly weighted?      | Ranked horizontal bar | label, slot_share, boards, sequences, natural_slots, paid_slots, rank | The top eight mods account for 40.7% of 504 slots; the uniform 1/64 benchmark is not credible. | single blue root |
 
 The slot-family evidence is a table because exact positions and counts are the point. The concentration evidence uses one sorted horizontal bar with a zero baseline, long-label space, direct category labels, and no redundant category color encoding. Exact chart rows retain board, sequence, generation, rank, denominator, and benchmark context in the embedded dataset.
 

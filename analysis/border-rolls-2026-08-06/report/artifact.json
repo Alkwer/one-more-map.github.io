@@ -506,10 +506,7 @@
         "language": "javascript",
         "executed_at": "2026-08-07T14:29:50.195Z",
         "description": "Analiza profilu, koncentracji, permutacji slotów, duplikatów, generacji, kosztów i Divine uruchomiona dla HEAD.",
-        "tables_used": [
-          "data/border-rolls-v2.json",
-          "src/data/mods.ts"
-        ],
+        "tables_used": ["data/border-rolls-v2.json", "src/data/mods.ts"],
         "filters": [
           "Źródło: origin/main@5da127d99125722301046ab56461574f73c67f1e",
           "20 000 permutacji dla testów slotów i duplikatów",
