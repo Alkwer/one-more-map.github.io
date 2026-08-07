@@ -7,9 +7,29 @@
 
 import { VOYAGE_MODS, voyageModById } from '../data/mods'
 import { voyageRewardKey } from './rewards'
-import type { ChartData, VoyageModDef, Weights } from '../types'
+import type { ChartData, Stat, VoyageModDef, Weights } from '../types'
 
 const HANGUL_RE = /[\uac00-\ud7a3]/
+const REGEX_META_RE = /[.*+?^${}()|[\]\\]/g
+
+export const MAX_CHART_SEARCH_LENGTH = 50
+
+export type ChartSearchResult = { ok: true; regex: string } | { ok: false; message: string }
+
+const escapeRegexLiteral = (value: string): string => value.replace(REGEX_META_RE, '\\$&')
+
+function chartImplicitText(chart: ChartData): string {
+  return (
+    chart.implicitText ??
+    chart.modIds.map((id) => voyageModById.get(id)).find((mod) => mod && mod.scope !== 'self')
+      ?.text ??
+    ''
+  )
+}
+
+function chartUsesHangul(chart: ChartData): boolean {
+  return HANGUL_RE.test([chart.implicitText, chart.rawText, chart.name].filter(Boolean).join('\n'))
+}
 
 /**
  * Build the search text used to find one exact chart in the in-game inventory.
@@ -17,14 +37,9 @@ const HANGUL_RE = /[\uac00-\ud7a3]/
  * the level term can follow the client language without a separate UI locale.
  */
 export function buildSingleChartSearch(chart: ChartData): string {
-  const implicit =
-    chart.implicitText ??
-    chart.modIds.map((id) => voyageModById.get(id)).find((mod) => mod && mod.scope !== 'self')
-      ?.text ??
-    ''
-  const sourceText = [chart.implicitText, chart.rawText, chart.name].filter(Boolean).join('\n')
-  const level = `${HANGUL_RE.test(sourceText) ? '지역 레벨' : 'Level'} ${chart.level}`
-  return [chart.name, implicit, level].filter(Boolean).join(' ')
+  const implicit = chartImplicitText(chart)
+  const level = `${chartUsesHangul(chart) ? '지역 레벨' : 'Level'} ${chart.level}`
+  return [chart.name, implicit, level].filter(Boolean).map(escapeRegexLiteral).join(' ')
 }
 
 /**
@@ -90,24 +105,148 @@ export function buildBestModRegex(
   return { regex: tokens.join('|'), included }
 }
 
-export function buildChartSearch(targets: string[], otherPoolNames: string[]): string {
-  const targetSet = new Set(targets.map((t) => t.toLowerCase()))
-  const others = otherPoolNames.map((s) => s.toLowerCase()).filter((o) => !targetSet.has(o))
+const ENGLISH_REWARD_LABELS: Partial<Record<Stat, string>> = {
+  quantity: 'Item Quantity',
+  rarity: 'Item Rarity',
+  sulphur: "Dead Man's Sulphur",
+  packsize: 'Pack Size',
+  scarabs: 'Scarabs Found',
+  currency: 'Currency Found',
+}
 
-  const parts: string[] = []
-  for (const name of targetSet) {
-    let best: string | null = null
-    for (let len = 3; len <= name.length && !best; len++) {
-      for (let i = 0; i + len <= name.length; i++) {
-        const sub = name.slice(i, i + len)
-        if (sub !== sub.trim()) continue
-        if (!others.some((o) => o.includes(sub))) {
-          best = sub
-          break
-        }
+const KOREAN_REWARD_LABELS: Partial<Record<Stat, string>> = {
+  quantity: '아이템 수량',
+  rarity: '아이템 희귀도',
+  sulphur: '망자의 유황',
+  packsize: '몬스터 무리 규모',
+}
+
+function chartSearchFields(chart: ChartData): string[] {
+  const usesHangul = chartUsesHangul(chart)
+  const fields = [
+    chart.name,
+    chartImplicitText(chart),
+    `${usesHangul ? '지역 레벨' : 'Area Level'}: ${chart.level}`,
+    ...(chart.implicitText ? [] : chart.modIds.map((id) => voyageModById.get(id)?.text ?? '')),
+    ...(chart.rawText?.split(/\r?\n/) ?? []),
+  ]
+  const rewardLabels = usesHangul ? KOREAN_REWARD_LABELS : ENGLISH_REWARD_LABELS
+  for (const reward of chart.rewards ?? []) {
+    const label = rewardLabels[reward.stat]
+    if (label) fields.push(`${label}: +${reward.percent}%`)
+  }
+  return [...new Set(fields.map((field) => field.normalize('NFKC').toLowerCase().trim()))].filter(
+    Boolean,
+  )
+}
+
+interface SearchCandidate {
+  coverage: number
+  regex: string
+}
+
+interface SearchPlan {
+  length: number
+  parts: string[]
+}
+
+function betterPlan(candidate: SearchPlan, current: SearchPlan | undefined): boolean {
+  if (!current) return true
+  if (candidate.length !== current.length) return candidate.length < current.length
+  if (candidate.parts.length !== current.parts.length)
+    return candidate.parts.length < current.parts.length
+  return candidate.parts.join('|').localeCompare(current.parts.join('|')) < 0
+}
+
+/**
+ * Build an exact paste-into-game regex for the placed chart instances. Only
+ * fields visible to the game search are considered; opaque application ids
+ * are deliberately excluded. If an unplaced chart has the same searchable
+ * identity, exact selection is impossible and the caller gets a clear error.
+ */
+export function buildChartSearch(
+  targets: ChartData[],
+  otherPoolCharts: ChartData[],
+  cap = MAX_CHART_SEARCH_LENGTH,
+): ChartSearchResult {
+  if (targets.length === 0) {
+    return { ok: false, message: 'No placed charts are available to search.' }
+  }
+
+  const safeCap = Math.max(0, Math.floor(cap))
+  const targetFields = targets.map(chartSearchFields)
+  const otherFields = otherPoolCharts.map(chartSearchFields)
+  const bestCandidateByCoverage = new Map<number, string>()
+
+  const recordCandidate = (literal: string) => {
+    if (literal !== literal.trim() || !/[\p{L}\p{N}]/u.test(literal)) return
+    if (otherFields.some((document) => document.some((part) => part.includes(literal)))) return
+    const regex = escapeRegexLiteral(literal)
+    let coverage = 0
+    for (let index = 0; index < targetFields.length; index += 1) {
+      if (targetFields[index].some((part) => part.includes(literal))) {
+        coverage |= 1 << index
       }
     }
-    parts.push(best ?? name)
+    const existing = bestCandidateByCoverage.get(coverage)
+    if (
+      !existing ||
+      regex.length < existing.length ||
+      (regex.length === existing.length && regex.localeCompare(existing) < 0)
+    ) {
+      bestCandidateByCoverage.set(coverage, regex)
+    }
   }
-  return [...new Set(parts)].join('|')
+
+  for (const fields of targetFields) {
+    for (const field of fields) {
+      const maxLength = Math.min(field.length, safeCap)
+      for (let length = 3; length <= maxLength; length += 1) {
+        for (let start = 0; start + length <= field.length; start += 1) {
+          recordCandidate(field.slice(start, start + length))
+        }
+      }
+      // A unique full field proves the chart is distinguishable even when no
+      // expression for it can fit the cap. This keeps the two error cases honest.
+      recordCandidate(field)
+    }
+  }
+
+  const candidates: SearchCandidate[] = [...bestCandidateByCoverage].map(([coverage, regex]) => ({
+    coverage,
+    regex,
+  }))
+  const fullCoverage = (1 << targets.length) - 1
+  const plans: Array<SearchPlan | undefined> = Array.from({ length: fullCoverage + 1 })
+  plans[0] = { length: 0, parts: [] }
+
+  for (let covered = 0; covered <= fullCoverage; covered += 1) {
+    const plan = plans[covered]
+    if (!plan) continue
+    for (const candidate of candidates) {
+      const nextCoverage = covered | candidate.coverage
+      if (nextCoverage === covered) continue
+      const next: SearchPlan = {
+        length: plan.length + (plan.parts.length === 0 ? 0 : 1) + candidate.regex.length,
+        parts: [...plan.parts, candidate.regex],
+      }
+      if (betterPlan(next, plans[nextCoverage])) plans[nextCoverage] = next
+    }
+  }
+
+  const best = plans[fullCoverage]
+  if (!best) {
+    return {
+      ok: false,
+      message:
+        "Can't build an exact search: a placed chart is indistinguishable from an unplaced chart by its searchable name, level, modifiers, and rolls.",
+    }
+  }
+  if (best.length > safeCap) {
+    return {
+      ok: false,
+      message: `Exact search exceeds the ${safeCap}-character in-game limit.`,
+    }
+  }
+  return { ok: true, regex: best.parts.join('|') }
 }

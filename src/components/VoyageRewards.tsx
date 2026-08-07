@@ -24,12 +24,18 @@ export function VoyageRewards({ score, board, pool, chartMap, notables }: Props)
   const copySearch = async () => {
     const placed = board
       .filter(Boolean)
-      .map((placement) => chartMap.get(placement!.chartUid)?.name ?? '')
-    const others = pool
-      .filter((chart) => !board.some((placement) => placement?.chartUid === chart.uid))
-      .map((chart) => chart.name)
-    const search = buildChartSearch(placed.filter(Boolean), others)
-    const result = await writeClipboardText(search)
+      .map((placement) => chartMap.get(placement!.chartUid))
+      .filter((chart): chart is ChartData => !!chart)
+    const others = pool.filter(
+      (chart) => !board.some((placement) => placement?.chartUid === chart.uid),
+    )
+    const search = buildChartSearch(placed, others)
+    if (!search.ok) {
+      setSearchMessage(search.message)
+      window.setTimeout(() => setSearchMessage(''), 5000)
+      return
+    }
+    const result = await writeClipboardText(search.regex)
     if (result.ok) {
       setSearchMessage('Copied!')
     } else {
@@ -49,7 +55,7 @@ export function VoyageRewards({ score, board, pool, chartMap, notables }: Props)
           aria-label="Copy in-game chart search"
           onClick={copySearch}
           disabled={board.every((placement) => !placement)}
-          title="Copy a search string for the in-game chart inventory that highlights exactly the charts on this board"
+          title="Copy an exact in-game chart search when the placed charts have distinguishable searchable fields"
         >
           {searchMessage || '⌕ Copy in-game search'}
         </button>
