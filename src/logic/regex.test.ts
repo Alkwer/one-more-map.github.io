@@ -3,7 +3,14 @@ import type { ChartData } from '../types'
 import englishChartText from './__fixtures__/charted.en.txt?raw'
 import koreanChartText from './__fixtures__/charted.ko.txt?raw'
 import { parseChartText } from './parser'
-import { buildChartSearch, buildSingleChartSearch } from './regex'
+import { DEFAULT_WEIGHTS } from './rewards'
+import {
+  buildBestModRegex,
+  buildChartSearch,
+  buildSingleChartSearch,
+  detectSearchClientLanguage,
+  MAX_CHART_SEARCH_LENGTH,
+} from './regex'
 
 function parseOne(text: string): ChartData {
   const result = parseChartText(text)
@@ -62,6 +69,42 @@ describe('buildSingleChartSearch', () => {
   })
 })
 
+describe('buildBestModRegex', () => {
+  it('selects the highest-value tier once per English modifier family', () => {
+    const result = buildBestModRegex({ 'voyage:sulph': 10 })
+
+    expect(result.ok).toBe(true)
+    expect(result.regex).toMatch(/^[a-z ]+(\|[a-z ]+)*$/)
+    expect(result.regex.length).toBeLessThanOrEqual(MAX_CHART_SEARCH_LENGTH)
+    expect(result.included.map(({ id }) => id)).toEqual(['voy-sulph-3'])
+  })
+
+  it('honours disabled modifiers and the configured length cap', () => {
+    const disabled = new Set(['voy-sulph-1', 'voy-sulph-2', 'voy-sulph-3'])
+
+    expect(buildBestModRegex({ 'voyage:sulph': 10 }, 250, disabled)).toMatchObject({
+      ok: true,
+      regex: '',
+      included: [],
+    })
+    expect(buildBestModRegex({ 'voyage:sulph': 10 }, 2)).toMatchObject({
+      ok: true,
+      regex: '',
+      included: [],
+    })
+  })
+
+  it('never emits English fragments for a Korean client', () => {
+    expect(buildBestModRegex(DEFAULT_WEIGHTS, 250, undefined, 'ko')).toEqual({
+      ok: false,
+      regex: '',
+      included: [],
+      message:
+        'Best-Charts Regex is unavailable for Korean clients until its modifier fragments are live-validated.',
+    })
+  })
+})
+
 const chart = (uid: string, name: string, overrides: Partial<ChartData> = {}): ChartData => ({
   uid,
   name,
@@ -100,6 +143,20 @@ function expectExactMatch(
 }
 
 describe('buildChartSearch', () => {
+  it('uses the sanitized English and Korean client fixtures as separate search documents', () => {
+    const english = parseOne(englishChartText)
+    const korean = parseOne(koreanChartText)
+
+    expect(detectSearchClientLanguage([english])).toBe('en')
+    expect(detectSearchClientLanguage([korean])).toBe('ko')
+    expectExactMatch(buildChartSearch([english], [korean]), [english], [korean])
+    expectExactMatch(buildChartSearch([korean], [english]), [korean], [english])
+  })
+
+  it('uses the official 250-character PoE 1 search-box limit by default', () => {
+    expect(MAX_CHART_SEARCH_LENGTH).toBe(250)
+  })
+
   it('distinguishes duplicate names by stable searchable chart data', () => {
     const target = chart('placed', 'Armoured Coral Reef Chart', {
       level: 83,

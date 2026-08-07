@@ -1,9 +1,7 @@
-// Build a compact search string for the in-game chart inventory search box
-// ("Type keywords here..."), to highlight exactly the charts a solved board
-// uses. Uses shortest-unique-substring per chart name (poe.re style) so the
-// string stays short.
-// LAUNCH-DAY TODO: confirm what fields the in-game search matches (name, mod
-// text, level?) and whether it supports regex alternation `|` - adjust here.
+// In-game Chart search contract and repeatable client-validation matrix:
+// docs/in-game-search.md. Chart-instance expressions use fields present in
+// sanitized English/Korean Ctrl+C fixtures. Best-mod expressions use canonical
+// English text; the UI labels live assumptions and blocks them for Korean.
 
 import { VOYAGE_MODS, voyageModById } from '../data/mods'
 import { voyageRewardKey } from './rewards'
@@ -12,9 +10,15 @@ import type { ChartData, Stat, VoyageModDef, Weights } from '../types'
 const HANGUL_RE = /[\uac00-\ud7a3]/
 const REGEX_META_RE = /[.*+?^${}()|[\]\\]/g
 
-export const MAX_CHART_SEARCH_LENGTH = 50
+export const MAX_CHART_SEARCH_LENGTH = 250
+
+export type SearchClientLanguage = 'en' | 'ko'
 
 export type ChartSearchResult = { ok: true; regex: string } | { ok: false; message: string }
+
+export type BestModRegexResult =
+  | { ok: true; regex: string; included: VoyageModDef[] }
+  | { ok: false; regex: ''; included: []; message: string }
 
 const escapeRegexLiteral = (value: string): string => value.replace(REGEX_META_RE, '\\$&')
 
@@ -29,6 +33,10 @@ function chartImplicitText(chart: ChartData): string {
 
 function chartUsesHangul(chart: ChartData): boolean {
   return HANGUL_RE.test([chart.implicitText, chart.rawText, chart.name].filter(Boolean).join('\n'))
+}
+
+export function detectSearchClientLanguage(charts: ChartData[]): SearchClientLanguage {
+  return charts.some(chartUsesHangul) ? 'ko' : 'en'
 }
 
 /**
@@ -51,9 +59,21 @@ export function buildSingleChartSearch(chart: ChartData): string {
  */
 export function buildBestModRegex(
   weights: Weights,
-  cap = 50,
+  cap = MAX_CHART_SEARCH_LENGTH,
   disabledMods?: Set<string>,
-): { regex: string; included: VoyageModDef[] } {
+  language: SearchClientLanguage = 'en',
+): BestModRegexResult {
+  if (language === 'ko') {
+    return {
+      ok: false,
+      regex: '',
+      included: [],
+      message:
+        'Best-Charts Regex is unavailable for Korean clients until its modifier fragments are live-validated.',
+    }
+  }
+
+  const safeCap = Math.max(0, Math.floor(cap))
   const reach = { self: 1, adjacent: 3, global: 9 } as const
   const lettersOnly = (s: string) =>
     s
@@ -95,14 +115,14 @@ export function buildBestModRegex(
     const otherKeys = [...families.keys()].filter((k) => k !== key)
     const t = token(key, otherKeys)
     const candidate = [...tokens, t].join('|')
-    if (candidate.length > cap) {
+    if (candidate.length > safeCap) {
       if (tokens.length === 0) continue // skip an oversized top family, try the next
       break
     }
     tokens.push(t)
     included.push(m)
   }
-  return { regex: tokens.join('|'), included }
+  return { ok: true, regex: tokens.join('|'), included }
 }
 
 const ENGLISH_REWARD_LABELS: Partial<Record<Stat, string>> = {

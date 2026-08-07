@@ -1,7 +1,12 @@
 import { useMemo, useState } from 'react'
 import type { StrategyDef } from '../data/strategies'
 import { selectSolverEligibleCharts } from '../logic/chartShapes'
-import { buildBestModRegex } from '../logic/regex'
+import {
+  buildBestModRegex,
+  detectSearchClientLanguage,
+  MAX_CHART_SEARCH_LENGTH,
+  type SearchClientLanguage,
+} from '../logic/regex'
 import { writeClipboardText } from '../logic/clipboard'
 import type { AppState } from '../logic/storage'
 import type { Board } from '../types'
@@ -21,7 +26,10 @@ interface Props {
 }
 
 export function SolverPanel({ state, activeStrategy, onPatch, onApply, onOpenPlanner }: Props) {
-  const [regexCap, setRegexCap] = useState(50)
+  const [regexCap, setRegexCap] = useState(MAX_CHART_SEARCH_LENGTH)
+  const [searchLanguageOverride, setSearchLanguageOverride] = useState<SearchClientLanguage | null>(
+    null,
+  )
   const [copied, setCopied] = useState(false)
   const [copyMessage, setCopyMessage] = useState('')
   // While a strategy is active it overrides the manual weights everywhere here.
@@ -31,6 +39,7 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply, onOpenPla
     [state.pool, state.mode],
   )
   const unresolvedShapeCount = state.pool.length - eligiblePool.length
+  const searchLanguage = searchLanguageOverride ?? detectSearchClientLanguage(state.pool)
   const { busy, results, solveNote, run, runFiller } = useSolverRequests({
     state,
     activeStrategy,
@@ -38,11 +47,16 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply, onOpenPla
     eligiblePool,
   })
   const bestRegex = useMemo(
-    () => buildBestModRegex(weights, regexCap, new Set(state.disabledMods)),
-    [weights, regexCap, state.disabledMods],
+    () => buildBestModRegex(weights, regexCap, new Set(state.disabledMods), searchLanguage),
+    [weights, regexCap, state.disabledMods, searchLanguage],
   )
 
   const copyRegex = async () => {
+    if (!bestRegex.ok) {
+      setCopied(false)
+      setCopyMessage(bestRegex.message)
+      return
+    }
     const result = await writeClipboardText(bestRegex.regex)
     if (!result.ok) {
       setCopied(false)
@@ -78,9 +92,13 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply, onOpenPla
         regex={bestRegex.regex}
         includedCount={bestRegex.included.length}
         regexCap={regexCap}
+        language={searchLanguage}
+        supported={bestRegex.ok}
+        unsupportedMessage={bestRegex.ok ? '' : bestRegex.message}
         copied={copied}
         onCopy={copyRegex}
         onRegexCapChange={setRegexCap}
+        onLanguageChange={setSearchLanguageOverride}
       />
       <span className="sr-only" role="status" aria-live="polite">
         {copyMessage}

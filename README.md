@@ -109,6 +109,11 @@ Paste one or more Charted Charts into the importer using their in-game `Ctrl+C`
 text. Uncharted charts are rejected because their Voyage Modifier has not yet
 been revealed.
 
+The generated single-Chart, solved-board, and best-modifier search helpers,
+their language support, and the repeatable live-client validation matrix are
+documented in [docs/in-game-search.md](docs/in-game-search.md). Always verify
+the highlighted Charts before moving or starting them.
+
 Border modifiers can be entered manually. On Windows, the optional
 [AutoHotkey OCR helper](docs/windows-ocr.md) can automate chart copying from both
 chart-stash tabs and read the 12 visible border tooltips plus the next border-reroll cost. It requires
