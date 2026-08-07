@@ -1,7 +1,7 @@
 {
   "schema": "allflame-border-roll-dataset/v2",
-  "exportedAt": "2026-08-05T22:06:15.111Z",
-  "sampleCount": 31,
+  "exportedAt": "2026-08-06T22:45:09.495Z",
+  "sampleCount": 32,
   "samples": [
     {
       "schema": "allflame-border-roll/v2",
@@ -776,6 +776,31 @@
         "b-beasts-1",
         "b-exp-1",
         "b-crabs-1"
+      ]
+    },
+    {
+      "schema": "allflame-border-roll/v2",
+      "sampleId": "roll-fe4aac57-5861-4183-a24e-41808cc0a5c9",
+      "sequenceId": "voyage-b50fe061-b320-441e-be1c-2eaf50f62fbe",
+      "capturedAt": "2026-08-06T22:45:09.495Z",
+      "gamePatch": "3.29",
+      "vesperUpgradeCount": 5,
+      "generation": "natural",
+      "rerollIndex": 0,
+      "displayedNextRerollCost": 3000,
+      "borderModIds": [
+        "b-lanterns",
+        "b-quantconn-2",
+        "b-keep-1",
+        "b-mag-2",
+        "b-pack-2",
+        "b-mag-3",
+        "b-pack-2",
+        "b-keep-1",
+        "b-rare-2",
+        "b-mag-2",
+        "b-octoboss",
+        "b-rare-2"
       ]
     }
   ]
