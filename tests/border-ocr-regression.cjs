@@ -240,6 +240,12 @@ assert.doesNotMatch(ahkImporter, /seen\.Has\(clip\)/)
 assert.match(ahkImporter, /copied >= 5 && allIdentical/)
 assert.match(ahkImporter, /Every grid cell copied the SAME chart/)
 
+// 8.3 short-path guard (issue #27): %TEMP% like C:\Users\HARDPC~1 breaks
+// PowerShell's path normalizer - the helper paths must be built from the
+// expanded long path.
+assert.match(ahkImporter, /GetLongPathNameW/)
+assert.match(ahkImporter, /TempDir := LongPath\(A_Temp\)/)
+
 // The helper script is written to disk by AutoHotkey from a continuation
 // string - backtick is AHK's escape character, so any backtick in the
 // embedded PowerShell (e.g. a PS line continuation) is silently stripped at
