@@ -5,7 +5,7 @@ import {
   edgesForChartShape,
   isChartShapeResolved,
 } from '../../logic/chartShapes'
-import { MAX_CHART_NAME_LENGTH } from '../../logic/storage'
+import { MAX_CHART_NAME_LENGTH, MAX_REWARD_PERCENT } from '../../logic/storage'
 import type { ChartData, Edges } from '../../types'
 import { STAT_LABELS } from '../../types'
 import { updateImportedReward } from './chartEditorRewards'
@@ -77,6 +77,8 @@ export function ChartEditor({ chart, onUpdate }: Props) {
                     type="number"
                     aria-label={`Imported ${STAT_LABELS[reward.stat]} reward`}
                     value={reward.percent}
+                    min={0}
+                    max={MAX_REWARD_PERCENT}
                     onChange={(event) =>
                       onUpdate(
                         updateImportedReward(chart, index, Number(event.target.value || '0')),

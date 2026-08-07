@@ -75,6 +75,8 @@ export const MAX_RAW_TEXT_LENGTH = 32 * 1024
 export const MAX_SHAPE_INPUT_LENGTH = 256
 export const MAX_MOD_IDS_PER_CHART = 64
 export const MAX_REWARDS_PER_CHART = 64
+/** Generous sanity cap for imported chart-header percentages and their merged totals. */
+export const MAX_REWARD_PERCENT = 10_000
 export const MAX_DISABLED_MODS = 256
 export const MAX_PIECE_KEEPS = 256
 export const MAX_PIECE_KEEP_KEY_LENGTH = 512
@@ -189,8 +191,13 @@ function decodeRewards(value: unknown, path: string): ModEffect[] | undefined {
     if (typeof rawEffect.stat !== 'string' || !knownStats.has(rawEffect.stat as Stat)) {
       fail(`${effectPath}.stat is not a supported reward stat`)
     }
-    if (typeof rawEffect.percent !== 'number' || !Number.isFinite(rawEffect.percent)) {
-      fail(`${effectPath}.percent must be a finite number`)
+    if (
+      typeof rawEffect.percent !== 'number' ||
+      !Number.isFinite(rawEffect.percent) ||
+      rawEffect.percent < 0 ||
+      rawEffect.percent > MAX_REWARD_PERCENT
+    ) {
+      fail(`${effectPath}.percent must be between 0 and ${MAX_REWARD_PERCENT}`)
     }
     return {
       // Patch 3.29.2 converted every Chart Gold-found modifier into Rarity.
@@ -205,7 +212,11 @@ function decodeRewards(value: unknown, path: string): ModEffect[] | undefined {
   // now contribute to one aggregate Item Rarity header value.
   const merged = new Map<Stat, number>()
   for (const effect of decoded) {
-    merged.set(effect.stat, (merged.get(effect.stat) ?? 0) + effect.percent)
+    const percent = (merged.get(effect.stat) ?? 0) + effect.percent
+    if (!Number.isFinite(percent) || percent > MAX_REWARD_PERCENT) {
+      fail(`${path} aggregate for ${effect.stat} must be between 0 and ${MAX_REWARD_PERCENT}`)
+    }
+    merged.set(effect.stat, percent)
   }
   return [...merged].map(([stat, percent]) => ({ stat, percent }))
 }

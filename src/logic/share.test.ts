@@ -13,7 +13,13 @@ import {
   SHARE_PREFIX,
   ShareEncodeError,
 } from './share'
-import { defaultState, MAX_POOL_CHARTS, serializeState, type AppState } from './storage'
+import {
+  defaultState,
+  MAX_POOL_CHARTS,
+  MAX_REWARD_PERCENT,
+  serializeState,
+  type AppState,
+} from './storage'
 
 const chart = (uid: string, overrides: Partial<ChartData> = {}): ChartData => ({
   uid,
@@ -260,6 +266,39 @@ describe('layout sharing', () => {
     expect(decodeShare(layoutHash(payload))).toMatchObject({
       ok: false,
       message: 'share payload must contain exactly nine board cells',
+    })
+  })
+
+  it('rejects out-of-range rewards from shared layouts', () => {
+    const state = defaultState()
+    const payload = {
+      v: 1,
+      cells: [
+        {
+          rotation: 0,
+          chart: {
+            name: 'Overflow Chart',
+            level: 83,
+            edges: [true, false, true, false],
+            modIds: [],
+            rewards: [{ stat: 'quantity', percent: MAX_REWARD_PERCENT + 1 }],
+          },
+        },
+        ...Array(8).fill(null),
+      ],
+      borders: state.borders,
+      scoring: {
+        weights: state.weights,
+        mode: state.mode,
+        adjacencyMode: state.adjacencyMode,
+        adjacentAffectsSelf: state.adjacentAffectsSelf,
+        disabledMods: state.disabledMods,
+      },
+    }
+
+    expect(decodeShare(layoutHash(payload))).toMatchObject({
+      ok: false,
+      message: `pool[0].rewards[0].percent must be between 0 and ${MAX_REWARD_PERCENT}`,
     })
   })
 
