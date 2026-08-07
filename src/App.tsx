@@ -1,4 +1,5 @@
-import { useEffect, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { AutosaveFailureWarning } from './components/AutosaveFailureWarning'
 import { BoardView } from './components/Board'
 import { BorderAppraiser } from './components/BorderAppraiser'
 import { ImportPanel } from './components/ImportPanel'
@@ -36,6 +37,7 @@ import {
   loadLocalState,
   saveLocal,
   type AppState,
+  type LocalSaveResult,
   type LocalStateRecovery,
 } from './logic/storage'
 import { persistableAppStateReducer } from './state/appStateReducer'
@@ -90,6 +92,10 @@ export default function App() {
   const { state, mutationError } = persistableState
   const [shareSession, setShareSession] = useState<ShareSession | null>(initial.shareSession)
   const [recovery, setRecovery] = useState<LocalStateRecovery | null>(initial.recovery)
+  const [autosaveFailure, setAutosaveFailure] = useState<Extract<
+    LocalSaveResult,
+    { ok: false }
+  > | null>(null)
   const chrome = useAppChrome(state)
   const analysis = useVoyageAnalysis(state)
   const selection = useBoardSelection(state.board, dispatch)
@@ -121,13 +127,18 @@ export default function App() {
     borderResearch.finishVoyage,
   )
   const saveTimer = useRef<number>()
+  const persistState = useCallback((nextState: AppState) => {
+    const result = saveLocal(nextState)
+    setAutosaveFailure(result.ok ? null : result)
+    return result
+  }, [])
 
   useEffect(() => {
     if (shareSession || recovery) return
     window.clearTimeout(saveTimer.current)
-    saveTimer.current = window.setTimeout(() => saveLocal(state), 300)
+    saveTimer.current = window.setTimeout(() => persistState(state), 300)
     return () => window.clearTimeout(saveTimer.current)
-  }, [recovery, shareSession, state])
+  }, [persistState, recovery, shareSession, state])
 
   const clearShareHash = () => {
     window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
@@ -179,7 +190,7 @@ export default function App() {
 
   const migrateSavedState = () => {
     if (!recovery?.backupKey || !recovery.proposedState) return
-    saveLocal(recovery.proposedState)
+    persistState(recovery.proposedState)
     if (!shareSession) dispatch({ type: 'replace', state: recovery.proposedState })
     setRecovery(null)
   }
@@ -190,7 +201,7 @@ export default function App() {
       return
     }
     const fresh = defaultState()
-    saveLocal(fresh)
+    persistState(fresh)
     if (!shareSession) dispatch({ type: 'replace', state: fresh })
     setRecovery(null)
   }
@@ -217,6 +228,14 @@ export default function App() {
   return (
     <div className="app">
       <TooltipLayer />
+      {autosaveFailure && (
+        <AutosaveFailureWarning
+          failure={autosaveFailure}
+          state={state}
+          onRetry={() => persistState(state)}
+          onDismiss={() => setAutosaveFailure(null)}
+        />
+      )}
       {mutationError && (
         <div className="share-banner error" role="alert">
           <div className="share-banner-copy">
