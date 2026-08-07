@@ -1,0 +1,592 @@
+{
+  "surface": "report",
+  "manifest": {
+    "version": 1,
+    "surface": "report",
+    "title": "Co już wiemy o border modach",
+    "description": "Wnioski z 42 kompletnych plansz border modów z patcha 3.29 i rekomendacje dla modelu rerolli.",
+    "generatedAt": "2026-08-07T14:29:50.195Z",
+    "filters": [],
+    "sources": [
+      {
+        "id": "canonical_dataset",
+        "label": "Kanoniczny zbiór border-roll v2",
+        "path": "data/border-rolls-v2.json",
+        "url": "https://github.com/Alkwer/one-more-map.github.io/blob/5da127d99125722301046ab56461574f73c67f1e/data/border-rolls-v2.json"
+      },
+      {
+        "id": "border_mod_defs",
+        "label": "Kanoniczne definicje border modów",
+        "path": "src/data/mods.ts",
+        "url": "https://github.com/Alkwer/one-more-map.github.io/blob/5da127d99125722301046ab56461574f73c67f1e/src/data/mods.ts"
+      },
+      {
+        "id": "analysis_current",
+        "label": "Odtwarzalna analiza border-roll",
+        "path": "analysis/border-rolls-2026-08-06/analyze.mjs"
+      },
+      {
+        "id": "top_mods_source",
+        "label": "Snapshot: najczęstsze border mody"
+      },
+      {
+        "id": "slot_family_source",
+        "label": "Snapshot: rodziny i pozycje"
+      },
+      {
+        "id": "evidence_source",
+        "label": "Snapshot: ocena gotowości wniosków"
+      }
+    ],
+    "cards": [],
+    "charts": [
+      {
+        "id": "top_mods_chart",
+        "type": "bar",
+        "title": "Najczęstsze border mody",
+        "subtitle": "Osiem najczęstszych modów zajmuje 40,7% wszystkich obserwowanych slotów",
+        "dataset": "top_mods",
+        "sourceId": "top_mods_source",
+        "valueFormat": "percent",
+        "encodings": {
+          "x": {
+            "field": "label",
+            "type": "nominal",
+            "label": "Border mod"
+          },
+          "y": {
+            "field": "slot_share",
+            "type": "quantitative",
+            "label": "Udział slotów"
+          },
+          "tooltip": [
+            {
+              "field": "slots",
+              "label": "Sloty"
+            },
+            {
+              "field": "boards",
+              "label": "Plansze"
+            },
+            {
+              "field": "sequences",
+              "label": "Sekwencje"
+            },
+            {
+              "field": "natural_slots",
+              "label": "Naturalne"
+            },
+            {
+              "field": "paid_slots",
+              "label": "Płatne rerolle"
+            }
+          ]
+        },
+        "settings": {
+          "orientation": "horizontal"
+        }
+      }
+    ],
+    "tables": [
+      {
+        "id": "slot_family_table",
+        "title": "Rodziny nagród i ich segmenty",
+        "subtitle": "42 plansze; wszystkie 21 obserwacji czterech rodzin trafiło do wskazanego slotu",
+        "dataset": "slot_family_summary",
+        "sourceId": "slot_family_source",
+        "defaultSort": {
+          "field": "observed",
+          "direction": "desc"
+        },
+        "columns": [
+          {
+            "field": "family",
+            "label": "Rodzina",
+            "type": "text"
+          },
+          {
+            "field": "expected_position",
+            "label": "Segment",
+            "type": "text"
+          },
+          {
+            "field": "observed",
+            "label": "Obserwacje",
+            "type": "number"
+          },
+          {
+            "field": "match_rate",
+            "label": "W przypisanym slocie",
+            "format": "percent"
+          }
+        ]
+      },
+      {
+        "id": "evidence_table",
+        "title": "Co jest już ustalone, a co pozostaje eksperymentalne",
+        "subtitle": "Ocena gotowości do użycia w modelu i komunikacji produktu",
+        "dataset": "evidence_summary",
+        "sourceId": "evidence_source",
+        "defaultSort": {
+          "field": "priority",
+          "direction": "asc"
+        },
+        "columns": [
+          {
+            "field": "priority",
+            "label": "#",
+            "type": "number"
+          },
+          {
+            "field": "finding",
+            "label": "Wniosek",
+            "type": "text"
+          },
+          {
+            "field": "evidence",
+            "label": "Dowód",
+            "type": "text"
+          },
+          {
+            "field": "confidence",
+            "label": "Pewność",
+            "type": "text"
+          },
+          {
+            "field": "action",
+            "label": "Co robić",
+            "type": "text"
+          }
+        ]
+      }
+    ],
+    "blocks": [
+      {
+        "id": "title",
+        "type": "markdown",
+        "body": "# Co już wiemy o border modach"
+      },
+      {
+        "id": "executive_summary",
+        "type": "markdown",
+        "sourceId": "analysis_current",
+        "body": "## Executive Summary\n\n- **Tak — można już odrzucić globalny, niezależny od pozycji model jako domyślne założenie.** Cztery semantyczne rodziny nagród trafiły do odpowiadających im środkowych slotów boków w **21/21 obserwacjach**. Test permutacyjny zależności rodziny od pozycji daje **p < 0,00005**.\n- **Pula nie zachowuje się jak 64 jednakowo dostępne kategorie.** Osiem najczęstszych modów zajmuje **40,7% z 504 slotów**; sam `60% Magnitude` odpowiada za **7,1% slotów**, wobec 1,6% w naiwnym równym benchmarku. To wspiera model slot-aware, ale jeszcze nie zamraża dokładnych wag w każdym slocie.\n- **Duplikaty są bezspornie dozwolone.** Dokładny duplikat moda wystąpił na **38/42 planszach**. Nie ma podstaw do reguły „jeden mod najwyżej raz na planszę”.\n- **Dokładne szanse rzadkich modów nadal są niepewne.** Nie zaobserwowano 15 z 64 kanonicznych modów, w tym Divine. Obecna niezerowa szansa Divine w modelu pochodzi wyłącznie z priory; cały model nadal ma niską pewność przy 21 kompletnych sekwencjach."
+      },
+      {
+        "id": "scope",
+        "type": "markdown",
+        "sourceId": "analysis_current",
+        "body": "## Co dokładnie mierzymy\n\nAktualny zbiór obejmuje **42 kompletne plansze, 21 sekwencji Voyage i 504 uporządkowane sloty**, zebrane od 1 do 7 sierpnia 2026. Wszystkie rekordy pochodzą z patcha 3.29. Próba zawiera 21 naturalnych plansz i 21 płatnych rerolli; płatne rolle pochodzą z 12 sekwencji. Dla 30 plansz zapisano Vesper 5, a 12 starszych rekordów ma Vesper nieznany."
+      },
+      {
+        "id": "slot_finding",
+        "type": "markdown",
+        "sourceId": "analysis_current",
+        "body": "## Pozycja jest częścią mechaniki losowania\n\n**Najsilniejszy i powtarzalny sygnał jest symetryczny:** waluta / drop walut pojawia się w górnym środkowym segmencie, rarity w prawym środkowym, scaraby w dolnym środkowym, a experience w lewym środkowym. Wszystkie 21 zaobserwowanych trafień tych rodzin znalazło się w przypisanym slocie — 9/9 w pierwszych 21 planszach i 12/12 w kolejnych 21.\n\nTo jest wystarczające, by w produkcie preferować eksperymentalny model zależny od slotu. Nie jest jeszcze wystarczające, by uznać pełne maski dostępności wszystkich 64 modów za ostateczne."
+      },
+      {
+        "id": "slot_table",
+        "type": "table",
+        "tableId": "slot_family_table"
+      },
+      {
+        "id": "concentration_finding",
+        "type": "markdown",
+        "sourceId": "analysis_current",
+        "body": "## Globalne częstotliwości są mocno skoncentrowane\n\n**Najczęstsze mody pojawiają się wielokrotnie częściej niż sugerowałby naiwny równy benchmark 1/64.** Osiem najwyżej notowanych pozycji zajmuje 40,7% wszystkich slotów zamiast 12,5% dla ośmiu jednakowo prawdopodobnych kategorii.\n\nCzęść tej koncentracji prawdopodobnie wynika z różnej dostępności w poszczególnych slotach, dlatego wykres nie jest jeszcze tabelą „prawdziwych globalnych wag”. Uzasadnia jednak odejście od modelu jednej jednolitej puli."
+      },
+      {
+        "id": "top_mods",
+        "type": "chart",
+        "chartId": "top_mods_chart"
+      },
+      {
+        "id": "mechanics_finding",
+        "type": "markdown",
+        "sourceId": "analysis_current",
+        "body": "## Duplikaty są pewne, ale naturalny i płatny roll nadal powinny być rozdzielone\n\n**Duplikaty występują na 38/42 planszach i 19/21 płatnych rerolli.** Liczba zgodnych par na płatnych planszach mieści się w 95% przedziale otrzymanym przez przetasowanie tych samych wartości, więc dane potwierdzają możliwość duplikatów, ale nie pokazują dodatkowego mechanizmu klastrowania.\n\n**Nie wykryto różnicy między naturalnymi i płatnymi rollami** w dokładnym teście wewnątrz 12 sekwencji (p = 0,410). To nie jest dowód równoważności — próba pozostaje za mała, by łączyć rozkłady. Krzywa kosztu jest natomiast spójna w obserwowanym zakresie: 3k po naturalnym rollu (21/21), 6k po pierwszym płatnym rollu (12/12) i 12k po drugim (9/9)."
+      },
+      {
+        "id": "evidence_heading",
+        "type": "markdown",
+        "body": "## Co można już wykorzystać w produkcie\n\nPoniższe rozróżnienie oddziela ustalenia mechaniczne od estymat nadal wrażliwych na małą próbę."
+      },
+      {
+        "id": "evidence_table_block",
+        "type": "table",
+        "tableId": "evidence_table"
+      },
+      {
+        "id": "next_steps",
+        "type": "markdown",
+        "sourceId": "analysis_current",
+        "body": "## Rekomendowane następne kroki\n\n1. **Utrzymać model slot-aware jako eksperymentalny domyślny model forecastu.** Cztery środkowe sloty mogą startować z obserwowanymi rodzinami; pozostałe maski powinny rozszerzać się po każdym kontrprzykładzie.\n2. **Wyraźnie oznaczać `prior-only`.** Divine ma 0 obserwacji; modelowa szansa około 3,7% na planszę jest całkowicie wywołana priorem i nie powinna wyglądać jak estymata empiryczna.\n3. **Nie łączyć jeszcze naturalnych i płatnych rolli.** Najbliższy sensowny próg pewności modelu to 30 kompletnych sekwencji; obecnie jest 21, a tylko 12 zawiera płatny reroll.\n4. **Zbierać następne plansze pod walidację masek slotów i rzadkiego ogona.** Największy przyrost wiedzy dadzą kontrprzykłady dla czterech środkowych slotów, pierwsze trafienia nieobserwowanych modów oraz więcej sekwencji z Vesperem zapisanym jawnie."
+      },
+      {
+        "id": "further_questions",
+        "type": "markdown",
+        "body": "## Pytania, które najbardziej zmienią decyzję\n\n- Czy indywidualne dropy walut, w tym Divine, są ograniczone do górnego środkowego slotu?\n- Czy pozostałe osiem segmentów ma własne pule dostępności, czy tylko różne wagi?\n- Czy Vesper zmienia dostępność lub wagi? Obecne 30 rekordów z Vesper 5 i 12 rekordów nieznanych jest skonfundowane z czasem zbierania.\n- Czy naturalny i płatny roll są równoważne po kontroli slotu i Vespera?\n- Ilu niezależnych contributorów reprezentuje korpus? Zbiór celowo nie zapisuje tożsamości gracza."
+      },
+      {
+        "id": "caveats",
+        "type": "markdown",
+        "sourceId": "analysis_current",
+        "body": "## Caveats and assumptions\n\nWszystkie dane pochodzą z patcha 3.29 i krótkiego okna 1–7 sierpnia 2026. Zbiór nie pozwala oszacować koncentracji contributorów. Testy pozycyjne są eksploracyjne, choć wzorzec zreplikował się w nowszej połowie próby. Brak Divine nie oznacza, że mod nie występuje: przy 0/42 planszach górna granica 95% Wilsona dla częstości plansz wynosi nadal około 8,4%. Ogólna ocena: **share with caveats**."
+      }
+    ]
+  },
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-08-07T14:29:50.195Z",
+    "status": "ready",
+    "accessIssues": [],
+    "datasets": {
+      "slot_family_summary": [
+        {
+          "family": "Waluta / drop walut",
+          "expected_position": "Góra 2",
+          "observed": 7,
+          "match_rate": 1
+        },
+        {
+          "family": "Rarity",
+          "expected_position": "Prawo 2",
+          "observed": 4,
+          "match_rate": 1
+        },
+        {
+          "family": "Scaraby",
+          "expected_position": "Dół 2",
+          "observed": 5,
+          "match_rate": 1
+        },
+        {
+          "family": "Experience",
+          "expected_position": "Lewo 2",
+          "observed": 5,
+          "match_rate": 1
+        }
+      ],
+      "top_mods": [
+        {
+          "rank": 1,
+          "mod_id": "b-mag-2",
+          "label": "60% Magnitude",
+          "slots": 36,
+          "slot_share": 0.0714285714,
+          "boards": 28,
+          "sequences": 16,
+          "natural_slots": 20,
+          "paid_slots": 16,
+          "uniform_benchmark": 0.015625,
+          "sample_boards": 42,
+          "sample_slots": 504
+        },
+        {
+          "rank": 2,
+          "mod_id": "b-anchor-1",
+          "label": "+2 Anchors",
+          "slots": 30,
+          "slot_share": 0.0595238095,
+          "boards": 21,
+          "sequences": 14,
+          "natural_slots": 17,
+          "paid_slots": 13,
+          "uniform_benchmark": 0.015625,
+          "sample_boards": 42,
+          "sample_slots": 504
+        },
+        {
+          "rank": 3,
+          "mod_id": "b-pack-1",
+          "label": "16% Pack Size",
+          "slots": 27,
+          "slot_share": 0.0535714286,
+          "boards": 20,
+          "sequences": 14,
+          "natural_slots": 15,
+          "paid_slots": 12,
+          "uniform_benchmark": 0.015625,
+          "sample_boards": 42,
+          "sample_slots": 504
+        },
+        {
+          "rank": 4,
+          "mod_id": "b-mag-1",
+          "label": "40% Magnitude",
+          "slots": 24,
+          "slot_share": 0.0476190476,
+          "boards": 21,
+          "sequences": 13,
+          "natural_slots": 10,
+          "paid_slots": 14,
+          "uniform_benchmark": 0.015625,
+          "sample_boards": 42,
+          "sample_slots": 504
+        },
+        {
+          "rank": 5,
+          "mod_id": "b-pack-3",
+          "label": "32% Pack Size",
+          "slots": 23,
+          "slot_share": 0.0456349206,
+          "boards": 17,
+          "sequences": 13,
+          "natural_slots": 12,
+          "paid_slots": 11,
+          "uniform_benchmark": 0.015625,
+          "sample_boards": 42,
+          "sample_slots": 504
+        },
+        {
+          "rank": 6,
+          "mod_id": "b-goldlantern",
+          "label": "+4 Gold Lanterns",
+          "slots": 22,
+          "slot_share": 0.0436507937,
+          "boards": 18,
+          "sequences": 17,
+          "natural_slots": 13,
+          "paid_slots": 9,
+          "uniform_benchmark": 0.015625,
+          "sample_boards": 42,
+          "sample_slots": 504
+        },
+        {
+          "rank": 7,
+          "mod_id": "b-quantconn-1",
+          "label": "120% Qty, -50%/Conn",
+          "slots": 22,
+          "slot_share": 0.0436507937,
+          "boards": 18,
+          "sequences": 13,
+          "natural_slots": 10,
+          "paid_slots": 12,
+          "uniform_benchmark": 0.015625,
+          "sample_boards": 42,
+          "sample_slots": 504
+        },
+        {
+          "rank": 8,
+          "mod_id": "b-keep-1",
+          "label": "30% Keep Charts",
+          "slots": 21,
+          "slot_share": 0.0416666667,
+          "boards": 18,
+          "sequences": 14,
+          "natural_slots": 11,
+          "paid_slots": 10,
+          "uniform_benchmark": 0.015625,
+          "sample_boards": 42,
+          "sample_slots": 504
+        },
+        {
+          "rank": 9,
+          "mod_id": "b-rare-1",
+          "label": "50% Rares",
+          "slots": 18,
+          "slot_share": 0.0357142857,
+          "boards": 17,
+          "sequences": 13,
+          "natural_slots": 9,
+          "paid_slots": 9,
+          "uniform_benchmark": 0.015625,
+          "sample_boards": 42,
+          "sample_slots": 504
+        },
+        {
+          "rank": 10,
+          "mod_id": "b-lanterns",
+          "label": "Free Lanterns",
+          "slots": 17,
+          "slot_share": 0.0337301587,
+          "boards": 14,
+          "sequences": 10,
+          "natural_slots": 9,
+          "paid_slots": 8,
+          "uniform_benchmark": 0.015625,
+          "sample_boards": 42,
+          "sample_slots": 504
+        }
+      ],
+      "evidence_summary": [
+        {
+          "priority": 1,
+          "finding": "Pule zależne od pozycji",
+          "evidence": "21/21 trafień czterech rodzin w przypisanych środkowych segmentach; permutacyjne p < 0,00005",
+          "confidence": "Wysoka dla istnienia zależności",
+          "action": "Używać modelu slot-aware eksperymentalnie"
+        },
+        {
+          "priority": 2,
+          "finding": "Duplikaty są dozwolone",
+          "evidence": "38/42 plansz z dokładnym duplikatem moda",
+          "confidence": "Wysoka",
+          "action": "Nie wymuszać unikalności moda na planszy"
+        },
+        {
+          "priority": 3,
+          "finding": "Globalna pula nie jest jednolita",
+          "evidence": "Top 8 = 40,7% slotów; równy benchmark dla 8 z 64 = 12,5%",
+          "confidence": "Średnia dla dokładnych wag",
+          "action": "Estymować osobno per slot i wygładzać"
+        },
+        {
+          "priority": 4,
+          "finding": "Koszt rerolli",
+          "evidence": "3k: 21/21; 6k: 12/12; 12k: 9/9",
+          "confidence": "Wysoka w obserwowanym zakresie",
+          "action": "Można komunikować 3k → 6k → 12k"
+        },
+        {
+          "priority": 5,
+          "finding": "Naturalny vs płatny",
+          "evidence": "Nie wykryto różnicy, p = 0,410; tylko 12 sparowanych sekwencji",
+          "confidence": "Niewystarczająca dla równoważności",
+          "action": "Nadal utrzymywać osobne profile"
+        },
+        {
+          "priority": 6,
+          "finding": "Rzadkie i niewidziane mody",
+          "evidence": "15/64 niewidzianych; Divine 0/42 plansz",
+          "confidence": "Niska / prior-only",
+          "action": "Nie prezentować dokładnych szans jako empirycznych"
+        },
+        {
+          "priority": 7,
+          "finding": "Wpływ Vespera",
+          "evidence": "30 plansz z Vesper 5, 12 z wartością nieznaną; strata zależne od czasu",
+          "confidence": "Brak wiarygodnej estymaty",
+          "action": "Zbierać więcej jawnie oznaczonych poziomów"
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "id": "canonical_dataset",
+      "label": "Kanoniczny zbiór border-roll v2",
+      "path": "data/border-rolls-v2.json",
+      "href": "https://github.com/Alkwer/one-more-map.github.io/blob/5da127d99125722301046ab56461574f73c67f1e/data/border-rolls-v2.json",
+      "query": {
+        "id": "5da127d99125722301046ab56461574f73c67f1e:data/border-rolls-v2.json",
+        "engine": "git",
+        "language": "json",
+        "url": "https://github.com/Alkwer/one-more-map.github.io/blob/5da127d99125722301046ab56461574f73c67f1e/data/border-rolls-v2.json",
+        "executed_at": "2026-08-07T14:29:50.195Z",
+        "description": "Kanoniczny, zwalidowany zbiór kompletnych plansz border modów.",
+        "filters": [
+          "Wszystkie 42 rekordy z kanonicznego zbioru",
+          "Patch 3.29",
+          "Tylko kompletne plansze 12/12"
+        ]
+      }
+    },
+    {
+      "id": "border_mod_defs",
+      "label": "Kanoniczne definicje border modów",
+      "path": "src/data/mods.ts",
+      "href": "https://github.com/Alkwer/one-more-map.github.io/blob/5da127d99125722301046ab56461574f73c67f1e/src/data/mods.ts",
+      "query": {
+        "id": "5da127d99125722301046ab56461574f73c67f1e:src/data/mods.ts",
+        "engine": "git",
+        "language": "typescript",
+        "url": "https://github.com/Alkwer/one-more-map.github.io/blob/5da127d99125722301046ab56461574f73c67f1e/src/data/mods.ts",
+        "executed_at": "2026-08-07T14:29:50.195Z",
+        "description": "Lista 64 kanonicznych border modów i etykiet użyta do walidacji pokrycia."
+      }
+    },
+    {
+      "id": "analysis_current",
+      "label": "Odtwarzalna analiza border-roll",
+      "path": "analysis/border-rolls-2026-08-06/analyze.mjs",
+      "query": {
+        "id": "border-roll-analysis-2026-08-07",
+        "engine": "node",
+        "language": "javascript",
+        "executed_at": "2026-08-07T14:29:50.195Z",
+        "description": "Analiza profilu, koncentracji, permutacji slotów, duplikatów, generacji, kosztów i Divine uruchomiona dla HEAD.",
+        "tables_used": ["data/border-rolls-v2.json", "src/data/mods.ts"],
+        "filters": [
+          "Źródło: origin/main@5da127d99125722301046ab56461574f73c67f1e",
+          "20 000 permutacji dla testów slotów i duplikatów",
+          "157 464 dokładne przypisania dla porównania generacji"
+        ],
+        "metric_definitions": {
+          "Udział slotów": "liczba wystąpień moda / 504 kompletne sloty",
+          "Duplikat na planszy": "co najmniej jedna para identycznych kanonicznych identyfikatorów w 12 slotach",
+          "Górna granica Divine": "95% przedział Wilsona dla 0 sukcesów na 42 planszach"
+        }
+      }
+    },
+    {
+      "id": "top_mods_source",
+      "label": "Snapshot: najczęstsze border mody",
+      "query": {
+        "id": "top_mods_source",
+        "engine": "duckdb",
+        "language": "sql",
+        "executed_at": "2026-08-07T14:29:50.195Z",
+        "description": "Ranking modów według udziału w 504 kompletnych slotach.",
+        "sql": "SELECT * FROM (VALUES\n(1, 'b-mag-2', '60% Magnitude', 36, 0.0714285714, 28, 16, 20, 16, 0.015625, 42, 504),\n(2, 'b-anchor-1', '+2 Anchors', 30, 0.0595238095, 21, 14, 17, 13, 0.015625, 42, 504),\n(3, 'b-pack-1', '16% Pack Size', 27, 0.0535714286, 20, 14, 15, 12, 0.015625, 42, 504),\n(4, 'b-mag-1', '40% Magnitude', 24, 0.0476190476, 21, 13, 10, 14, 0.015625, 42, 504),\n(5, 'b-pack-3', '32% Pack Size', 23, 0.0456349206, 17, 13, 12, 11, 0.015625, 42, 504),\n(6, 'b-goldlantern', '+4 Gold Lanterns', 22, 0.0436507937, 18, 17, 13, 9, 0.015625, 42, 504),\n(7, 'b-quantconn-1', '120% Qty, -50%/Conn', 22, 0.0436507937, 18, 13, 10, 12, 0.015625, 42, 504),\n(8, 'b-keep-1', '30% Keep Charts', 21, 0.0416666667, 18, 14, 11, 10, 0.015625, 42, 504),\n(9, 'b-rare-1', '50% Rares', 18, 0.0357142857, 17, 13, 9, 9, 0.015625, 42, 504),\n(10, 'b-lanterns', 'Free Lanterns', 17, 0.0337301587, 14, 10, 9, 8, 0.015625, 42, 504)\n) AS t(rank, mod_id, label, slots, slot_share, boards, sequences, natural_slots, paid_slots, uniform_benchmark, sample_boards, sample_slots)\nORDER BY rank;",
+        "tables_used": [
+          "bounded VALUES snapshot derived from data/border-rolls-v2.json and src/data/mods.ts"
+        ],
+        "filters": [
+          "origin/main@5da127d99125722301046ab56461574f73c67f1e",
+          "Patch 3.29",
+          "42 complete boards / 504 slots"
+        ],
+        "metric_definitions": {
+          "slot_share": "slots / 504",
+          "boards": "liczba plansz zawierających mod co najmniej raz",
+          "sequences": "liczba sekwencji zawierających mod co najmniej raz"
+        }
+      }
+    },
+    {
+      "id": "slot_family_source",
+      "label": "Snapshot: rodziny i pozycje",
+      "query": {
+        "id": "slot_family_source",
+        "engine": "duckdb",
+        "language": "sql",
+        "executed_at": "2026-08-07T14:29:50.195Z",
+        "description": "Cztery semantyczne rodziny i zgodność z oczekiwanym środkowym segmentem.",
+        "sql": "SELECT * FROM (VALUES\n('Waluta / drop walut', 'Góra 2', 7, 1),\n('Rarity', 'Prawo 2', 4, 1),\n('Scaraby', 'Dół 2', 5, 1),\n('Experience', 'Lewo 2', 5, 1)\n) AS t(family, expected_position, observed, match_rate)\nORDER BY observed DESC;",
+        "tables_used": [
+          "bounded VALUES snapshot derived from data/border-rolls-v2.json and src/data/mods.ts"
+        ],
+        "filters": [
+          "origin/main@5da127d99125722301046ab56461574f73c67f1e",
+          "Patch 3.29",
+          "42 complete boards / 504 slots"
+        ],
+        "metric_definitions": {
+          "match_rate": "liczba trafień w oczekiwanym slocie / wszystkie obserwacje rodziny"
+        }
+      }
+    },
+    {
+      "id": "evidence_source",
+      "label": "Snapshot: ocena gotowości wniosków",
+      "query": {
+        "id": "evidence_source",
+        "engine": "duckdb",
+        "language": "sql",
+        "executed_at": "2026-08-07T14:29:50.195Z",
+        "description": "Zestawienie ustaleń, dowodów, pewności i zalecanych działań.",
+        "sql": "SELECT * FROM (VALUES\n(1, 'Pule zależne od pozycji', '21/21 trafień czterech rodzin w przypisanych środkowych segmentach; permutacyjne p < 0,00005', 'Wysoka dla istnienia zależności', 'Używać modelu slot-aware eksperymentalnie'),\n(2, 'Duplikaty są dozwolone', '38/42 plansz z dokładnym duplikatem moda', 'Wysoka', 'Nie wymuszać unikalności moda na planszy'),\n(3, 'Globalna pula nie jest jednolita', 'Top 8 = 40,7% slotów; równy benchmark dla 8 z 64 = 12,5%', 'Średnia dla dokładnych wag', 'Estymować osobno per slot i wygładzać'),\n(4, 'Koszt rerolli', '3k: 21/21; 6k: 12/12; 12k: 9/9', 'Wysoka w obserwowanym zakresie', 'Można komunikować 3k → 6k → 12k'),\n(5, 'Naturalny vs płatny', 'Nie wykryto różnicy, p = 0,410; tylko 12 sparowanych sekwencji', 'Niewystarczająca dla równoważności', 'Nadal utrzymywać osobne profile'),\n(6, 'Rzadkie i niewidziane mody', '15/64 niewidzianych; Divine 0/42 plansz', 'Niska / prior-only', 'Nie prezentować dokładnych szans jako empirycznych'),\n(7, 'Wpływ Vespera', '30 plansz z Vesper 5, 12 z wartością nieznaną; strata zależne od czasu', 'Brak wiarygodnej estymaty', 'Zbierać więcej jawnie oznaczonych poziomów')\n) AS t(priority, finding, evidence, confidence, action)\nORDER BY priority;",
+        "tables_used": [
+          "bounded VALUES snapshot derived from data/border-rolls-v2.json and src/data/mods.ts"
+        ],
+        "filters": [
+          "origin/main@5da127d99125722301046ab56461574f73c67f1e",
+          "Patch 3.29",
+          "42 complete boards / 504 slots"
+        ],
+        "metric_definitions": {}
+      }
+    }
+  ]
+}

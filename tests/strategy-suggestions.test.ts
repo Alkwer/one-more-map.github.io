@@ -68,10 +68,13 @@ describe('strategy suggestion regressions', () => {
     assert.ok(
       divine.reasons.some((reason) =>
         divineEstimate.evidence === 'prior-only'
-          ? /prior-only; 0 observed/.test(reason)
+          ? /0 observed paid-reroll hits.*only through the prior/.test(reason)
           : new RegExp(`${divineEstimate.observations} observed paid-reroll hits`).test(reason),
       ),
     )
+    if (divineEstimate.evidence === 'prior-only') {
+      assert.ok(divine.reasons.every((reason) => !/model estimates a \d+% chance/.test(reason)))
+    }
 
     const priorOnlyDivine = {
       ...divine,
@@ -86,6 +89,7 @@ describe('strategy suggestion regressions', () => {
       }),
     )
     assert.match(markup, /Required border/)
+    assert.match(markup, /Required border<strong>Unknown<\/strong>/)
     assert.match(markup, /prior-only · 0 observed/)
   })
 

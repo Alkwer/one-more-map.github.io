@@ -109,7 +109,11 @@ export function StrategySuggestions({
                   {suggestion.requiredBorderChance !== null && (
                     <span>
                       Required border
-                      <strong>{Math.round(suggestion.requiredBorderChance * 100)}%</strong>
+                      <strong>
+                        {suggestion.requiredBorderEvidence === 'prior-only'
+                          ? 'Unknown'
+                          : `${Math.round(suggestion.requiredBorderChance * 100)}%`}
+                      </strong>
                       {suggestion.requiredBorderEvidence === 'prior-only' && (
                         <em className="suggestion-prior-only">prior-only · 0 observed</em>
                       )}

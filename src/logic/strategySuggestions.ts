@@ -390,15 +390,17 @@ export function evaluateStrategyInventory(
       )
     }
     if (requiredBorderStatus === 'missing') {
-      const evidence =
-        requiredBorderEstimate?.evidence === 'prior-only'
-          ? 'prior-only; 0 observed paid-reroll hits'
-          : `${requiredBorderEstimate?.observations ?? 0} observed paid-reroll hits`
-      reasons.push(
-        `The completed current roll does not contain ${strategy.requiresBorderId!.label}; this strategy requires a border reroll. The experimental v${BORDER_ROLL_MODEL.version} model estimates a ${Math.round(
-          (requiredBorderChance ?? 0) * 100,
-        )}% chance to see it at least once on a paid reroll (${BORDER_ROLL_MODEL.confidence} confidence; ${evidence}).`,
-      )
+      if (requiredBorderEstimate?.evidence === 'prior-only') {
+        reasons.push(
+          `The completed current roll does not contain ${strategy.requiresBorderId!.label}; this strategy requires a border reroll. The experimental v${BORDER_ROLL_MODEL.version} model has 0 observed paid-reroll hits for this border and keeps it possible only through the prior (${BORDER_ROLL_MODEL.confidence} confidence).`,
+        )
+      } else {
+        reasons.push(
+          `The completed current roll does not contain ${strategy.requiresBorderId!.label}; this strategy requires a border reroll. The experimental v${BORDER_ROLL_MODEL.version} model estimates a ${Math.round(
+            (requiredBorderChance ?? 0) * 100,
+          )}% chance to see it at least once on a paid reroll (${BORDER_ROLL_MODEL.confidence} confidence; ${requiredBorderEstimate?.observations ?? 0} observed paid-reroll hits).`,
+        )
+      }
     }
 
     if (potentialAppraisal.rollForecast) {
