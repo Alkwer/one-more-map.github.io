@@ -37,7 +37,7 @@ export function VoyageRewards({ score, board, pool, chartMap, notables }: Props)
     }
     const result = await writeClipboardText(search.regex)
     if (result.ok) {
-      setSearchMessage('Copied!')
+      setSearchMessage('Copied—verify highlights')
     } else {
       setSearchMessage(`${result.detail} Copy manually: ${result.manualText}`)
     }
@@ -55,7 +55,7 @@ export function VoyageRewards({ score, board, pool, chartMap, notables }: Props)
           aria-label="Copy in-game chart search"
           onClick={copySearch}
           disabled={board.every((placement) => !placement)}
-          title="Copy an exact in-game chart search when the placed charts have distinguishable searchable fields"
+          title="Copy a candidate in-game Chart search, then verify that only the placed Charts are highlighted"
         >
           {searchMessage || '⌕ Copy in-game search'}
         </button>
