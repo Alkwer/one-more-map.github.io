@@ -91,6 +91,10 @@ export type StateDecodeResult =
 
 export type StatePersistenceResult = { ok: true } | { ok: false; message: string }
 
+export type LocalSaveFailureCode = 'serialization' | 'quota' | 'unavailable' | 'verification'
+export type LocalSaveResult =
+  { ok: true } | { ok: false; code: LocalSaveFailureCode; message: string }
+
 export interface LocalStateRecovery {
   status: 'recovery'
   raw: string
@@ -554,12 +558,59 @@ function decodePieceKeeps(value: unknown, warnings: string[]): Record<string, nu
   return decoded
 }
 
-export function saveLocal(state: AppState) {
-  try {
-    localStorage.setItem(LOCAL_STATE_KEY, serializeState(state))
-  } catch {
-    /* storage full / unavailable - ignore */
+function storageWriteFailure(error: unknown): Extract<LocalSaveResult, { ok: false }> {
+  const name =
+    typeof error === 'object' && error !== null && 'name' in error
+      ? String((error as { name: unknown }).name)
+      : ''
+  if (name === 'QuotaExceededError') {
+    return {
+      ok: false,
+      code: 'quota',
+      message: 'Browser storage is full.',
+    }
   }
+  return {
+    ok: false,
+    code: 'unavailable',
+    message: 'Browser storage is unavailable or blocked.',
+  }
+}
+
+export function saveLocal(state: AppState): LocalSaveResult {
+  let serialized: string
+  try {
+    serialized = serializeState(state)
+  } catch (error) {
+    return {
+      ok: false,
+      code: 'serialization',
+      message: error instanceof Error ? error.message : 'State could not be serialized.',
+    }
+  }
+
+  try {
+    localStorage.setItem(LOCAL_STATE_KEY, serialized)
+  } catch (error) {
+    return storageWriteFailure(error)
+  }
+
+  try {
+    if (localStorage.getItem(LOCAL_STATE_KEY) !== serialized) {
+      return {
+        ok: false,
+        code: 'verification',
+        message: 'Browser storage did not confirm the saved data.',
+      }
+    }
+  } catch {
+    return {
+      ok: false,
+      code: 'verification',
+      message: 'Browser storage could not verify the saved data.',
+    }
+  }
+  return { ok: true }
 }
 
 function recoveryBackupKey(raw: string): string {

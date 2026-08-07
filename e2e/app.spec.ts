@@ -85,6 +85,68 @@ test('stays usable when browser storage access is blocked', async ({ appPage }) 
   await expect(appPage.getByRole('button', { name: 'Switch to grid view' })).toBeVisible()
 })
 
+test('warns and offers recovery when autosave starts failing after load', async ({ appPage }) => {
+  await appPage.addInitScript(() => {
+    const originalSetItem = Storage.prototype.setItem
+    const controlledWindow = window as typeof window & { failAutosaveWrites: boolean }
+    controlledWindow.failAutosaveWrites = false
+    Object.defineProperty(Storage.prototype, 'setItem', {
+      configurable: true,
+      value(this: Storage, key: string, value: string) {
+        if (controlledWindow.failAutosaveWrites) {
+          throw new DOMException('storage full', 'QuotaExceededError')
+        }
+        return originalSetItem.call(this, key, value)
+      },
+    })
+  })
+
+  await openApp(appPage)
+  await expect
+    .poll(() => appPage.evaluate(() => localStorage.getItem('allflame-voyage-solver') !== null))
+    .toBe(true)
+  await appPage.evaluate(() => {
+    ;(window as typeof window & { failAutosaveWrites: boolean }).failAutosaveWrites = true
+  })
+
+  await appPage.getByRole('button', { name: '+ Add chart', exact: true }).click()
+  const warning = appPage.getByRole('alert').filter({ hasText: 'Autosave failed' })
+  await expect(warning).toContainText('current changes are not durable')
+  await expect(warning).toContainText('Browser storage is full.')
+  await expect
+    .poll(() =>
+      appPage.evaluate(() => {
+        const saved = JSON.parse(localStorage.getItem('allflame-voyage-solver') ?? '{}')
+        return saved.pool?.length ?? 0
+      }),
+    )
+    .toBe(0)
+
+  const downloadPromise = appPage.waitForEvent('download')
+  await warning.getByRole('button', { name: 'Export recovery JSON' }).click()
+  const download = await downloadPromise
+  expect(download.suggestedFilename()).toBe('voyage-solver-unsaved-recovery.json')
+
+  await warning.getByRole('button', { name: 'Dismiss until next change' }).click()
+  await expect(warning).toHaveCount(0)
+  await appPage.getByRole('button', { name: '+ Add chart', exact: true }).click()
+  await expect(warning).toBeVisible()
+
+  await appPage.evaluate(() => {
+    ;(window as typeof window & { failAutosaveWrites: boolean }).failAutosaveWrites = false
+  })
+  await warning.getByRole('button', { name: 'Retry save' }).click()
+  await expect(warning).toHaveCount(0)
+  await expect
+    .poll(() =>
+      appPage.evaluate(() => {
+        const saved = JSON.parse(localStorage.getItem('allflame-voyage-solver') ?? '{}')
+        return saved.pool?.length ?? 0
+      }),
+    )
+    .toBe(2)
+})
+
 test('exposes the primary screen structure and visible focus in both themes', async ({
   appPage,
 }) => {

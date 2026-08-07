@@ -549,6 +549,61 @@ describe('state decoding', () => {
   })
 })
 
+describe('local state saving', () => {
+  it('reports success only after reading back the exact serialized state', () => {
+    const values = new Map<string, string>()
+    const getItem = vi.fn((key: string) => values.get(key) ?? null)
+    vi.stubGlobal('localStorage', {
+      getItem,
+      setItem: vi.fn((key: string, value: string) => values.set(key, value)),
+    })
+
+    expect(saveLocal(defaultState())).toEqual({ ok: true })
+    expect(getItem).toHaveBeenCalledWith(LOCAL_STATE_KEY)
+    expect(decodeStateJson(values.get(LOCAL_STATE_KEY)!)).toMatchObject({ ok: true })
+  })
+
+  it('returns structured quota, unavailable, and verification failures', () => {
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn(() => null),
+      setItem: vi.fn(() => {
+        throw { name: 'QuotaExceededError' }
+      }),
+    })
+    expect(saveLocal(defaultState())).toEqual({
+      ok: false,
+      code: 'quota',
+      message: 'Browser storage is full.',
+    })
+
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn(() => null),
+      setItem: vi.fn(() => {
+        throw { name: 'SecurityError' }
+      }),
+    })
+    expect(saveLocal(defaultState())).toMatchObject({ ok: false, code: 'unavailable' })
+
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn(() => null),
+      setItem: vi.fn(),
+    })
+    expect(saveLocal(defaultState())).toMatchObject({ ok: false, code: 'verification' })
+  })
+
+  it('reports serialization failures without attempting a browser write', () => {
+    const setItem = vi.fn()
+    vi.stubGlobal('localStorage', { getItem: vi.fn(), setItem })
+    const invalid = {
+      ...defaultState(),
+      pool: [chart({ name: 'n'.repeat(MAX_CHART_NAME_LENGTH + 1) })],
+    }
+
+    expect(saveLocal(invalid)).toMatchObject({ ok: false, code: 'serialization' })
+    expect(setItem).not.toHaveBeenCalled()
+  })
+})
+
 describe('local saved-state recovery', () => {
   it('quarantines a newer-version payload without overwriting it during a downgrade', () => {
     const raw = JSON.stringify(persisted({ v: STATE_VERSION + 1, pool: [chart()] }))
