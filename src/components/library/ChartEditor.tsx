@@ -5,6 +5,7 @@ import {
   edgesForChartShape,
   isChartShapeResolved,
 } from '../../logic/chartShapes'
+import { MAX_CHART_NAME_LENGTH } from '../../logic/storage'
 import type { ChartData, Edges } from '../../types'
 import { STAT_LABELS } from '../../types'
 import { updateImportedReward } from './chartEditorRewards'
@@ -44,6 +45,7 @@ export function ChartEditor({ chart, onUpdate }: Props) {
         <input
           aria-label="Chart name"
           value={chart.name}
+          maxLength={MAX_CHART_NAME_LENGTH}
           onChange={(event) => onUpdate({ ...chart, name: event.target.value })}
           placeholder="Chart name"
         />

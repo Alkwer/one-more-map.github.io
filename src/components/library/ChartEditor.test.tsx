@@ -4,7 +4,12 @@ import { chartValue } from '../../logic/chartRanking'
 import { chartRewardKey } from '../../logic/rewards'
 import { scoreBoard } from '../../logic/scoring'
 import { solve } from '../../logic/solver'
-import { decodeStateJson, defaultState, serializeState } from '../../logic/storage'
+import {
+  decodeStateJson,
+  defaultState,
+  MAX_CHART_NAME_LENGTH,
+  serializeState,
+} from '../../logic/storage'
 import type { ChartData } from '../../types'
 import { emptyBoard, emptyBorders } from '../../types'
 import { ChartEditor } from './ChartEditor'
@@ -25,6 +30,14 @@ const importedChart = (): ChartData => ({
 })
 
 describe('ChartEditor imported rewards', () => {
+  it('caps manual chart names at the persisted-state field limit', () => {
+    const html = renderToStaticMarkup(
+      <ChartEditor chart={importedChart()} onUpdate={() => undefined} />,
+    )
+
+    expect(html).toContain(`maxLength="${MAX_CHART_NAME_LENGTH}"`)
+  })
+
   it('offers the 3.29.2 Rarity tiers instead of obsolete Chart Gold modifiers', () => {
     const chart = { ...importedChart(), modIds: ['cm-rarity-50'], rewards: undefined }
     const html = renderToStaticMarkup(<ChartEditor chart={chart} onUpdate={() => undefined} />)

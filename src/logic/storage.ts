@@ -89,6 +89,8 @@ export type StateDecodeResult =
   | { ok: true; state: AppState; warnings: string[] }
   | { ok: false; code: StateDecodeErrorCode; message: string }
 
+export type StatePersistenceResult = { ok: true } | { ok: false; message: string }
+
 export interface LocalStateRecovery {
   status: 'recovery'
   raw: string
@@ -645,8 +647,50 @@ export function loadLocal(): AppState | null {
   return result.status === 'ready' ? result.state : null
 }
 
-export function serializeState(state: AppState, space?: number): string {
+function stringifyState(state: AppState, space?: number): string {
   return JSON.stringify({ ...state, v: STATE_VERSION }, null, space)
+}
+
+/**
+ * Verify the same compact local-storage payload and readable JSON export that
+ * the UI produces. A successful result guarantees both forms fit their input
+ * budgets and the compact form can be decoded without recovery adjustments.
+ */
+export function validateStateForPersistence(state: AppState): StatePersistenceResult {
+  let compact: string
+  let exported: string
+  try {
+    compact = stringifyState(state)
+    exported = stringifyState(state, 2)
+  } catch {
+    return { ok: false, message: 'state contains a value that cannot be serialized' }
+  }
+
+  if (compact.length > MAX_STATE_JSON_CHARS || exported.length > MAX_STATE_JSON_CHARS) {
+    return {
+      ok: false,
+      message: `state JSON exceeds the ${MAX_STATE_JSON_CHARS}-character limit`,
+    }
+  }
+  if (new TextEncoder().encode(exported).byteLength > MAX_STATE_FILE_BYTES) {
+    return { ok: false, message: 'state JSON export exceeds the 2 MiB file limit' }
+  }
+
+  const decoded = decodeStateJson(compact)
+  if (!decoded.ok) return { ok: false, message: decoded.message }
+  if (decoded.warnings.length > 0) {
+    return {
+      ok: false,
+      message: `state would require recovery on reload: ${decoded.warnings[0]}`,
+    }
+  }
+  return { ok: true }
+}
+
+export function serializeState(state: AppState, space?: number): string {
+  const validation = validateStateForPersistence(state)
+  if (!validation.ok) throw new Error(validation.message)
+  return stringifyState(state, space)
 }
 
 export function decodeState(value: unknown): StateDecodeResult {

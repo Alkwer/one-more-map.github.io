@@ -8,6 +8,12 @@ import { VOYAGE_MODS } from '../data/mods'
 import { chartAreaTypeForText } from '../data/chartAreas'
 import type { ChartData, ChartShape, ModEffect, Stat } from '../types'
 import { edgesForChartShape } from './chartShapes'
+import {
+  MAX_CHART_NAME_LENGTH,
+  MAX_IMPLICIT_TEXT_LENGTH,
+  MAX_RAW_TEXT_LENGTH,
+  MAX_SHAPE_INPUT_LENGTH,
+} from './storage'
 
 let uidCounter = 0
 export function newUid(): string {
@@ -235,6 +241,22 @@ export interface ParseResult {
   unresolved: { uid: string; name: string; reason: string }[]
 }
 
+function chartPersistenceLimitReason(chart: ChartData): string | null {
+  if (chart.name.length > MAX_CHART_NAME_LENGTH) {
+    return `chart name exceeds the ${MAX_CHART_NAME_LENGTH}-character limit`
+  }
+  if ((chart.implicitText?.length ?? 0) > MAX_IMPLICIT_TEXT_LENGTH) {
+    return `implicit text exceeds the ${MAX_IMPLICIT_TEXT_LENGTH}-character limit`
+  }
+  if ((chart.shapeInput?.length ?? 0) > MAX_SHAPE_INPUT_LENGTH) {
+    return `chart shape text exceeds the ${MAX_SHAPE_INPUT_LENGTH}-character limit`
+  }
+  if ((chart.rawText?.length ?? 0) > MAX_RAW_TEXT_LENGTH) {
+    return `unrecognised chart text exceeds the ${MAX_RAW_TEXT_LENGTH}-character limit`
+  }
+  return null
+}
+
 export function parseChartText(text: string): ParseResult {
   const items = normalizeClipboardText(text)
     .split(ITEM_START_RE)
@@ -340,7 +362,7 @@ export function parseChartText(text: string): ParseResult {
     )
 
     const uid = newUid()
-    charts.push({
+    const chart: ChartData = {
       uid,
       name,
       level,
@@ -353,7 +375,16 @@ export function parseChartText(text: string): ParseResult {
       shapeResolved: !!shape,
       shapeInput: shape ? undefined : shapeName || undefined,
       rawText: rawLines.length ? rawLines.join('\n') : undefined,
-    })
+    }
+    const persistenceLimitReason = chartPersistenceLimitReason(chart)
+    if (persistenceLimitReason) {
+      rejected.push({
+        name: name.length > 80 ? `${name.slice(0, 77)}...` : name,
+        reason: persistenceLimitReason,
+      })
+      continue
+    }
+    charts.push(chart)
     if (shapeReason) unresolved.push({ uid, name, reason: shapeReason })
   }
 

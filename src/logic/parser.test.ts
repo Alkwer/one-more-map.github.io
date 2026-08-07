@@ -10,6 +10,7 @@ import koreanNumericTierAliases from './__fixtures__/numeric-tier-aliases.ko.tsv
 import koreanUncharted from './__fixtures__/uncharted.ko.txt?raw'
 import { isChartClipboardText, parseChartText } from './parser'
 import { solve } from './solver'
+import { MAX_RAW_TEXT_LENGTH } from './storage'
 
 const KOREAN_CHARTED_IMPLICIT = '인접 지역 내 몬스터가 떨어뜨리는 장비의 40%가 골드로 전환'
 
@@ -436,6 +437,17 @@ describe('parseChartText', () => {
 
     expect(chart.modIds).toEqual([])
     expect(chart.implicitText).toBe(unknownImplicit)
+  })
+
+  it('rejects an oversized verbatim clipboard line instead of creating an unrestorable chart', () => {
+    const result = parseChartText(`${englishChart}\n${'x'.repeat(MAX_RAW_TEXT_LENGTH + 1)}`)
+
+    expect(result.charts).toEqual([])
+    expect(result.rejected).toEqual([
+      expect.objectContaining({
+        reason: `unrecognised chart text exceeds the ${MAX_RAW_TEXT_LENGTH}-character limit`,
+      }),
+    ])
   })
 })
 

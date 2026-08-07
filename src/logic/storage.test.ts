@@ -22,6 +22,7 @@ import {
   saveLocal,
   serializeState,
   STATE_VERSION,
+  validateStateForPersistence,
 } from './storage'
 import { decodeShare } from './share'
 import { customKey } from './pieceKeeps'
@@ -387,6 +388,37 @@ describe('state decoding', () => {
     const json = serializeState(state, 2)
     expect(JSON.parse(json).v).toBe(STATE_VERSION)
     expect(decoded(JSON.parse(json)).state).toEqual(state)
+  })
+
+  it('keeps the largest accepted UI library exportable and rejects the next aggregate mutation', () => {
+    const pool: ChartData[] = []
+    let rejected: AppState | null = null
+
+    for (let index = 0; index < MAX_POOL_CHARTS; index += 1) {
+      const next = {
+        ...defaultState(),
+        pool: [
+          ...pool,
+          chart({ uid: `large-chart-${index}`, rawText: 'r'.repeat(MAX_RAW_TEXT_LENGTH) }),
+        ],
+      }
+      if (!validateStateForPersistence(next).ok) {
+        rejected = next
+        break
+      }
+      pool.push(next.pool[next.pool.length - 1])
+    }
+
+    expect(pool.length).toBeGreaterThan(0)
+    expect(rejected).not.toBeNull()
+    const maximum = { ...defaultState(), pool }
+    const json = serializeState(maximum, 2)
+    expect(decodeStateJson(json)).toMatchObject({ ok: true })
+    expect(validateStateForPersistence(rejected!)).toMatchObject({
+      ok: false,
+      message: expect.stringMatching(/exceeds the .* limit/),
+    })
+    expect(() => serializeState(rejected!)).toThrow(/exceeds the .* limit/)
   })
 
   it.each([
