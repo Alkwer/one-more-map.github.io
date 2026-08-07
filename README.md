@@ -76,6 +76,7 @@ The development server is available at `http://localhost:5173`.
 | `npm run build:pages`      | Build the exact Pages-style artifact in `staging/`             |
 | `npm run preview:pages`    | Serve the staged Pages artifact locally                        |
 | `npm run test:e2e`         | Build and run the Chromium browser smoke suite                 |
+| `npm run test:e2e:exit`    | Check bounded Playwright teardown and preview-port cleanup     |
 | `npm run test:e2e:ui`      | Build and open the interactive Playwright test runner          |
 | `npm run validate`         | Run typecheck, tests, lint, formatting, and production build   |
 | `npm run bench:solver`     | Run the solver performance benchmark                           |
