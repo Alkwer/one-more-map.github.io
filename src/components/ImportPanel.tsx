@@ -296,9 +296,9 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
       <details className="ahk-help">
         <summary>🖱️ Bulk-import charts + board borders from PoE (Windows OCR)</summary>
         <p className="muted">
-          A self-contained AutoHotkey script copies every chart, reads all 12 board-border tooltips
-          with Windows OCR, and pastes everything here in one go. OCR stays on your PC; no
-          screenshots are uploaded.
+          A self-contained AutoHotkey script copies every chart from both chart-stash tabs, reads
+          all 12 board-border tooltips with Windows OCR, and pastes everything here in one go. OCR
+          stays on your PC; no screenshots are uploaded.
         </p>
         <a className="ahk-dl" href={`${import.meta.env.BASE_URL}voyage-import.ahk`} download>
           ⬇ Download voyage-import.ahk
@@ -335,15 +335,17 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
             and synchronize the solver's reroll counter automatically.
           </li>
           <li>
-            For chart import, hover the <strong>top-left</strong> chart and press <kbd>F7</kbd>;
-            hover the <strong>bottom-right</strong> cell of the chart grid and press <kbd>F8</kbd>.
+            For chart import, calibrate the shared grid: hover the <strong>top-left</strong> chart
+            slot and press <kbd>F7</kbd>, then hover the <strong>bottom-right</strong> slot and
+            press <kbd>F8</kbd>. Next, hover chart-stash tab <strong>1</strong> and press{' '}
+            <kbd>Shift+F7</kbd>, then hover tab <strong>2</strong> and press <kbd>Shift+F8</kbd>.
             (Edit GridCols/GridRows if your panel isn't 6×10.)
           </li>
           <li>
-            <kbd>F9</kbd> copies the charts, scans the 12 borders, and imports both ·{' '}
-            <kbd>Ctrl+F9</kbd> refreshes only the 12 borders after a reroll, without rescanning
-            charts, and also reads the calibrated reroll-cost tooltip · <kbd>F10</kbd> aborts.
-            Border OCR can take around 15–30 seconds on a 4K screen.
+            <kbd>F9</kbd> switches through both chart-stash tabs, copies their charts, scans the 12
+            borders, and imports everything · <kbd>Ctrl+F9</kbd> refreshes only the 12 borders after
+            a reroll, without rescanning charts, and also reads the calibrated reroll-cost tooltip ·{' '}
+            <kbd>F10</kbd> aborts. Border OCR can take around 15–30 seconds on a 4K screen.
           </li>
         </ol>
         <p className="muted small">
