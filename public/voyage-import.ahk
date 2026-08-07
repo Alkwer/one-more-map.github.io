@@ -114,8 +114,17 @@ Loop 12 {
 }
 ExactBorderNext := 0
 ScriptPid := ProcessExist()
-OcrHelper := A_Temp "\voyage-border-ocr-" ScriptPid ".ps1"
-OcrOutput := A_Temp "\voyage-border-ocr-" ScriptPid ".txt"
+; %TEMP% can arrive as an 8.3 short path (C:\Users\HARDPC~1\...) and
+; PowerShell's path normalizer chokes on the "~" component (issue #27) -
+; expand to the real long path before any helper paths are built.
+LongPath(path) {
+    buf := Buffer(1040, 0)
+    len := DllCall("GetLongPathNameW", "Str", path, "Ptr", buf.Ptr, "UInt", 520, "UInt")
+    return (len > 0 && len <= 520) ? StrGet(buf, "UTF-16") : path
+}
+TempDir := LongPath(A_Temp)
+OcrHelper := TempDir "\voyage-border-ocr-" ScriptPid ".ps1"
+OcrOutput := TempDir "\voyage-border-ocr-" ScriptPid ".txt"
 OcrPid := 0
 LastBorderScanBlocks := 0
 Running := false

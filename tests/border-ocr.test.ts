@@ -194,6 +194,8 @@ describe('border OCR regressions', () => {
     assert.match(ahkImporter, /CleanupOcrArtifacts\(\)/)
     assert.match(ahkImporter, /voyage-border-" ScriptPid "-\*\.png/)
     assert.match(ahkImporter, /-RunId " quote ScriptPid quote/)
+    assert.match(ahkImporter, /GetLongPathNameW/)
+    assert.match(ahkImporter, /TempDir := LongPath\(A_Temp\)/)
     assert.doesNotMatch(ahkImporter, /Done\. Refreshed 12 borders/)
     const borderRefreshStart = ahkImporter.indexOf('^F9:: {')
     const fullImportMarker = ahkImporter.indexOf('\nF9:: {', borderRefreshStart + 1)
