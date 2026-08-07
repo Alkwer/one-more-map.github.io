@@ -18,6 +18,7 @@ import {
   BORDER_ROLL_COMMENT_MARKER,
   upsertBorderRollComment,
 } from './upsert-border-roll-comment.mjs'
+import { reconcileBorderRollDatasetPullRequest } from './reconcile-border-roll-dataset-pr.mjs'
 
 const knownIds = await loadKnownBorderIds()
 const borderModIds = [...knownIds].slice(0, 12)
@@ -202,6 +203,143 @@ test('workflow serializes submissions and rechecks duplicates at the commit poin
   assert.ok(
     workflow.indexOf('Re-fetch accepted submissions at commit point') <
       workflow.indexOf('Apply result to issue'),
+  )
+})
+
+test('dataset workflow rebuilds an existing automation PR when a later sample is accepted', async () => {
+  const calls = []
+  let writtenDataset = null
+  let summary = ''
+  const pull = {
+    number: 88,
+    url: 'https://github.com/example/voyage-solver/pull/88',
+    headRefName: 'automation/border-roll-dataset-100',
+    headRepositoryOwner: { login: 'example' },
+    isCrossRepository: false,
+    author: { login: 'app/github-actions', is_bot: true },
+  }
+  const run = async (command, args, options = {}) => {
+    calls.push({ command, args, options })
+    if (command === 'gh' && args[0] === 'pr' && args[1] === 'list') {
+      return { stdout: JSON.stringify([pull]), stderr: '', exitCode: 0 }
+    }
+    if (command === 'gh' && args[0] === 'api') {
+      return { stdout: 'data/border-rolls-v2.json\n', stderr: '', exitCode: 0 }
+    }
+    if (command === 'git' && args[0] === 'status') {
+      return { stdout: ' M data/border-rolls-v2.json\n', stderr: '', exitCode: 0 }
+    }
+    if (command === 'git' && args[0] === 'rev-parse' && args[1].endsWith('^{tree}')) {
+      return { stdout: 'old-tree\n', stderr: '', exitCode: 0 }
+    }
+    if (command === 'git' && args[0] === 'rev-parse') {
+      return { stdout: 'remote-commit\n', stderr: '', exitCode: 0 }
+    }
+    if (command === 'git' && args[0] === 'write-tree') {
+      return { stdout: 'new-tree\n', stderr: '', exitCode: 0 }
+    }
+    if (command === 'git' && args[0] === 'diff') {
+      return { stdout: '', stderr: '', exitCode: 1 }
+    }
+    return { stdout: '', stderr: '', exitCode: 0 }
+  }
+  const io = {
+    readFile: async () => '{"sampleCount":2}\n',
+    writeFile: async (_path, contents) => {
+      writtenDataset = contents
+    },
+    appendFile: async (_path, contents) => {
+      summary += contents
+    },
+  }
+
+  const result = await reconcileBorderRollDatasetPullRequest({
+    run,
+    io,
+    env: {
+      GITHUB_REPOSITORY: 'example/voyage-solver',
+      GITHUB_RUN_ID: '200',
+      GITHUB_STEP_SUMMARY: 'summary.md',
+    },
+  })
+
+  assert.equal(result.status, 'updated')
+  assert.equal(writtenDataset, '{"sampleCount":2}\n')
+  assert.match(summary, /Status: \*\*updated\*\*/)
+  assert.ok(
+    calls.some(
+      ({ command, args }) =>
+        command === 'git' &&
+        args[0] === 'switch' &&
+        args.includes('origin/main') &&
+        args.includes('automation/border-roll-dataset-100'),
+    ),
+  )
+  assert.ok(
+    calls.some(
+      ({ command, args }) =>
+        command === 'git' &&
+        args[0] === 'push' &&
+        args.includes(
+          '--force-with-lease=refs/heads/automation/border-roll-dataset-100:remote-commit',
+        ),
+    ),
+  )
+  assert.equal(
+    calls.some(({ command, args }) => command === 'gh' && args[0] === 'pr' && args[1] === 'create'),
+    false,
+  )
+})
+
+test('dataset workflow refuses to force-update a manual lookalike branch', async () => {
+  const calls = []
+  let summary = ''
+  const run = async (command, args) => {
+    calls.push({ command, args })
+    if (command === 'git' && args[0] === 'status') {
+      return { stdout: ' M data/border-rolls-v2.json\n', stderr: '', exitCode: 0 }
+    }
+    if (command === 'gh' && args[0] === 'pr' && args[1] === 'list') {
+      return {
+        stdout: JSON.stringify([
+          {
+            number: 89,
+            url: 'https://github.com/example/voyage-solver/pull/89',
+            headRefName: 'automation/border-roll-dataset-manual',
+            headRepositoryOwner: { login: 'example' },
+            isCrossRepository: false,
+            author: { login: 'maintainer', is_bot: false },
+          },
+        ]),
+        stderr: '',
+        exitCode: 0,
+      }
+    }
+    return { stdout: '', stderr: '', exitCode: 0 }
+  }
+
+  const result = await reconcileBorderRollDatasetPullRequest({
+    run,
+    io: {
+      readFile: async () => '{"sampleCount":2}\n',
+      writeFile: async () => {},
+      appendFile: async (_path, contents) => {
+        summary += contents
+      },
+    },
+    env: {
+      GITHUB_REPOSITORY: 'example/voyage-solver',
+      GITHUB_RUN_ID: '201',
+      GITHUB_STEP_SUMMARY: 'summary.md',
+    },
+  })
+
+  assert.equal(result.status, 'blocked')
+  assert.equal(result.exitCode, 1)
+  assert.match(summary, /Status: \*\*blocked\*\*/)
+  assert.equal(
+    calls.some(({ command, args }) => command === 'git' && args[0] === 'push'),
+    false,
   )
 })
 
