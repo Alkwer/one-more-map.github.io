@@ -3,7 +3,7 @@ import type { ChartData } from '../types'
 import englishChartText from './__fixtures__/charted.en.txt?raw'
 import koreanChartText from './__fixtures__/charted.ko.txt?raw'
 import { parseChartText } from './parser'
-import { buildSingleChartSearch } from './regex'
+import { buildChartSearch, buildSingleChartSearch } from './regex'
 
 function parseOne(text: string): ChartData {
   const result = parseChartText(text)
@@ -59,5 +59,117 @@ describe('buildSingleChartSearch', () => {
     expect(search).toBe("Demo Chart 20% increased Dead Man's Sulphur found in this Area Level 83")
     expect(search).toContain('Level 83')
     expect(search).not.toContain('지역 레벨')
+  })
+})
+
+const chart = (uid: string, name: string, overrides: Partial<ChartData> = {}): ChartData => ({
+  uid,
+  name,
+  level: 83,
+  edges: [true, false, true, false],
+  modIds: [],
+  ...overrides,
+})
+
+function expectExactMatch(
+  result: ReturnType<typeof buildChartSearch>,
+  targets: ChartData[],
+  others: ChartData[],
+) {
+  expect(result).toMatchObject({ ok: true })
+  if (!result.ok) return
+  const regex = new RegExp(result.regex, 'iu')
+  const searchableText = (entry: ChartData) => {
+    const usesHangul = /[\uac00-\ud7a3]/.test(
+      [entry.name, entry.implicitText, entry.rawText].filter(Boolean).join('\n'),
+    )
+    return [
+      entry.name,
+      entry.implicitText,
+      `${usesHangul ? '지역 레벨' : 'Area Level'}: ${entry.level}`,
+      ...(entry.rewards ?? []).map((reward) =>
+        reward.stat === 'quantity' ? `Item Quantity: +${reward.percent}%` : `${reward.percent}%`,
+      ),
+      entry.rawText,
+    ]
+      .filter(Boolean)
+      .join('\n')
+  }
+  for (const target of targets) expect(regex.test(searchableText(target))).toBe(true)
+  for (const other of others) expect(regex.test(searchableText(other))).toBe(false)
+}
+
+describe('buildChartSearch', () => {
+  it('distinguishes duplicate names by stable searchable chart data', () => {
+    const target = chart('placed', 'Armoured Coral Reef Chart', {
+      level: 83,
+      implicitText: 'Adjacent Areas contain 2 additional Treasure Anchors',
+    })
+    const sameName = chart('unplaced', 'Armoured Coral Reef Chart', {
+      level: 82,
+      implicitText: 'Adjacent Areas contain 1 additional Treasure Anchor',
+    })
+
+    expectExactMatch(buildChartSearch([target], [sameName]), [target], [sameName])
+  })
+
+  it('uses rolled reward values when names, levels, and implicits match', () => {
+    const target = chart('placed', 'Duplicate Chart', {
+      rewards: [{ stat: 'quantity', percent: 20 }],
+    })
+    const other = chart('unplaced', 'Duplicate Chart', {
+      rewards: [{ stat: 'quantity', percent: 30 }],
+    })
+    const result = buildChartSearch([target], [other])
+
+    expect(result).toMatchObject({ ok: true })
+    if (result.ok) {
+      expect(new RegExp(result.regex, 'iu').test('Item Quantity: +20%')).toBe(true)
+      expect(new RegExp(result.regex, 'iu').test('Item Quantity: +30%')).toBe(false)
+    }
+  })
+
+  it('covers multiple identical targets with one safe expression', () => {
+    const targets = [chart('first', 'Twin Chart'), chart('second', 'Twin Chart')]
+    expectExactMatch(buildChartSearch(targets, []), targets, [])
+  })
+
+  it('reports when an unplaced chart is search-identical to a target', () => {
+    const target = chart('placed', 'Twin Chart')
+    const result = buildChartSearch([target], [chart('unplaced', 'Twin Chart')])
+
+    expect(result).toEqual({
+      ok: false,
+      message:
+        "Can't build an exact search: a placed chart is indistinguishable from an unplaced chart by its searchable name, level, modifiers, and rolls.",
+    })
+  })
+
+  it('escapes regex metacharacters in manual chart names', () => {
+    const target = chart('placed', 'A[B Chart')
+    const result = buildChartSearch([target], [chart('other', 'Zed Chart')])
+
+    expect(result).toMatchObject({ ok: true })
+    if (result.ok) {
+      expect(() => new RegExp(result.regex, 'iu')).not.toThrow()
+      expect(new RegExp(result.regex, 'iu').test(target.name)).toBe(true)
+    }
+  })
+
+  it('preserves Unicode literals while selecting the right chart', () => {
+    const target = chart('placed', 'Zażółć Gęślą Chart')
+    const other = chart('other', 'Korean 해도 Chart')
+    expectExactMatch(buildChartSearch([target], [other]), [target], [other])
+  })
+
+  it('accepts an expression at the cap and rejects the same exact search below it', () => {
+    const target = chart('placed', 'abcdef')
+    const other = chart('other', 'abcde bcdef')
+
+    expect(buildChartSearch([target], [other], 6)).toEqual({ ok: true, regex: 'abcdef' })
+    expect(buildChartSearch([target], [other], 5)).toEqual({
+      ok: false,
+      message: 'Exact search exceeds the 5-character in-game limit.',
+    })
   })
 })
