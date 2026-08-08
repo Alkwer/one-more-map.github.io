@@ -27,6 +27,14 @@ const expectNoHorizontalOverflow = async (page: Parameters<typeof openApp>[0]) =
     .toBe(0)
 }
 
+const expectNoRegexMetaOverflow = async (page: Parameters<typeof openApp>[0]) => {
+  await expect
+    .poll(() =>
+      page.locator('.regex-meta').evaluate((element) => element.scrollWidth - element.clientWidth),
+    )
+    .toBe(0)
+}
+
 test('@mobile renders the first screen and imports without horizontal overflow', async ({
   appPage,
 }) => {
@@ -36,10 +44,12 @@ test('@mobile renders the first screen and imports without horizontal overflow',
   await expect(appPage.getByRole('heading', { level: 2, name: 'Import' })).toBeVisible()
   expect(await appPage.evaluate(() => [innerWidth, innerHeight])).toEqual([390, 844])
   await expectNoHorizontalOverflow(appPage)
+  await expectNoRegexMetaOverflow(appPage)
 
   await pasteText(appPage, ENGLISH_CHART)
   await expect(libraryHeading(appPage)).toContainText('(1)')
   await expectNoHorizontalOverflow(appPage)
+  await expectNoRegexMetaOverflow(appPage)
 })
 
 test('@webkit loads, imports, solves in a worker, and restores storage', async ({ appPage }) => {
