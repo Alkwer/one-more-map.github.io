@@ -259,4 +259,15 @@ describe('buildChartSearch', () => {
       message: 'Exact search exceeds the 5-character in-game limit.',
     })
   })
+
+  it('finds a bounded raw-text discriminator without enumerating a long field', () => {
+    const target = chart('placed', 'Shared Chart', {
+      rawText: `target-only-signature ${'x'.repeat(32 * 1024)}`,
+    })
+    const other = chart('other', 'Shared Chart', {
+      rawText: `other-signature ${'y'.repeat(32 * 1024)}`,
+    })
+
+    expectExactMatch(buildChartSearch([target], [other]), [target], [other])
+  })
 })
