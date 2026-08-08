@@ -1479,7 +1479,6 @@ test('round-trips JSON and isolates minimal shared layouts from saved state', as
   expect(shareUrl).toContain(`${ORIGIN}${APP_PATH}#layout.v1.`)
 
   await appPage.goto(shareUrl)
-  await appPage.reload()
   await expect(
     appPage.getByText('Viewing a shared layout. Your saved state has not been changed.'),
   ).toBeVisible()
@@ -1494,8 +1493,18 @@ test('round-trips JSON and isolates minimal shared layouts from saved state', as
     savedState,
   )
 
+  await appPage.goBack()
+  await expect(
+    appPage.getByText('Viewing a shared layout. Your saved state has not been changed.'),
+  ).toHaveCount(0)
+  await expect(appPage).not.toHaveURL(/#/)
+
+  await appPage.goForward()
+  await expect(
+    appPage.getByText('Viewing a shared layout. Your saved state has not been changed.'),
+  ).toBeVisible()
+
   await appPage.goto(`${ORIGIN}${APP_PATH}#layout.v1.not*base64`)
-  await appPage.reload()
   await expect(
     appPage.getByRole('alert').filter({ hasText: 'This shared layout could not be opened' }),
   ).toBeVisible()
@@ -1542,7 +1551,6 @@ test('requires an explicit adopt, merge, or discard decision for shared layouts'
   })
 
   await appPage.goto(shareUrl)
-  await appPage.reload()
   await expect(
     appPage.getByText('Viewing a shared layout. Your saved state has not been changed.'),
   ).toBeVisible()
@@ -1568,7 +1576,6 @@ test('requires an explicit adopt, merge, or discard decision for shared layouts'
   await expect(appPage).not.toHaveURL(/#/)
 
   await appPage.goto(shareUrl)
-  await appPage.reload()
   await appPage.getByRole('button', { name: 'Merge with my library' }).click()
   await expect(libraryHeading(appPage)).toContainText('(2)')
   await expect(
@@ -1592,7 +1599,6 @@ test('requires an explicit adopt, merge, or discard decision for shared layouts'
     localStorage.setItem('allflame-voyage-solver', raw)
   }, recipientSavedState)
   await appPage.goto(shareUrl)
-  await appPage.reload()
   await appPage.getByRole('button', { name: 'Replace my saved state' }).click()
   await expect(libraryHeading(appPage)).toContainText('(1)')
   await expect(
