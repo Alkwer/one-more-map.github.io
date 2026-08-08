@@ -8,3 +8,20 @@ updates:
       time: '04:00'
       timezone: Europe/Warsaw
     open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '04:30'
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 3
+    groups:
+      development-tooling:
+        applies-to: version-updates
+        patterns:
+          - '*'
+        dependency-type: development
+        update-types:
+          - minor
+          - patch

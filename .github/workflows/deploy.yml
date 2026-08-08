@@ -36,6 +36,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Enforce npm audit policy
+        run: npm run audit:ci
       - run: npm run validate
       - name: Enforce solver performance budget
         run: npm run test:performance
