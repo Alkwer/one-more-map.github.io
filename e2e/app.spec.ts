@@ -467,6 +467,7 @@ test('archives a Voyage only after the automatic outbox receives a success respo
   appPage,
 }) => {
   const sequenceId = 'voyage-submitted-e2e'
+  const authorizationHeaders: string[] = []
   const sample = {
     schema: 'allflame-border-roll/v2',
     sampleId: 'roll-submitted-e2e',
@@ -506,6 +507,7 @@ test('archives a Voyage only after the automatic outbox receives a success respo
         })
         return
       }
+      authorizationHeaders.push(route.request().headers().authorization ?? '')
       await route.fulfill({
         status: 201,
         contentType: 'application/json',
@@ -558,7 +560,10 @@ test('archives a Voyage only after the automatic outbox receives a success respo
   await expect(research.getByText('1 Voyage sequence queued')).toBeVisible()
   const submissionKey = research.getByLabel('Private submission key')
   await expect(submissionKey).toHaveValue('')
-  await submissionKey.fill('e2e-private-key')
+  await submissionKey.pressSequentially('e2e-private-key')
+  expect(authorizationHeaders).toEqual([])
+  await research.getByRole('button', { name: 'Submit queued Voyages' }).click()
+  await expect.poll(() => authorizationHeaders).toEqual(['Bearer e2e-private-key'])
   await expect(
     research.getByText(/Contribute border-roll data \(0 active · 1 archived\)/),
   ).toBeVisible()
@@ -692,6 +697,7 @@ test('continues the automatic outbox after one Voyage fails', async ({ appPage }
   await research.locator('summary').click()
   await expect(research.getByText('2 Voyage sequences queued')).toBeVisible()
   await research.getByLabel('Private submission key').fill('e2e-private-key')
+  await research.getByRole('button', { name: 'Submit queued Voyages' }).click()
 
   await expect
     .poll(() => postedSequences)
