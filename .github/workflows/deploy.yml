@@ -58,7 +58,7 @@ jobs:
 
   deploy:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    needs: quality
+    needs: [quality, windows-playwright-exit]
     runs-on: ubuntu-latest
     permissions:
       pages: write
