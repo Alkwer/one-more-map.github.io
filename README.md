@@ -77,7 +77,7 @@ The development server is available at `http://localhost:5173`.
 | `npm run preview`          | Serve the production bundle locally after a build              |
 | `npm run build:pages`      | Build the exact Pages-style artifact in `staging/`             |
 | `npm run preview:pages`    | Serve the staged Pages artifact locally                        |
-| `npm run test:e2e`         | Build and run the Chromium browser smoke suite                 |
+| `npm run test:e2e`         | Build and run the bounded Chromium/WebKit browser matrix       |
 | `npm run test:e2e:exit`    | Check bounded Playwright teardown and preview-port cleanup     |
 | `npm run test:e2e:ui`      | Build and open the interactive Playwright test runner          |
 | `npm run validate`         | Run typecheck, tests, lint, formatting, and production build   |
@@ -89,17 +89,19 @@ The deterministic solver
 fixture, quality floor, reference environment, and current before/after timings
 are documented in [docs/solver-performance.md](docs/solver-performance.md).
 
-Install the Playwright Chromium binary once before running browser tests locally:
+Install the Playwright browser binaries once before running browser tests locally:
 
 ```bash
-npx playwright install chromium
+npx playwright install chromium webkit
 npm run test:e2e
 ```
 
-The smoke suite uses a production build staged exactly like GitHub Pages. Each
-test gets isolated browser storage and deterministic fixtures. CI installs
-Chromium with its Linux dependencies, runs the suite on pull requests and pushes
-to `main`, and uploads the Playwright report for failed-run diagnosis.
+The suite uses a production build staged exactly like GitHub Pages. Each test
+gets isolated browser storage and deterministic fixtures. CI runs the full suite
+in desktop Chromium plus focused 390×844 Chromium and desktop WebKit smoke
+projects, then uploads the Playwright report for failed-run diagnosis. The exact
+browser, viewport, and platform-specific coverage is documented in
+[docs/browser-support.md](docs/browser-support.md).
 
 Keyboard behavior, automated axe coverage, and the manual screen-reader checklist
 are documented in [docs/accessibility.md](docs/accessibility.md).

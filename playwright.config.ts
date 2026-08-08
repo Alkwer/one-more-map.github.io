@@ -28,7 +28,23 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      testIgnore: /browser-smoke\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'mobile-chromium-smoke',
+      testMatch: /browser-smoke\.spec\.ts/,
+      grep: /@mobile/,
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 390, height: 844 },
+      },
+    },
+    {
+      name: 'webkit-smoke',
+      testMatch: /browser-smoke\.spec\.ts/,
+      grep: /@webkit/,
+      use: { ...devices['Desktop Safari'] },
     },
   ],
   webServer: {

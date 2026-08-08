@@ -41,11 +41,11 @@ jobs:
       - run: npm run validate
       - name: Enforce solver performance budget
         run: npm run test:performance
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
       - name: Stage site (app under /allflame-voyage-solver, redirect at root)
         run: npm run stage:pages
-      - name: Run browser smoke tests
+      - name: Run bounded browser matrix
         run: npx playwright test
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: ${{ !cancelled() }}
