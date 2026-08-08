@@ -57,7 +57,7 @@ interface InitialStateResult {
   recovery: LocalStateRecovery | null
 }
 
-function initialState(): InitialStateResult {
+function readLocationState(): InitialStateResult {
   const saved = loadLocalState()
   const recovery = saved.status === 'recovery' ? saved : null
   const hash = window.location.hash.replace(/^#/, '')
@@ -84,7 +84,7 @@ function initialState(): InitialStateResult {
 }
 
 export default function App() {
-  const [initial] = useState(initialState)
+  const [initial] = useState(readLocationState)
   const [persistableState, dispatch] = useReducer(persistableAppStateReducer, {
     state: initial.state,
     mutationError: null,
@@ -133,6 +133,13 @@ export default function App() {
     setAutosaveFailure(result.ok ? null : result)
     return result
   }, [])
+  const flushPendingSave = useCallback(() => {
+    const nextState = pendingSave.current
+    if (!nextState) return
+    window.clearTimeout(saveTimer.current)
+    pendingSave.current = null
+    persistState(nextState)
+  }, [persistState])
 
   useEffect(() => {
     if (shareSession || recovery) {
@@ -150,16 +157,21 @@ export default function App() {
   }, [persistState, recovery, shareSession, state])
 
   useEffect(() => {
-    const flushPendingSave = () => {
-      const nextState = pendingSave.current
-      if (!nextState) return
-      window.clearTimeout(saveTimer.current)
-      pendingSave.current = null
-      persistState(nextState)
-    }
     window.addEventListener('pagehide', flushPendingSave)
     return () => window.removeEventListener('pagehide', flushPendingSave)
-  }, [persistState])
+  }, [flushPendingSave])
+
+  useEffect(() => {
+    const syncHashState = () => {
+      if (window.location.hash.length > 1) flushPendingSave()
+      const next = readLocationState()
+      dispatch({ type: 'replace', state: next.state })
+      setShareSession(next.shareSession)
+      setRecovery(next.recovery)
+    }
+    window.addEventListener('hashchange', syncHashState)
+    return () => window.removeEventListener('hashchange', syncHashState)
+  }, [flushPendingSave])
 
   const clearShareHash = () => {
     window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
