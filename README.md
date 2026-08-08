@@ -65,6 +65,7 @@ The development server is available at `http://localhost:5173`.
 | `npm run dev`              | Start the Vite development server                              |
 | `npm test`                 | Run the Vitest test suite once                                 |
 | `npm run test:performance` | Enforce the noise-tolerant solver latency budget               |
+| `npm run audit:ci`         | Enforce the production and high-severity dependency policy     |
 | `npm run check:scope`      | Verify test discovery stays inside the tracked project scope   |
 | `npm run typecheck`        | Strict-check app, E2E, tests, benchmarks, and TS configs       |
 | `npm run lint`             | Run ESLint with zero warnings allowed                          |

@@ -37,6 +37,27 @@ solver or scoring hot path, also run `npm run test:performance` and
 [docs/solver-performance.md](docs/solver-performance.md). The full command
 reference is in [README.md](README.md#commands).
 
+## Dependency updates and audit policy
+
+Dependabot checks the npm ecosystem weekly. Compatible minor and patch updates
+to development tools are grouped, and at most three npm version-update pull
+requests remain open at once.
+
+Run the same non-mutating audit policy as CI with:
+
+```bash
+npm run audit:ci
+```
+
+The first audit rejects every known production-dependency advisory. The second
+rejects high or critical findings across the full tree, so high-severity
+development-only advisories also block the quality job. Low and moderate
+development-only findings stay visible in the report but do not block CI; review
+them with the weekly Dependabot updates. CI never runs `npm audit fix` or changes
+the lockfile automatically. If an audit fails, inspect `npm audit`, update the
+specific direct dependency or transitive lockfile entry, and rerun the audit and
+normal validation before opening a pull request.
+
 ## Architecture
 
 - `src/App.tsx` owns the top-level application state and composes the major
