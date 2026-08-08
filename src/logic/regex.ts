@@ -9,8 +9,15 @@ import type { ChartData, Stat, VoyageModDef, Weights } from '../types'
 
 const HANGUL_RE = /[\uac00-\ud7a3]/
 const REGEX_META_RE = /[.*+?^${}()|[\]\\]/g
+const SEARCH_TOKEN_RE = /[\p{L}\p{N}]+(?:['’+-][\p{L}\p{N}]+)*/gu
 
 export const MAX_CHART_SEARCH_LENGTH = 250
+const MAX_SEARCH_FIELDS_PER_CHART = 24
+const MAX_SEARCH_FIELD_LENGTH = 512
+const MAX_SEARCH_DOCUMENT_LENGTH = 4 * 1024
+const MAX_RAW_SEARCH_TEXT_LENGTH = 8 * 1024
+const MAX_FRAGMENTS_PER_FIELD = 96
+const MAX_CHART_SEARCH_CANDIDATES = 2 * 1024
 
 export type SearchClientLanguage = 'en' | 'ko'
 
@@ -153,21 +160,56 @@ const KOREAN_REWARD_LABELS: Partial<Record<Stat, string>> = {
 
 function chartSearchFields(chart: ChartData): string[] {
   const usesHangul = chartUsesHangul(chart)
-  const fields = [
+  const fields: string[] = [
     chart.name,
     chartImplicitText(chart),
     `${usesHangul ? '지역 레벨' : 'Area Level'}: ${chart.level}`,
     ...(chart.implicitText ? [] : chart.modIds.map((id) => voyageModById.get(id)?.text ?? '')),
-    ...(chart.rawText?.split(/\r?\n/) ?? []),
   ]
   const rewardLabels = usesHangul ? KOREAN_REWARD_LABELS : ENGLISH_REWARD_LABELS
   for (const reward of chart.rewards ?? []) {
     const label = rewardLabels[reward.stat]
     if (label) fields.push(`${label}: +${reward.percent}%`)
   }
-  return [...new Set(fields.map((field) => field.normalize('NFKC').toLowerCase().trim()))].filter(
-    Boolean,
-  )
+  fields.push(...(chart.rawText?.slice(0, MAX_RAW_SEARCH_TEXT_LENGTH).split(/\r?\n/) ?? []))
+
+  const bounded: string[] = []
+  const seen = new Set<string>()
+  let documentLength = 0
+  for (const field of fields) {
+    if (bounded.length >= MAX_SEARCH_FIELDS_PER_CHART) break
+    const normalized = field.normalize('NFKC').toLowerCase().trim()
+    if (!normalized || seen.has(normalized)) continue
+    const remaining = MAX_SEARCH_DOCUMENT_LENGTH - documentLength
+    if (remaining <= 0) break
+    const limited = normalized.slice(0, Math.min(MAX_SEARCH_FIELD_LENGTH, remaining))
+    if (!limited) continue
+    seen.add(normalized)
+    bounded.push(limited)
+    documentLength += limited.length
+  }
+  return bounded
+}
+
+function sampledStarts(fieldLength: number, fragmentLength: number): number[] {
+  const last = fieldLength - fragmentLength
+  if (last <= 8) return Array.from({ length: last + 1 }, (_, index) => index)
+  return [
+    ...new Set([0, Math.floor(last / 4), Math.floor(last / 2), Math.floor((3 * last) / 4), last]),
+  ]
+}
+
+function boundedFieldFragments(field: string): string[] {
+  const fragments = new Set<string>()
+  const add = (value: string) => {
+    if (fragments.size < MAX_FRAGMENTS_PER_FIELD && value.length >= 3) fragments.add(value)
+  }
+  for (const match of field.matchAll(SEARCH_TOKEN_RE)) add(match[0])
+  const maxLength = Math.min(field.length, 32)
+  for (let length = 3; length <= maxLength && fragments.size < MAX_FRAGMENTS_PER_FIELD; length++) {
+    for (const start of sampledStarts(field.length, length)) add(field.slice(start, start + length))
+  }
+  return [...fragments]
 }
 
 interface SearchCandidate {
@@ -206,15 +248,17 @@ export function buildChartSearch(
   const safeCap = Math.max(0, Math.floor(cap))
   const targetFields = targets.map(chartSearchFields)
   const otherFields = otherPoolCharts.map(chartSearchFields)
+  const targetDocuments = targetFields.map((fields) => fields.join('\0'))
+  const otherCorpus = otherFields.flat().join('\0')
   const bestCandidateByCoverage = new Map<number, string>()
 
   const recordCandidate = (literal: string) => {
     if (literal !== literal.trim() || !/[\p{L}\p{N}]/u.test(literal)) return
-    if (otherFields.some((document) => document.some((part) => part.includes(literal)))) return
+    if (otherCorpus.includes(literal)) return
     const regex = escapeRegexLiteral(literal)
     let coverage = 0
     for (let index = 0; index < targetFields.length; index += 1) {
-      if (targetFields[index].some((part) => part.includes(literal))) {
+      if (targetDocuments[index].includes(literal)) {
         coverage |= 1 << index
       }
     }
@@ -228,18 +272,27 @@ export function buildChartSearch(
     }
   }
 
-  for (const fields of targetFields) {
-    for (const field of fields) {
-      const maxLength = Math.min(field.length, safeCap)
-      for (let length = 3; length <= maxLength; length += 1) {
-        for (let start = 0; start + length <= field.length; start += 1) {
-          recordCandidate(field.slice(start, start + length))
-        }
-      }
-      // A unique full field proves the chart is distinguishable even when no
-      // expression for it can fit the cap. This keeps the two error cases honest.
-      recordCandidate(field)
-    }
+  const fullFields = [...new Set(targetFields.flat())]
+  const fragments = new Set<string>()
+  for (const field of fullFields) {
+    for (const fragment of boundedFieldFragments(field)) fragments.add(fragment)
+  }
+  const shortestFragments = [...fragments].sort((first, second) => {
+    const lengthDifference = escapeRegexLiteral(first).length - escapeRegexLiteral(second).length
+    return lengthDifference || first.localeCompare(second)
+  })
+  let recorded = 0
+  for (const field of fullFields) {
+    if (recorded >= MAX_CHART_SEARCH_CANDIDATES) break
+    // A unique full field proves the chart is distinguishable even when no
+    // expression for it can fit the cap. This keeps the two error cases honest.
+    recordCandidate(field)
+    recorded += 1
+  }
+  for (const fragment of shortestFragments) {
+    if (recorded >= MAX_CHART_SEARCH_CANDIDATES) break
+    recordCandidate(fragment)
+    recorded += 1
   }
 
   const candidates: SearchCandidate[] = [...bestCandidateByCoverage].map(([coverage, regex]) => ({
