@@ -1,7 +1,7 @@
 {
   "schema": "allflame-border-roll-dataset/v2",
-  "exportedAt": "2026-08-07T14:29:50.195Z",
-  "sampleCount": 42,
+  "exportedAt": "2026-08-07T20:52:58.856Z",
+  "sampleCount": 45,
   "samples": [
     {
       "schema": "allflame-border-roll/v2",
@@ -1051,6 +1051,81 @@
         "b-crabboss",
         "b-quantconn-1",
         "b-mag-1"
+      ]
+    },
+    {
+      "schema": "allflame-border-roll/v2",
+      "sampleId": "roll-68093997-1c88-4274-92fe-871185c122c9",
+      "sequenceId": "voyage-6180412a-fe6b-415e-81be-9ad673088ca3",
+      "capturedAt": "2026-08-07T18:08:45.454Z",
+      "gamePatch": "3.29",
+      "vesperUpgradeCount": 5,
+      "generation": "natural",
+      "rerollIndex": 0,
+      "displayedNextRerollCost": 3000,
+      "borderModIds": [
+        "b-anchor-1",
+        "b-minmagic",
+        "b-beasts-1",
+        "b-minmagic",
+        "b-mag-2",
+        "b-octoboss",
+        "b-mag-1",
+        "b-scarab-1",
+        "b-pack-1",
+        "b-pack-2",
+        "b-mag-3",
+        "b-pack-2"
+      ]
+    },
+    {
+      "schema": "allflame-border-roll/v2",
+      "sampleId": "roll-afb72120-be6a-4296-ae07-1de1e9b18481",
+      "sequenceId": "voyage-f4f2ec3a-4666-418c-b376-efe019636313",
+      "capturedAt": "2026-08-07T20:41:00.399Z",
+      "gamePatch": "3.29",
+      "vesperUpgradeCount": 5,
+      "generation": "natural",
+      "rerollIndex": 0,
+      "displayedNextRerollCost": 3000,
+      "borderModIds": [
+        "b-crabs-1",
+        "b-vaal",
+        "b-crabboss",
+        "b-mag-3",
+        "b-drowned-1",
+        "b-pack-1",
+        "b-keep-1",
+        "b-quantconn-2",
+        "b-pack-1",
+        "b-anchor-2",
+        "b-mag-1",
+        "b-octoboss"
+      ]
+    },
+    {
+      "schema": "allflame-border-roll/v2",
+      "sampleId": "roll-9100af7a-f6ae-48ee-8c8d-1e3d29dd4fc1",
+      "sequenceId": "voyage-cc80230e-107f-4beb-945f-070525a50ac0",
+      "capturedAt": "2026-08-07T20:52:58.856Z",
+      "gamePatch": "3.29",
+      "vesperUpgradeCount": 5,
+      "generation": "natural",
+      "rerollIndex": 0,
+      "displayedNextRerollCost": 3000,
+      "borderModIds": [
+        "b-octoboss",
+        "b-locker",
+        "b-drowned-3",
+        "b-anchor-1",
+        "b-pack-1",
+        "b-anchor-1",
+        "b-gold-2",
+        "b-mag-3",
+        "b-goldlantern",
+        "b-minmagic",
+        "b-mag-1",
+        "b-quantconn-1"
       ]
     }
   ]
