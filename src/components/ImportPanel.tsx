@@ -4,6 +4,7 @@ import { BorderRollResearch } from './BorderRollResearch'
 import { generateDemoCharts } from '../logic/demo'
 import { applyBorderOcrSnapshot, parseBorderOcrPayload } from '../logic/borderOcr'
 import { isChartClipboardText, parseChartText } from '../logic/parser'
+import { chartAdditionResult, type ChartAdditionResult } from '../logic/chartCapacity'
 import type { AppState } from '../logic/storage'
 import {
   decodeStateFile,
@@ -16,7 +17,7 @@ import type { BorderRollResearchController } from '../hooks/useBorderRollResearc
 import type { ChartData } from '../types'
 
 interface Props {
-  onImport: (charts: ChartData[]) => void
+  onImport: (charts: ChartData[]) => ChartAdditionResult
   state: AppState
   borderResearch: BorderRollResearchController
   onLoadState: (state: AppState) => void
@@ -43,14 +44,12 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
         setMsg('No items recognised. Is this Ctrl+C item text?')
         return
       }
-      if (state.pool.length + charts.length > MAX_POOL_CHARTS) {
-        setMsg(`Import would exceed the ${MAX_POOL_CHARTS}-chart library limit`)
-        return
-      }
+      let addition = chartAdditionResult(state.pool.length, charts.length)
+      let acceptedCharts = charts.slice(0, addition.added)
 
       const nextState: AppState = {
         ...state,
-        pool: charts.length > 0 ? [...state.pool, ...charts] : state.pool,
+        pool: acceptedCharts.length > 0 ? [...state.pool, ...acceptedCharts] : state.pool,
         borders: hasOcrPayload ? borderApplication.borders : state.borders,
         borderRerollsUsed:
           hasOcrPayload && borderOcr.rerollCost
@@ -71,13 +70,14 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
           if (captureMessage) parts.push(captureMessage)
         }
       } else if (charts.length > 0) {
-        onImport(charts)
+        addition = onImport(charts)
+        acceptedCharts = charts.slice(0, addition.added)
       }
-      if (charts.length > 0 || hasOcrPayload) {
+      if (addition.added > 0 || hasOcrPayload) {
         setText('')
       }
 
-      const rareCount = charts.filter((chart) =>
+      const rareCount = acceptedCharts.filter((chart) =>
         chart.modIds.some((id) => (RARE_IMPLICITS as readonly string[]).includes(id)),
       ).length
       setRareAlert(
@@ -86,11 +86,16 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
           : '',
       )
 
-      if (charts.length)
-        parts.push(`Imported ${charts.length} chart${charts.length === 1 ? '' : 's'}`)
+      if (addition.added > 0)
+        parts.push(`Imported ${addition.added} chart${addition.added === 1 ? '' : 's'}`)
+      if (addition.skipped > 0) {
+        parts.push(
+          `skipped ${addition.skipped} because the ${MAX_POOL_CHARTS}-chart library limit was reached`,
+        )
+      }
       // Distinct physical charts have different rolls. A large byte-identical
       // batch usually means the bulk importer's saved grid calibration is off.
-      if (charts.length >= 5) {
+      if (acceptedCharts.length >= 5) {
         const key = (chart: ChartData) =>
           JSON.stringify([
             chart.name,
@@ -101,16 +106,18 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
             chart.shape,
             chart.rawText,
           ])
-        const first = key(charts[0])
-        if (charts.every((chart) => key(chart) === first)) {
+        const first = key(acceptedCharts[0])
+        if (acceptedCharts.every((chart) => key(chart) === first)) {
           parts.push(
-            `⚠ all ${charts.length} are identical - if this came from the bulk importer, recalibrate its grid with F7/F8, then reset and re-import`,
+            `⚠ all ${acceptedCharts.length} are identical - if this came from the bulk importer, recalibrate its grid with F7/F8, then reset and re-import`,
           )
         }
       }
-      if (unresolved.length) {
+      const acceptedUids = new Set(acceptedCharts.map(({ uid }) => uid))
+      const acceptedUnresolved = unresolved.filter(({ uid }) => acceptedUids.has(uid))
+      if (acceptedUnresolved.length) {
         parts.push(
-          `needs shape confirmation: ${unresolved
+          `needs shape confirmation: ${acceptedUnresolved
             .map(({ name, reason }) => `"${name}" (${reason})`)
             .join(', ')}`,
         )
@@ -241,8 +248,16 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
         <button
           title="Generate random charts to try out the tool"
           onClick={() => {
-            onImport(generateDemoCharts(25))
-            setMsg('Added 25 random demo charts')
+            const result = onImport(generateDemoCharts(25))
+            const parts = [
+              `Added ${result.added} random demo chart${result.added === 1 ? '' : 's'}`,
+            ]
+            if (result.skipped > 0) {
+              parts.push(
+                `skipped ${result.skipped} because the ${MAX_POOL_CHARTS}-chart library limit was reached`,
+              )
+            }
+            setMsg(parts.join('; '))
           }}
         >
           🎲 Demo ×25

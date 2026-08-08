@@ -29,12 +29,14 @@ import { useBorderRollResearch } from './hooks/useBorderRollResearch'
 import { useVoyageAnalysis } from './hooks/useVoyageAnalysis'
 import { useVoyageWorkflows } from './hooks/useVoyageWorkflows'
 import { generateDemoCharts } from './logic/demo'
+import { chartAdditionResult, type ChartAdditionResult } from './logic/chartCapacity'
 import { LATEST_UPDATE_DATE } from './data/updates'
 import { clampRerollsUsed } from './logic/rerollAdvice'
 import { decodeShare, mergeSharedLayout, type ShareDecodeResult } from './logic/share'
 import {
   defaultState,
   loadLocalState,
+  MAX_POOL_CHARTS,
   saveLocal,
   type AppState,
   type LocalSaveResult,
@@ -249,7 +251,16 @@ export default function App() {
   }
 
   const patch = (patchState: Partial<AppState>) => dispatch({ type: 'patch', patch: patchState })
-  const addCharts = (charts: ChartData[]) => dispatch({ type: 'charts/add', charts })
+  const poolCount = useRef(state.pool.length)
+  poolCount.current = state.pool.length
+  const addCharts = useCallback((charts: ChartData[]): ChartAdditionResult => {
+    const result = chartAdditionResult(poolCount.current, charts.length)
+    if (result.added > 0) {
+      poolCount.current += result.added
+      dispatch({ type: 'charts/add', charts: charts.slice(0, result.added) })
+    }
+    return result
+  }, [])
   const clearCharts = () => {
     if (
       !window.confirm(
@@ -330,6 +341,7 @@ export default function App() {
         <Onboarding
           onClose={chrome.closeOnboarding}
           onDemo={() => addCharts(generateDemoCharts(25))}
+          remainingChartCapacity={Math.max(0, MAX_POOL_CHARTS - state.pool.length)}
         />
       )}
       {chrome.showMods && (

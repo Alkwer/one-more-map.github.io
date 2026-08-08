@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import type { StrategyReservationPreferences } from '../data/strategies'
 import { selectPieceBank, type PieceType } from '../logic/pieceKeeps'
 import { newUid } from '../logic/parser'
+import { MAX_POOL_CHARTS } from '../logic/storage'
+import type { ChartAdditionResult } from '../logic/chartCapacity'
 import type { Board, ChartData, Weights } from '../types'
 import { ChartGrid } from './library/ChartGrid'
 import { ChartList } from './library/ChartList'
@@ -21,7 +23,7 @@ interface Props {
   pieceKeeps: Record<string, number>
   selected: string | null
   onSelect: (uid: string) => void
-  onAdd: (charts: ChartData[]) => void
+  onAdd: (charts: ChartData[]) => ChartAdditionResult
   onRemove: (uid: string) => void
   onUpdate: (chart: ChartData) => void
   onClearCharts: () => void
@@ -57,7 +59,8 @@ export function Library(props: Props) {
       shape: 'Crossing',
       shapeResolved: true,
     }
-    props.onAdd([chart])
+    const result = props.onAdd([chart])
+    if (result.added === 0) return
     setEditing(chart.uid)
   }
 
@@ -84,7 +87,16 @@ export function Library(props: Props) {
           </span>
         </h2>
         <span className="spacer" />
-        <button type="button" onClick={addBlank}>
+        <button
+          type="button"
+          onClick={addBlank}
+          disabled={props.pool.length >= MAX_POOL_CHARTS}
+          title={
+            props.pool.length >= MAX_POOL_CHARTS
+              ? `Library is full (${MAX_POOL_CHARTS}-chart limit)`
+              : 'Add a chart manually'
+          }
+        >
           + Add chart
         </button>
         {props.pool.length > 0 && (
@@ -97,6 +109,11 @@ export function Library(props: Props) {
           </button>
         )}
       </div>
+      {props.pool.length >= MAX_POOL_CHARTS && (
+        <div className="muted pad" role="status" aria-live="polite">
+          Library is full ({MAX_POOL_CHARTS}-chart limit). Remove a chart to add another.
+        </div>
+      )}
       {props.pool.length > 0 && (
         <div className="library-tools">
           <input
