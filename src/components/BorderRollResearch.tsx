@@ -23,6 +23,9 @@ export function BorderRollResearch({ borders, controller }: Props) {
   const failedSubmissionCount = controller.submissionStore.queue.filter(
     (item) => item.delivery.status === 'failed',
   ).length
+  const pendingSubmissionCount = controller.submissionStore.queue.filter(
+    (item) => item.delivery.status === 'pending',
+  ).length
   const [showArchived, setShowArchived] = useState(false)
   const missingBorders = useMemo(() => borders.filter((id) => id === null).length, [borders])
   const sequenceView = useMemo(() => {
@@ -204,9 +207,24 @@ export function BorderRollResearch({ borders, controller }: Props) {
           />
         </label>
       </div>
+      <div className="import-actions roll-research-actions">
+        <button
+          disabled={
+            !controller.endpointConfigured ||
+            submissionBlocked ||
+            !controller.submissionStore.settings.enabled ||
+            !controller.submissionStore.settings.submissionKey.trim() ||
+            pendingSubmissionCount === 0
+          }
+          onClick={controller.submitQueuedSequences}
+        >
+          Submit queued Voyages
+        </button>
+      </div>
       <div className="roll-research-status">
-        The key is kept in memory for this tab only. Keys saved by older versions are erased on
-        load; rotate a previously stored key before re-entering it.
+        The key is kept in memory for this tab only. Enter it completely, then submit the queued
+        Voyages explicitly. Keys saved by older versions are erased on load; rotate a previously
+        stored key before re-entering it.
       </div>
       <div className="roll-research-status">
         <span>

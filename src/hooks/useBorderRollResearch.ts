@@ -48,6 +48,7 @@ export interface BorderRollResearchController {
   setVesperUpgradeCount: (value: number | null) => void
   setAutoSubmitEnabled: (enabled: boolean) => void
   setSubmissionKey: (value: string) => void
+  submitQueuedSequences: () => void
   recordCurrentRoll: (borders: Borders) => string
   captureImportedRoll: (borders: Borders, rerollCost: BorderRerollCostMatch | null) => string
   startNextSequence: () => void
@@ -336,12 +337,13 @@ export function useBorderRollResearch(): BorderRollResearchController {
       commitSubmissionStore(
         updateBorderSubmissionSettings(submissionRef.current, { submissionKey }),
       )
-      if (submissionKey.trim() && submissionRef.current.settings.enabled) {
-        queueMicrotask(() => void flushQueue())
-      }
     },
-    [commitSubmissionStore, flushQueue],
+    [commitSubmissionStore],
   )
+
+  const submitQueuedSequences = useCallback(() => {
+    queueMicrotask(() => void flushQueue())
+  }, [flushQueue])
 
   useEffect(() => {
     void flushQueue()
@@ -478,6 +480,7 @@ export function useBorderRollResearch(): BorderRollResearchController {
     setVesperUpgradeCount,
     setAutoSubmitEnabled,
     setSubmissionKey,
+    submitQueuedSequences,
     recordCurrentRoll,
     captureImportedRoll,
     startNextSequence,
