@@ -22,12 +22,14 @@ npm run validate
 For browser, Web Worker, import/export, or GitHub Pages path changes, also run:
 
 ```bash
-npx playwright install chromium
+npx playwright install chromium webkit
 npm run test:e2e
 ```
 
 This builds the Pages-style `staging/` tree, including the root redirect, and
-runs the deterministic Chromium smoke suite against that production artifact.
+runs the bounded desktop Chromium, mobile Chromium, and WebKit projects against
+that production artifact. See [docs/browser-support.md](docs/browser-support.md)
+for the exact flow and viewport matrix.
 
 `validate` strictly type-checks application code, E2E tests, root tests,
 benchmarks, and the Vite/Vitest configuration before running the Vitest suite,
