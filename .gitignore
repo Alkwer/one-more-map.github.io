@@ -1,6 +1,7 @@
 node_modules/
 dist/
 staging/
+staging-playwright/
 playwright-report/
 test-results/
 .sites/
