@@ -569,6 +569,14 @@ button.primary:hover {
   line-height: 1.35;
   opacity: 0.86;
 }
+.suggestion-alternative-note {
+  margin-top: 5px;
+  padding-left: 7px;
+  border-left: 2px solid rgba(115, 156, 178, 0.65);
+  color: #a9cedd;
+  font-size: 10px;
+  line-height: 1.35;
+}
 .suggestion-metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -159,7 +159,45 @@ describe('Voyage decision regressions', () => {
 
     assert.equal(decision.kind, 'switch')
     assert.equal(decision.strategyId, 'alc-and-go')
-    assert.match(decision.reason, /No ready specialized strategy reaches the 60%/)
+    assert.equal(decision.label, 'SWITCH TO FALLBACK: Alc & Go')
+    assert.match(decision.reason, /it is not the only runnable strategy/)
+    assert.match(
+      decision.reason,
+      /Speedrun Strongboxes is also runnable and is the strongest specialized alternative at 30% fit/,
+    )
+  })
+
+  it('labels a model-kept Alc & Go roll as a fallback and names the runnable alternative', () => {
+    const decision = decide({
+      activeStrategyId: 'alc-and-go',
+      evaluations: [
+        candidate({
+          id: 'anchorfield-fishing',
+          name: 'Anchorfield Fishing',
+          fit: 0.35,
+          rankScore: 0.68,
+          recommendationTier: 'specialized',
+        }),
+        candidate({
+          id: 'alc-and-go',
+          name: 'Alc & Go',
+          fit: 0.36,
+          rankScore: 0.56,
+          recommendationTier: 'fallback',
+          rollForecast: forecast(1, 0),
+        }),
+      ],
+    })
+
+    assert.equal(decision.kind, 'play')
+    assert.equal(decision.label, 'PLAY FALLBACK: Alc & Go')
+    assert.equal(decision.recommendationTier, 'fallback')
+    assert.match(decision.reason, /it is not the only runnable strategy/)
+    assert.match(
+      decision.reason,
+      /Anchorfield Fishing is also runnable and is the strongest specialized alternative at 35% fit/,
+    )
+    assert.match(decision.reason, /100th percentile of paid rerolls/)
   })
 
   it('keeps Alc & Go as the fallback when no ready strategy meets the fit line', () => {

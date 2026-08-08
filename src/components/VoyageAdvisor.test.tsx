@@ -10,6 +10,7 @@ const decision = (withForecast: boolean): VoyageDecision => ({
   reason: 'The modeled roll is worth keeping.',
   strategyId: 'test',
   strategyName: 'Test Strategy',
+  recommendationTier: 'specialized',
   fit: 0.42,
   missing: [],
   action: null,
@@ -80,5 +81,27 @@ describe('VoyageAdvisor', () => {
     assert.match(markup, /Contextual fit line/)
     assert.match(markup, /Heuristic scale: border contribution versus the best-known border mix/)
     assert.match(markup, /A modeled comparison is unavailable for this layout/)
+  })
+
+  it('describes fallback decisions without presenting them as the only strategy', () => {
+    const fallbackDecision: VoyageDecision = {
+      ...decision(true),
+      label: 'PLAY FALLBACK: Alc & Go',
+      strategyId: 'alc-and-go',
+      strategyName: 'Alc & Go',
+      recommendationTier: 'fallback',
+      reason: 'Alc & Go is the recommended fallback; it is not the only runnable strategy.',
+    }
+    const markup = renderToStaticMarkup(
+      <VoyageAdvisor
+        decision={fallbackDecision}
+        onChangeRerolls={() => undefined}
+        onSelectStrategy={() => undefined}
+      />,
+    )
+
+    assert.match(markup, /PLAY FALLBACK: Alc &amp; Go/)
+    assert.match(markup, /Recommended fallback for charts \+ border roll/)
+    assert.doesNotMatch(markup, /Best strategy for charts \+ border roll/)
   })
 })
