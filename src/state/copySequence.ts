@@ -24,9 +24,9 @@ export type CopySequenceWriteResult =
   | {
       ok: false
       next: CopySequenceState
-      reason: 'unavailable' | 'rejected'
+      reason: 'unavailable' | 'rejected' | 'invalid'
       detail: string
-      manualText: string
+      manualText: string | null
     }
 
 export function startCopySequence(board: Board): CopySequenceState | null {
@@ -52,8 +52,17 @@ export async function writeCurrentCopyAndAdvance(
   chart: ChartData,
   clipboard: ClipboardWriter | undefined,
 ): Promise<CopySequenceWriteResult> {
-  const manualText = buildSingleChartSearch(chart)
-  const result = await writeClipboardText(manualText, clipboard)
+  const search = buildSingleChartSearch(chart)
+  if (!search.ok) {
+    return {
+      ok: false,
+      next: sequence,
+      reason: 'invalid',
+      detail: search.message,
+      manualText: null,
+    }
+  }
+  const result = await writeClipboardText(search.regex, clipboard)
   return result.ok
     ? { ok: true, next: advanceCopySequence(sequence) }
     : { ...result, next: sequence }

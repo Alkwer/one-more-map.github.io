@@ -44,10 +44,20 @@ export function detectSearchClientLanguage(charts: ChartData[]): SearchClientLan
  * Imported Korean charts keep Hangul in their verbatim item-derived fields, so
  * the level term can follow the client language without a separate UI locale.
  */
-export function buildSingleChartSearch(chart: ChartData): string {
+export function buildSingleChartSearch(
+  chart: ChartData,
+  cap = MAX_CHART_SEARCH_LENGTH,
+): ChartSearchResult {
   const implicit = chartImplicitText(chart)
   const level = `${chartUsesHangul(chart) ? '지역 레벨' : 'Level'} ${chart.level}`
-  return [chart.name, implicit, level].filter(Boolean).map(escapeRegexLiteral).join(' ')
+  const regex = [chart.name, implicit, level].filter(Boolean).map(escapeRegexLiteral).join(' ')
+  const safeCap = Math.max(0, Math.floor(cap))
+  return regex.length <= safeCap
+    ? { ok: true, regex }
+    : {
+        ok: false,
+        message: `Exact chart search exceeds the ${safeCap}-character in-game limit. Shorten the chart name or implicit text before copying.`,
+      }
 }
 
 /**

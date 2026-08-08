@@ -61,26 +61,36 @@ export function CopySequencePrompt(props: CopySequenceProps) {
         <div className="copyseq-manual" role="alert">
           <strong>Nothing was copied, so this chart has not advanced.</strong>
           <div className="pc-sub">{props.failure.detail}</div>
-          <label>
-            Manual copy search
-            <input
-              readOnly
-              value={props.failure.manualText}
-              onFocus={(event) => event.currentTarget.select()}
-            />
-          </label>
-          <button onClick={props.onManualAdvance}>I copied it manually — next</button>
+          {props.failure.manualText && (
+            <>
+              <label>
+                Manual copy search
+                <input
+                  readOnly
+                  value={props.failure.manualText}
+                  onFocus={(event) => event.currentTarget.select()}
+                />
+              </label>
+              <button onClick={props.onManualAdvance}>I copied it manually — next</button>
+            </>
+          )}
         </div>
       )}
       <div className="copyseq-actions">
-        <button className="copyseq-go" disabled={props.pending} onClick={props.onAdvance}>
+        <button
+          className="copyseq-go"
+          disabled={props.pending || props.failure?.reason === 'invalid'}
+          onClick={props.onAdvance}
+        >
           {props.pending
             ? 'Copying…'
-            : props.failure
-              ? '📋 Retry clipboard copy'
-              : props.sequence.step + 1 >= props.sequence.order.length
-                ? '📋 Copy last & finish'
-                : '📋 Copy & next'}
+            : props.failure?.reason === 'invalid'
+              ? 'Search exceeds in-game limit'
+              : props.failure
+                ? '📋 Retry clipboard copy'
+                : props.sequence.step + 1 >= props.sequence.order.length
+                  ? '📋 Copy last & finish'
+                  : '📋 Copy & next'}
           <span className="copyseq-hint">or press Ctrl+C</span>
         </button>
         <button className="pc-lost" onClick={props.onCancel}>

@@ -19,9 +19,16 @@ function parseOne(text: string): ChartData {
   return result.charts[0]
 }
 
+function singleSearch(chart: ChartData, cap?: number): string {
+  const result = buildSingleChartSearch(chart, cap)
+  expect(result).toMatchObject({ ok: true })
+  if (!result.ok) throw new Error(result.message)
+  return result.regex
+}
+
 describe('buildSingleChartSearch', () => {
   it('uses the verified Korean Area Level term for a Korean-client chart', () => {
-    const search = buildSingleChartSearch(parseOne(koreanChartText))
+    const search = singleSearch(parseOne(koreanChartText))
 
     expect(search).toBe(
       '해병 고역 산호 암초 해도 인접 지역 내 몬스터가 떨어뜨리는 장비의 40%가 골드로 전환 지역 레벨 81',
@@ -31,7 +38,7 @@ describe('buildSingleChartSearch', () => {
   })
 
   it('keeps the existing English Level term for an English-client chart', () => {
-    const search = buildSingleChartSearch(parseOne(englishChartText))
+    const search = singleSearch(parseOne(englishChartText))
 
     expect(search).toBe(
       "Armoured Coral Reef Chart of Ice 20% increased Dead Man's Sulphur found in this Area Level 63",
@@ -50,7 +57,7 @@ describe('buildSingleChartSearch', () => {
       implicitText: '아직 등록되지 않은 한국어 항해 속성',
     }
 
-    expect(buildSingleChartSearch(chart)).toContain('지역 레벨 81')
+    expect(singleSearch(chart)).toContain('지역 레벨 81')
   })
 
   it('defaults Hangul-free manual and demo charts to English', () => {
@@ -62,10 +69,33 @@ describe('buildSingleChartSearch', () => {
       modIds: ['voy-sulph-2'],
     }
 
-    const search = buildSingleChartSearch(chart)
+    const search = singleSearch(chart)
     expect(search).toBe("Demo Chart 20% increased Dead Man's Sulphur found in this Area Level 83")
     expect(search).toContain('Level 83')
     expect(search).not.toContain('지역 레벨')
+  })
+
+  it('accepts 250 characters and rejects 251 after regex escaping', () => {
+    const chart: ChartData = {
+      uid: 'boundary',
+      name: 'a'.repeat(241),
+      level: 83,
+      edges: [true, false, false, false],
+      modIds: [],
+    }
+
+    expect(buildSingleChartSearch(chart)).toMatchObject({ ok: true })
+    expect(singleSearch(chart)).toHaveLength(250)
+    expect(buildSingleChartSearch({ ...chart, name: 'a'.repeat(242) })).toEqual({
+      ok: false,
+      message:
+        'Exact chart search exceeds the 250-character in-game limit. Shorten the chart name or implicit text before copying.',
+    })
+
+    expect(singleSearch({ ...chart, name: '['.repeat(120) })).toHaveLength(249)
+    expect(buildSingleChartSearch({ ...chart, name: '['.repeat(121) })).toMatchObject({
+      ok: false,
+    })
   })
 })
 

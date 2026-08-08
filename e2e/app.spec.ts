@@ -472,6 +472,40 @@ test('clears stale chart and board-cell selections after removals', async ({ app
   await expect(secondCell).toHaveAttribute('data-chart-name', secondName)
 })
 
+test('blocks overlong single-chart copies without advancing the placement sequence', async ({
+  appPage,
+}) => {
+  await openApp(appPage)
+  const longName = `Overlong ${'X'.repeat(220)}`
+  await pasteText(
+    appPage,
+    chartPayload(longName, 'Undersea Groves', '25% increased number of Rare Monsters'),
+  )
+  await appPage.getByRole('button', { name: `Select ${longName} for placement` }).click()
+  await appPage.locator('.tile-select').nth(0).click()
+
+  await appPage.getByRole('button', { name: `Copy in-game search for ${longName}` }).click()
+  await expect(appPage.locator('.tile-copy-fallback')).toContainText(
+    'Exact chart search exceeds the 250-character in-game limit',
+  )
+  await expect(
+    appPage.getByRole('textbox', { name: `Manual in-game search for ${longName}` }),
+  ).toHaveCount(0)
+
+  await appPage.getByRole('button', { name: '📋 Copy into game' }).click()
+  await expect(appPage.getByText(/Step 1 of 1/)).toBeVisible()
+  await appPage.getByRole('button', { name: '📋 Copy last & finish' }).click()
+
+  await expect(appPage.getByText(/Step 1 of 1/)).toBeVisible()
+  await expect(appPage.getByRole('button', { name: 'Search exceeds in-game limit' })).toBeDisabled()
+  await expect(appPage.getByText('Manual copy search')).toHaveCount(0)
+  expect(
+    await appPage.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    ),
+  ).toBe(true)
+})
+
 test('plans the complete corner Divine composition with two feeders and six Rares', async ({
   appPage,
 }) => {
