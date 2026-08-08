@@ -6,12 +6,12 @@ flows so browser coverage does not multiply every test.
 
 ## CI matrix
 
-| Project                   | Browser and viewport              | Automated coverage |
-| ------------------------- | --------------------------------- | ------------------ |
-| `chromium`                | Desktop Chrome profile, 1280×720  | Full application and Pages regression suite |
-| `mobile-chromium-smoke`   | Chromium, 390×844                 | First screen, chart import, console/network health, and no horizontal overflow before or after import |
-| `webkit-smoke`            | Desktop Safari profile, 1280×720  | Load, chart import, Web Worker solve, result application, `localStorage` restore, JSON download, shared-layout creation/opening, and console/network health |
-| `windows-playwright-exit` | Chromium probes on `windows-latest` | Bounded Playwright teardown and preview-port release |
+| Project                   | Browser and viewport                | Automated coverage                                                                                                                                          |
+| ------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `chromium`                | Desktop Chrome profile, 1280×720    | Full application and Pages regression suite                                                                                                                 |
+| `mobile-chromium-smoke`   | Chromium, 390×844                   | First screen, chart import, console/network health, and no horizontal overflow before or after import                                                       |
+| `webkit-smoke`            | Desktop Safari profile, 1280×720    | Load, chart import, Web Worker solve, result application, `localStorage` restore, JSON download, shared-layout creation/opening, and console/network health |
+| `windows-playwright-exit` | Chromium probes on `windows-latest` | Bounded Playwright teardown and preview-port release                                                                                                        |
 
 The shared Playwright fixture fails every project on page errors, console errors,
 failed same-origin requests, or same-origin HTTP responses with status 400 or

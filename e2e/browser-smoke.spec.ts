@@ -13,9 +13,9 @@ const libraryHeading = (page: Parameters<typeof openApp>[0]) =>
   page.getByRole('heading', { level: 2, name: /Chart Library/ })
 
 const occupiedCellCount = (page: Parameters<typeof openApp>[0]) =>
-  page.locator('.tile-select').evaluateAll(
-    (cells) => cells.filter((cell) => cell.getAttribute('data-chart-name')).length,
-  )
+  page
+    .locator('.tile-select')
+    .evaluateAll((cells) => cells.filter((cell) => cell.getAttribute('data-chart-name')).length)
 
 const expectNoHorizontalOverflow = async (page: Parameters<typeof openApp>[0]) => {
   await expect
@@ -42,9 +42,7 @@ test('@mobile renders the first screen and imports without horizontal overflow',
   await expectNoHorizontalOverflow(appPage)
 })
 
-test('@webkit loads, imports, solves in a worker, and restores storage', async ({
-  appPage,
-}) => {
+test('@webkit loads, imports, solves in a worker, and restores storage', async ({ appPage }) => {
   const workerUrls: string[] = []
   appPage.on('worker', (worker) => workerUrls.push(worker.url()))
 
