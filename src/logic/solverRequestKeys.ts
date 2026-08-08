@@ -13,6 +13,7 @@ const normalizedRewards = (chart: ChartData) =>
 const normalizedChart = (chart: ChartData, includePreserved: boolean) => ({
   uid: chart.uid,
   name: chart.name.toLowerCase(),
+  level: chart.level,
   edges: chart.edges,
   areaType: chart.areaType ?? null,
   modIds: [...chart.modIds].sort(),
