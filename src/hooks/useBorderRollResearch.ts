@@ -94,7 +94,7 @@ export function useBorderRollResearch(): BorderRollResearchController {
     }
     if (!saveBorderResearch(next)) {
       const blocked = {
-        ...next,
+        ...storeRef.current,
         recovery: unavailableAuxiliaryStore('Border research storage became unavailable.'),
       }
       storeRef.current = blocked
@@ -114,7 +114,7 @@ export function useBorderRollResearch(): BorderRollResearchController {
     }
     if (!saveBorderSubmissionStore(next)) {
       const blocked = {
-        ...next,
+        ...submissionRef.current,
         recovery: unavailableAuxiliaryStore('Border submission storage became unavailable.'),
       }
       submissionRef.current = blocked
@@ -129,6 +129,7 @@ export function useBorderRollResearch(): BorderRollResearchController {
 
   const flushQueue = useCallback(async () => {
     if (submittingRef.current) return
+    if (storeRef.current.recovery) return
     const current = submissionRef.current
     if (current.recovery) return
     const item = nextPendingBorderSubmission(current)
@@ -152,11 +153,28 @@ export function useBorderRollResearch(): BorderRollResearchController {
         currentSamples,
         signal: abortController.signal,
       })
-      commitStore(archiveBorderRollSequence(storeRef.current, item.sequenceId))
-      commitSubmissionStore(removeQueuedBorderSubmission(submissionRef.current, item.sequenceId))
-      setMessage(
-        `${result.status === 'created' ? 'Submitted' : 'Already submitted'} Voyage ${item.sequenceId.slice(-8)} as issue #${result.issueNumber}.`,
+      const delivery = `${result.status === 'created' ? 'Submitted' : 'Already submitted'} Voyage ${item.sequenceId.slice(-8)} as issue #${result.issueNumber}`
+      const researchAfterDelivery = archiveBorderRollSequence(
+        storeRef.current.activeSequenceId === item.sequenceId
+          ? startBorderRollSequence(storeRef.current)
+          : storeRef.current,
+        item.sequenceId,
       )
+      if (!commitStore(researchAfterDelivery)) {
+        setMessage(
+          `${delivery}, but border research storage became unavailable. The Voyage was not archived and remains queued for recovery.`,
+        )
+        return
+      }
+      if (
+        !commitSubmissionStore(removeQueuedBorderSubmission(submissionRef.current, item.sequenceId))
+      ) {
+        setMessage(
+          `${delivery} and archived it locally, but submission queue storage became unavailable. Its queue entry remains for recovery.`,
+        )
+        return
+      }
+      setMessage(`${delivery}.`)
       queueMicrotask(() => void flushQueue())
     } catch (error) {
       if (!submissionRef.current.queue.some((queued) => queued.sequenceId === item.sequenceId)) {
@@ -256,7 +274,7 @@ export function useBorderRollResearch(): BorderRollResearchController {
   )
 
   const startNextSequence = useCallback(() => {
-    commitStore(startBorderRollSequence(storeRef.current))
+    if (!commitStore(startBorderRollSequence(storeRef.current))) return
     setMessage('Started a new Voyage sequence. Its first complete scan will be roll 0.')
   }, [commitStore])
 
@@ -305,6 +323,7 @@ export function useBorderRollResearch(): BorderRollResearchController {
     const sequence = getBorderRollSequence(current.samples, current.activeSequenceId)
     const settings = submissionRef.current.settings
     let summary: string
+    let queuedForSubmission = false
 
     if (sequence.length === 0) {
       summary = 'no border scans recorded'
@@ -315,18 +334,29 @@ export function useBorderRollResearch(): BorderRollResearchController {
     } else if (!BORDER_ROLL_INTAKE_URL || !settings.submissionKey.trim()) {
       summary = 'border sequence saved; automatic submission needs setup'
     } else {
-      commitSubmissionStore(enqueueBorderRollSequence(submissionRef.current, sequence))
+      if (!commitSubmissionStore(enqueueBorderRollSequence(submissionRef.current, sequence))) {
+        return 'submission queue storage needs recovery; the border sequence was not queued or advanced'
+      }
       summary = `${sequence.length} border roll${sequence.length === 1 ? '' : 's'} queued for submission`
-      queueMicrotask(() => void flushQueue())
+      queuedForSubmission = true
     }
 
-    commitStore(startBorderRollSequence(current))
+    if (!commitStore(startBorderRollSequence(current))) {
+      return queuedForSubmission
+        ? 'border sequence queued, but research storage needs recovery and the sequence was not advanced'
+        : 'border research storage needs recovery; the sequence was not advanced'
+    }
+    if (queuedForSubmission) queueMicrotask(() => void flushQueue())
     return summary
   }, [commitStore, commitSubmissionStore, flushQueue])
 
   const setAutoSubmitEnabled = useCallback(
     (enabled: boolean) => {
-      commitSubmissionStore(updateBorderSubmissionSettings(submissionRef.current, { enabled }))
+      if (
+        !commitSubmissionStore(updateBorderSubmissionSettings(submissionRef.current, { enabled }))
+      ) {
+        return
+      }
       if (enabled) queueMicrotask(() => void flushQueue())
     },
     [commitSubmissionStore, flushQueue],
@@ -334,9 +364,13 @@ export function useBorderRollResearch(): BorderRollResearchController {
 
   const setSubmissionKey = useCallback(
     (submissionKey: string) => {
-      commitSubmissionStore(
-        updateBorderSubmissionSettings(submissionRef.current, { submissionKey }),
-      )
+      if (
+        !commitSubmissionStore(
+          updateBorderSubmissionSettings(submissionRef.current, { submissionKey }),
+        )
+      ) {
+        return
+      }
     },
     [commitSubmissionStore],
   )
@@ -452,7 +486,7 @@ export function useBorderRollResearch(): BorderRollResearchController {
 
   const archiveSequence = useCallback(
     (sequenceId: string) => {
-      commitStore(archiveBorderRollSequence(storeRef.current, sequenceId))
+      if (!commitStore(archiveBorderRollSequence(storeRef.current, sequenceId))) return
       setMessage('Archived the submitted Voyage locally.')
     },
     [commitStore],
@@ -460,7 +494,7 @@ export function useBorderRollResearch(): BorderRollResearchController {
 
   const restoreSequence = useCallback(
     (sequenceId: string) => {
-      commitStore(restoreBorderRollSequence(storeRef.current, sequenceId))
+      if (!commitStore(restoreBorderRollSequence(storeRef.current, sequenceId))) return
       setMessage('Restored the Voyage to the saved sequence list.')
     },
     [commitStore],

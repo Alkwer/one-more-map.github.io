@@ -211,6 +211,7 @@ export function BorderRollResearch({ borders, controller }: Props) {
         <button
           disabled={
             !controller.endpointConfigured ||
+            researchBlocked ||
             submissionBlocked ||
             !controller.submissionStore.settings.enabled ||
             !controller.submissionStore.settings.submissionKey.trim() ||
