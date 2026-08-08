@@ -11,6 +11,7 @@ flows so browser coverage does not multiply every test.
 | `chromium`                | Desktop Chrome profile, 1280×720    | Full application and Pages regression suite                                                                                                                 |
 | `mobile-chromium-smoke`   | Chromium, 390×844                   | First screen, chart import, console/network health, and no horizontal overflow before or after import                                                       |
 | `webkit-smoke`            | Desktop Safari profile, 1280×720    | Load, chart import, Web Worker solve, result application, `localStorage` restore, JSON download, shared-layout creation/opening, and console/network health |
+| `project-site-deployment` | Desktop Chrome profile, 1280×720    | Nested Pages redirect, JS/CSS/fonts/images, Web Worker, AHK download, theme redirect, and share-link path integrity                                         |
 | `windows-playwright-exit` | Chromium probes on `windows-latest` | Bounded Playwright teardown and preview-port release                                                                                                        |
 
 The shared Playwright fixture fails every project on page errors, console errors,
@@ -45,4 +46,10 @@ project can be run with:
 ```bash
 npx playwright test --project=mobile-chromium-smoke
 npx playwright test --project=webkit-smoke
+npx playwright test --project=project-site-deployment
 ```
+
+Set `PLAYWRIGHT_PROJECT_SITE_PREFIX` before `npm run build:pages` and the
+Playwright command to exercise another repository prefix. The deployable
+artifact remains in `staging/`; only the ignored `staging-playwright/` wrapper
+contains the additional nested path used by E2E.

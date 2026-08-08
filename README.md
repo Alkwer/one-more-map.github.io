@@ -75,8 +75,8 @@ The development server is available at `http://localhost:5173`.
 | `npm run format`           | Rewrite supported files with Prettier                          |
 | `npm run build`            | Create the production bundle in `dist/`                        |
 | `npm run preview`          | Serve the production bundle locally after a build              |
-| `npm run build:pages`      | Build the exact Pages-style artifact in `staging/`             |
-| `npm run preview:pages`    | Serve the staged Pages artifact locally                        |
+| `npm run build:pages`      | Build the Pages artifact and nested-prefix E2E wrapper         |
+| `npm run preview:pages`    | Serve the staged E2E wrapper locally                           |
 | `npm run test:e2e`         | Build and run the bounded Chromium/WebKit browser matrix       |
 | `npm run test:e2e:exit`    | Check bounded Playwright teardown and preview-port cleanup     |
 | `npm run test:e2e:ui`      | Build and open the interactive Playwright test runner          |
@@ -96,11 +96,12 @@ npx playwright install chromium webkit
 npm run test:e2e
 ```
 
-The suite uses a production build staged exactly like GitHub Pages. Each test
-gets isolated browser storage and deterministic fixtures. CI runs the full suite
-in desktop Chromium plus focused 390×844 Chromium and desktop WebKit smoke
-projects, then uploads the Playwright report for failed-run diagnosis. The exact
-browser, viewport, and platform-specific coverage is documented in
+The suite uses the exact production artifact in both root-site and configurable
+project-site layouts. Each test gets isolated browser storage and deterministic
+fixtures. CI runs the full suite in desktop Chromium plus focused 390×844
+Chromium, desktop WebKit, and nested project-site deployment projects, then
+uploads the Playwright report for failed-run diagnosis. The exact browser,
+viewport, and platform-specific coverage is documented in
 [docs/browser-support.md](docs/browser-support.md).
 
 Keyboard behavior, automated axe coverage, and the manual screen-reader checklist

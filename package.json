@@ -25,7 +25,7 @@
     "preview": "vite preview",
     "stage:pages": "node scripts/stage-pages.mjs",
     "build:pages": "npm run build && npm run stage:pages",
-    "preview:pages": "vite preview --outDir staging",
+    "preview:pages": "vite preview --outDir staging-playwright",
     "test:e2e": "npm run build:pages && playwright test",
     "test:e2e:exit": "npm run build:pages && node scripts/check-playwright-exit.mjs",
     "test:e2e:ui": "npm run build:pages && playwright test --ui"

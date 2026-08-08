@@ -26,10 +26,13 @@ npx playwright install chromium webkit
 npm run test:e2e
 ```
 
-This builds the Pages-style `staging/` tree, including the root redirect, and
-runs the bounded desktop Chromium, mobile Chromium, and WebKit projects against
-that production artifact. See [docs/browser-support.md](docs/browser-support.md)
-for the exact flow and viewport matrix.
+This builds the deployable Pages artifact in `staging/` and a
+`staging-playwright/` wrapper that serves it at the root and below
+`PLAYWRIGHT_PROJECT_SITE_PREFIX` (default `/one-more-map.github.io/`). It then
+runs the bounded desktop Chromium, mobile Chromium, WebKit, and focused nested
+deployment projects against that production artifact. See
+[docs/browser-support.md](docs/browser-support.md) for the exact flow and
+viewport matrix.
 
 `validate` strictly type-checks application code, E2E tests, root tests,
 benchmarks, and the Vite/Vitest configuration before running the Vitest suite,
