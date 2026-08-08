@@ -103,4 +103,28 @@ describe('copy sequence', () => {
     expect(result.ok || result.manualText).toBeTruthy()
     expect(currentCopyEntry(sequence).chartUid).toBe('chart-6')
   })
+
+  it('does not write or advance when the search exceeds the in-game limit', async () => {
+    const sequence = startCopySequence(boardWith(6, 7))!
+    let writes = 0
+    const result = await writeCurrentCopyAndAdvance(
+      sequence,
+      { ...chart, name: 'x'.repeat(250) },
+      {
+        writeText: async () => {
+          writes += 1
+        },
+      },
+    )
+
+    expect(writes).toBe(0)
+    expect(result).toMatchObject({
+      ok: false,
+      next: sequence,
+      reason: 'invalid',
+      manualText: null,
+      detail: expect.stringContaining('250-character in-game limit'),
+    })
+    expect(currentCopyEntry(sequence).chartUid).toBe('chart-6')
+  })
 })

@@ -40,9 +40,10 @@ export function BoardCell({
   onTogglePreserve,
 }: BoardCellProps) {
   const [copied, setCopied] = useState(false)
-  const [copyFailure, setCopyFailure] = useState<{ detail: string; manualText: string } | null>(
-    null,
-  )
+  const [copyFailure, setCopyFailure] = useState<{
+    detail: string
+    manualText: string | null
+  } | null>(null)
   const row = Math.floor(cellIndex / 3) + 1
   const column = (cellIndex % 3) + 1
   const position = `Board cell ${cellIndex + 1}, row ${row}, column ${column}${isStart ? ', start' : ''}`
@@ -180,7 +181,13 @@ export function BoardCell({
           title="Copy an in-game search string (name + modifier) to find this exact chart"
           onClick={async (event) => {
             event.stopPropagation()
-            const result = await writeClipboardText(buildSingleChartSearch(chart))
+            const search = buildSingleChartSearch(chart)
+            if (!search.ok) {
+              setCopied(false)
+              setCopyFailure({ detail: search.message, manualText: null })
+              return
+            }
+            const result = await writeClipboardText(search.regex)
             if (!result.ok) {
               setCopied(false)
               setCopyFailure(result)
@@ -217,17 +224,20 @@ export function BoardCell({
         </button>
       </div>
       {copyFailure && (
-        <label className="tile-copy-fallback">
+        <div className="tile-copy-fallback">
           <span role="status" aria-live="polite">
-            {copyFailure.detail} Select the search text and copy it manually.
+            {copyFailure.detail}
+            {copyFailure.manualText && ' Select the search text and copy it manually.'}
           </span>
-          <input
-            aria-label={`Manual in-game search for ${chart.name}`}
-            readOnly
-            value={copyFailure.manualText}
-            onFocus={(event) => event.target.select()}
-          />
-        </label>
+          {copyFailure.manualText && (
+            <input
+              aria-label={`Manual in-game search for ${chart.name}`}
+              readOnly
+              value={copyFailure.manualText}
+              onFocus={(event) => event.target.select()}
+            />
+          )}
+        </div>
       )}
     </div>
   )
