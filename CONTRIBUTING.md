@@ -29,10 +29,11 @@ npm run test:e2e
 This builds the Pages-style `staging/` tree, including the root redirect, and
 runs the deterministic Chromium smoke suite against that production artifact.
 
-`validate` runs TypeScript checking, the Vitest suite, ESLint, Prettier's format
-check, and the production build. When changing the solver or scoring hot path,
-also run `npm run test:performance` and `npm run bench:solver`. The benchmark
-environment and budgets are documented in
+`validate` strictly type-checks application code, E2E tests, root tests,
+benchmarks, and the Vite/Vitest configuration before running the Vitest suite,
+ESLint, Prettier's format check, and the production build. When changing the
+solver or scoring hot path, also run `npm run test:performance` and
+`npm run bench:solver`. The benchmark environment and budgets are documented in
 [docs/solver-performance.md](docs/solver-performance.md). The full command
 reference is in [README.md](README.md#commands).
 
