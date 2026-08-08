@@ -98,7 +98,8 @@ export default function App() {
   > | null>(null)
   const chrome = useAppChrome(state)
   const analysis = useVoyageAnalysis(state)
-  const selection = useBoardSelection(state.board, dispatch)
+  const selection = useBoardSelection(state.board, state.pool, dispatch)
+  const clearSelection = selection.clear
   const borderResearch = useBorderRollResearch()
   const [showPlanner, setShowPlanner] = useState(false)
   const [showSaveWizard, setShowSaveWizard] = useState(false)
@@ -140,6 +141,13 @@ export default function App() {
     pendingSave.current = null
     persistState(nextState)
   }, [persistState])
+  const replaceState = useCallback(
+    (nextState: AppState) => {
+      clearSelection()
+      dispatch({ type: 'replace', state: nextState })
+    },
+    [clearSelection],
+  )
 
   useEffect(() => {
     if (shareSession || recovery) {
@@ -165,13 +173,13 @@ export default function App() {
     const syncHashState = () => {
       if (window.location.hash.length > 1) flushPendingSave()
       const next = readLocationState()
-      dispatch({ type: 'replace', state: next.state })
+      replaceState(next.state)
       setShareSession(next.shareSession)
       setRecovery(next.recovery)
     }
     window.addEventListener('hashchange', syncHashState)
     return () => window.removeEventListener('hashchange', syncHashState)
-  }, [flushPendingSave])
+  }, [flushPendingSave, replaceState])
 
   const clearShareHash = () => {
     window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
@@ -185,9 +193,10 @@ export default function App() {
       return
     }
     setRecovery(null)
-    dispatch({ type: 'replace', state: saved.status === 'ready' ? saved.state : defaultState() })
+    replaceState(saved.status === 'ready' ? saved.state : defaultState())
   }
   const adoptSharedState = () => {
+    clearSelection()
     setShareSession(null)
     clearShareHash()
   }
@@ -204,7 +213,7 @@ export default function App() {
       )
       return
     }
-    dispatch({ type: 'replace', state: result.state })
+    replaceState(result.state)
     setShareSession(null)
     clearShareHash()
   }
@@ -217,14 +226,14 @@ export default function App() {
     }
     setRecovery(null)
     if (!shareSession) {
-      dispatch({ type: 'replace', state: saved.status === 'ready' ? saved.state : defaultState() })
+      replaceState(saved.status === 'ready' ? saved.state : defaultState())
     }
   }
 
   const migrateSavedState = () => {
     if (!recovery?.backupKey || !recovery.proposedState) return
     persistState(recovery.proposedState)
-    if (!shareSession) dispatch({ type: 'replace', state: recovery.proposedState })
+    if (!shareSession) replaceState(recovery.proposedState)
     setRecovery(null)
   }
 
@@ -235,7 +244,7 @@ export default function App() {
     }
     const fresh = defaultState()
     persistState(fresh)
-    if (!shareSession) dispatch({ type: 'replace', state: fresh })
+    if (!shareSession) replaceState(fresh)
     setRecovery(null)
   }
 
@@ -249,7 +258,7 @@ export default function App() {
     )
       return
     dispatch({ type: 'charts/clear' })
-    selection.clearChart()
+    clearSelection()
   }
   const selectedBoardChart =
     selection.selectedChart &&
@@ -386,7 +395,10 @@ export default function App() {
             selected={selection.selectedChart}
             onSelect={selection.selectChart}
             onAdd={addCharts}
-            onRemove={(uid) => dispatch({ type: 'charts/remove', uid })}
+            onRemove={(uid) => {
+              clearSelection()
+              dispatch({ type: 'charts/remove', uid })
+            }}
             onUpdate={(chart) => dispatch({ type: 'charts/update', chart })}
             onClearCharts={clearCharts}
             onOpenSaveWizard={() => setShowSaveWizard(true)}
@@ -395,7 +407,7 @@ export default function App() {
             onImport={addCharts}
             state={state}
             borderResearch={borderResearch}
-            onLoadState={(loadedState) => dispatch({ type: 'replace', state: loadedState })}
+            onLoadState={replaceState}
           />
         </div>
 
@@ -414,7 +426,10 @@ export default function App() {
                 : null
             }
             onCellClick={selection.onCellClick}
-            onRemove={(cell) => dispatch({ type: 'board/remove', cell })}
+            onRemove={(cell) => {
+              selection.clearCell(cell)
+              dispatch({ type: 'board/remove', cell })
+            }}
             onRotate={(cell) => dispatch({ type: 'board/rotate', cell })}
             onBorderChange={(segment, id) => dispatch({ type: 'borders/set', segment, id })}
             onTogglePreserve={(uid) => dispatch({ type: 'charts/toggle-preserved', uid })}

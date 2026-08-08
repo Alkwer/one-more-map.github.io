@@ -427,6 +427,51 @@ test('globally imports English, Korean, and border clipboard payloads', async ({
     .toBe(true)
 })
 
+test('clears stale chart and board-cell selections after removals', async ({ appPage }) => {
+  await openApp(appPage)
+  const firstName = 'Selection Crossing One'
+  const secondName = 'Selection Crossing Two'
+  await pasteText(
+    appPage,
+    [
+      chartPayload(firstName, 'Undersea Groves', '25% increased number of Rare Monsters'),
+      chartPayload(secondName, 'Undersea Groves', '25% increased number of Rare Monsters'),
+    ].join('\n'),
+  )
+
+  const firstCard = appPage.getByRole('button', {
+    name: `Select ${firstName} for placement`,
+  })
+  const firstCell = appPage.locator('.tile-select').nth(0)
+  const secondCell = appPage.locator('.tile-select').nth(1)
+
+  await firstCard.click()
+  await appPage.getByRole('button', { name: `Delete ${firstName}` }).click()
+  await firstCell.click()
+  await expect(
+    appPage.getByRole('alert').filter({ hasText: 'Your latest change was kept out' }),
+  ).toHaveCount(0)
+  await expect(firstCell).not.toHaveAttribute('data-chart-name')
+
+  await pasteText(
+    appPage,
+    chartPayload(firstName, 'Undersea Groves', '25% increased number of Rare Monsters'),
+  )
+  await appPage.getByRole('button', { name: `Select ${firstName} for placement` }).click()
+  await firstCell.click()
+  await appPage.getByRole('button', { name: `Select ${secondName} for placement` }).click()
+  await secondCell.click()
+  await expect(firstCell).toHaveAttribute('data-chart-name', firstName)
+  await expect(secondCell).toHaveAttribute('data-chart-name', secondName)
+
+  await firstCell.click()
+  await appPage.getByRole('button', { name: new RegExp(`Remove ${firstName} from`) }).click()
+  await secondCell.click()
+
+  await expect(firstCell).not.toHaveAttribute('data-chart-name')
+  await expect(secondCell).toHaveAttribute('data-chart-name', secondName)
+})
+
 test('plans the complete corner Divine composition with two feeders and six Rares', async ({
   appPage,
 }) => {
