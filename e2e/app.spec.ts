@@ -20,6 +20,63 @@ import {
 
 type AppPage = Parameters<typeof openApp>[0]
 
+const BORDER_RESEARCH_STORAGE_KEY = 'allflame-border-roll-research'
+const BORDER_SUBMISSION_STORAGE_KEY = 'allflame-border-roll-submission'
+const BORDER_MOD_IDS = [
+  'b-crabboss',
+  'b-curr-1',
+  'b-minmagic',
+  'b-anchor-2',
+  'b-mag-2',
+  'b-izaro',
+  'b-rare-1',
+  'b-rare-1',
+  'b-crabs-2',
+  'b-locker',
+  'b-locker',
+  'b-mag-3',
+]
+
+const borderResearchSample = (sequenceId: string, sampleId: string) => ({
+  schema: 'allflame-border-roll/v2',
+  sampleId,
+  sequenceId,
+  capturedAt: '2026-08-08T12:00:00.000Z',
+  gamePatch: '3.29.2',
+  vesperUpgradeCount: 4,
+  generation: 'natural',
+  rerollIndex: 0,
+  displayedNextRerollCost: 3000,
+  borderModIds: BORDER_MOD_IDS,
+})
+
+async function failAuxiliaryWrites(page: AppPage, storageKey: string) {
+  await page.evaluate((blockedKey) => {
+    const originalSetItem = Storage.prototype.setItem
+    const controlledWindow = window as typeof window & { restoreAuxiliaryWrites?: () => void }
+    controlledWindow.restoreAuxiliaryWrites = () => {
+      Object.defineProperty(Storage.prototype, 'setItem', {
+        configurable: true,
+        value: originalSetItem,
+      })
+    }
+    Object.defineProperty(Storage.prototype, 'setItem', {
+      configurable: true,
+      value(this: Storage, key: string, value: string) {
+        if (key === blockedKey) throw new DOMException('storage full', 'QuotaExceededError')
+        return originalSetItem.call(this, key, value)
+      },
+    })
+  }, storageKey)
+}
+
+async function restoreAuxiliaryWrites(page: AppPage) {
+  await page.evaluate(() => {
+    const controlledWindow = window as typeof window & { restoreAuxiliaryWrites?: () => void }
+    controlledWindow.restoreAuxiliaryWrites?.()
+  })
+}
+
 const libraryHeading = (page: AppPage) =>
   page.getByRole('heading', { level: 2, name: /Chart Library/ })
 
@@ -461,6 +518,335 @@ test('records only complete border rolls and keeps Voyage sequences distinct', a
   expect(stored.samples[1].rerollIndex).toBe(1)
   expect(stored.samples[0].sequenceId).toBe(stored.samples[1].sequenceId)
   expect(stored.samples[1].sequenceId).not.toBe(stored.samples[2].sequenceId)
+})
+
+test('does not report research actions as saved when their storage write fails', async ({
+  appPage,
+}) => {
+  const activeSequenceId = 'voyage-current-actions-e2e'
+  const previousSequenceId = 'voyage-previous-actions-e2e'
+  const sample = borderResearchSample(previousSequenceId, 'roll-actions-e2e')
+
+  await appPage.addInitScript(
+    ({ seededSample, currentSequenceId }) => {
+      if (sessionStorage.getItem('research-actions-seeded')) return
+      localStorage.setItem(
+        'allflame-border-roll-research',
+        JSON.stringify({
+          version: 4,
+          activeSequenceId: currentSequenceId,
+          vesperUpgradeCount: 4,
+          samples: [seededSample],
+          archivedSequenceIds: [],
+        }),
+      )
+      sessionStorage.setItem('research-actions-seeded', '1')
+    },
+    { seededSample: sample, currentSequenceId: activeSequenceId },
+  )
+
+  const openResearch = async () => {
+    await expect(appPage.getByRole('heading', { name: /Allflame Voyage Solver/ })).toBeVisible()
+    const panel = appPage.locator('details.roll-research')
+    await panel.locator('summary').click()
+    return panel
+  }
+  const storedResearch = () =>
+    appPage.evaluate(
+      (key) => JSON.parse(localStorage.getItem(key) ?? '{}'),
+      BORDER_RESEARCH_STORAGE_KEY,
+    )
+
+  await openApp(appPage)
+  const research = await openResearch()
+  await failAuxiliaryWrites(appPage, BORDER_RESEARCH_STORAGE_KEY)
+  await research.getByRole('button', { name: 'Start next Voyage' }).click()
+  await expect(research.locator('[role="status"].muted.pad')).toContainText(
+    'Border research storage became unavailable',
+  )
+  await expect(research.getByText(/Started a new Voyage sequence/)).toHaveCount(0)
+  expect((await storedResearch()).activeSequenceId).toBe(activeSequenceId)
+
+  await restoreAuxiliaryWrites(appPage)
+  await research
+    .getByRole('alert', { name: 'Border research needs recovery' })
+    .getByRole('button', { name: 'Retry / migrate' })
+    .click()
+  await failAuxiliaryWrites(appPage, BORDER_RESEARCH_STORAGE_KEY)
+  await research.getByRole('button', { name: 'Archive' }).click()
+  await expect(research.locator('[role="status"].muted.pad')).toContainText(
+    'Border research storage became unavailable',
+  )
+  await expect(research.getByText('Archived the submitted Voyage locally.')).toHaveCount(0)
+  expect((await storedResearch()).archivedSequenceIds).toEqual([])
+
+  await restoreAuxiliaryWrites(appPage)
+  await research
+    .getByRole('alert', { name: 'Border research needs recovery' })
+    .getByRole('button', { name: 'Retry / migrate' })
+    .click()
+  await research.getByRole('button', { name: 'Archive' }).click()
+  await research.getByRole('button', { name: 'Show archived (1)' }).click()
+  await expect(research.getByText('Archived', { exact: true })).toBeVisible()
+  await failAuxiliaryWrites(appPage, BORDER_RESEARCH_STORAGE_KEY)
+  await research.getByRole('button', { name: 'Restore' }).click()
+  await expect(research.locator('[role="status"].muted.pad')).toContainText(
+    'Border research storage became unavailable',
+  )
+  await expect(research.getByText('Restored the Voyage to the saved sequence list.')).toHaveCount(0)
+  expect((await storedResearch()).archivedSequenceIds).toEqual([previousSequenceId])
+})
+
+test('does not queue or advance a finished border sequence after a required write fails', async ({
+  appPage,
+}) => {
+  const sequenceId = 'voyage-finish-storage-e2e'
+  const sample = borderResearchSample(sequenceId, 'roll-finish-storage-e2e')
+
+  await appPage.route(
+    'https://allflame-border-roll-intake.green-loom-6865.chatgpt.site/api/border-rolls',
+    async (route) => {
+      if (route.request().method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 204,
+          headers: {
+            'Access-Control-Allow-Origin': ORIGIN,
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+          },
+        })
+        return
+      }
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        headers: { 'Access-Control-Allow-Origin': ORIGIN },
+        body: JSON.stringify({
+          status: 'created',
+          issueNumber: 1200,
+          issueUrl: 'https://github.com/Alkwer/one-more-map.github.io/issues/1200',
+        }),
+      })
+    },
+  )
+
+  await appPage.addInitScript(
+    ({ seededSample, activeSequenceId }) => {
+      if (sessionStorage.getItem('finish-storage-seeded')) return
+      localStorage.setItem(
+        'allflame-border-roll-research',
+        JSON.stringify({
+          version: 4,
+          activeSequenceId,
+          vesperUpgradeCount: 4,
+          samples: [seededSample],
+          archivedSequenceIds: [],
+        }),
+      )
+      localStorage.setItem(
+        'allflame-border-roll-submission',
+        JSON.stringify({ version: 3, settings: { enabled: true }, queue: [] }),
+      )
+      sessionStorage.setItem('finish-storage-seeded', '1')
+    },
+    { seededSample: sample, activeSequenceId: sequenceId },
+  )
+
+  const openResearch = async () => {
+    await expect(appPage.getByRole('heading', { name: /Allflame Voyage Solver/ })).toBeVisible()
+    const panel = appPage.locator('details.roll-research')
+    await panel.locator('summary').click()
+    await panel.getByLabel('Private submission key').fill('e2e-private-key')
+    return panel
+  }
+  const storedResearch = () =>
+    appPage.evaluate(
+      (key) => JSON.parse(localStorage.getItem(key) ?? '{}'),
+      BORDER_RESEARCH_STORAGE_KEY,
+    )
+  const storedSubmission = () =>
+    appPage.evaluate(
+      (key) => JSON.parse(localStorage.getItem(key) ?? '{}'),
+      BORDER_SUBMISSION_STORAGE_KEY,
+    )
+  const prepareVoyage = async () => {
+    await pasteText(appPage, ENGLISH_CHART)
+    await appPage
+      .getByRole('button', { name: 'Select Armoured Coral Reef Chart of Ice for placement' })
+      .click()
+    await appPage
+      .getByRole('button', { name: 'Board cell 7, row 3, column 1, start: empty' })
+      .click()
+  }
+
+  await openApp(appPage)
+  const research = await openResearch()
+  await prepareVoyage()
+  await failAuxiliaryWrites(appPage, BORDER_SUBMISSION_STORAGE_KEY)
+  await appPage.getByRole('button', { name: /Finish Voyage/ }).click()
+  await expect(research.locator('[role="status"].muted.pad')).toContainText(
+    'Border submission storage became unavailable',
+  )
+  await expect(
+    appPage.getByText(
+      /submission queue storage needs recovery; the border sequence was not queued or advanced/,
+    ),
+  ).toBeVisible()
+  expect((await storedResearch()).activeSequenceId).toBe(sequenceId)
+  expect((await storedSubmission()).queue).toEqual([])
+
+  await restoreAuxiliaryWrites(appPage)
+  await research
+    .getByRole('alert', { name: 'Border submission queue needs recovery' })
+    .getByRole('button', { name: 'Retry / migrate' })
+    .click()
+  await research.getByLabel('Private submission key').fill('e2e-private-key')
+  await prepareVoyage()
+  await failAuxiliaryWrites(appPage, BORDER_RESEARCH_STORAGE_KEY)
+  await appPage.getByRole('button', { name: /Finish Voyage/ }).click()
+  await expect(research.locator('[role="status"].muted.pad')).toContainText(
+    'Border research storage became unavailable',
+  )
+  await expect(
+    appPage.getByText(
+      /border sequence queued, but research storage needs recovery and the sequence was not advanced/,
+    ),
+  ).toBeVisible()
+  expect((await storedResearch()).activeSequenceId).toBe(sequenceId)
+  expect((await storedSubmission()).queue).toHaveLength(1)
+  await expect(research.getByText('1 Voyage sequence queued')).toBeVisible()
+
+  await restoreAuxiliaryWrites(appPage)
+  await research
+    .getByRole('alert', { name: 'Border research needs recovery' })
+    .getByRole('button', { name: 'Retry / migrate' })
+    .click()
+  await research.getByRole('button', { name: 'Submit queued Voyages' }).click()
+  await expect(research.locator('[role="status"].muted.pad')).toContainText(
+    /Submitted Voyage .* as issue #1200/,
+  )
+  expect((await storedResearch()).activeSequenceId).not.toBe(sequenceId)
+  expect((await storedResearch()).archivedSequenceIds).toEqual([sequenceId])
+  expect((await storedSubmission()).queue).toEqual([])
+})
+
+test('reports partial delivery when either successful-submission bookkeeping write fails', async ({
+  appPage,
+}) => {
+  const sequenceId = 'voyage-partial-delivery-e2e'
+  const sample = borderResearchSample(sequenceId, 'roll-partial-delivery-e2e')
+  let postCount = 0
+
+  await appPage.route(
+    'https://allflame-border-roll-intake.green-loom-6865.chatgpt.site/api/border-rolls',
+    async (route) => {
+      if (route.request().method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 204,
+          headers: {
+            'Access-Control-Allow-Origin': ORIGIN,
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+          },
+        })
+        return
+      }
+      postCount += 1
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        headers: { 'Access-Control-Allow-Origin': ORIGIN },
+        body: JSON.stringify({
+          status: 'created',
+          issueNumber: 1100 + postCount,
+          issueUrl: `https://github.com/Alkwer/one-more-map.github.io/issues/${1100 + postCount}`,
+        }),
+      })
+    },
+  )
+  await appPage.addInitScript(
+    ({ queuedSample, queuedSequenceId }) => {
+      if (sessionStorage.getItem('partial-delivery-seeded')) return
+      localStorage.setItem(
+        'allflame-border-roll-research',
+        JSON.stringify({
+          version: 4,
+          activeSequenceId: 'voyage-next-partial-e2e',
+          vesperUpgradeCount: 4,
+          samples: [queuedSample],
+          archivedSequenceIds: [],
+        }),
+      )
+      localStorage.setItem(
+        'allflame-border-roll-submission',
+        JSON.stringify({
+          version: 3,
+          settings: { enabled: true },
+          queue: [
+            {
+              sequenceId: queuedSequenceId,
+              dataset: {
+                schema: 'allflame-border-roll-dataset/v2',
+                exportedAt: '2026-08-08T12:01:00.000Z',
+                sampleCount: 1,
+                samples: [queuedSample],
+              },
+              delivery: {
+                status: 'pending',
+                attemptCount: 0,
+                lastAttemptAt: null,
+                lastError: null,
+              },
+            },
+          ],
+        }),
+      )
+      sessionStorage.setItem('partial-delivery-seeded', '1')
+    },
+    { queuedSample: sample, queuedSequenceId: sequenceId },
+  )
+
+  const openResearch = async () => {
+    await expect(appPage.getByRole('heading', { name: /Allflame Voyage Solver/ })).toBeVisible()
+    const panel = appPage.locator('details.roll-research')
+    await panel.locator('summary').click()
+    await panel.getByLabel('Private submission key').fill('e2e-private-key')
+    return panel
+  }
+  const storedResearch = () =>
+    appPage.evaluate(
+      (key) => JSON.parse(localStorage.getItem(key) ?? '{}'),
+      BORDER_RESEARCH_STORAGE_KEY,
+    )
+  const storedSubmission = () =>
+    appPage.evaluate(
+      (key) => JSON.parse(localStorage.getItem(key) ?? '{}'),
+      BORDER_SUBMISSION_STORAGE_KEY,
+    )
+
+  await openApp(appPage)
+  const research = await openResearch()
+  await failAuxiliaryWrites(appPage, BORDER_RESEARCH_STORAGE_KEY)
+  await research.getByRole('button', { name: 'Submit queued Voyages' }).click()
+  await expect(research.locator('[role="status"].muted.pad')).toContainText(
+    /Submitted Voyage .* as issue #1101, but border research storage became unavailable/,
+  )
+  expect((await storedResearch()).archivedSequenceIds).toEqual([])
+  expect((await storedSubmission()).queue).toHaveLength(1)
+  await expect(research.getByRole('button', { name: 'Submit queued Voyages' })).toBeDisabled()
+
+  await restoreAuxiliaryWrites(appPage)
+  await research
+    .getByRole('alert', { name: 'Border research needs recovery' })
+    .getByRole('button', { name: 'Retry / migrate' })
+    .click()
+  await failAuxiliaryWrites(appPage, BORDER_SUBMISSION_STORAGE_KEY)
+  await research.getByRole('button', { name: 'Submit queued Voyages' }).click()
+  await expect(research.locator('[role="status"].muted.pad')).toContainText(
+    /Submitted Voyage .* as issue #1102 and archived it locally, but submission queue storage became unavailable/,
+  )
+  expect((await storedResearch()).archivedSequenceIds).toEqual([sequenceId])
+  expect((await storedSubmission()).queue).toHaveLength(1)
 })
 
 test('archives a Voyage only after the automatic outbox receives a success response', async ({
