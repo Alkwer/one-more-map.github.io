@@ -8,6 +8,7 @@ import {
   type AppState,
 } from '../logic/storage'
 import type { ChartData } from '../types'
+import { chartAdditionResult } from '../logic/chartCapacity'
 import {
   appStateReducer,
   persistableAppStateReducer,
@@ -113,6 +114,28 @@ describe('appStateReducer', () => {
 
     expect(limited.pool).toHaveLength(MAX_POOL_CHARTS)
     expect(limited.pool[MAX_POOL_CHARTS - 1]?.uid).toBe(`chart-${MAX_POOL_CHARTS - 1}`)
+  })
+
+  it('reports and enforces 249/250-chart additions for a 25-chart batch', () => {
+    const incoming = Array.from({ length: 25 }, (_, index) => chart(`incoming-${index}`))
+    const almostFull = {
+      ...defaultState(),
+      pool: Array.from({ length: MAX_POOL_CHARTS - 1 }, (_, index) => chart(`saved-${index}`)),
+    }
+
+    expect(chartAdditionResult(almostFull.pool.length, incoming.length)).toEqual({
+      added: 1,
+      skipped: 24,
+    })
+    const filled = appStateReducer(almostFull, { type: 'charts/add', charts: incoming })
+    expect(filled.pool).toHaveLength(MAX_POOL_CHARTS)
+    expect(filled.pool[MAX_POOL_CHARTS - 1]?.uid).toBe('incoming-0')
+
+    expect(chartAdditionResult(filled.pool.length, incoming.length)).toEqual({
+      added: 0,
+      skipped: 25,
+    })
+    expect(appStateReducer(filled, { type: 'charts/add', charts: incoming })).toBe(filled)
   })
 
   it('rejects field and aggregate mutations that could not be restored', () => {

@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer'
 import AxeBuilder from '@axe-core/playwright'
 import type { Locator } from '@playwright/test'
+import { defaultState, serializeState } from '../src/logic/storage'
 import {
   APP_PATH,
   COMPLETE_DIVINE_BORDER_PAYLOAD,
@@ -306,6 +307,55 @@ test('moves focus from automatic first-run onboarding to the first header action
   await appPage.keyboard.press('Escape')
   await expect(onboarding).toHaveCount(0)
   await expect(appPage.getByRole('button', { name: /TUTORIAL/ })).toBeFocused()
+})
+
+test('reports partial and blocked additions at the 250-chart library boundary', async ({
+  appPage,
+}) => {
+  const seededState = defaultState()
+  seededState.pool = Array.from({ length: 249 }, (_, index) => ({
+    uid: `capacity-${index}`,
+    name: `Capacity Chart ${index + 1}`,
+    level: 83,
+    edges: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+    modIds: [],
+    shape: 'Crossing' as const,
+    shapeResolved: true,
+  }))
+  const serializedState = serializeState(seededState)
+  await appPage.addInitScript((raw) => {
+    localStorage.setItem('allflame-voyage-solver', raw)
+  }, serializedState)
+
+  await openApp(appPage)
+  await expect(libraryHeading(appPage)).toContainText('(249)')
+
+  await appPage.getByRole('button', { name: '🎲 Demo ×25' }).click()
+  await expect(libraryHeading(appPage)).toContainText('(250)')
+  const importStatus = appPage.locator('.import-panel').getByRole('status')
+  await expect(importStatus).toContainText(
+    'Added 1 random demo chart; skipped 24 because the 250-chart library limit was reached',
+  )
+
+  await appPage.getByRole('button', { name: '🎲 Demo ×25' }).click()
+  await expect(importStatus).toContainText(
+    'Added 0 random demo charts; skipped 25 because the 250-chart library limit was reached',
+  )
+  await expect(libraryHeading(appPage)).toContainText('(250)')
+
+  const addChart = appPage.getByRole('button', { name: '+ Add chart' })
+  await expect(addChart).toBeDisabled()
+  await expect(appPage.getByText(/Library is full \(250-chart limit\)/).first()).toBeVisible()
+
+  await appPage.getByRole('button', { name: 'Open how it works guide' }).click()
+  const onboarding = appPage.getByRole('dialog', { name: 'Plan your Voyage' })
+  await expect(
+    onboarding.getByRole('button', { name: 'Try it with 25 demo charts' }),
+  ).toBeDisabled()
+  await expect(onboarding).toContainText(
+    'The library is full (250-chart limit). Remove a chart before adding demo charts.',
+  )
+  await expect(onboarding).toBeVisible()
 })
 
 test('lets low-investment strategies persist independent chart protections', async ({

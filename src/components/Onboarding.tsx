@@ -1,9 +1,12 @@
-import { useId } from 'react'
+import { useId, useState } from 'react'
+import { MAX_POOL_CHARTS } from '../logic/storage'
+import { shouldCloseOnboardingAfterDemo, type ChartAdditionResult } from '../logic/chartCapacity'
 import { useModalDialog } from './ModalDialog'
 
 interface Props {
   onClose: () => void
-  onDemo: () => void
+  onDemo: () => ChartAdditionResult
+  remainingChartCapacity: number
 }
 
 const STEPS: { title: string; body: string }[] = [
@@ -29,9 +32,24 @@ const STEPS: { title: string; body: string }[] = [
   },
 ]
 
-export function Onboarding({ onClose, onDemo }: Props) {
+export function Onboarding({ onClose, onDemo, remainingChartCapacity }: Props) {
   const titleId = useId()
+  const [additionMessage, setAdditionMessage] = useState('')
   const { dialogProps } = useModalDialog({ labelledBy: titleId, onClose })
+  const libraryFull = remainingChartCapacity <= 0
+
+  const addDemoCharts = () => {
+    const result = onDemo()
+    if (!shouldCloseOnboardingAfterDemo(result)) {
+      setAdditionMessage(
+        result.added > 0
+          ? `Added ${result.added} demo chart${result.added === 1 ? '' : 's'}; skipped ${result.skipped} because the ${MAX_POOL_CHARTS}-chart library limit was reached.`
+          : `No demo charts were added because the library is full (${MAX_POOL_CHARTS}-chart limit).`,
+      )
+      return
+    }
+    onClose()
+  }
 
   return (
     <div className="onboard-backdrop" data-modal-root onClick={onClose}>
@@ -58,15 +76,20 @@ export function Onboarding({ onClose, onDemo }: Props) {
         <div className="onboard-actions">
           <button
             className="primary"
-            onClick={() => {
-              onDemo()
-              onClose()
-            }}
+            onClick={addDemoCharts}
+            disabled={libraryFull}
+            title={libraryFull ? `Library is full (${MAX_POOL_CHARTS}-chart limit)` : undefined}
           >
             Try it with 25 demo charts
           </button>
           <button onClick={onClose}>Start planning</button>
         </div>
+        {(libraryFull || additionMessage) && (
+          <div className="muted pad" role="status" aria-live="polite">
+            {additionMessage ||
+              `The library is full (${MAX_POOL_CHARTS}-chart limit). Remove a chart before adding demo charts.`}
+          </div>
+        )}
       </div>
     </div>
   )
