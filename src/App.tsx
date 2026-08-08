@@ -127,6 +127,7 @@ export default function App() {
     borderResearch.finishVoyage,
   )
   const saveTimer = useRef<number>()
+  const pendingSave = useRef<AppState | null>(null)
   const persistState = useCallback((nextState: AppState) => {
     const result = saveLocal(nextState)
     setAutosaveFailure(result.ok ? null : result)
@@ -134,11 +135,31 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (shareSession || recovery) return
+    if (shareSession || recovery) {
+      pendingSave.current = null
+      return
+    }
+    pendingSave.current = state
     window.clearTimeout(saveTimer.current)
-    saveTimer.current = window.setTimeout(() => persistState(state), 300)
+    saveTimer.current = window.setTimeout(() => {
+      const nextState = pendingSave.current
+      pendingSave.current = null
+      if (nextState) persistState(nextState)
+    }, 300)
     return () => window.clearTimeout(saveTimer.current)
   }, [persistState, recovery, shareSession, state])
+
+  useEffect(() => {
+    const flushPendingSave = () => {
+      const nextState = pendingSave.current
+      if (!nextState) return
+      window.clearTimeout(saveTimer.current)
+      pendingSave.current = null
+      persistState(nextState)
+    }
+    window.addEventListener('pagehide', flushPendingSave)
+    return () => window.removeEventListener('pagehide', flushPendingSave)
+  }, [persistState])
 
   const clearShareHash = () => {
     window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)

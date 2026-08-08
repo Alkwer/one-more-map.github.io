@@ -204,6 +204,26 @@ test('warns and offers recovery when autosave starts failing after load', async 
     .toBe(2)
 })
 
+test('flushes a pending autosave before an immediate reload', async ({ appPage }) => {
+  await appPage.addInitScript(() => {
+    const nativeSetTimeout = window.setTimeout.bind(window)
+    window.setTimeout = ((handler: TimerHandler, timeout?: number, ...args: unknown[]) =>
+      nativeSetTimeout(
+        handler,
+        timeout === 300 ? 30_000 : timeout,
+        ...args,
+      )) as typeof window.setTimeout
+  })
+
+  await openApp(appPage)
+  await appPage.getByRole('button', { name: '+ Add chart', exact: true }).click()
+  await expect(libraryHeading(appPage)).toContainText('(1)')
+
+  await appPage.reload()
+
+  await expect(libraryHeading(appPage)).toContainText('(1)')
+})
+
 test('exposes the primary screen structure and visible focus in both themes', async ({
   appPage,
 }) => {
