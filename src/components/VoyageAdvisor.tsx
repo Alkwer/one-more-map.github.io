@@ -22,6 +22,9 @@ const contextLabelFor = (decision: VoyageDecision) => {
     return 'Best ready charts + border strategy'
   }
   if (decision.kind === 'play' || decision.kind === 'switch') {
+    if (decision.recommendationTier === 'fallback') {
+      return 'Recommended fallback for charts + border roll'
+    }
     return 'Best strategy for charts + border roll'
   }
   if (decision.kind === 'wait') {

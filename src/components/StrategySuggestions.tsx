@@ -26,6 +26,16 @@ export function StrategySuggestions({
   activeId,
   onSelect,
 }: Props) {
+  const topIsFallback = result.suggestions[0]?.strategy.recommendationTier === 'fallback'
+  const bestReadySpecializedAlternativeId = topIsFallback
+    ? (result.evaluations.find(
+        (suggestion) =>
+          suggestion.strategy.recommendationTier === 'specialized' &&
+          suggestion.readiness.ready &&
+          suggestion.requiredBorderStatus !== 'missing',
+      )?.strategy.id ?? null)
+    : null
+
   return (
     <section className="strategy-suggestions" aria-labelledby="strategy-suggestions-title">
       <div className="suggestion-heading">
@@ -35,8 +45,9 @@ export function StrategySuggestions({
           </h3>
           <div className="muted small-note suggestion-intro">
             Ranks the best layout each strategy can build from all imported charts together with the
-            current border roll. Runnable strategies rank ahead of incomplete ones; the manual board
-            is only a diagnostic.
+            current border roll. Fallback policy can rank Alc &amp; Go above a runnable
+            specialization whose current borders miss the fit line; combined fit is not currency EV.
+            The manual board is only a diagnostic.
           </div>
         </div>
         {result.enteredBorders > 0 && (
@@ -61,6 +72,8 @@ export function StrategySuggestions({
           {result.suggestions.map((suggestion, index) => {
             const isActive = activeId === suggestion.strategy.id
             const requiresReroll = suggestion.requiredBorderStatus === 'missing'
+            const isSpecializedAlternative =
+              suggestion.strategy.id === bestReadySpecializedAlternativeId
             return (
               <article
                 className={`suggestion-card ${index === 0 ? 'best' : ''} ${
@@ -73,8 +86,12 @@ export function StrategySuggestions({
                     {suggestion.jackpot
                       ? '🎰 JACKPOT'
                       : index === 0
-                        ? 'Best charts + border strategy'
-                        : `#${index + 1} combined match`}
+                        ? topIsFallback
+                          ? 'Recommended fallback'
+                          : 'Recommended strategy'
+                        : isSpecializedAlternative
+                          ? 'Best ready specialized alternative'
+                          : `#${index + 1} combined fit`}
                   </div>
                   <span
                     className={`suggestion-confidence ${
@@ -86,6 +103,11 @@ export function StrategySuggestions({
                 </div>
                 <div className="suggestion-name">{suggestion.strategy.name}</div>
                 <div className="suggestion-tagline">{suggestion.strategy.tagline}</div>
+                {isSpecializedAlternative && (
+                  <div className="suggestion-alternative-note">
+                    Runnable alternative — select it to build this specialized layout.
+                  </div>
+                )}
                 <div className="suggestion-metrics">
                   <span>
                     Charts <strong>{Math.round(suggestion.libraryFit * 100)}%</strong>
@@ -120,7 +142,7 @@ export function StrategySuggestions({
                     </span>
                   )}
                   <span>
-                    Combined <strong>{Math.round(suggestion.combinedFit * 100)}%</strong>
+                    Combined fit <strong>{Math.round(suggestion.combinedFit * 100)}%</strong>
                   </span>
                   <span>
                     Current board{' '}

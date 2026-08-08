@@ -33,6 +33,7 @@ export interface VoyageDecision {
   reason: string
   strategyId: string | null
   strategyName: string | null
+  recommendationTier: StrategyRecommendationTier | null
   fit: number | null
   missing: string[]
   action: VoyageDecisionAction | null
@@ -123,6 +124,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     keepFitLine,
     keepModelPercentileLine,
     decisionFitLine,
+    recommendationTier: null as StrategyRecommendationTier | null,
     preserveRoll: false,
     rollForecast: null,
   }
@@ -164,6 +166,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
         )}.`,
         strategyId: divine.strategyId,
         strategyName: divine.strategyName,
+        recommendationTier: divine.recommendationTier,
         fit: divine.fit,
         missing: divine.missing,
         action: null,
@@ -180,6 +183,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
       reason: `A +1 Divine Orb border is present. ${divine.strategyName} is the best ready Divine variant for the ${input.availableCharts} imported charts. Preserve the roll and build its border-aware layout.`,
       strategyId: divine.strategyId,
       strategyName: divine.strategyName,
+      recommendationTier: divine.recommendationTier,
       fit: divine.fit,
       missing: [],
       action: actionFor(input.activeStrategyId, divine),
@@ -219,6 +223,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
       )}.`,
       strategyId: bestInventory.strategyId,
       strategyName: bestInventory.strategyName,
+      recommendationTier: bestInventory.recommendationTier,
       fit: bestInventory.fit,
       missing: bestInventory.missing,
       action: null,
@@ -237,6 +242,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
       } to complete the recommendation before issuing the play or reroll decision.`,
       strategyId: bestReady.strategyId,
       strategyName: bestReady.strategyName,
+      recommendationTier: bestReady.recommendationTier,
       fit: bestReady.fit,
       missing: [],
       action: actionFor(input.activeStrategyId, bestReady),
@@ -252,6 +258,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
       reason: `${bestReady.strategyName} is the best strategy after combining the chart library and border roll, but the roll has no comparable weighted value for the best layout found.`,
       strategyId: bestReady.strategyId,
       strategyName: bestReady.strategyName,
+      recommendationTier: bestReady.recommendationTier,
       fit: null,
       missing: [],
       action: actionFor(input.activeStrategyId, bestReady),
@@ -264,16 +271,32 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     bestReady.rollForecast !== null &&
     keepModelPercentileLine !== null &&
     bestReady.rollForecast.currentPercentile >= keepModelPercentileLine
+  const specializedAlternative =
+    bestReady.recommendationTier === 'fallback'
+      ? (ranked.find(
+          (candidate) =>
+            candidate.ready &&
+            candidate.requiredBorderStatus !== 'missing' &&
+            candidate.recommendationTier === 'specialized',
+        ) ?? null)
+      : null
 
   if (meetsContextFitLine || meetsModelKeepLine) {
     const alreadyActive = input.activeStrategyId === bestReady.strategyId
-    const fallbackReason =
-      bestReady.recommendationTier === 'fallback'
-        ? meetsContextFitLine
-          ? ` No ready specialized strategy reaches the ${Math.round(
-              decisionFitLine * 100,
-            )}% contextual decision line, so the fitting fallback is preferred.`
-          : ` No ready specialized strategy reaches the contextual decision line; Alc & Go remains the fallback candidate.`
+    const isFallback = bestReady.recommendationTier === 'fallback'
+    const selectionReason = isFallback
+      ? `${bestReady.strategyName} is the recommended fallback after combining all ${input.availableCharts} imported charts with the current border roll; it is not the only runnable strategy.`
+      : `${bestReady.strategyName} is the best ready strategy after combining all ${input.availableCharts} imported charts with the current border roll.`
+    const specializedAlternativeReason = specializedAlternative
+      ? ` ${specializedAlternative.strategyName} is also runnable and is the strongest specialized alternative at ${percent(
+          specializedAlternative.fit,
+        )}, but it remains below the ${Math.round(
+          decisionFitLine * 100,
+        )}% contextual decision line.`
+      : isFallback
+        ? ` No ready specialized strategy reaches the ${Math.round(
+            decisionFitLine * 100,
+          )}% contextual decision line.`
         : ''
     const modeledReason = meetsModelKeepLine
       ? ` The experimental v${bestReady.rollForecast!.modelVersion} model ranks this board at the ${Math.round(
@@ -289,18 +312,21 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     return {
       ...base,
       kind: alreadyActive ? 'play' : 'switch',
-      label: alreadyActive
-        ? `PLAY: ${bestReady.strategyName}`
-        : `SWITCH TO: ${bestReady.strategyName}`,
-      reason: `${bestReady.strategyName} is the best ready strategy after combining all ${input.availableCharts} imported charts with the current border roll. The best layout found reaches ${percent(
-        bestReady.fit,
-      )}${
+      label: isFallback
+        ? alreadyActive
+          ? `PLAY FALLBACK: ${bestReady.strategyName}`
+          : `SWITCH TO FALLBACK: ${bestReady.strategyName}`
+        : alreadyActive
+          ? `PLAY: ${bestReady.strategyName}`
+          : `SWITCH TO: ${bestReady.strategyName}`,
+      reason: `${selectionReason} The best layout found reaches ${percent(bestReady.fit)}${
         meetsContextFitLine
           ? `, meeting the ${Math.round(decisionFitLine * 100)}% contextual decision line.`
           : ', below the contextual decision line.'
-      }${fallbackReason}${modeledReason}`,
+      }${specializedAlternativeReason}${modeledReason}`,
       strategyId: bestReady.strategyId,
       strategyName: bestReady.strategyName,
+      recommendationTier: bestReady.recommendationTier,
       fit: bestReady.fit,
       missing: [],
       action: actionFor(input.activeStrategyId, bestReady),
@@ -326,6 +352,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
       )}, below the ${linePercent}% contextual decision line while the next roll remains inside the 3k/6k default guardrail.${modeledReason} This is experimental guidance, not Sulphur expected value.`,
       strategyId: bestReady.strategyId,
       strategyName: bestReady.strategyName,
+      recommendationTier: bestReady.recommendationTier,
       fit: bestReady.fit,
       missing: [],
       action: null,
@@ -353,6 +380,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     )}; this is not a quality endorsement.${modeledReason} ${costReason}`,
     strategyId: bestReady.strategyId,
     strategyName: bestReady.strategyName,
+    recommendationTier: bestReady.recommendationTier,
     fit: bestReady.fit,
     missing: [],
     action: null,

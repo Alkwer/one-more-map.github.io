@@ -180,6 +180,33 @@ describe('strategy suggestion regressions', () => {
     assert.equal(result.suggestions[0].strategy.id, 'milky-speedrun')
   })
 
+  it('labels a policy-selected fallback and its runnable specialized alternative clearly', () => {
+    const premiumCenter = chart('fallback-operative', ['adj-opbox-1'])
+    const quantityFillers = Array.from({ length: 9 }, (_, index) => ({
+      ...chart(`fallback-quantity-${index}`),
+      rewards: [{ stat: 'quantity' as const, percent: 45 }],
+    }))
+    const pool = [premiumCenter, ...quantityFillers]
+    const charts = new Map(pool.map((entry) => [entry.uid, entry]))
+    const borders = Array(12).fill('b-rare-3') as Borders
+    const result = suggestStrategies(emptyBoard(), borders, charts, pool, options)
+    const alc = result.evaluations.find((entry) => entry.strategy.id === 'alc-and-go')!
+    const speedrun = result.evaluations.find((entry) => entry.strategy.id === 'milky-speedrun')!
+    const markup = renderToStaticMarkup(
+      createElement(StrategySuggestions, {
+        result: { ...result, suggestions: [alc, speedrun] },
+        activeId: 'alc-and-go',
+        onSelect: () => undefined,
+      }),
+    )
+
+    assert.match(markup, /Recommended fallback/)
+    assert.match(markup, /Best ready specialized alternative/)
+    assert.match(markup, /Runnable alternative — select it to build this specialized layout/)
+    assert.match(markup, /Combined fit/)
+    assert.doesNotMatch(markup, /Best charts \+ border strategy/)
+  })
+
   it('accepts 4k Wisps, but not 2k Wisps, as the Meatfish Pantheon substitute', () => {
     const meatfish = strategyById.get('milky-meatfish')!
     const otherPieces = [
