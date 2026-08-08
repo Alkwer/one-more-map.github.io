@@ -106,6 +106,7 @@ describe('Voyage decision regressions', () => {
     assert.equal(decision.kind, 'switch')
     assert.equal(decision.strategyId, 'alternative')
     assert.match(decision.label, /^SWITCH TO: Best Library Strategy$/)
+    assert.ok(decision.action)
     assert.equal(decision.action.strategyId, 'alternative')
     assert.match(decision.reason, /all 25 imported charts/)
   })
@@ -370,6 +371,7 @@ describe('Voyage decision regressions', () => {
     assert.equal(decision.kind, 'needs-data')
     assert.equal(decision.label, 'ENTER ALL BORDERS')
     assert.equal(decision.strategyId, 'library-best')
+    assert.ok(decision.action)
     assert.equal(decision.action.strategyId, 'library-best')
   })
 
@@ -388,6 +390,7 @@ describe('Voyage decision regressions', () => {
 
     assert.equal(decision.kind, 'switch')
     assert.equal(decision.strategyName, 'Curated Strategy')
+    assert.ok(decision.action)
     assert.equal(decision.action.strategyId, 'curated')
   })
 

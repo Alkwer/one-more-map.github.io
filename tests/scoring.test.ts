@@ -7,7 +7,7 @@ import { chartRewardKey, DEFAULT_WEIGHTS } from '../src/logic/rewards'
 import { prepareScoreTotal, scoreBoard, type ScoreOptions } from '../src/logic/scoring'
 import { createPerformanceFixture } from '../benchmarks/performance-fixture'
 
-const options = {
+const options: ScoreOptions = {
   adjacencyMode: 'physical',
   adjacentAffectsSelf: false,
   disabledMods: new Set(),

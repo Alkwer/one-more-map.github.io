@@ -9,9 +9,19 @@
     "skipLibCheck": true,
     "types": ["node"],
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "useDefineForClassFields": true
   },
-  "include": ["src", "e2e", "playwright.config.ts"]
+  "include": [
+    "src",
+    "e2e",
+    "tests",
+    "benchmarks",
+    "playwright.config.ts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "vitest.performance.config.ts"
+  ]
 }

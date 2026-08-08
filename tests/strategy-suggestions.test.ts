@@ -156,10 +156,9 @@ describe('strategy suggestion regressions', () => {
 
     assert.equal(result.suggestions[0].strategy.id, 'alc-and-go')
     assert.equal(result.suggestions[0].readiness.ready, true)
-    assert.equal(
-      result.evaluations.find((entry) => entry.strategy.id === 'milky-meatfish').readiness.ready,
-      false,
-    )
+    const meatfish = result.evaluations.find((entry) => entry.strategy.id === 'milky-meatfish')
+    assert.ok(meatfish)
+    assert.equal(meatfish.readiness.ready, false)
   })
 
   it('keeps Alc & Go behind a runnable specialized strategy despite a higher raw rank', () => {

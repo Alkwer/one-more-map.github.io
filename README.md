@@ -66,7 +66,7 @@ The development server is available at `http://localhost:5173`.
 | `npm test`                 | Run the Vitest test suite once                                 |
 | `npm run test:performance` | Enforce the noise-tolerant solver latency budget               |
 | `npm run check:scope`      | Verify test discovery stays inside the tracked project scope   |
-| `npm run typecheck`        | Check TypeScript without emitting files                        |
+| `npm run typecheck`        | Strict-check app, E2E, tests, benchmarks, and TS configs       |
 | `npm run lint`             | Run ESLint with zero warnings allowed                          |
 | `npm run check:eol`        | Require LF endings in every tracked text file                  |
 | `npm run format:eol`       | Normalize every tracked text file to LF                        |

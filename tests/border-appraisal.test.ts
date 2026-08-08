@@ -3,8 +3,9 @@ import { describe, it } from 'vitest'
 import type { ChartData } from '../src/types'
 import { appraiseBorders } from '../src/logic/borderAppraisal'
 import { BORDER_ROLL_MODEL } from '../src/logic/borderRollModel'
+import type { ScoreOptions } from '../src/logic/scoring'
 
-const options = {
+const options: ScoreOptions = {
   adjacencyMode: 'physical',
   adjacentAffectsSelf: false,
   disabledMods: new Set(),
@@ -56,7 +57,9 @@ describe('border appraisal regressions', () => {
 
     assert.ok(Math.abs(result.segments[0].contribution - 0.4) < 1e-9)
     assert.equal(result.segments[0].bestModId, 'b-mag-3')
-    assert.ok(Math.abs(result.segments[0].fit - 0.5) < 1e-9)
+    const fit = result.segments[0].fit
+    assert.ok(fit !== null)
+    assert.ok(Math.abs(fit - 0.5) < 1e-9)
   })
 
   it('classifies a complete strong contextual fit', () => {
