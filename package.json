@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
     "test:data": "node --test scripts/border-roll-data.node-test.mjs",
+    "validate:data-update": "npm run test:data && vitest run --config vitest.config.ts tests/border-roll-model.test.ts && npm run build",
     "test:workflow": "node --test scripts/deploy-workflow.node-test.mjs",
     "test:performance": "vitest run --config vitest.performance.config.ts",
     "audit:production": "npm audit --omit=dev",

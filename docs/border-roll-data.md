@@ -144,6 +144,12 @@ again, deduplicates by sample ID, sorts samples deterministically, and opens a
 pull request updating `data/border-rolls-v2.json` when the result changes. Issue
 events never write untrusted input directly to `main`.
 
+Dataset-only pull requests and their resulting `main` pushes keep the required
+quality check but use a focused validation path: generator tests, the compiled
+model test, and a production build. The Windows teardown job and browser matrix
+remain required for code changes but are skipped for the deterministic JSON-only
+update. A dataset update on `main` is still staged and deployed to GitHub Pages.
+
 Both validation and rebuild workflows read the accepted corpus through the
 GitHub REST issues endpoint with 100 results per page and follow every pagination
 link. The completed response is flattened and sorted by issue number before it
