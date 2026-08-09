@@ -1,7 +1,7 @@
 {
   "schema": "allflame-border-roll-dataset/v2",
-  "exportedAt": "2026-08-07T20:52:58.856Z",
-  "sampleCount": 45,
+  "exportedAt": "2026-08-08T23:34:36.729Z",
+  "sampleCount": 47,
   "samples": [
     {
       "schema": "allflame-border-roll/v2",
@@ -1126,6 +1126,56 @@
         "b-minmagic",
         "b-mag-1",
         "b-quantconn-1"
+      ]
+    },
+    {
+      "schema": "allflame-border-roll/v2",
+      "sampleId": "roll-d7f07c73-929b-4af5-ab72-e313d6853fa9",
+      "sequenceId": "voyage-13c78901-3470-4e5b-9c7d-05e00f20aebd",
+      "capturedAt": "2026-08-08T22:39:20.845Z",
+      "gamePatch": "3.29",
+      "vesperUpgradeCount": 5,
+      "generation": "natural",
+      "rerollIndex": 0,
+      "displayedNextRerollCost": 3000,
+      "borderModIds": [
+        "b-mag-3",
+        "b-mag-3",
+        "b-crabs-3",
+        "b-keep-2",
+        "b-octoboss",
+        "b-rareconn-1",
+        "b-beasts-1",
+        "b-scarab-1",
+        "b-drowned-2",
+        "b-gold-2",
+        "b-exp-2",
+        "b-rareconn-1"
+      ]
+    },
+    {
+      "schema": "allflame-border-roll/v2",
+      "sampleId": "roll-47dc16ca-926e-4780-9613-685bac2ed674",
+      "sequenceId": "voyage-3d602246-c735-46bd-aa57-98d794f1c6b7",
+      "capturedAt": "2026-08-08T23:34:36.729Z",
+      "gamePatch": "3.29",
+      "vesperUpgradeCount": 5,
+      "generation": "natural",
+      "rerollIndex": 0,
+      "displayedNextRerollCost": 3000,
+      "borderModIds": [
+        "b-scarabdrop",
+        "b-mag-3",
+        "b-pack-1",
+        "b-locker",
+        "b-lanterns",
+        "b-beasts-2",
+        "b-beasts-1",
+        "b-mag-3",
+        "b-pack-1",
+        "b-octoboss",
+        "b-mag-3",
+        "b-mag-1"
       ]
     }
   ]
