@@ -1,5 +1,6 @@
 import { useId } from 'react'
 import type { LocalStateRecovery } from '../logic/storage'
+import { useModalDialog } from './ModalDialog'
 
 interface Props {
   recovery: LocalStateRecovery
@@ -21,16 +22,19 @@ function exportRawState(raw: string) {
 export function SavedStateRecovery({ recovery, onRetry, onMigrate, onReset }: Props) {
   const titleId = useId()
   const hasBackup = recovery.backupKey !== null
+  const { dialogProps } = useModalDialog({
+    labelledBy: titleId,
+    onClose: () => undefined,
+    closeOnEscape: false,
+    role: 'alertdialog',
+  })
 
   return (
     <div className="onboard-backdrop saved-state-recovery-backdrop" data-modal-root>
-      <section
-        className="onboard saved-state-recovery"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-      >
-        <h2 id={titleId}>Saved state needs recovery</h2>
+      <div {...dialogProps} className="onboard saved-state-recovery">
+        <h2 id={titleId} data-dialog-initial-focus tabIndex={-1}>
+          Saved state needs recovery
+        </h2>
         <p>
           The app did not overwrite your saved data. {recovery.message}. Normal autosave is paused
           until you choose how to continue.
@@ -59,7 +63,7 @@ export function SavedStateRecovery({ recovery, onRetry, onMigrate, onReset }: Pr
             Reset saved state…
           </button>
         </div>
-      </section>
+      </div>
     </div>
   )
 }

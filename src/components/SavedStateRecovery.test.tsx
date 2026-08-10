@@ -23,6 +23,9 @@ describe('SavedStateRecovery', () => {
     )
 
     expect(html).toContain('Normal autosave is paused')
+    expect(html).toContain('role="alertdialog"')
+    expect(html).toContain('aria-modal="true"')
+    expect(html).toContain('data-dialog-initial-focus="true"')
     expect(html).toContain('Export original JSON')
     expect(html).toContain('Retry decode')
     expect(html).toContain('Migrate recovered state')

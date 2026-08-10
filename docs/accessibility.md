@@ -17,6 +17,11 @@ The primary Voyage workflow is designed to work without a mouse.
 - `Escape`, the visible close action, and a backdrop click close these dialogs and return focus to
   the exact control that opened them. The automatically shown first-run onboarding dialog instead
   returns focus to the first logical header action because it has no invoking control.
+- Importer-update notices use the same focus, trap, inert-background, dismissal, and restoration
+  model. Saved-state recovery is an `alertdialog`: it moves focus to its heading and traps focus,
+  but deliberately ignores `Escape` and backdrop clicks because the user must retry, migrate, or
+  explicitly confirm a reset. Focus returns to the invoking control or the first header action once
+  recovery is resolved.
 
 Board-cell names expose the cell number, row, column, start state, occupancy, chart name, rotation,
 selection, and preservation state. The visual layout remains a 3×3 board surrounded by 12 border
@@ -52,11 +57,13 @@ the pull request. The minimum walkthrough is:
 5. Close each modal with `Escape`, its visible close action, and the backdrop. Confirm focus returns
    to the invoking control; for automatic first-run onboarding, confirm it moves to the first header
    action.
-6. In Session Plan, confirm every `Use` button announces the strategy it activates. In Tutorial,
+6. Trigger saved-state recovery and confirm it is announced as an alert dialog, the page stays
+   inert, focus remains trapped, and `Escape` does not dismiss the required decision.
+7. In Session Plan, confirm every `Use` button announces the strategy it activates. In Tutorial,
    confirm the close button and each step selector have descriptive names and the current step is
    conveyed.
-7. Trigger an import result and a solver result and confirm each is announced once.
-8. Repeat focus checks in both Allflame and Harvest themes.
+8. Trigger an import result and a solver result and confirm each is announced once.
+9. Repeat focus checks in both Allflame and Harvest themes.
 
 Current verification record (2026-07-31): Windows Narrator with Chromium, covering the primary
 heading and landmark outline, board-cell names and states, the named border dialog and search field,
