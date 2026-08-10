@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'vitest'
-import type { StrategyRecommendationTier } from '../src/data/strategies'
+import {
+  MIN_FALLBACK_RECOMMENDATION_FIT,
+  type StrategyRecommendationTier,
+} from '../src/data/strategies'
 import type { RequiredBorderStatus, StrategySuggestion } from '../src/logic/strategySuggestions'
 import type { BorderRollForecast } from '../src/logic/borderRollModel'
 import {
@@ -83,6 +86,7 @@ const decide = ({
 describe('Voyage decision regressions', () => {
   it('keeps the absolute playable fit threshold', () => {
     assert.equal(ABSOLUTE_PLAYABLE_FIT, 0.5)
+    assert.equal(MIN_FALLBACK_RECOMMENDATION_FIT, 0.5)
   })
 
   it('chooses the inventory-ranked strategy over the active strategy', () => {
@@ -167,7 +171,7 @@ describe('Voyage decision regressions', () => {
     )
   })
 
-  it('labels a model-kept Alc & Go roll as a fallback and names the runnable alternative', () => {
+  it('keeps weak Alc & Go behind a weak ready specialization despite its model percentile', () => {
     const decision = decide({
       activeStrategyId: 'alc-and-go',
       evaluations: [
@@ -189,18 +193,34 @@ describe('Voyage decision regressions', () => {
       ],
     })
 
-    assert.equal(decision.kind, 'play')
-    assert.equal(decision.label, 'PLAY FALLBACK: Alc & Go')
-    assert.equal(decision.recommendationTier, 'fallback')
-    assert.match(decision.reason, /it is not the only runnable strategy/)
-    assert.match(
-      decision.reason,
-      /Anchorfield Fishing is also runnable and is the strongest specialized alternative at 35% fit/,
-    )
-    assert.match(decision.reason, /100th percentile of paid rerolls/)
+    assert.equal(decision.kind, 'reroll')
+    assert.equal(decision.strategyId, 'anchorfield-fishing')
+    assert.equal(decision.recommendationTier, 'specialized')
+    assert.doesNotMatch(decision.label, /PLAY|SWITCH/)
   })
 
-  it('keeps Alc & Go as the fallback when no ready strategy meets the fit line', () => {
+  it('does not promote weak Alc & Go from a high model percentile alone', () => {
+    const decision = decide({
+      activeStrategyId: 'alc-and-go',
+      evaluations: [
+        candidate({
+          id: 'alc-and-go',
+          name: 'Alc & Go',
+          fit: 0.36,
+          recommendationTier: 'fallback',
+          rollForecast: forecast(1, 0),
+        }),
+      ],
+    })
+
+    assert.equal(decision.kind, 'reroll')
+    assert.equal(decision.strategyId, 'alc-and-go')
+    assert.doesNotMatch(decision.label, /PLAY|SWITCH/)
+    assert.match(decision.reason, /below the 50% minimum for fallback preference/)
+    assert.match(decision.reason, /relative model percentile cannot promote it/)
+  })
+
+  it('keeps a weak ready specialization ahead of a weak fallback', () => {
     const decision = decide({
       activeStrategyId: null,
       evaluations: [
@@ -222,7 +242,8 @@ describe('Voyage decision regressions', () => {
     })
 
     assert.equal(decision.kind, 'reroll')
-    assert.equal(decision.strategyId, 'alc-and-go')
+    assert.equal(decision.strategyId, 'milky-speedrun')
+    assert.equal(decision.recommendationTier, 'specialized')
   })
 
   it('does not play a relative winner without absolute fit', () => {

@@ -5,7 +5,11 @@ import { describe, it } from 'vitest'
 import type { Board, Borders, ChartData } from '../src/types'
 import { StrategySuggestions } from '../src/components/StrategySuggestions'
 import { BORDER_ROLL_MODEL, estimateModBoardChance } from '../src/logic/borderRollModel'
-import { strategyById } from '../src/data/strategies'
+import {
+  contextualStrategyRecommendationPriority,
+  MIN_FALLBACK_RECOMMENDATION_FIT,
+  strategyById,
+} from '../src/data/strategies'
 import {
   strategyReadiness,
   suggestStrategies,
@@ -32,6 +36,25 @@ const emptyBoard = (): Board => Array(9).fill(null)
 const emptyBorders = (): Borders => Array(12).fill(null)
 
 describe('strategy suggestion regressions', () => {
+  it('boosts Alc & Go only after it reaches the documented fallback fit minimum', () => {
+    const fallback = { recommendationTier: 'fallback' as const }
+    const specialized = { recommendationTier: 'specialized' as const }
+
+    assert.equal(MIN_FALLBACK_RECOMMENDATION_FIT, 0.5)
+    assert.ok(
+      contextualStrategyRecommendationPriority(specialized, false) >
+        contextualStrategyRecommendationPriority(fallback, false),
+    )
+    assert.ok(
+      contextualStrategyRecommendationPriority(fallback, true) >
+        contextualStrategyRecommendationPriority(specialized, false),
+    )
+    assert.ok(
+      contextualStrategyRecommendationPriority(specialized, true) >
+        contextualStrategyRecommendationPriority(fallback, true),
+    )
+  })
+
   it('prioritizes the Divine border jackpot without a placed board', () => {
     // The Divine roll is an explicit jackpot and must outrank generic strategies
     // even before the player places charts on the board.
@@ -271,9 +294,17 @@ describe('strategy suggestion regressions', () => {
     const withPiecesPlaced = suggestStrategies(pieceBoard, borders, charts, pool, options)
     const withPiecesUnplaced = suggestStrategies(junkBoard, borders, charts, pool, options)
 
-    // The Meatfish recipe is complete, but a magnitude-only roll does not meet
-    // its contextual fit line, so the inventory ranking correctly falls back.
-    assert.equal(withPiecesUnplaced.suggestions[0].strategy.id, 'alc-and-go')
+    // Both candidates are below the absolute fit line. The complete Meatfish
+    // recipe stays ahead instead of granting a contextual boost to weak Alc & Go.
+    assert.equal(withPiecesUnplaced.suggestions[0].strategy.id, 'milky-meatfish')
+    const weakMeatfish = withPiecesUnplaced.evaluations.find(
+      (entry) => entry.strategy.id === 'milky-meatfish',
+    )!
+    const weakFallback = withPiecesUnplaced.evaluations.find(
+      (entry) => entry.strategy.id === 'alc-and-go',
+    )!
+    assert.ok(weakMeatfish.fit !== null && weakMeatfish.fit < MIN_FALLBACK_RECOMMENDATION_FIT)
+    assert.ok(weakFallback.fit === null || weakFallback.fit < MIN_FALLBACK_RECOMMENDATION_FIT)
     assert.deepEqual(
       withPiecesPlaced.evaluations.map((entry) => entry.strategy.id),
       withPiecesUnplaced.evaluations.map((entry) => entry.strategy.id),

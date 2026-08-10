@@ -149,16 +149,20 @@ export const strategyRecommendationPriority = (strategy: {
   recommendationTier?: StrategyRecommendationTier
 }): number => RECOMMENDATION_TIER_PRIORITY[strategy.recommendationTier ?? 'specialized']
 
-/** Apply contextual fit without losing the fallback semantics: a fitting
- * specialized strategy wins, then fallback, then non-fitting specializations. */
+/** Minimum absolute border fit required before Alc & Go receives contextual
+ * fallback preference or may be kept by the relative reroll model. */
+export const MIN_FALLBACK_RECOMMENDATION_FIT = 0.5
+
+/** Fitting candidates receive a contextual boost while weak candidates retain
+ * their fixed tier order. This makes fitting specialized > fitting fallback >
+ * weak specialized > weak fallback without comparing strategy score scales. */
 export const contextualStrategyRecommendationPriority = (
   strategy: { recommendationTier?: StrategyRecommendationTier },
   fitsCurrentBorders: boolean | null,
 ): number => {
-  const tier = strategy.recommendationTier ?? 'specialized'
   if (fitsCurrentBorders === null) return strategyRecommendationPriority(strategy)
-  if (tier === 'fallback') return 1
-  return fitsCurrentBorders ? 2 + strategyRecommendationPriority(strategy) : 0
+  const tierPriority = strategyRecommendationPriority(strategy)
+  return fitsCurrentBorders ? 3 + tierPriority : tierPriority
 }
 
 /** Rare-monster implicit charts are Divine-strategy fuel. */
