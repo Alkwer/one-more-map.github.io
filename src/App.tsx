@@ -29,6 +29,8 @@ const isNotable = (text: string) => !/^\d+% (increased|more|reduced) /i.test(tex
 
 /** bump the key to show a fresh announcement banner */
 const ANNOUNCE_KEY = 'announce-ocr-borders'
+/** one-time popup: the AHK importer gained two-page scanning */
+const AHK_PAGES_KEY = 'announce-ahk-page2'
 
 function initialState(): AppState {
   const hash = window.location.hash.replace(/^#/, '')
@@ -57,6 +59,28 @@ export default function App() {
     }
   }
   const [showMods, setShowMods] = useState(false)
+  // one-time importer-update popup - returning visitors only (first-timers
+  // download the current script anyway, so mark it seen for them)
+  const [showAhkNotice, setShowAhkNotice] = useState<boolean>(() => {
+    try {
+      if (localStorage.getItem(AHK_PAGES_KEY)) return false
+      if (!localStorage.getItem('onboarding-seen')) {
+        localStorage.setItem(AHK_PAGES_KEY, '1')
+        return false
+      }
+      return true
+    } catch {
+      return false
+    }
+  })
+  const dismissAhkNotice = () => {
+    setShowAhkNotice(false)
+    try {
+      localStorage.setItem(AHK_PAGES_KEY, '1')
+    } catch {
+      /* ignore */
+    }
+  }
   const [showSolverSettings, setShowSolverSettings] = useState(false)
   const [showPlanner, setShowPlanner] = useState(false)
   const [showSaveWizard, setShowSaveWizard] = useState(false)
@@ -418,6 +442,39 @@ export default function App() {
       )}
       {showUpdates && <UpdatesLog onClose={() => setShowUpdates(false)} />}
       {showTutorial && <Tutorial onClose={() => setShowTutorial(false)} />}
+      {showAhkNotice && !showOnboarding && (
+        <div className="onboard-backdrop" onClick={dismissAhkNotice}>
+          <div className="onboard ahk-notice" onClick={(e) => e.stopPropagation()}>
+            <div className="panel-title">
+              📥 Importer updated - second chart page
+              <span className="spacer" />
+              <button onClick={dismissAhkNotice}>✕</button>
+            </div>
+            <p className="tut-body">
+              The game's chart panel now has <strong>two pages</strong>, and the Windows bulk
+              importer scans both - it clicks between the page tabs for you. Sweeps are faster
+              too: empty rows are skipped instead of waited on.
+            </p>
+            <p className="tut-body">
+              Your downloaded script doesn't update itself, so to get this:
+            </p>
+            <ol className="ahk-notice-steps">
+              <li>Re-download the script (button below) and replace your old copy.</li>
+              <li>
+                Rerun the setup wizard (tray icon → <em>Setup wizard…</em>) - two new steps
+                teach it where your page tabs sit. Existing calibration is kept.
+              </li>
+            </ol>
+            <div className="sw-actions">
+              <a className="ahk-notice-dl" href="/voyage-import.ahk" download onClick={dismissAhkNotice}>
+                ⬇ Download the updated script
+              </a>
+              <span className="spacer" />
+              <button onClick={dismissAhkNotice}>Got it</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showSaveWizard && (
         <SaveWizard
           pool={state.pool}

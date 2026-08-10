@@ -1874,6 +1874,37 @@ textarea {
   animation: tut-glow 2.2s ease-in-out infinite;
 }
 
+/* one-time "importer updated" popup */
+.ahk-notice {
+  max-width: 480px;
+}
+.ahk-notice-steps {
+  margin: 4px 0 10px;
+  padding-left: 22px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text);
+}
+.ahk-notice-steps li {
+  margin: 4px 0;
+}
+.ahk-notice-dl {
+  display: inline-block;
+  padding: 7px 16px;
+  font-family: var(--sc);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-decoration: none;
+  color: var(--gold-bright);
+  background: linear-gradient(180deg, #6d5426 0%, #4c3a17 55%, #382a0f 100%);
+  border: 1px solid #8a713d;
+  border-radius: 2px;
+  text-shadow: 0 1px 2px #000;
+}
+.ahk-notice-dl:hover {
+  filter: brightness(1.15);
+}
+
 /* ------- tutorial ------- */
 .tutorial-btn {
   font-family: var(--sc);
