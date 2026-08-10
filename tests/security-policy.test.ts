@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 describe('page script trust boundary', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
+  const entrypoint = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8')
 
   it('loads no third-party page scripts', () => {
     const scriptSources = [...html.matchAll(/<script[^>]+src=["']([^"']+)["']/g)].map(
@@ -19,6 +20,18 @@ describe('page script trust boundary', () => {
     expect(html).toContain("script-src 'self'")
     expect(html).toContain("object-src 'none'")
     expect(html).toContain("base-uri 'self'")
+  })
+
+  it('checks the top-level browsing context before loading stateful application modules', () => {
+    const frameCheck = entrypoint.indexOf('window.top !== window.self')
+    const appImport = entrypoint.indexOf("import('./App')")
+    const storageAccess = entrypoint.indexOf("localStorage.getItem('theme')")
+
+    expect(frameCheck).toBeGreaterThan(-1)
+    expect(appImport).toBeGreaterThan(frameCheck)
+    expect(storageAccess).toBeGreaterThan(frameCheck)
+    expect(entrypoint).not.toMatch(/^import App/m)
+    expect(entrypoint).toContain('blockFramedApplication()')
   })
 })
 
