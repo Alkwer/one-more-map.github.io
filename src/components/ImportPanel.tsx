@@ -238,8 +238,10 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
           </li>
           <li>
             Double-click the script - a <strong>setup wizard</strong> opens on first run and walks
-            you through calibrating the chart grid and all 12 border positions, step by step, with
-            live progress. (Rerun it any time: tray icon → <em>Setup wizard…</em>.)
+            you through calibrating the chart grid, the two chart-page tabs and all 12 border
+            positions, step by step, with live progress. (Rerun it any time: tray icon →{' '}
+            <em>Setup wizard…</em> - existing users: rerun it once to add the page tabs, then the
+            sweep scans both pages automatically.)
           </li>
           <li>
             Daily use: <kbd>F9</kbd> copies the charts, scans the 12 borders with OCR, and imports

@@ -65,6 +65,8 @@ BorderOcrAttempts := 2  ; retry once when both filtered and unfiltered OCR are e
 BorderPreviewDelay := 900 ; ms per point during the Ctrl+F4 visual preview
 PasteDelay    := 90    ; ms after the single big paste
 ClipTimeout   := 0.2   ; seconds to wait for Ctrl+C (only empty cells wait the full time)
+PageFlipDelay := 150   ; ms for the chart panel to redraw after clicking a page tab
+EmptySkip     := 8     ; consecutive empty cells = the rest of the page is empty, skip it
 OcrTimeout    := 90    ; seconds before a stuck Windows OCR scan is stopped
 ; If it ever MISSES a chart, raise HoverDelay ~10ms at a time (the cursor
 ; isn't settling before Ctrl+C). If the final paste drops some, raise PasteDelay.
@@ -75,6 +77,15 @@ TLx := IniRead(IniFile, "grid", "TLx", "0") + 0
 TLy := IniRead(IniFile, "grid", "TLy", "0") + 0
 BRx := IniRead(IniFile, "grid", "BRx", "0") + 0
 BRy := IniRead(IniFile, "grid", "BRy", "0") + 0
+; the chart panel gained a second page - the sweep clicks these tab buttons
+Page1TabX := IniRead(IniFile, "pages", "Tab1X", "0") + 0
+Page1TabY := IniRead(IniFile, "pages", "Tab1Y", "0") + 0
+Page2TabX := IniRead(IniFile, "pages", "Tab2X", "0") + 0
+Page2TabY := IniRead(IniFile, "pages", "Tab2Y", "0") + 0
+PagesCalibrated() {
+    global Page1TabX, Page1TabY, Page2TabX, Page2TabY
+    return (Page1TabX || Page1TabY) && (Page2TabX || Page2TabY)
+}
 BorderTLx := IniRead(IniFile, "board", "TopLeftX", "0") + 0
 BorderTLy := IniRead(IniFile, "board", "TopY", "0") + 0
 BorderBRx := IniRead(IniFile, "board", "BottomRightX", "0") + 0
@@ -282,6 +293,14 @@ WizardSteps() {
             "body", "Now hover the CENTRE of the BOTTOM-RIGHT cell of the chart grid"
             . " - the far corner of the 6-wide grid, even if that slot is empty.`n`n"
             . "Then press " KeyLabel(Keys["WizardSet"]) "."),
+        Map("id", "page-tab-1", "wait", "PageTab1", "title", "Chart pages - Page 1 tab",
+            "body", "The chart panel now has TWO pages. The sweep clicks between them"
+            . " automatically.`n`nHover the PAGE 1 tab button and press "
+            . KeyLabel(Keys["WizardSet"]) ".`n`n"
+            . "(No page tabs on your panel? Click Skip - the sweep just does one page.)"),
+        Map("id", "page-tab-2", "wait", "PageTab2", "title", "Chart pages - Page 2 tab",
+            "body", "Now hover the PAGE 2 tab button and press "
+            . KeyLabel(Keys["WizardSet"]) "."),
         Map("id", "border-exact", "wait", "ExactDone", "title", "Board borders - all 12 points",
             "body", "Now teach it exactly where each of the 12 border modifiers sits.`n`n"
             . "Recording starts automatically.`n`n"
@@ -416,6 +435,10 @@ WizardSetPressed(*) {
         SetGridTopLeft()
     else if (id = "grid-br")
         SetGridBottomRight()
+    else if (id = "page-tab-1")
+        SetPageTab(1)
+    else if (id = "page-tab-2")
+        SetPageTab(2)
     else if (id = "border-exact")
         SaveExactPoint()
     else if (id = "preview")
@@ -1205,6 +1228,22 @@ SetGridBottomRight(*) {
     IniWrite BRy, IniFile, "grid", "BRy"
     Flash "Bottom-right set: " BRx ", " BRy
 }
+; the chart panel's two page-tab buttons (wizard-only calibration)
+SetPageTab(n) {
+    global
+    WizardOnAction("PageTab" n)
+    MouseGetPos &x, &y
+    if (n = 1) {
+        Page1TabX := x, Page1TabY := y
+        IniWrite Page1TabX, IniFile, "pages", "Tab1X"
+        IniWrite Page1TabY, IniFile, "pages", "Tab1Y"
+    } else {
+        Page2TabX := x, Page2TabY := y
+        IniWrite Page2TabX, IniFile, "pages", "Tab2X"
+        IniWrite Page2TabY, IniFile, "pages", "Tab2Y"
+    }
+    Flash "Page " n " tab set: " x ", " y
+}
 
 ; ---- abort (default F10) ----
 AbortAll(*) {
@@ -1304,40 +1343,65 @@ RunSweep(*) {
     }
     Sleep ActivateDelay
 
-    Loop GridRows {
+    pages := PagesCalibrated() ? 2 : 1
+    Loop pages {
         if !Running
             break
-        r := A_Index - 1
-        Loop GridCols {
+        page := A_Index
+        if (pages = 2) {
+            Click (page = 1 ? Page1TabX : Page2TabX), (page = 1 ? Page1TabY : Page2TabY)
+            Sleep PageFlipDelay
+        }
+        ; charts pack from the top - a run of empty cells means the rest of
+        ; the page is blank, so stop paying the clipboard timeout for them
+        emptyStreak := 0
+        Loop GridRows {
             if !Running
                 break
-            c := A_Index - 1
-            p := CellPos(r, c)
-            A_Clipboard := ""
-            MouseMove p[1], p[2], 0
-            Sleep HoverDelay
-            Send "^c"
-            if !ClipWait(ClipTimeout) {
-                skipped++                 ; empty slot - nothing copied
-                continue
+            r := A_Index - 1
+            Loop GridCols {
+                if !Running
+                    break 2
+                c := A_Index - 1
+                p := CellPos(r, c)
+                A_Clipboard := ""
+                MouseMove p[1], p[2], 0
+                Sleep HoverDelay
+                Send "^c"
+                if !ClipWait(ClipTimeout) {
+                    skipped++             ; empty slot - nothing copied
+                    emptyStreak++
+                    if (emptyStreak >= EmptySkip) {
+                        ToolTip "Page " page ": rest looks empty - skipping ahead..."
+                        break 2
+                    }
+                    continue
+                }
+                clip := Trim(A_Clipboard, " `t`r`n")
+                if !IsChartText(clip) {
+                    skipped++             ; not a Chart item
+                    emptyStreak := 0
+                    continue
+                }
+                emptyStreak := 0
+                ; Keep identical item text: separate physical Charts are separate
+                ; solver pieces even when every copied property is the same.
+                blob .= (blob = "" ? "" : "`n") clip
+                copied++
+                if (firstChart = "")
+                    firstChart := clip
+                else if (clip != firstChart)
+                    allIdentical := false
+                ToolTip "Copying page " page "... row " (r+1) " col " (c+1)
+                    . "`ncharts " copied "   skipped " skipped
+                    . "`n(" KeyLabel(Keys["Abort"]) " to abort)"
             }
-            clip := Trim(A_Clipboard, " `t`r`n")
-            if !IsChartText(clip) {
-                skipped++                 ; not a Chart item
-                continue
-            }
-            ; Keep identical item text: separate physical Charts are separate
-            ; solver pieces even when every copied property is the same.
-            blob .= (blob = "" ? "" : "`n") clip
-            copied++
-            if (firstChart = "")
-                firstChart := clip
-            else if (clip != firstChart)
-                allIdentical := false
-            ToolTip "Copying... row " (r+1) " col " (c+1)
-                . "`ncharts " copied "   skipped " skipped
-                . "`n(" KeyLabel(Keys["Abort"]) " to abort)"
         }
+    }
+    ; leave PoE back on page 1 for the player
+    if (pages = 2 && Running) {
+        Click Page1TabX, Page1TabY
+        Sleep PageFlipDelay
     }
 
     ; Calibration sanity guard: distinct physical Charts always differ in their
@@ -1387,6 +1451,8 @@ RunSweep(*) {
         Flash calibWarn (borderBlob != "" ? " (The 12 border scans WERE sent.)" : ""), 10000
         return
     }
-    Flash "Done. Sent " copied " charts" borderNote
+    pageNote := (pages = 2) ? " from 2 pages"
+        : " (2-page chart panel? Rerun the tray Setup wizard to add the page tabs)"
+    Flash "Done. Sent " copied " charts" pageNote borderNote
         . "; skipped " skipped " empty/non-chart cells.", 6000
 }

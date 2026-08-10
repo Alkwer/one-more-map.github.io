@@ -246,6 +246,14 @@ assert.match(ahkImporter, /Every grid cell copied the SAME chart/)
 assert.match(ahkImporter, /GetLongPathNameW/)
 assert.match(ahkImporter, /TempDir := LongPath\(A_Temp\)/)
 
+// two-page chart panel: the sweep must visit both page tabs when calibrated
+// (and stay single-page for old calibrations), and a run of empty cells must
+// skip the rest of the page instead of paying the clipboard timeout each.
+assert.match(ahkImporter, /PagesCalibrated\(\) \? 2 : 1/)
+assert.match(ahkImporter, /"page-tab-1"/)
+assert.match(ahkImporter, /"page-tab-2"/)
+assert.match(ahkImporter, /emptyStreak >= EmptySkip/)
+
 // The helper script is written to disk by AutoHotkey from a continuation
 // string - backtick is AHK's escape character, so any backtick in the
 // embedded PowerShell (e.g. a PS line continuation) is silently stripped at
