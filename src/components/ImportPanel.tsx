@@ -397,8 +397,9 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
         <summary>🖱️ Bulk-import charts + board borders from PoE (Windows OCR)</summary>
         <p className="muted">
           A self-contained AutoHotkey script copies every chart from both chart-stash tabs, reads
-          all 12 board-border tooltips with Windows OCR, and pastes everything here in one go. OCR
-          stays on your PC; no screenshots are uploaded.
+          all 12 board-border tooltips with Windows OCR, and places one combined payload on your
+          clipboard. You paste it here explicitly; OCR stays on your PC and no screenshots are
+          uploaded.
         </p>
         <a className="ahk-dl" href={`${import.meta.env.BASE_URL}voyage-import.ahk`} download>
           ⬇ Download voyage-import.ahk
@@ -416,11 +417,13 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
             fully visible and not scrolled.
           </li>
           <li>
-            Keep this tab open - the script finds it by its title, <em>Allflame Voyage Solver</em>.
-            Click once on this page first so it has focus.
+            Double-click the script, focus the real Path of Exile window, and press{' '}
+            <kbd>Ctrl+F3</kbd> once. The helper binds that exact game window, process, class, and
+            installation for this run; it stops if any of them changes or another matching game
+            window appears.
           </li>
           <li>
-            Double-click the script. For quick board calibration, point at the{' '}
+            For quick board calibration, point at the{' '}
             <strong>top-left corner of the border-modifier square</strong> and press <kbd>F5</kbd>;
             then point at its <strong>bottom-right corner</strong> and press <kbd>F6</kbd>.
           </li>
@@ -442,9 +445,11 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
             (Edit GridCols/GridRows if your panel isn't 6×10.)
           </li>
           <li>
-            <kbd>F9</kbd> switches through both chart-stash tabs, copies their charts, scans the 12
-            borders, and imports everything · <kbd>Ctrl+F9</kbd> refreshes only the 12 borders after
-            a reroll, without rescanning charts, and also reads the calibrated reroll-cost tooltip ·{' '}
+            <kbd>F9</kbd> switches through both chart-stash tabs, copies their charts, and scans the
+            12 borders · <kbd>Ctrl+F9</kbd> refreshes only the 12 borders after a reroll, without
+            rescanning charts, and also reads the calibrated reroll-cost tooltip. Both commands
+            leave the payload on the clipboard: return to this verified solver URL and press{' '}
+            <kbd>Ctrl+V</kbd>. The helper never selects a browser tab or pastes automatically.{' '}
             <kbd>F10</kbd> aborts. Border OCR can take around 15–30 seconds on a 4K screen.
           </li>
         </ol>

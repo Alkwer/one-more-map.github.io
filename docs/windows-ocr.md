@@ -3,7 +3,8 @@
 `public/voyage-import.ahk` is an optional Windows helper for the Allflame Voyage
 Solver. It copies Charted Charts from both chart-stash tabs in Path of Exile, reads the 12 visible
 Corruption Current tooltips, and optionally reads the next border-reroll cost
-with Windows Runtime OCR before pasting the combined text into the browser.
+with Windows Runtime OCR before placing the combined text on the clipboard for
+an explicit paste into the solver.
 
 The web app and manual border entry do not require this helper.
 
@@ -15,8 +16,8 @@ The web app and manual border entry do not require this helper.
 - Path of Exile in **Windowed** or **Windowed Fullscreen** mode. Exclusive
   fullscreen can prevent reliable mouse and keyboard automation.
 - The Voyage Board fully visible and not scrolled.
-- A browser tab whose title contains `Allflame Voyage Solver`. Click the page
-  rather than the address bar before starting.
+- The solver open at the expected URL. Verify the address bar before pasting;
+  the helper never discovers browser tabs from their page-controlled titles.
 
 If Path of Exile runs as administrator, run the helper as administrator (or use
 AutoHotkey's UI Access option) so Windows permits it to send input to the game.
@@ -82,9 +83,24 @@ for managed-device and offline-source options.
 1. Download [the script](../public/voyage-import.ahk) and run it with AutoHotkey
    v2.
 2. Open the Voyage Board in Path of Exile and keep the complete border visible.
-3. Open the solver in a browser tab and click inside the page.
-4. Calibrate the board and chart grid once. Calibration is saved to
+3. With the real game in the foreground, press `Ctrl+F3`. Do this once after
+   every helper launch to bind the exact game window and process for the session.
+4. Open the solver at its expected URL. Keep it available for a manual paste
+   after each scan; the helper does not activate or type into the browser.
+5. Calibrate the board and chart grid once. Calibration is saved to
    `voyage-import.ini` beside the script.
+
+### Game-window identity
+
+`Ctrl+F3` binds only a foreground window with the exact Path of Exile window
+class and an expected PoE executable in a complete installation (including
+`Content.ggpk`). The helper records its HWND, PID, canonical executable path,
+and rejects reparse-point path components. It also requires exactly one
+authenticated PoE candidate, so multiple or ambiguous candidates fail closed.
+
+The binding is revalidated before and after input and capture operations. A
+changed window, process, class, executable path, installation, foreground owner,
+or candidate set aborts the sweep and requires a fresh `Ctrl+F3` binding.
 
 ### Border calibration
 
@@ -124,12 +140,16 @@ The two tab positions are stored with the grid calibration in `voyage-import.ini
 ## Run
 
 - `F9` switches through both calibrated chart-stash tabs, copies each grid, returns
-  the stash to tab `1`, reads all 12 border tooltips and the
-  calibrated reroll-cost tooltip, activates the solver tab, and pastes the
-  combined payload.
-- `Ctrl+F9` reads and pastes only the borders and reroll cost, which is useful
-  after a reroll.
+  the stash to tab `1`, reads all 12 border tooltips and the calibrated
+  reroll-cost tooltip, and copies the combined payload to the clipboard.
+- `Ctrl+F9` copies only the borders and reroll cost, which is useful after a
+  reroll.
 - `F10` aborts the current sweep.
+
+After `F9` or `Ctrl+F9`, return to the solver, verify its URL in the address bar,
+focus the page, and press `Ctrl+V`. A decoy page cannot receive data merely by
+copying the solver's title because the helper never selects or pastes into a
+browser window.
 
 Each border sweep includes a 12-position completion marker. The solver applies
 complete snapshots atomically: an unreadable position is cleared instead of
@@ -174,7 +194,9 @@ export it or create a share URL.
   visible, repeat `Ctrl+F7`, and use `Ctrl+F4` to preview the saved point.
 - **Wrong charts are copied:** repeat `F7` and `F8`, then recalibrate tabs `1` and
   `2` with `Shift+F7` and `Shift+F8`; adjust `GridCols` or `GridRows` if necessary.
-- **The browser is not selected:** ensure the tab title contains
-  `Allflame Voyage Solver` and click the page body before pressing a run hotkey.
+- **The payload was not imported:** after the scan, return to the verified solver
+  URL, click the page body, and press `Ctrl+V`.
+- **The helper reports an identity change:** close duplicate PoE windows, focus
+  the real game, and press `Ctrl+F3` again.
 - **Tooltips appear too slowly:** increase `HoverDelay` near the top of the
   script.
