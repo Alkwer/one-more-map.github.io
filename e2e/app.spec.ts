@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer'
 import AxeBuilder from '@axe-core/playwright'
 import type { Locator } from '@playwright/test'
+import { MAX_IMPORT_TEXT_LENGTH } from '../src/logic/importBudget'
 import { defaultState, serializeState } from '../src/logic/storage'
 import {
   APP_PATH,
@@ -506,6 +507,35 @@ test('globally imports English, Korean, and border clipboard payloads', async ({
   await expect
     .poll(() => workerUrls.some((url) => /\/assets\/solver\.worker-[^/]+\.js$/.test(url)))
     .toBe(true)
+})
+
+test('rejects an oversized chart paste before it can monopolize the main thread', async ({
+  appPage,
+}) => {
+  await openApp(appPage)
+  const oversized = `Item Class: Chart\n${'x'.repeat(MAX_IMPORT_TEXT_LENGTH)}`
+  const dispatchMilliseconds = await appPage.evaluate((clipboardText) => {
+    const data = new DataTransfer()
+    data.setData('text/plain', clipboardText)
+    const started = performance.now()
+    document.dispatchEvent(
+      new ClipboardEvent('paste', {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: data,
+      }),
+    )
+    return performance.now() - started
+  }, oversized)
+
+  expect(dispatchMilliseconds).toBeLessThan(500)
+  await expect(appPage.locator('.import-panel').getByRole('status')).toContainText(
+    `maximum size is ${MAX_IMPORT_TEXT_LENGTH.toLocaleString('en-US')} characters`,
+  )
+  await expect(appPage.getByRole('textbox', { name: 'Chart or border import text' })).toHaveValue(
+    '',
+  )
+  await expect(libraryHeading(appPage)).toContainText('(0)')
 })
 
 test('clears stale chart and board-cell selections after removals', async ({ appPage }) => {

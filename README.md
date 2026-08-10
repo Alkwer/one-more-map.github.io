@@ -114,6 +114,14 @@ Paste one or more Charted Charts into the importer using their in-game `Ctrl+C`
 text. Uncharted charts are rejected because their Voyage Modifier has not yet
 been revealed.
 
+Clipboard imports are limited to 524,288 characters before parsing. The parser
+also caps chart headers at 300, rejection reports at 20, border OCR blocks at
+12, reroll and scan-metadata blocks at one each, individual lines at 2,048
+characters, and the lines and characters processed for each chart or OCR block.
+Oversized or structurally over-budget input is discarded with a concise error;
+chart parsing stops as soon as the remaining 250-chart library capacity or the
+rejection-reporting budget is exhausted.
+
 The generated single-Chart, solved-board, and best-modifier search helpers,
 their language support, and the repeatable live-client validation matrix are
 documented in [docs/in-game-search.md](docs/in-game-search.md). Always verify

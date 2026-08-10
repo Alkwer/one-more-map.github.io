@@ -5,6 +5,14 @@ import { generateDemoCharts } from '../logic/demo'
 import { applyBorderOcrSnapshot, parseBorderOcrPayload } from '../logic/borderOcr'
 import { isChartClipboardText, parseChartText } from '../logic/parser'
 import { chartAdditionResult, type ChartAdditionResult } from '../logic/chartCapacity'
+import {
+  assertImportWithinBudget,
+  importSizeLimitMessage,
+  isImportBudgetError,
+  MAX_IMPORT_REJECTIONS,
+  MAX_IMPORT_SIGNATURE_PREFIX_LENGTH,
+  MAX_IMPORT_TEXT_LENGTH,
+} from '../logic/importBudget'
 import type { AppState } from '../logic/storage'
 import {
   decodeStateFile,
@@ -23,6 +31,18 @@ interface Props {
   onLoadState: (state: AppState) => void
 }
 
+function parseImportSource(source: string, maxCharts: number) {
+  assertImportWithinBudget(source)
+  const borderOcr = parseBorderOcrPayload(source)
+  return {
+    borderOcr,
+    ...parseChartText(borderOcr.chartText, {
+      maxCharts,
+      maxRejections: MAX_IMPORT_REJECTIONS,
+    }),
+  }
+}
+
 export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Props) {
   const [text, setText] = useState('')
   const [msg, setMsg] = useState('')
@@ -31,15 +51,32 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
   const doParse = useCallback(
     (raw?: string) => {
       const source = raw ?? text
-      const borderOcr = parseBorderOcrPayload(source)
+      let parsed: ReturnType<typeof parseImportSource>
+      try {
+        parsed = parseImportSource(source, MAX_POOL_CHARTS - state.pool.length)
+      } catch (error) {
+        if (!isImportBudgetError(error)) throw error
+        setText('')
+        setMsg(error.message)
+        return
+      }
+      const { borderOcr, charts, rejected, unresolved, stoppedEarly } = parsed
       const borderApplication = applyBorderOcrSnapshot(state.borders, borderOcr)
-      const { charts, rejected, unresolved } = parseChartText(borderOcr.chartText)
       const notCharted = rejected.filter((r) => r.reason.startsWith('not charted'))
       const hasOcrPayload =
         borderOcr.blockCount > 0 ||
         borderOcr.rerollCostBlockCount > 0 ||
         borderOcr.scanMeta !== null
       const parts: string[] = []
+      if (
+        charts.length === 0 &&
+        rejected.length === 0 &&
+        !hasOcrPayload &&
+        stoppedEarly?.reason === 'chart-capacity'
+      ) {
+        setMsg(`Nothing imported because the ${MAX_POOL_CHARTS}-chart library limit was reached.`)
+        return
+      }
       if (charts.length === 0 && rejected.length === 0 && !hasOcrPayload) {
         setMsg('No items recognised. Is this Ctrl+C item text?')
         return
@@ -91,6 +128,19 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
       if (addition.skipped > 0) {
         parts.push(
           `skipped ${addition.skipped} because the ${MAX_POOL_CHARTS}-chart library limit was reached`,
+        )
+      }
+      if (stoppedEarly?.reason === 'chart-capacity') {
+        parts.push(
+          `stopped before ${stoppedEarly.unprocessedItems} additional item${
+            stoppedEarly.unprocessedItems === 1 ? '' : 's'
+          } because the ${MAX_POOL_CHARTS}-chart library limit was reached`,
+        )
+      } else if (stoppedEarly?.reason === 'rejection-budget') {
+        parts.push(
+          `stopped after ${MAX_IMPORT_REJECTIONS} rejected items; ${stoppedEarly.unprocessedItems} additional item${
+            stoppedEarly.unprocessedItems === 1 ? '' : 's'
+          } were not parsed`,
         )
       }
       // Distinct physical charts have different rolls. A large byte-identical
@@ -177,7 +227,12 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
       const clip = e.clipboardData?.getData('text') ?? ''
-      if (!isChartClipboardText(clip) && !/===\s*VOYAGE (?:BORDER|REROLL COST)/i.test(clip)) return
+      const signaturePrefix = clip.slice(0, MAX_IMPORT_SIGNATURE_PREFIX_LENGTH)
+      if (
+        !isChartClipboardText(signaturePrefix) &&
+        !/===\s*VOYAGE (?:BORDER|REROLL COST)/i.test(signaturePrefix)
+      )
+        return
       e.preventDefault()
       doParse(clip)
     }
@@ -239,7 +294,15 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
           'Copy a chart in game (Ctrl+C), then press Ctrl+V anywhere on this page to import it. The Windows bulk importer also fills all 12 border modifiers with local OCR.'
         }
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => {
+          const nextText = e.target.value
+          if (nextText.length > MAX_IMPORT_TEXT_LENGTH) {
+            setText('')
+            setMsg(importSizeLimitMessage())
+            return
+          }
+          setText(nextText)
+        }}
       />
       <div className="import-actions">
         <button onClick={() => doParse()} disabled={!text.trim()}>
