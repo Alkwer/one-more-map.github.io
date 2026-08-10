@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
-import { copyFileSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { execFileSync, spawn } from 'node:child_process'
+import { once } from 'node:events'
+import {
+  copyFileSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, it } from 'vitest'
@@ -196,7 +205,7 @@ describe('border OCR regressions', () => {
     assert.match(ahkImporter, /OCR Language: \$script:RecognizerLanguage/)
     assert.match(ahkImporter, /CleanupOcrArtifacts\(\)/)
     assert.match(ahkImporter, /voyage-border-" ScriptPid "-\*\.png/)
-    assert.match(ahkImporter, /-RunId " quote ScriptPid quote/)
+    assert.match(ahkImporter, /EnvSet "VOYAGE_OCR_RUN_ID", ScriptPid/)
     assert.match(ahkImporter, /GetLongPathNameW/)
     assert.match(ahkImporter, /TempDir := LongPath\(A_Temp\)/)
     assert.match(ahkImporter, /PowerShellTrust := ResolveTrustedPowerShell\(\)/)
@@ -207,6 +216,11 @@ describe('border OCR regressions', () => {
     assert.match(ahkImporter, /QueryFullProcessImageNameW/)
     assert.match(ahkImporter, /command := quote PowerShellExe quote/)
     assert.doesNotMatch(ahkImporter, /command := "powershell\.exe/)
+    assert.match(ahkImporter, /EnvSet "VOYAGE_OCR_SCRIPT", script/)
+    assert.match(ahkImporter, /\[ScriptBlock\]::Create\(\$env:VOYAGE_OCR_SCRIPT\)/)
+    assert.doesNotMatch(ahkImporter, /^\s*OcrHelper\s*:=|EnsureOcrHelper/m)
+    assert.doesNotMatch(ahkImporter, /FileAppend OcrPowerShell\(\)/)
+    assert.doesNotMatch(ahkImporter, /-ExecutionPolicy Bypass -File/)
     assert.doesNotMatch(ahkImporter, /Done\. Refreshed 12 borders/)
     const borderRefreshStart = ahkImporter.indexOf('^F9:: {')
     const fullImportMarker = ahkImporter.indexOf('\nF9:: {', borderRefreshStart + 1)
@@ -275,6 +289,63 @@ describe('border OCR regressions', () => {
         )
       } finally {
         rmSync(fakeDirectory, { recursive: true, force: true })
+      }
+    },
+  )
+
+  it.skipIf(process.platform !== 'win32')(
+    'ignores a prepositioned predictable helper and a replacement watcher race',
+    async () => {
+      const windowsDir = process.env.WINDIR ?? process.env.SystemRoot
+      assert.ok(windowsDir, 'Windows directory is unavailable')
+      const powershell = realpathSync.native(
+        join(windowsDir, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
+      )
+      const raceDirectory = mkdtempSync(join(tmpdir(), 'voyage-helper-race-'))
+      const predicted = join(raceDirectory, `voyage-border-ocr-${process.pid}.ps1`)
+      const marker = join(raceDirectory, 'attacker-marker.txt')
+      const attackerScript = `[IO.File]::WriteAllText('${marker.replace(/'/g, "''")}', 'attacker')`
+      writeFileSync(predicted, attackerScript)
+      const watcherSource = `
+        const fs = require('node:fs');
+        const path = ${JSON.stringify(predicted)};
+        const content = ${JSON.stringify(attackerScript)};
+        const deadline = Date.now() + 500;
+        while (Date.now() < deadline) fs.writeFileSync(path, content);
+      `
+      const watcher = spawn(process.execPath, ['-e', watcherSource], {
+        stdio: 'ignore',
+        windowsHide: true,
+      })
+      const watcherExit = once(watcher, 'exit')
+
+      try {
+        const output = execFileSync(
+          powershell,
+          [
+            '-NoLogo',
+            '-NoProfile',
+            '-NonInteractive',
+            '-Command',
+            '& ([ScriptBlock]::Create($env:VOYAGE_OCR_SCRIPT))',
+          ],
+          {
+            cwd: raceDirectory,
+            encoding: 'utf8',
+            env: {
+              ...process.env,
+              VOYAGE_OCR_SCRIPT: "Start-Sleep -Milliseconds 250; [Console]::Out.Write('trusted')",
+            },
+            windowsHide: true,
+          },
+        )
+        await watcherExit
+
+        assert.equal(output, 'trusted')
+        assert.equal(existsSync(marker), false)
+      } finally {
+        if (watcher.exitCode === null) watcher.kill()
+        rmSync(raceDirectory, { recursive: true, force: true })
       }
     },
   )

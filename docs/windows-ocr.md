@@ -33,6 +33,18 @@ file and the actual child image against the native System32 path. OCR fails
 closed when any of those checks is unavailable or mismatched, so a
 `powershell.exe` placed beside the downloaded script is never selected.
 
+The OCR program itself is passed to that verified child as an inherited,
+short-lived environment value and created as an in-memory PowerShell
+`ScriptBlock`. The importer clears the parent values immediately after process
+creation and never creates, appends to, hashes, or executes a `.ps1` file in the
+shared temporary directory. Prepositioning or repeatedly replacing the old
+`voyage-border-ocr-<PID>.ps1` name therefore has no effect.
+
+Elevation is needed only when Path of Exile itself is elevated and Windows UIPI
+would otherwise block synthetic input. Prefer running the game and helper
+without elevation; AutoHotkey's UI Access mode is the next option. Local Windows
+OCR and screenshot capture do not independently require administrator rights.
+
 ## Install the OCR language
 
 The helper prefers an installed English (`en-US` or another `en-*`) Windows OCR

@@ -111,7 +111,7 @@ describe('Korean Windows OCR selection in the AHK importer', () => {
     const calls = ahkImporter.match(/New-OcrEngine -PreferredLanguage \$PreferredLanguage/g)
 
     expect(calls).toHaveLength(1)
-    expect(ahkImporter).toContain('. languageArg')
+    expect(ahkImporter).toContain('EnvSet "VOYAGE_OCR_PREFERRED_LANGUAGE", preferredLanguage')
     expect(ahkImporter).toContain('A_Args.Length >= 3')
     expect(ahkImporter).toContain('ScanRerollCost()')
   })
