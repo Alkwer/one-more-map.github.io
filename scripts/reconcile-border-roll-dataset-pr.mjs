@@ -37,6 +37,40 @@ export const isManagedAutomationPull = (pull, repositoryOwner) =>
   pull.headRepositoryOwner?.login?.toLowerCase() === repositoryOwner.toLowerCase() &&
   botAuthored(pull)
 
+const normalizeApiPull = (pull, repository) => {
+  const headRepository = pull.head?.repo?.full_name ?? null
+  return {
+    number: pull.number,
+    url: pull.html_url ?? pull.url,
+    headRefName: pull.head?.ref ?? pull.headRefName,
+    headRepositoryOwner: {
+      login: pull.head?.repo?.owner?.login ?? pull.headRepositoryOwner?.login ?? '',
+    },
+    isCrossRepository:
+      headRepository === null
+        ? (pull.isCrossRepository ?? true)
+        : headRepository.toLowerCase() !== repository.toLowerCase(),
+    author: {
+      login: pull.user?.login ?? pull.author?.login ?? '',
+      is_bot: pull.user ? pull.user.type === 'Bot' : pull.author?.is_bot === true,
+    },
+  }
+}
+
+const listOpenPulls = async (run, repository) => {
+  const result = await run('gh', [
+    'api',
+    '--paginate',
+    '--slurp',
+    `repos/${repository}/pulls?state=open&per_page=100`,
+  ])
+  const pages = JSON.parse(result.stdout)
+  if (!Array.isArray(pages) || !pages.every(Array.isArray)) {
+    throw new Error('GitHub open-pull enumeration did not return paginated arrays')
+  }
+  return pages.flat().map((pull) => normalizeApiPull(pull, repository))
+}
+
 const appendSummary = async (io, summaryPath, status, detail) => {
   const summary = `### Border-roll dataset automation\n\nStatus: **${status}**\n\n${detail}\n`
   if (summaryPath) await io.appendFile(summaryPath, summary)
@@ -112,19 +146,7 @@ export const reconcileBorderRollDatasetPullRequest = async ({
   const desiredDataset = await io.readFile(DATASET_PATH, 'utf8')
   const status = await run('git', ['status', '--porcelain', '--', DATASET_PATH])
   const datasetChanged = status.stdout.trim().length > 0
-  const listed = await run('gh', [
-    'pr',
-    'list',
-    '--repo',
-    repository,
-    '--state',
-    'open',
-    '--limit',
-    '100',
-    '--json',
-    'number,url,headRefName,headRepositoryOwner,isCrossRepository,author',
-  ])
-  const prefixedPulls = JSON.parse(listed.stdout).filter((pull) =>
+  const prefixedPulls = (await listOpenPulls(run, repository)).filter((pull) =>
     pull.headRefName?.startsWith(AUTOMATION_BRANCH_PREFIX),
   )
   const managedPulls = prefixedPulls
@@ -134,10 +156,11 @@ export const reconcileBorderRollDatasetPullRequest = async ({
     (pull) => !isManagedAutomationPull(pull, repositoryOwner),
   )
 
-  if (unmanagedPulls.length > 0) {
-    const detail = `Refused to update non-bot or cross-repository branch(es): ${unmanagedPulls.map(({ url }) => url).join(', ')}.`
-    const summary = await appendSummary(io, env.GITHUB_STEP_SUMMARY, 'blocked', detail)
-    return { status: 'blocked', summary, exitCode: 1 }
+  if (unmanagedPulls.length > 0 && env.GITHUB_STEP_SUMMARY) {
+    await io.appendFile(
+      env.GITHUB_STEP_SUMMARY,
+      `> Ignored ${unmanagedPulls.length} external or unmanaged lookalike PR(s): ${unmanagedPulls.map(({ url }) => url).join(', ')}.\n\n`,
+    )
   }
 
   for (const pull of managedPulls) {
