@@ -5,6 +5,7 @@ import { BorderAppraiser } from './components/BorderAppraiser'
 import { ImportPanel } from './components/ImportPanel'
 import { Library } from './components/Library'
 import { ModBrowser } from './components/ModBrowser'
+import { ModalDialog } from './components/ModalDialogSurface'
 import { Onboarding } from './components/Onboarding'
 import { SolverPanel } from './components/SolverPanel'
 import { SaveWizard } from './components/SaveWizard'
@@ -378,50 +379,49 @@ export default function App() {
       {showUpdates && <UpdatesLog onClose={() => setShowUpdates(false)} />}
       {showTutorial && <Tutorial onClose={() => setShowTutorial(false)} />}
       {showAhkNotice && !chrome.showOnboarding && (
-        <div className="onboard-backdrop" onClick={dismissAhkNotice}>
+        <ModalDialog
+          labelledBy="ahk-notice-title"
+          onClose={dismissAhkNotice}
+          className="onboard ahk-notice"
+        >
           <div
-            aria-labelledby="ahk-notice-title"
-            aria-modal="true"
-            className="onboard ahk-notice"
-            role="dialog"
-            onClick={(event) => event.stopPropagation()}
+            className="panel-title"
+            id="ahk-notice-title"
+            data-dialog-initial-focus
+            tabIndex={-1}
           >
-            <div className="panel-title" id="ahk-notice-title">
-              📥 Importer updated — second chart page
-              <span className="spacer" />
-              <button aria-label="Close importer update" onClick={dismissAhkNotice}>
-                ✕
-              </button>
-            </div>
-            <p className="tut-body">
-              The game&apos;s chart panel now has <strong>two pages</strong>, and the Windows bulk
-              importer scans both by switching between the page tabs. Sweeps are faster too: empty
-              tails are skipped instead of waiting on every blank slot.
-            </p>
-            <p className="tut-body">
-              Your downloaded script does not update itself, so to get this:
-            </p>
-            <ol className="ahk-notice-steps">
-              <li>Download the script again and replace your old copy.</li>
-              <li>
-                Hover the page 1 tab and press <kbd>Shift+F7</kbd>, then hover page 2 and press{' '}
-                <kbd>Shift+F8</kbd>. Your grid and border calibration stays intact.
-              </li>
-            </ol>
-            <div className="sw-actions">
-              <a
-                className="ahk-notice-dl"
-                href={`${import.meta.env.BASE_URL}voyage-import.ahk`}
-                download
-                onClick={dismissAhkNotice}
-              >
-                ⬇ Download the updated script
-              </a>
-              <span className="spacer" />
-              <button onClick={dismissAhkNotice}>Got it</button>
-            </div>
+            📥 Importer updated — second chart page
+            <span className="spacer" />
+            <button aria-label="Close importer update" onClick={dismissAhkNotice}>
+              ✕
+            </button>
           </div>
-        </div>
+          <p className="tut-body">
+            The game&apos;s chart panel now has <strong>two pages</strong>, and the Windows bulk
+            importer scans both by switching between the page tabs. Sweeps are faster too: empty
+            tails are skipped instead of waiting on every blank slot.
+          </p>
+          <p className="tut-body">Your downloaded script does not update itself, so to get this:</p>
+          <ol className="ahk-notice-steps">
+            <li>Download the script again and replace your old copy.</li>
+            <li>
+              Hover the page 1 tab and press <kbd>Shift+F7</kbd>, then hover page 2 and press{' '}
+              <kbd>Shift+F8</kbd>. Your grid and border calibration stays intact.
+            </li>
+          </ol>
+          <div className="sw-actions">
+            <a
+              className="ahk-notice-dl"
+              href={`${import.meta.env.BASE_URL}voyage-import.ahk`}
+              download
+              onClick={dismissAhkNotice}
+            >
+              ⬇ Download the updated script
+            </a>
+            <span className="spacer" />
+            <button onClick={dismissAhkNotice}>Got it</button>
+          </div>
+        </ModalDialog>
       )}
       {showSaveWizard && (
         <SaveWizard

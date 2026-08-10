@@ -320,6 +320,9 @@ test.describe('importer update notice', () => {
 
     const notice = appPage.getByRole('dialog', { name: /Importer updated/ })
     await expect(notice).toBeVisible()
+    await expect(notice.locator('[data-dialog-initial-focus]')).toBeFocused()
+    await expect(appPage.locator('main')).toHaveJSProperty('inert', true)
+    await expectNoAccessibilityViolations(appPage)
     await expect(notice).toContainText('two pages')
     await expect(notice).toContainText('Shift+F7')
     const downloadLink = notice.getByRole('link', { name: /Download the updated script/ })
@@ -330,8 +333,18 @@ test.describe('importer update notice', () => {
       .toBe(`${APP_PATH}voyage-import.ahk`)
     expect(await appPage.evaluate(() => localStorage.getItem('announce-ahk-page2'))).toBeNull()
 
+    const focusable = notice.locator(
+      'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    )
+    await appPage.keyboard.press('Shift+Tab')
+    await expect(focusable.last()).toBeFocused()
+    await appPage.keyboard.press('Tab')
+    await expect(focusable.first()).toBeFocused()
+
     await notice.getByRole('button', { name: 'Got it' }).click()
     await expect(notice).toHaveCount(0)
+    await expect(appPage.locator('main')).toHaveJSProperty('inert', false)
+    await expect(appPage.getByRole('button', { name: /TUTORIAL/ })).toBeFocused()
     expect(await appPage.evaluate(() => localStorage.getItem('announce-ahk-page2'))).toBe('1')
 
     await appPage.reload()
@@ -1818,9 +1831,23 @@ test('pauses autosave and preserves a newer saved state until explicit reset', a
 
   const recovery = appPage.getByRole('alertdialog', { name: 'Saved state needs recovery' })
   await expect(recovery).toBeVisible()
+  await expect(recovery.locator('[data-dialog-initial-focus]')).toBeFocused()
+  await expect(appPage.locator('main')).toHaveJSProperty('inert', true)
+  await expectNoAccessibilityViolations(appPage)
   await expect(recovery.getByRole('button', { name: 'Export original JSON' })).toBeVisible()
   await expect(recovery.getByRole('button', { name: 'Retry decode' })).toBeVisible()
   await expect(recovery.getByRole('button', { name: 'Reset saved state…' })).toBeVisible()
+
+  const recoveryFocusable = recovery.locator(
+    'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+  )
+  await appPage.keyboard.press('Shift+Tab')
+  await expect(recoveryFocusable.last()).toBeFocused()
+  await appPage.keyboard.press('Tab')
+  await expect(recoveryFocusable.first()).toBeFocused()
+  await appPage.keyboard.press('Escape')
+  await expect(recovery).toBeVisible()
+  await expect(appPage.locator('main')).toHaveJSProperty('inert', true)
 
   await appPage.waitForTimeout(500)
   const preserved = await appPage.evaluate(() => {
@@ -1836,6 +1863,8 @@ test('pauses autosave and preserves a newer saved state until explicit reset', a
   appPage.once('dialog', (dialog) => dialog.accept())
   await recovery.getByRole('button', { name: 'Reset saved state…' }).click()
   await expect(recovery).toHaveCount(0)
+  await expect(appPage.locator('main')).toHaveJSProperty('inert', false)
+  await expect(appPage.getByRole('button', { name: /TUTORIAL/ })).toBeFocused()
   const reset = await appPage.evaluate(() => ({
     active: JSON.parse(localStorage.getItem('allflame-voyage-solver')!),
     backups: Object.keys(localStorage)

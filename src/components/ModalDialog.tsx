@@ -25,9 +25,17 @@ interface UseModalDialogOptions {
   labelledBy: string
   onClose: () => void
   initialFocusRef?: RefObject<HTMLElement>
+  closeOnEscape?: boolean
+  role?: 'dialog' | 'alertdialog'
 }
 
-export function useModalDialog({ labelledBy, onClose, initialFocusRef }: UseModalDialogOptions) {
+export function useModalDialog({
+  labelledBy,
+  onClose,
+  initialFocusRef,
+  closeOnEscape = true,
+  role = 'dialog',
+}: UseModalDialogOptions) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const restoreTargetRef = useRef<HTMLElement | null | undefined>(undefined)
   const restoreFrameRef = useRef<number>()
@@ -81,7 +89,7 @@ export function useModalDialog({ labelledBy, onClose, initialFocusRef }: UseModa
     if (event.key === 'Escape') {
       event.preventDefault()
       event.stopPropagation()
-      onClose()
+      if (closeOnEscape) onClose()
       return
     }
     if (event.key !== 'Tab') return
@@ -113,7 +121,7 @@ export function useModalDialog({ labelledBy, onClose, initialFocusRef }: UseModa
   return {
     dialogProps: {
       ref: dialogRef,
-      role: 'dialog' as const,
+      role,
       'aria-modal': true as const,
       'aria-labelledby': labelledBy,
       tabIndex: -1,
