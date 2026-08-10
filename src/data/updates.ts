@@ -13,6 +13,13 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    date: '2026-08-07',
+    tag: 'reworked',
+    title: 'Bulk importer scans both chart pages',
+    detail:
+      "The game's chart panel gained a second page - the importer now clicks between the two page tabs and sweeps both (calibrate page 1 with Shift+F7 and page 2 with Shift+F8). Sweeps are also faster: a run of empty cells skips the rest of the page instead of waiting on each blank slot.",
+  },
+  {
     date: '2026-08-06',
     tag: 'reworked',
     title: 'Border-roll forecasts are slot-aware',

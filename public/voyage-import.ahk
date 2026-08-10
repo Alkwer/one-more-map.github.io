@@ -82,6 +82,7 @@ BorderOcrAttempts := 2  ; retry once when both filtered and unfiltered OCR are e
 BorderPreviewDelay := 900 ; ms per point during the Ctrl+F4 visual preview
 PasteDelay    := 90    ; ms after the single big paste
 ClipTimeout   := 0.2   ; seconds to wait for Ctrl+C (only empty cells wait the full time)
+EmptySkip     := 8     ; consecutive empty cells = the rest of the tab is empty, skip it
 OcrTimeout    := 90    ; seconds before a stuck Windows OCR scan is stopped
 ; If it ever MISSES a chart, raise HoverDelay ~10ms at a time (the cursor
 ; isn't settling before Ctrl+C). If the final paste drops some, raise PasteDelay.
@@ -178,6 +179,11 @@ Calibrated() => GridCalibrated() && StashTabsCalibrated()
 ChartTabPoints() {
     global Tab1X, Tab1Y, Tab2X, Tab2Y
     return [[Tab1X, Tab1Y], [Tab2X, Tab2Y]]
+}
+
+IsChartText(text) {
+    return InStr(text, "Item Class: Chart")
+        || InStr(text, "아이템 종류: 해도")
 }
 
 ExactBordersCalibrated() {
@@ -984,7 +990,7 @@ F9:: {
 
     Running := true
     copied := 0, skipped := 0, scannedCharts := 0
-    blob := "", borderBlob := "", rerollCostBlob := "", seen := Map()
+    blob := "", borderBlob := "", rerollCostBlob := ""
     firstChart := "", allIdentical := true, firstTabSignature := "", tabsIdentical := false
 
     ; ---- Phase 1: copy every chart while staying in PoE ----
@@ -1004,6 +1010,7 @@ F9:: {
         Click
         Sleep TabSwitchDelay
         tabSignature := ""
+        emptyStreak := 0
 
         Loop GridRows {
             if !Running
@@ -1021,24 +1028,28 @@ F9:: {
                 if !ClipWait(ClipTimeout) {
                     tabSignature .= "|0:"
                     skipped++                 ; empty slot - nothing copied
+                    emptyStreak++
+                    if (emptyStreak >= EmptySkip) {
+                        ToolTip "Tab " tabIndex ": rest looks empty - skipping ahead..."
+                        break 2
+                    }
                     continue
                 }
                 clip := Trim(A_Clipboard, " `t`r`n")
                 tabSignature .= "|" StrLen(clip) ":" clip
-                if !InStr(clip, "Item Class") {
-                    skipped++                 ; not an item
+                if !IsChartText(clip) {
+                    skipped++                 ; not a Chart item
+                    emptyStreak := 0
                     continue
                 }
+                emptyStreak := 0
                 scannedCharts++
                 if (firstChart = "")
                     firstChart := clip
                 else if (clip != firstChart)
                     allIdentical := false
-                if seen.Has(clip) {
-                    skipped++                 ; duplicate
-                    continue
-                }
-                seen[clip] := true
+                ; Keep identical item text: separate physical Charts are separate
+                ; solver pieces even when every copied property is the same.
                 blob .= (blob = "" ? "" : "`n") clip
                 copied++
                 ToolTip "Copying tab " tabIndex "/" tabPoints.Length
@@ -1115,5 +1126,5 @@ F9:: {
         return
     }
     Flash "Done. Sent " copied " charts from 2 stash tabs" borderNote costNote
-        . "; skipped " skipped " empty/dup cells.", 6000
+        . "; skipped " skipped " empty/non-chart cells.", 6000
 }
