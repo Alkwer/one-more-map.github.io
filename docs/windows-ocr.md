@@ -8,6 +8,10 @@ an explicit paste into the solver.
 
 The web app and manual border entry do not require this helper.
 
+Release testing against the live game follows the
+[Windows OCR live validation matrix](windows-ocr-live-validation.md). The matrix
+keeps planned coverage separate from executed, privacy-reviewed results.
+
 ## Requirements
 
 - Windows 10 or Windows 11 with a Windows OCR language capability.
