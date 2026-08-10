@@ -2,6 +2,7 @@ import { BORDER_MODS } from '../data/mods'
 import { KOREAN_BORDER_MOD_EVIDENCE } from '../data/borderMods.ko'
 import type { Borders } from '../types'
 import { emptyBorders } from '../types'
+import { assertImportWithinBudget } from './importBudget'
 import { REROLL_COSTS } from './rerollAdvice'
 
 const BORDER_BLOCK =
@@ -270,6 +271,7 @@ function stripOcrLanguage(raw: string, languages: Set<string>): string {
 }
 
 export function parseBorderOcrPayload(source: string): BorderOcrParseResult {
+  assertImportWithinBudget(source)
   const borders = emptyBorders()
   const matches: BorderOcrMatch[] = []
   const misses: BorderOcrMiss[] = []

@@ -11,9 +11,15 @@ import { edgesForChartShape } from './chartShapes'
 import {
   MAX_CHART_NAME_LENGTH,
   MAX_IMPLICIT_TEXT_LENGTH,
+  MAX_POOL_CHARTS,
   MAX_RAW_TEXT_LENGTH,
   MAX_SHAPE_INPUT_LENGTH,
 } from './storage'
+import {
+  assertImportWithinBudget,
+  MAX_IMPORT_REJECTIONS,
+  MAX_IMPORT_TEXT_LENGTH,
+} from './importBudget'
 
 let uidCounter = 0
 export function newUid(): string {
@@ -132,6 +138,7 @@ function dialectForItem(item: string): ClipboardDialect | undefined {
 
 /** True when clipboard text contains an English or Korean Chart class header. */
 export function isChartClipboardText(text: string): boolean {
+  if (text.length > MAX_IMPORT_TEXT_LENGTH) return false
   const normalized = normalizeClipboardText(text)
   return DIALECTS.some((dialect) => dialect.chartClass.test(normalized))
 }
@@ -239,6 +246,27 @@ export interface ParseResult {
   rejected: { name: string; reason: string }[]
   /** imported charts quarantined from solving until their shape is confirmed */
   unresolved: { uid: string; name: string; reason: string }[]
+  /** Present only when expensive item parsing stopped at a caller-supplied budget. */
+  stoppedEarly?: {
+    reason: 'chart-capacity' | 'rejection-budget'
+    unprocessedItems: number
+  }
+}
+
+export interface ChartParseOptions {
+  /** Remaining library capacity; accepted charts beyond it are never parsed. */
+  maxCharts?: number
+  /** Maximum number of rejected items retained for user-facing reporting. */
+  maxRejections?: number
+}
+
+function boundedInteger(value: number | undefined, fallback: number, maximum: number): number {
+  if (value === undefined || !Number.isFinite(value)) return fallback
+  return Math.max(0, Math.min(maximum, Math.floor(value)))
+}
+
+function rejectionName(name: string): string {
+  return name.length > 80 ? `${name.slice(0, 77)}...` : name
 }
 
 function chartPersistenceLimitReason(chart: ChartData): string | null {
@@ -257,7 +285,14 @@ function chartPersistenceLimitReason(chart: ChartData): string | null {
   return null
 }
 
-export function parseChartText(text: string): ParseResult {
+export function parseChartText(text: string, options: ChartParseOptions = {}): ParseResult {
+  assertImportWithinBudget(text)
+  const maxCharts = boundedInteger(options.maxCharts, MAX_POOL_CHARTS, MAX_POOL_CHARTS)
+  const maxRejections = boundedInteger(
+    options.maxRejections,
+    MAX_IMPORT_REJECTIONS,
+    MAX_IMPORT_REJECTIONS,
+  )
   const items = normalizeClipboardText(text)
     .split(ITEM_START_RE)
     .map((s) => s.trim())
@@ -266,8 +301,25 @@ export function parseChartText(text: string): ParseResult {
   const charts: ChartData[] = []
   const rejected: { name: string; reason: string }[] = []
   const unresolved: { uid: string; name: string; reason: string }[] = []
+  let stoppedEarly: ParseResult['stoppedEarly']
 
-  for (const item of items) {
+  for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+    if (charts.length >= maxCharts) {
+      stoppedEarly = {
+        reason: 'chart-capacity',
+        unprocessedItems: items.length - itemIndex,
+      }
+      break
+    }
+    if (rejected.length >= maxRejections) {
+      stoppedEarly = {
+        reason: 'rejection-budget',
+        unprocessedItems: items.length - itemIndex,
+      }
+      break
+    }
+
+    const item = items[itemIndex]
     const dialect = dialectForItem(item)
     const lines = item.split('\n').map((line) => line.trim())
     const nameIdx = dialect ? lines.findIndex((line) => dialect.rarity.test(line)) : -1
@@ -285,12 +337,15 @@ export function parseChartText(text: string): ParseResult {
       : 'Unknown Chart'
 
     if (!dialect || !dialect.chartClass.test(item)) {
-      rejected.push({ name, reason: 'not a Chart item' })
+      rejected.push({ name: rejectionName(name), reason: 'not a Chart item' })
       continue
     }
 
     if (dialect.uncharted?.test(item)) {
-      rejected.push({ name, reason: 'not charted yet (run it first to reveal its modifier)' })
+      rejected.push({
+        name: rejectionName(name),
+        reason: 'not charted yet (run it first to reveal its modifier)',
+      })
       continue
     }
 
@@ -379,7 +434,7 @@ export function parseChartText(text: string): ParseResult {
     const persistenceLimitReason = chartPersistenceLimitReason(chart)
     if (persistenceLimitReason) {
       rejected.push({
-        name: name.length > 80 ? `${name.slice(0, 77)}...` : name,
+        name: rejectionName(name),
         reason: persistenceLimitReason,
       })
       continue
@@ -388,5 +443,7 @@ export function parseChartText(text: string): ParseResult {
     if (shapeReason) unresolved.push({ uid, name, reason: shapeReason })
   }
 
-  return { charts, rejected, unresolved }
+  return stoppedEarly
+    ? { charts, rejected, unresolved, stoppedEarly }
+    : { charts, rejected, unresolved }
 }
