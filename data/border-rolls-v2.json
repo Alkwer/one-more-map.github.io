@@ -1,7 +1,7 @@
 {
   "schema": "allflame-border-roll-dataset/v2",
-  "exportedAt": "2026-08-08T23:34:36.729Z",
-  "sampleCount": 47,
+  "exportedAt": "2026-08-09T15:29:59.488Z",
+  "sampleCount": 48,
   "samples": [
     {
       "schema": "allflame-border-roll/v2",
@@ -1175,6 +1175,31 @@
         "b-pack-1",
         "b-octoboss",
         "b-mag-3",
+        "b-mag-1"
+      ]
+    },
+    {
+      "schema": "allflame-border-roll/v2",
+      "sampleId": "roll-820c7258-a0cf-481b-bf56-4d568e6cbaf4",
+      "sequenceId": "voyage-54f1c085-ad48-43d2-bfe4-74575de6cd10",
+      "capturedAt": "2026-08-09T15:29:59.488Z",
+      "gamePatch": "3.29",
+      "vesperUpgradeCount": 5,
+      "generation": "natural",
+      "rerollIndex": 0,
+      "displayedNextRerollCost": 3000,
+      "borderModIds": [
+        "b-mag-2",
+        "b-goldlantern",
+        "b-mag-1",
+        "b-mag-2",
+        "b-mag-1",
+        "b-mag-2",
+        "b-mag-1",
+        "b-pack-2",
+        "b-quantconn-2",
+        "b-sulphdrop",
+        "b-keep-1",
         "b-mag-1"
       ]
     }
