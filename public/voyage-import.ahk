@@ -13,9 +13,9 @@ CoordMode "ToolTip", "Screen"
 ;              every cell and Ctrl+C's it, appending each chart's text into
 ;              one buffer (no window switching).
 ;    Phase 2 - hovers the 12 board-border modifiers and the optional reroll
-;              button. A temporary PowerShell helper captures the PoE window
-;              and reads each tooltip with the Windows OCR engine. Screenshots
-;              never leave the PC.
+;              button. An in-memory PowerShell helper captures the PoE window
+;              and reads each tooltip with the Windows OCR engine. No script is
+;              executed from TEMP, and screenshots never leave the PC.
 ;    Phase 3 - switches to the browser ONCE and pastes the whole buffer;
 ;              the solver parses and imports every chart from that one paste.
 ;    Empty cells copy nothing and are skipped.
@@ -238,7 +238,6 @@ PowerShellTrust := ResolveTrustedPowerShell()
 PowerShellExe := PowerShellTrust.LaunchPath
 ExpectedPowerShellImage := PowerShellTrust.ExpectedPath
 TempDir := LongPath(A_Temp)
-OcrHelper := TempDir "\voyage-border-ocr-" ScriptPid ".ps1"
 OcrOutput := TempDir "\voyage-border-ocr-" ScriptPid ".txt"
 OcrPid := 0
 LastBorderScanBlocks := 0
@@ -255,8 +254,7 @@ StopOcrProcess() {
 }
 
 CleanupOcrArtifacts() {
-    global OcrHelper, OcrOutput, ScriptPid
-    try FileDelete OcrHelper
+    global OcrOutput, ScriptPid
     try FileDelete OcrOutput
     try FileDelete A_Temp "\voyage-border-" ScriptPid "-*.png"
     try FileDelete A_Temp "\voyage-ocr-filtered-" ScriptPid "-*.png"
@@ -363,17 +361,19 @@ BorderPoints() {
 OcrPowerShell() {
     return "
 (
-param(
-    [int]$Index = -1,
-    [int]$WindowLeft = 0,
-    [int]$WindowTop = 0,
-    [int]$WindowWidth = 0,
-    [int]$WindowHeight = 0,
-    [string]$ImagePath = '',
-    [string]$PreferredLanguage = '',
-    [string]$RunId = '',
-    [switch]$RerollCost,
-    [Parameter(Mandatory = $true)][string]$OutputPath)
+[int]$Index = $env:VOYAGE_OCR_INDEX
+[int]$WindowLeft = $env:VOYAGE_OCR_WINDOW_LEFT
+[int]$WindowTop = $env:VOYAGE_OCR_WINDOW_TOP
+[int]$WindowWidth = $env:VOYAGE_OCR_WINDOW_WIDTH
+[int]$WindowHeight = $env:VOYAGE_OCR_WINDOW_HEIGHT
+[string]$ImagePath = $env:VOYAGE_OCR_IMAGE_PATH
+[string]$PreferredLanguage = $env:VOYAGE_OCR_PREFERRED_LANGUAGE
+[string]$RunId = $env:VOYAGE_OCR_RUN_ID
+[bool]$RerollCost = $env:VOYAGE_OCR_REROLL_COST -eq '1'
+[string]$OutputPath = $env:VOYAGE_OCR_OUTPUT_PATH
+if ([string]::IsNullOrWhiteSpace($OutputPath)) {
+    throw 'The trusted OCR output path was not provided.'
+}
 
 $ErrorActionPreference = 'Stop'
 $script:RecognizerLanguage = ''
@@ -707,10 +707,39 @@ $utf8 = [System.Text.UTF8Encoding]::new($false)
 )"
 }
 
-EnsureOcrHelper() {
-    global OcrHelper
-    try FileDelete OcrHelper
-    FileAppend OcrPowerShell(), OcrHelper, "UTF-8"
+SetOcrEnvironment(options, preferredLanguage) {
+    global OcrOutput, ScriptPid
+    script := OcrPowerShell()
+    if (StrLen(script) > 30000)
+        throw Error("The in-memory Windows OCR helper exceeds its safe environment budget.")
+    EnvSet "VOYAGE_OCR_SCRIPT", script
+    EnvSet "VOYAGE_OCR_INDEX", options.Get("Index", -1)
+    EnvSet "VOYAGE_OCR_WINDOW_LEFT", options.Get("WindowLeft", 0)
+    EnvSet "VOYAGE_OCR_WINDOW_TOP", options.Get("WindowTop", 0)
+    EnvSet "VOYAGE_OCR_WINDOW_WIDTH", options.Get("WindowWidth", 0)
+    EnvSet "VOYAGE_OCR_WINDOW_HEIGHT", options.Get("WindowHeight", 0)
+    EnvSet "VOYAGE_OCR_IMAGE_PATH", options.Get("ImagePath", "")
+    EnvSet "VOYAGE_OCR_PREFERRED_LANGUAGE", preferredLanguage
+    EnvSet "VOYAGE_OCR_RUN_ID", ScriptPid
+    EnvSet "VOYAGE_OCR_REROLL_COST", options.Get("RerollCost", false) ? "1" : "0"
+    EnvSet "VOYAGE_OCR_OUTPUT_PATH", OcrOutput
+}
+
+ClearOcrEnvironment() {
+    for name in [
+        "VOYAGE_OCR_SCRIPT",
+        "VOYAGE_OCR_INDEX",
+        "VOYAGE_OCR_WINDOW_LEFT",
+        "VOYAGE_OCR_WINDOW_TOP",
+        "VOYAGE_OCR_WINDOW_WIDTH",
+        "VOYAGE_OCR_WINDOW_HEIGHT",
+        "VOYAGE_OCR_IMAGE_PATH",
+        "VOYAGE_OCR_PREFERRED_LANGUAGE",
+        "VOYAGE_OCR_RUN_ID",
+        "VOYAGE_OCR_REROLL_COST",
+        "VOYAGE_OCR_OUTPUT_PATH"
+    ]
+        EnvSet name
 }
 
 PreferredOcrLanguage() {
@@ -723,24 +752,23 @@ PreferredOcrLanguage() {
     return ""
 }
 
-RunOcrHelper(arguments, cancellable := true, preferredLanguage := "") {
-    global OcrHelper, OcrOutput, OcrPid, OcrTimeout, Running, ScriptPid
+RunOcrHelper(options, cancellable := true, preferredLanguage := "") {
+    global OcrOutput, OcrPid, OcrTimeout, Running
     global PowerShellExe, ExpectedPowerShellImage
     CleanupOcrArtifacts()
     quote := Chr(34)
     try {
-        EnsureOcrHelper()
         if (preferredLanguage = "")
             preferredLanguage := PreferredOcrLanguage()
-        languageArg := preferredLanguage != ""
-            ? " -PreferredLanguage " quote preferredLanguage quote
-            : ""
-        command := quote PowerShellExe quote " -NoProfile -ExecutionPolicy Bypass -File "
-            . quote OcrHelper quote " " arguments
-            . languageArg
-            . " -RunId " quote ScriptPid quote
-            . " -OutputPath " quote OcrOutput quote
-        Run command, , "Hide", &OcrPid
+        command := quote PowerShellExe quote
+            . " -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "
+            . quote "& ([ScriptBlock]::Create($env:VOYAGE_OCR_SCRIPT))" quote
+        try {
+            SetOcrEnvironment(options, preferredLanguage)
+            Run command, , "Hide", &OcrPid
+        } finally {
+            ClearOcrEnvironment()
+        }
         actualImage := ProcessImagePath(OcrPid)
         if (NormalizeWindowsPath(actualImage) != NormalizeWindowsPath(ExpectedPowerShellImage)) {
             try ProcessClose OcrPid
@@ -773,9 +801,13 @@ ScanBorders() {
     for index, point in BorderPoints() {
         if !Running
             break
-        arguments := "-Index " (index - 1)
-            . " -WindowLeft " winX " -WindowTop " winY
-            . " -WindowWidth " winW " -WindowHeight " winH
+        options := Map(
+            "Index", index - 1,
+            "WindowLeft", winX,
+            "WindowTop", winY,
+            "WindowWidth", winW,
+            "WindowHeight", winH
+        )
         block := ""
         Loop BorderOcrAttempts {
             if !Running
@@ -787,7 +819,7 @@ ScanBorders() {
             Sleep BorderHoverDelay + (attempt - 1) * 200
             ToolTip()
             Sleep 30
-            block := RunOcrHelper(arguments)
+            block := RunOcrHelper(options)
             if (block != "")
                 && !InStr(block, "Windows OCR returned no text")
                 && !InStr(block, "OCR ERROR:")
@@ -812,9 +844,13 @@ ScanRerollCost() {
         return ""
 
     WinGetPos &winX, &winY, &winW, &winH, PoeWinTitle
-    arguments := "-RerollCost"
-        . " -WindowLeft " winX " -WindowTop " winY
-        . " -WindowWidth " winW " -WindowHeight " winH
+    options := Map(
+        "RerollCost", true,
+        "WindowLeft", winX,
+        "WindowTop", winY,
+        "WindowWidth", winW,
+        "WindowHeight", winH
+    )
     block := ""
     Loop BorderOcrAttempts {
         if !Running
@@ -826,7 +862,7 @@ ScanRerollCost() {
         Sleep RerollHoverDelay + (attempt - 1) * 200
         ToolTip()
         Sleep 30
-        block := RunOcrHelper(arguments)
+        block := RunOcrHelper(options)
         if RegExMatch(block, "i)Border\s+Modifiers?\s+Reroll\s+Cost")
             && RegExMatch(block, "i)(?:3|6|12|24|48)[\s,.]*[0o]{3}")
             break
@@ -857,12 +893,11 @@ PasteIntoSolver(payload, failureMessage) {
 ; Developer smoke-test: run the embedded Windows OCR helper against an image.
 if A_Args.Length >= 2
     && (A_Args[1] = "--ocr-file" || A_Args[1] = "--ocr-reroll-cost-file") {
-    quote := Chr(34)
-    arguments := "-ImagePath " quote A_Args[2] quote
+    options := Map("ImagePath", A_Args[2])
     if A_Args[1] = "--ocr-reroll-cost-file"
-        arguments .= " -RerollCost"
+        options["RerollCost"] := true
     preferredLanguage := A_Args.Length >= 3 ? A_Args[3] : ""
-    result := RunOcrHelper(arguments, false, preferredLanguage)
+    result := RunOcrHelper(options, false, preferredLanguage)
     FileAppend result, "*", "UTF-8"
     ExitApp
 }
