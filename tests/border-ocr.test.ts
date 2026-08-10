@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { copyFileSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, it } from 'vitest'
 import { BORDER_SOURCE_SNAPSHOT } from '../src/data/borderSourceRecords'
 import { BORDER_MODS, borderModById } from '../src/data/mods'
@@ -196,6 +199,14 @@ describe('border OCR regressions', () => {
     assert.match(ahkImporter, /-RunId " quote ScriptPid quote/)
     assert.match(ahkImporter, /GetLongPathNameW/)
     assert.match(ahkImporter, /TempDir := LongPath\(A_Temp\)/)
+    assert.match(ahkImporter, /PowerShellTrust := ResolveTrustedPowerShell\(\)/)
+    assert.match(ahkImporter, /A_Is64bitOS && A_PtrSize = 4/)
+    assert.match(ahkImporter, /\\Sysnative\\WindowsPowerShell\\v1\.0\\powershell\.exe/)
+    assert.match(ahkImporter, /RejectReparseComponents\(expectedPath\)/)
+    assert.match(ahkImporter, /GetFileInformationByHandleEx/)
+    assert.match(ahkImporter, /QueryFullProcessImageNameW/)
+    assert.match(ahkImporter, /command := quote PowerShellExe quote/)
+    assert.doesNotMatch(ahkImporter, /command := "powershell\.exe/)
     assert.doesNotMatch(ahkImporter, /Done\. Refreshed 12 borders/)
     const borderRefreshStart = ahkImporter.indexOf('^F9:: {')
     const fullImportMarker = ahkImporter.indexOf('\nF9:: {', borderRefreshStart + 1)
@@ -232,4 +243,39 @@ describe('border OCR regressions', () => {
       /throw 'Windows OCR is unavailable for English \(United States\)\.'/,
     )
   })
+
+  it.skipIf(process.platform !== 'win32')(
+    'launches native System32 PowerShell even with a benign fake beside the caller',
+    () => {
+      const windowsDir = process.env.WINDIR ?? process.env.SystemRoot
+      assert.ok(windowsDir, 'Windows directory is unavailable')
+      const expected = realpathSync.native(
+        join(windowsDir, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
+      )
+      const fakeDirectory = mkdtempSync(join(tmpdir(), 'voyage-powershell-path-'))
+      const fake = join(fakeDirectory, 'powershell.exe')
+      copyFileSync(process.execPath, fake)
+
+      try {
+        const actual = execFileSync(
+          expected,
+          [
+            '-NoLogo',
+            '-NoProfile',
+            '-Command',
+            '[System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName',
+          ],
+          { cwd: fakeDirectory, encoding: 'utf8', windowsHide: true },
+        ).trim()
+
+        assert.equal(realpathSync.native(actual).toLowerCase(), expected.toLowerCase())
+        assert.notEqual(
+          realpathSync.native(actual).toLowerCase(),
+          realpathSync.native(fake).toLowerCase(),
+        )
+      } finally {
+        rmSync(fakeDirectory, { recursive: true, force: true })
+      }
+    },
+  )
 })
