@@ -123,6 +123,120 @@ LongPath(path) {
     len := DllCall("GetLongPathNameW", "Str", path, "Ptr", buf.Ptr, "UInt", 520, "UInt")
     return (len > 0 && len <= 520) ? StrGet(buf, "UTF-16") : path
 }
+
+NormalizeWindowsPath(path) {
+    if (SubStr(path, 1, 4) = "\\?\")
+        path := SubStr(path, 5)
+    return StrLower(RTrim(LongPath(path), "\"))
+}
+
+RejectReparseComponents(path) {
+    if !RegExMatch(path, "i)^([a-z]:\\)(.*)$", &parts)
+        throw Error("Trusted Windows path is not a local absolute path: " path)
+    current := parts[1]
+    for component in StrSplit(parts[2], "\") {
+        if (component = "")
+            continue
+        current .= (SubStr(current, -1) = "\" ? "" : "\") component
+        attributes := DllCall("GetFileAttributesW", "Str", current, "UInt")
+        if (attributes = 0xFFFFFFFF)
+            throw Error("Trusted Windows path is unavailable: " current)
+        if (attributes & 0x400)
+            throw Error("Refusing a reparse point in the trusted Windows path: " current)
+    }
+}
+
+CanonicalFilePath(path) {
+    static OPEN_EXISTING := 3
+    static SHARE_ALL := 0x7
+    static FILE_FLAG_OPEN_REPARSE_POINT := 0x200000
+    handle := DllCall(
+        "CreateFileW",
+        "Str", path,
+        "UInt", 0,
+        "UInt", SHARE_ALL,
+        "Ptr", 0,
+        "UInt", OPEN_EXISTING,
+        "UInt", FILE_FLAG_OPEN_REPARSE_POINT,
+        "Ptr", 0,
+        "Ptr"
+    )
+    if (handle = -1)
+        throw Error("Trusted Windows PowerShell is unavailable: " path)
+    try {
+        attributeInfo := Buffer(8, 0)
+        if !DllCall(
+            "GetFileInformationByHandleEx",
+            "Ptr", handle,
+            "Int", 9,
+            "Ptr", attributeInfo.Ptr,
+            "UInt", attributeInfo.Size,
+            "Int"
+        )
+            throw Error("Could not inspect the trusted Windows PowerShell image.")
+        if (NumGet(attributeInfo, 0, "UInt") & 0x400)
+            throw Error("Refusing a reparse point for the Windows PowerShell image.")
+
+        pathBuffer := Buffer(65536, 0)
+        length := DllCall(
+            "GetFinalPathNameByHandleW",
+            "Ptr", handle,
+            "Ptr", pathBuffer.Ptr,
+            "UInt", 32768,
+            "UInt", 0,
+            "UInt"
+        )
+        if (length = 0 || length >= 32768)
+            throw Error("Could not canonicalize the trusted Windows PowerShell image.")
+        return StrGet(pathBuffer, length, "UTF-16")
+    } finally {
+        DllCall("CloseHandle", "Ptr", handle)
+    }
+}
+
+ResolveTrustedPowerShell() {
+    windowsDir := LongPath(A_WinDir)
+    expectedPath := windowsDir "\System32\WindowsPowerShell\v1.0\powershell.exe"
+    RejectReparseComponents(expectedPath)
+
+    ; A 32-bit AutoHotkey process must use Sysnative to bypass WOW64's
+    ; System32 -> SysWOW64 redirection. The child image still canonicalizes to
+    ; the expected native System32 path below.
+    launchPath := (A_Is64bitOS && A_PtrSize = 4)
+        ? windowsDir "\Sysnative\WindowsPowerShell\v1.0\powershell.exe"
+        : expectedPath
+    canonicalPath := CanonicalFilePath(launchPath)
+    if (NormalizeWindowsPath(canonicalPath) != NormalizeWindowsPath(expectedPath))
+        throw Error("Windows PowerShell resolved outside the trusted System32 path.")
+    return { LaunchPath: launchPath, ExpectedPath: expectedPath }
+}
+
+ProcessImagePath(pid) {
+    static PROCESS_QUERY_LIMITED_INFORMATION := 0x1000
+    handle := DllCall("OpenProcess", "UInt", PROCESS_QUERY_LIMITED_INFORMATION, "Int", false, "UInt", pid, "Ptr")
+    if !handle
+        throw Error("Could not inspect the Windows OCR child process.")
+    try {
+        size := 32768
+        imageBuffer := Buffer(size * 2, 0)
+        if !DllCall(
+            "QueryFullProcessImageNameW",
+            "Ptr", handle,
+            "UInt", 0,
+            "Ptr", imageBuffer.Ptr,
+            "UIntP", &size,
+            "Int"
+        )
+            throw Error("Could not verify the Windows OCR child image.")
+        return StrGet(imageBuffer, size, "UTF-16")
+    } finally {
+        DllCall("CloseHandle", "Ptr", handle)
+    }
+}
+
+PowerShellTrust := ResolveTrustedPowerShell()
+PowerShellExe := PowerShellTrust.LaunchPath
+ExpectedPowerShellImage := PowerShellTrust.ExpectedPath
 TempDir := LongPath(A_Temp)
 OcrHelper := TempDir "\voyage-border-ocr-" ScriptPid ".ps1"
 OcrOutput := TempDir "\voyage-border-ocr-" ScriptPid ".txt"
@@ -611,6 +725,7 @@ PreferredOcrLanguage() {
 
 RunOcrHelper(arguments, cancellable := true, preferredLanguage := "") {
     global OcrHelper, OcrOutput, OcrPid, OcrTimeout, Running, ScriptPid
+    global PowerShellExe, ExpectedPowerShellImage
     CleanupOcrArtifacts()
     quote := Chr(34)
     try {
@@ -620,12 +735,17 @@ RunOcrHelper(arguments, cancellable := true, preferredLanguage := "") {
         languageArg := preferredLanguage != ""
             ? " -PreferredLanguage " quote preferredLanguage quote
             : ""
-        command := "powershell.exe -NoProfile -ExecutionPolicy Bypass -File "
+        command := quote PowerShellExe quote " -NoProfile -ExecutionPolicy Bypass -File "
             . quote OcrHelper quote " " arguments
             . languageArg
             . " -RunId " quote ScriptPid quote
             . " -OutputPath " quote OcrOutput quote
         Run command, , "Hide", &OcrPid
+        actualImage := ProcessImagePath(OcrPid)
+        if (NormalizeWindowsPath(actualImage) != NormalizeWindowsPath(ExpectedPowerShellImage)) {
+            try ProcessClose OcrPid
+            throw Error("Windows OCR child image was not the trusted System32 PowerShell.")
+        }
         deadline := A_TickCount + OcrTimeout * 1000
         while ProcessExist(OcrPid) {
             if (cancellable && !Running)

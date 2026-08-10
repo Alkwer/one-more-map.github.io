@@ -21,6 +21,18 @@ The web app and manual border entry do not require this helper.
 If Path of Exile runs as administrator, run the helper as administrator (or use
 AutoHotkey's UI Access option) so Windows permits it to send input to the game.
 
+### Trust and elevation model
+
+Only run a reviewed copy of `voyage-import.ahk`: elevation grants the AutoHotkey
+script the same integrity level as Path of Exile. The helper never resolves its
+OCR child through the current directory or `PATH`. It opens the canonical
+`%WINDIR%\System32\WindowsPowerShell\v1.0\powershell.exe` by absolute path,
+uses the `Sysnative` alias when a 32-bit AutoHotkey process must bypass WOW64
+filesystem redirection, rejects reparse points, and verifies both the resolved
+file and the actual child image against the native System32 path. OCR fails
+closed when any of those checks is unavailable or mismatched, so a
+`powershell.exe` placed beside the downloaded script is never selected.
+
 ## Install the OCR language
 
 The helper prefers an installed English (`en-US` or another `en-*`) Windows OCR
