@@ -206,7 +206,7 @@ test('workflow serializes submissions and rechecks duplicates at the commit poin
   )
 })
 
-test('dataset workflow rebuilds an existing automation PR when a later sample is accepted', async () => {
+test('dataset workflow finds and updates a managed PR after more than 100 external lookalikes', async () => {
   const calls = []
   let writtenDataset = null
   let summary = ''
@@ -218,10 +218,22 @@ test('dataset workflow rebuilds an existing automation PR when a later sample is
     isCrossRepository: false,
     author: { login: 'app/github-actions', is_bot: true },
   }
+  const lookalikes = Array.from({ length: 101 }, (_, index) => ({
+    number: 1_000 + index,
+    url: `https://github.com/example/voyage-solver/pull/${1_000 + index}`,
+    headRefName: `automation/border-roll-dataset-fork-${index}`,
+    headRepositoryOwner: { login: `attacker-${index}` },
+    isCrossRepository: true,
+    author: { login: `attacker-${index}`, is_bot: false },
+  }))
   const run = async (command, args, options = {}) => {
     calls.push({ command, args, options })
-    if (command === 'gh' && args[0] === 'pr' && args[1] === 'list') {
-      return { stdout: JSON.stringify([pull]), stderr: '', exitCode: 0 }
+    if (command === 'gh' && args[0] === 'api' && args.includes('--slurp')) {
+      return {
+        stdout: JSON.stringify([lookalikes.slice(0, 100), [lookalikes[100], pull]]),
+        stderr: '',
+        exitCode: 0,
+      }
     }
     if (command === 'gh' && args[0] === 'api') {
       return { stdout: 'data/border-rolls-v2.json\n', stderr: '', exitCode: 0 }
@@ -266,6 +278,16 @@ test('dataset workflow rebuilds an existing automation PR when a later sample is
   assert.equal(result.status, 'updated')
   assert.equal(writtenDataset, '{"sampleCount":2}\n')
   assert.match(summary, /Status: \*\*updated\*\*/)
+  assert.match(summary, /Ignored 101 external or unmanaged lookalike PR/)
+  assert.ok(
+    calls.some(
+      ({ command, args }) =>
+        command === 'gh' &&
+        args[0] === 'api' &&
+        args.includes('--paginate') &&
+        args.includes('--slurp'),
+    ),
+  )
   assert.ok(
     calls.some(
       ({ command, args }) =>
@@ -291,7 +313,7 @@ test('dataset workflow rebuilds an existing automation PR when a later sample is
   )
 })
 
-test('dataset workflow refuses to force-update a manual lookalike branch', async () => {
+test('dataset workflow ignores fork and manual lookalikes while creating a managed PR', async () => {
   const calls = []
   let summary = ''
   const run = async (command, args) => {
@@ -299,18 +321,35 @@ test('dataset workflow refuses to force-update a manual lookalike branch', async
     if (command === 'git' && args[0] === 'status') {
       return { stdout: ' M data/border-rolls-v2.json\n', stderr: '', exitCode: 0 }
     }
-    if (command === 'gh' && args[0] === 'pr' && args[1] === 'list') {
+    if (command === 'gh' && args[0] === 'api' && args.includes('--slurp')) {
       return {
         stdout: JSON.stringify([
-          {
-            number: 89,
-            url: 'https://github.com/example/voyage-solver/pull/89',
-            headRefName: 'automation/border-roll-dataset-manual',
-            headRepositoryOwner: { login: 'example' },
-            isCrossRepository: false,
-            author: { login: 'maintainer', is_bot: false },
-          },
+          [
+            {
+              number: 89,
+              url: 'https://github.com/example/voyage-solver/pull/89',
+              headRefName: 'automation/border-roll-dataset-manual',
+              headRepositoryOwner: { login: 'example' },
+              isCrossRepository: false,
+              author: { login: 'maintainer', is_bot: false },
+            },
+            {
+              number: 90,
+              url: 'https://github.com/example/voyage-solver/pull/90',
+              headRefName: 'automation/border-roll-dataset-fork',
+              headRepositoryOwner: { login: 'external' },
+              isCrossRepository: true,
+              author: { login: 'external', is_bot: false },
+            },
+          ],
         ]),
+        stderr: '',
+        exitCode: 0,
+      }
+    }
+    if (command === 'gh' && args[0] === 'pr' && args[1] === 'create') {
+      return {
+        stdout: 'https://github.com/example/voyage-solver/pull/91\n',
         stderr: '',
         exitCode: 0,
       }
@@ -334,9 +373,68 @@ test('dataset workflow refuses to force-update a manual lookalike branch', async
     },
   })
 
+  assert.equal(result.status, 'created')
+  assert.equal(result.exitCode, 0)
+  assert.match(summary, /Ignored 2 external or unmanaged lookalike PR/)
+  assert.match(summary, /Status: \*\*created\*\*/)
+  assert.ok(
+    calls.some(({ command, args }) => command === 'gh' && args[0] === 'pr' && args[1] === 'create'),
+  )
+  assert.equal(
+    calls.some(
+      ({ command, args }) =>
+        command === 'git' &&
+        args[0] === 'push' &&
+        args.some((argument) => argument.startsWith('--force-with-lease')),
+    ),
+    false,
+  )
+})
+
+test('dataset workflow still blocks a managed bot PR that changes unexpected files', async () => {
+  const calls = []
+  let summary = ''
+  const managed = {
+    number: 92,
+    url: 'https://github.com/example/voyage-solver/pull/92',
+    headRefName: 'automation/border-roll-dataset-unsafe',
+    headRepositoryOwner: { login: 'example' },
+    isCrossRepository: false,
+    author: { login: 'github-actions[bot]', is_bot: true },
+  }
+  const run = async (command, args) => {
+    calls.push({ command, args })
+    if (command === 'git' && args[0] === 'status') {
+      return { stdout: ' M data/border-rolls-v2.json\n', stderr: '', exitCode: 0 }
+    }
+    if (command === 'gh' && args[0] === 'api' && args.includes('--slurp')) {
+      return { stdout: JSON.stringify([[managed]]), stderr: '', exitCode: 0 }
+    }
+    if (command === 'gh' && args[0] === 'api') {
+      return { stdout: 'data/border-rolls-v2.json\nREADME.md\n', stderr: '', exitCode: 0 }
+    }
+    return { stdout: '', stderr: '', exitCode: 0 }
+  }
+
+  const result = await reconcileBorderRollDatasetPullRequest({
+    run,
+    io: {
+      readFile: async () => '{"sampleCount":2}\n',
+      writeFile: async () => {},
+      appendFile: async (_path, contents) => {
+        summary += contents
+      },
+    },
+    env: {
+      GITHUB_REPOSITORY: 'example/voyage-solver',
+      GITHUB_RUN_ID: '202',
+      GITHUB_STEP_SUMMARY: 'summary.md',
+    },
+  })
+
   assert.equal(result.status, 'blocked')
   assert.equal(result.exitCode, 1)
-  assert.match(summary, /Status: \*\*blocked\*\*/)
+  assert.match(summary, /also changes: README\.md/)
   assert.equal(
     calls.some(({ command, args }) => command === 'git' && args[0] === 'push'),
     false,
