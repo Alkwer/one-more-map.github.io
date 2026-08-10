@@ -39,6 +39,9 @@ The project separates observed game mechanics from app-level assumptions:
   Experimental strategies remain available for manual use but do not drive the
   automatic recommendation. The default reroll prompt is limited to the 3k and
   6k Sulphur steps as an explicit guardrail, not an optimal-stopping claim.
+  Alc & Go receives fallback preference only at 50% absolute border fit or
+  better; a relative reroll-model percentile cannot promote a weaker fallback
+  to a play or switch recommendation.
 - **Still unknown:** border selection weights, duplicate and independence rules,
   the paid-reroll distribution, and the exact reset/cap behavior. The app does
   not present a uniform random simulation as a proven in-game probability model.

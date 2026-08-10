@@ -1,6 +1,7 @@
 import { borderModById } from '../data/mods'
 import {
   contextualStrategyRecommendationPriority,
+  MIN_FALLBACK_RECOMMENDATION_FIT,
   STRATEGIES,
   type StrategyDef,
   type StrategyReservationPreferences,
@@ -29,9 +30,8 @@ const POTENTIAL_SEARCH_RESTARTS = 12
 const POTENTIAL_SEARCH_ITERATIONS = 900
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value))
 
-/** Minimum contextual border fit before a ready strategy can outrank a
- * fallback solely because it belongs to a higher recommendation tier. */
-export const ABSOLUTE_STRATEGY_FIT = 0.5
+/** Shared absolute fit line for contextual strategy and fallback policy. */
+export const ABSOLUTE_STRATEGY_FIT = MIN_FALLBACK_RECOMMENDATION_FIT
 
 export type SuggestionConfidence = 'low' | 'medium' | 'high'
 export type RequiredBorderStatus = 'not-required' | 'unknown' | 'met' | 'missing'

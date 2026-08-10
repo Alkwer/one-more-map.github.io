@@ -8,6 +8,7 @@ import {
 } from './rerollAdvice'
 import {
   contextualStrategyRecommendationPriority,
+  MIN_FALLBACK_RECOMMENDATION_FIT,
   type StrategyRecommendationTier,
 } from '../data/strategies'
 import {
@@ -137,11 +138,13 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     }
     if (a.ready !== b.ready) return a.ready ? -1 : 1
     if (a.ready && b.ready) {
-      // A higher-tier strategy wins only when its current borders are actually
-      // playable. This lets a well-matched Alc & Go board beat a possible but
-      // poorly supported Strongbox/Meatfish board.
-      const aFitsCurrentBorders = input.enteredBorders === 12 ? hasFit(a, decisionFitLine) : null
-      const bFitsCurrentBorders = input.enteredBorders === 12 ? hasFit(b, decisionFitLine) : null
+      // Contextual fit boosts a fitting candidate above weak tiers. Below the
+      // fit line, fixed tiers keep a weak fallback behind a ready specialized
+      // strategy; a fitting Alc & Go can still beat a weak specialization.
+      const aFitsCurrentBorders =
+        input.enteredBorders === 12 ? hasFit(a, MIN_FALLBACK_RECOMMENDATION_FIT) : null
+      const bFitsCurrentBorders =
+        input.enteredBorders === 12 ? hasFit(b, MIN_FALLBACK_RECOMMENDATION_FIT) : null
       const priorityDifference =
         contextualStrategyRecommendationPriority(b, bFitsCurrentBorders) -
         contextualStrategyRecommendationPriority(a, aFitsCurrentBorders)
@@ -267,7 +270,11 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
   }
 
   const meetsContextFitLine = hasFit(bestReady, decisionFitLine)
+  const canUseRelativeModelKeep =
+    bestReady.recommendationTier !== 'fallback' ||
+    hasFit(bestReady, MIN_FALLBACK_RECOMMENDATION_FIT)
   const meetsModelKeepLine =
+    canUseRelativeModelKeep &&
     bestReady.rollForecast !== null &&
     keepModelPercentileLine !== null &&
     bestReady.rollForecast.currentPercentile >= keepModelPercentileLine
@@ -280,6 +287,13 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
             candidate.recommendationTier === 'specialized',
         ) ?? null)
       : null
+  const fallbackMinimumReason =
+    bestReady.recommendationTier === 'fallback' &&
+    !hasFit(bestReady, MIN_FALLBACK_RECOMMENDATION_FIT)
+      ? ` ${bestReady.strategyName} is below the ${Math.round(
+          MIN_FALLBACK_RECOMMENDATION_FIT * 100,
+        )}% minimum for fallback preference, so a relative model percentile cannot promote it to PLAY or SWITCH.`
+      : ''
 
   if (meetsContextFitLine || meetsModelKeepLine) {
     const alreadyActive = input.activeStrategyId === bestReady.strategyId
@@ -349,7 +363,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
       label: `CONSIDER REROLL — next costs ${sulphur(nextCost)} Sulphur`,
       reason: `After combining all ${input.availableCharts} imported charts with the current border roll, the best ready strategy is ${bestReady.strategyName}. The best layout found reaches ${percent(
         bestReady.fit,
-      )}, below the ${linePercent}% contextual decision line while the next roll remains inside the 3k/6k default guardrail.${modeledReason} This is experimental guidance, not Sulphur expected value.`,
+      )}, below the ${linePercent}% contextual decision line while the next roll remains inside the 3k/6k default guardrail.${fallbackMinimumReason}${modeledReason} This is experimental guidance, not Sulphur expected value.`,
       strategyId: bestReady.strategyId,
       strategyName: bestReady.strategyName,
       recommendationTier: bestReady.recommendationTier,
@@ -377,7 +391,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     label: 'STOP REROLLING — KEEP THE CURRENT BOARD',
     reason: `${bestReady.strategyName} is the best ready strategy after combining all ${input.availableCharts} imported charts with the current border roll, but the best layout found reaches only ${percent(
       bestReady.fit,
-    )}; this is not a quality endorsement.${modeledReason} ${costReason}`,
+    )}; this is not a quality endorsement.${fallbackMinimumReason}${modeledReason} ${costReason}`,
     strategyId: bestReady.strategyId,
     strategyName: bestReady.strategyName,
     recommendationTier: bestReady.recommendationTier,
