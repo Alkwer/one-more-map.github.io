@@ -254,6 +254,7 @@ function addRunnableRequirements(
   eligibleCharts: number,
   potentialFound: boolean,
   potentialValidForMode: boolean,
+  searchComplete: boolean,
 ): StrategyReadiness {
   const missing = [...readiness.missing]
   const capacityRatio = Math.min(1, eligibleCharts / 9)
@@ -264,9 +265,9 @@ function addRunnableRequirements(
         9 - eligibleCharts === 1 ? '' : 's'
       } for a full voyage`,
     )
-  } else if (!potentialFound) {
+  } else if (!potentialFound && searchComplete) {
     missing.push('a board containing every mandatory strategy piece in an allowed position')
-  } else if (!potentialValidForMode) {
+  } else if (!potentialValidForMode && searchComplete) {
     missing.push('a fully reachable connector layout from the available chart shapes')
   }
   return {
@@ -322,6 +323,7 @@ export function evaluateStrategyInventory(
       eligiblePool.length,
       potential !== null,
       potential?.valid ?? false,
+      potential?.searchComplete ?? false,
     )
     const potentialAppraisal = appraiseBorders(
       potentialBoard,
@@ -371,13 +373,13 @@ export function evaluateStrategyInventory(
     const requiredBorderChance = requiredBorderEstimate?.chance ?? null
 
     const reasons: string[] = [
-      `Evaluated all ${eligiblePool.length} eligible imported charts; the best layout found is ${
-        potential?.fullyReachable
-          ? 'fully reachable'
-          : potential?.launchable
-            ? 'launchable but contains unreachable charts'
-            : 'not connector-complete'
-      }.`,
+      !libraryReadiness.ready
+        ? `A layout search was not run because the library is missing declared strategy requirements.`
+        : potential?.valid
+          ? `The ${potential.searchMethod} solver found a fully reachable layout from ${eligiblePool.length} eligible imported charts.`
+          : potential?.searchComplete
+            ? `The exhaustive solver proved that these ${eligiblePool.length} eligible imported charts have no fully reachable layout.`
+            : `The bounded solver did not find a fully reachable layout from ${eligiblePool.length} eligible imported charts; this is not proof that none exists.`,
     ]
     if (divineJackpot) {
       reasons.push(

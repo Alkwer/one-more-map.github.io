@@ -116,6 +116,10 @@ export interface SolverResult {
   launchable: boolean
   /** whether all nine charts are reachable from the start */
   fullyReachable: boolean
+  /** exhaustive searches prove their negative result; heuristic searches do not */
+  searchMethod: 'exhaustive' | 'heuristic'
+  /** true only when every arrangement in the supported search space was checked */
+  searchComplete: boolean
 }
 
 const VIOLATION_PENALTY = 10_000
@@ -208,6 +212,11 @@ export function solve(
   }
 
   const CAP = Math.max(opts.topK * 4, 20)
+  const searchMethod =
+    eligiblePool.length <= 9 && !opts.allowRotation && !opts.forceHeuristic
+      ? 'exhaustive'
+      : 'heuristic'
+  const searchComplete = searchMethod === 'exhaustive'
   let top: SolverResult[] = []
   const seen = new Set<string>()
   const record = (board: Board) => {
@@ -230,12 +239,14 @@ export function solve(
       valid,
       launchable,
       fullyReachable,
+      searchMethod,
+      searchComplete,
     })
     top.sort((a, b) => b.score - a.score)
     if (top.length > CAP) top = top.slice(0, CAP)
   }
 
-  if (eligiblePool.length <= 9 && !opts.allowRotation && !opts.forceHeuristic) {
+  if (searchComplete) {
     exactSearch(eligiblePool, locked, record)
   } else {
     hillClimb(eligiblePool, borders, charts, weights, opts, locked, requirementsSatisfied, record)

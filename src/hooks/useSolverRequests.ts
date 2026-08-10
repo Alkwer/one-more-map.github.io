@@ -159,10 +159,16 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
           notes.push(`Only ${solvePool.length} spare charts - not enough for a full board.`)
         else if (activeStrategy?.requirements?.length && response.length === 0)
           notes.push(
-            'No board can satisfy every mandatory strategy piece in its allowed position with the available and locked charts.',
+            state.allowRotation || solvePool.length > 9
+              ? 'The bounded solver did not find a board satisfying every mandatory strategy position. Try again or change the search inputs.'
+              : 'No board can satisfy every mandatory strategy piece in its allowed position with the available and locked charts.',
           )
         else if (response.length && !response[0].valid)
-          notes.push('No fully reachable layout from these charts - best partial shown.')
+          notes.push(
+            response[0].searchComplete
+              ? 'No fully reachable layout exists for these charts - best partial shown.'
+              : 'The bounded solver did not find a fully reachable layout - best partial shown. Try again to explore another search path.',
+          )
         setNoteState({ key: requestKey, text: notes.join(' ') })
       })
       .catch((error: unknown) => {
@@ -228,7 +234,9 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
           key: requestKey,
           text: response[0]?.valid
             ? 'Filler voyage: lowest-value fully reachable board from your spare charts (your best, strategy-protected & locked charts untouched).'
-            : 'No fully reachable filler layout from your spare charts.',
+            : response[0]?.searchComplete
+              ? 'No fully reachable filler layout exists for your spare charts.'
+              : 'The bounded solver did not find a fully reachable filler layout. Try again to explore another search path.',
         })
       })
       .catch((error: unknown) => {
