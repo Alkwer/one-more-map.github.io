@@ -12,6 +12,7 @@ import {
   nextPendingBorderSubmission,
   queuedBorderSubmissionMatchesSamples,
   removeQueuedBorderSubmission,
+  resetBorderSubmissionStore,
   retryQueuedBorderSubmission,
   saveBorderSubmissionStore,
   sendQueuedBorderSubmission,
@@ -41,7 +42,12 @@ describe('border roll automatic submission queue', () => {
   beforeEach(() => {
     values = new Map<string, string>()
     vi.stubGlobal('localStorage', {
+      get length() {
+        return values.size
+      },
       getItem: vi.fn((key: string) => values.get(key) ?? null),
+      key: vi.fn((index: number) => [...values.keys()][index] ?? null),
+      removeItem: vi.fn((key: string) => values.delete(key)),
       setItem: vi.fn((key: string, value: string) => values.set(key, value)),
     })
   })
@@ -94,10 +100,15 @@ describe('border roll automatic submission queue', () => {
         ],
       }),
     )
+    values.set(
+      `${BORDER_SUBMISSION_STORAGE_KEY}-recovery-old`,
+      JSON.stringify({ settings: { submissionKey: 'old-backup-key' }, queue: [] }),
+    )
 
     expect(loadBorderSubmissionStore()).toMatchObject({
       version: 3,
       settings: { enabled: true, submissionKey: '' },
+      credentialRotationRequired: true,
       queue: [
         {
           sequenceId: 'voyage-auto-test',
@@ -109,6 +120,74 @@ describe('border roll automatic submission queue', () => {
     expect(migrated).not.toContain('rotate-this-key')
     expect(migrated).not.toContain('submissionKey')
     expect(migrated).not.toContain('queuedAt')
+    for (const value of values.values()) {
+      expect(value).not.toContain('rotate-this-key')
+      expect(value).not.toContain('old-backup-key')
+      expect(value).not.toContain('submissionKey')
+    }
+  })
+
+  it('quarantines an invalid legacy outbox only after removing its private key', () => {
+    values.set(
+      BORDER_SUBMISSION_STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        settings: { enabled: true, submissionKey: 'invalid-store-key' },
+        queue: [{ sequenceId: 'broken', dataset: { samples: [] } }],
+      }),
+    )
+
+    const loaded = loadBorderSubmissionStore()
+
+    expect(loaded).toMatchObject({
+      credentialRotationRequired: true,
+      recovery: { code: 'invalid' },
+    })
+    expect(loaded.recovery?.raw).not.toContain('invalid-store-key')
+    expect(loaded.recovery?.raw).not.toContain('submissionKey')
+    for (const value of values.values()) {
+      expect(value).not.toContain('invalid-store-key')
+      expect(value).not.toContain('submissionKey')
+    }
+  })
+
+  it('discards malformed legacy JSON rather than backing up or exporting its private key', () => {
+    values.set(
+      BORDER_SUBMISSION_STORAGE_KEY,
+      '{"version":1,"settings":{"enabled":true,"submissionKey":"discard-this-key"',
+    )
+
+    const loaded = loadBorderSubmissionStore()
+
+    expect(loaded).toMatchObject({
+      settings: { enabled: false, submissionKey: '' },
+      queue: [],
+      credentialRotationRequired: true,
+    })
+    expect(loaded.recovery).toBeUndefined()
+    expect(values.has(BORDER_SUBMISSION_STORAGE_KEY)).toBe(false)
+    expect([...values.values()].join('\n')).not.toContain('discard-this-key')
+  })
+
+  it('purges legacy credentials from active and recovery storage during reset', () => {
+    values.set(
+      BORDER_SUBMISSION_STORAGE_KEY,
+      JSON.stringify({ version: 1, settings: { submissionKey: 'active-reset-key' } }),
+    )
+    values.set(
+      `${BORDER_SUBMISSION_STORAGE_KEY}-recovery-reset`,
+      JSON.stringify({ settings: { submissionKey: 'backup-reset-key' } }),
+    )
+
+    expect(resetBorderSubmissionStore()).toMatchObject({
+      settings: { enabled: false, submissionKey: '' },
+      credentialRotationRequired: true,
+    })
+    for (const value of values.values()) {
+      expect(value).not.toContain('active-reset-key')
+      expect(value).not.toContain('backup-reset-key')
+      expect(value).not.toContain('submissionKey')
+    }
   })
 
   it('persists failed delivery state without a busy flag across reloads', () => {

@@ -129,12 +129,17 @@ resulting issue number/URL. It does not retain the submitted JSON or OCR output.
 
 ### Key rotation
 
-Version 2 of the browser outbox automatically rewrites valid version 1 data on
-load, removing any previously persisted submission key before the application
-renders. Operators should revoke or replace the old intake key in the service,
-distribute the replacement only to authorised contributors, and ask them to
-enter it again for the current tab. Rotating the key does not discard queued
-datasets; after a replacement is entered, the existing outbox retries normally.
+The current browser outbox automatically rewrites valid legacy data on load,
+removing any previously persisted submission key before the application
+renders. It also scrubs the key from parseable recovery backups. A malformed
+payload that contains a key cannot be exported safely and is discarded instead
+of being quarantined with the credential. The UI reports this cleanup and asks
+the operator to rotate the exposed key. Reset performs the same purge.
+
+Operators should revoke or replace the old intake key in the service, distribute
+the replacement only to authorised contributors, and ask them to enter it again
+for the current tab. Rotating the key does not discard a valid queued dataset;
+after a replacement is entered, the existing outbox retries normally.
 
 ## Canonical dataset
 
