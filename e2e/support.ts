@@ -66,8 +66,9 @@ function isLocalUrl(url: string): boolean {
   }
 }
 
-export const test = base.extend<{ appPage: Page }>({
-  appPage: async ({ page }, use) => {
+export const test = base.extend<{ appPage: Page; ahkNoticeSeen: boolean }>({
+  ahkNoticeSeen: [true, { option: true }],
+  appPage: async ({ page, ahkNoticeSeen }, use) => {
     const browserErrors: string[] = []
 
     for (const protocol of ['http', 'https']) {
@@ -75,13 +76,14 @@ export const test = base.extend<{ appPage: Page }>({
         route.fulfill({ status: 204, contentType: 'application/javascript', body: '' }),
       )
     }
-    await page.addInitScript(() => {
+    await page.addInitScript((noticeSeen) => {
       try {
         localStorage.setItem('onboarding-seen', '1')
+        if (noticeSeen) localStorage.setItem('announce-ahk-page2', '1')
       } catch {
         // The initial about:blank document has no usable storage origin.
       }
-    })
+    }, ahkNoticeSeen)
 
     page.on('pageerror', (error) => browserErrors.push(`pageerror: ${error.message}`))
     page.on('console', (message) => {

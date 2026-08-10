@@ -309,6 +309,37 @@ test('moves focus from automatic first-run onboarding to the first header action
   await expect(appPage.getByRole('button', { name: /TUTORIAL/ })).toBeFocused()
 })
 
+test.describe('importer update notice', () => {
+  test.use({ ahkNoticeSeen: false })
+
+  test('appears once for returning users and preserves normal interaction after dismissal', async ({
+    appPage,
+  }) => {
+    await openApp(appPage)
+
+    const notice = appPage.getByRole('dialog', { name: /Importer updated/ })
+    await expect(notice).toBeVisible()
+    await expect(notice).toContainText('two pages')
+    await expect(notice).toContainText('Shift+F7')
+    const downloadLink = notice.getByRole('link', { name: /Download the updated script/ })
+    await expect
+      .poll(() =>
+        downloadLink.evaluate((element) => new URL((element as HTMLAnchorElement).href).pathname),
+      )
+      .toBe(`${APP_PATH}voyage-import.ahk`)
+    expect(await appPage.evaluate(() => localStorage.getItem('announce-ahk-page2'))).toBeNull()
+
+    await notice.getByRole('button', { name: 'Got it' }).click()
+    await expect(notice).toHaveCount(0)
+    expect(await appPage.evaluate(() => localStorage.getItem('announce-ahk-page2'))).toBe('1')
+
+    await appPage.reload()
+    await expect(notice).toHaveCount(0)
+    await appPage.getByRole('button', { name: '+ Add chart', exact: true }).click()
+    await expect(libraryHeading(appPage)).toContainText('(1)')
+  })
+})
+
 test('reports partial and blocked additions at the 250-chart library boundary', async ({
   appPage,
 }) => {
