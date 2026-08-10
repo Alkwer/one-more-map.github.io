@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { PositionRule } from '../src/data/strategies'
 import type { Borders, ChartData, Edges } from '../src/types'
-import { rotateEdges } from '../src/logic/connectivity'
+import { checkConnectivity, rotateEdges } from '../src/logic/connectivity'
 import { solve, type SolverOptions } from '../src/logic/solver'
 
 const EMPTY_EDGES: Edges = [false, false, false, false]
@@ -50,6 +50,8 @@ describe('exact solver', () => {
     expect(results[0].board[0]?.chartUid).toBe('high')
     expect(results[0].reward).toBeCloseTo(1.9)
     expect(results.every((result) => result.valid)).toBe(true)
+    expect(results.every((result) => result.searchMethod === 'exhaustive')).toBe(true)
+    expect(results.every((result) => result.searchComplete)).toBe(true)
   })
 
   it('minimizes actual reward while keeping the objective ordering internal', () => {
@@ -94,6 +96,48 @@ describe('exact solver', () => {
 })
 
 describe('heuristic solver', () => {
+  it('marks a bounded miss as inconclusive when a valid arrangement is independently known', () => {
+    const corners = Array.from({ length: 6 }, (_, index) =>
+      chart(`corner-${index}`, 0, { edges: [true, true, false, false] }),
+    )
+    const straights = Array.from({ length: 3 }, (_, index) =>
+      chart(`straight-${index}`, 0, { edges: VERTICAL }),
+    )
+    const pool = [...corners, ...straights]
+    const knownValidBoard = [
+      { chartUid: corners[0].uid, rotation: 1 },
+      { chartUid: straights[0].uid, rotation: 1 },
+      { chartUid: corners[1].uid, rotation: 3 },
+      { chartUid: corners[2].uid, rotation: 0 },
+      { chartUid: straights[1].uid, rotation: 1 },
+      { chartUid: corners[3].uid, rotation: 2 },
+      { chartUid: corners[4].uid, rotation: 1 },
+      { chartUid: straights[2].uid, rotation: 1 },
+      { chartUid: corners[5].uid, rotation: 3 },
+    ]
+    expect(
+      checkConnectivity(knownValidBoard, new Map(pool.map((c) => [c.uid, c])), 'strict').valid,
+    ).toBe(true)
+    const [bounded] = solve(
+      pool,
+      emptyBorders(),
+      {},
+      baseOptions({
+        mode: 'strict',
+        allowRotation: true,
+        forceHeuristic: true,
+        searchRestarts: 1,
+        searchIterations: 0,
+        seed: 12,
+        topK: 1,
+      }),
+    )
+
+    expect(bounded.valid).toBe(false)
+    expect(bounded.searchMethod).toBe('heuristic')
+    expect(bounded.searchComplete).toBe(false)
+  })
+
   it('is repeatable for the same seed and selects the best nine-chart subset', () => {
     const pool = Array.from({ length: 10 }, (_, index) =>
       chart(`reward-${index + 1}`, (index + 1) * 10),

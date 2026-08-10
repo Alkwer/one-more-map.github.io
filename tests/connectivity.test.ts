@@ -117,6 +117,25 @@ describe('connectivity regressions', () => {
     assert.equal(result.launchable, true)
     assert.equal(result.fullyReachable, false)
     assert.equal(result.valid, false)
+    assert.equal(result.searchMethod, 'heuristic')
+    assert.equal(result.searchComplete, false)
+
+    const [exhaustive] = solve(
+      verticals,
+      emptyBorders(),
+      {},
+      {
+        mode: 'strict',
+        allowRotation: false,
+        adjacencyMode: 'physical',
+        adjacentAffectsSelf: false,
+        disabledMods: new Set(),
+        topK: 1,
+      },
+    )
+    assert.equal(exhaustive.valid, false)
+    assert.equal(exhaustive.searchMethod, 'exhaustive')
+    assert.equal(exhaustive.searchComplete, true)
 
     const inventory = evaluateStrategyInventory(emptyBorders(), verticalMap, verticals, {
       mode: 'strict',
@@ -129,9 +148,9 @@ describe('connectivity regressions', () => {
     assert.ok(alcAndGo)
     assert.equal(alcAndGo.potentialLaunchable, true)
     assert.equal(alcAndGo.potentialFullyReachable, false)
-    assert.equal(alcAndGo.readiness.ready, false)
+    assert.equal(alcAndGo.readiness.ready, true)
     assert.ok(
-      alcAndGo.readiness.missing.some((entry) => /fully reachable connector layout/.test(entry)),
+      alcAndGo.reasons.some((entry) => /bounded solver did not find.*not proof/.test(entry)),
     )
   })
 })
