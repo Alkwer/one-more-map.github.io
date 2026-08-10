@@ -227,6 +227,12 @@ export function BorderRollResearch({ borders, controller }: Props) {
         Voyages explicitly. Keys saved by older versions are erased on load; rotate a previously
         stored key before re-entering it.
       </div>
+      {controller.submissionStore.credentialRotationRequired && (
+        <div className="share-banner error" role="alert">
+          A private key saved by an older version was removed from active storage and recovery
+          backups. Revoke or rotate that key before entering its replacement.
+        </div>
+      )}
       <div className="roll-research-status">
         <span>
           {controller.endpointConfigured

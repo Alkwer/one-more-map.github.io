@@ -1059,6 +1059,42 @@ test('reports partial delivery when either successful-submission bookkeeping wri
   expect((await storedSubmission()).queue).toHaveLength(1)
 })
 
+test('scrubs a private key before exposing invalid legacy outbox recovery', async ({ appPage }) => {
+  await appPage.addInitScript(() => {
+    localStorage.setItem(
+      'allflame-border-roll-submission',
+      JSON.stringify({
+        version: 1,
+        settings: { enabled: true, submissionKey: 'legacy-active-secret' },
+        queue: [{ sequenceId: 'broken', dataset: { samples: [] } }],
+      }),
+    )
+    localStorage.setItem(
+      'allflame-border-roll-submission-recovery-legacy',
+      JSON.stringify({ settings: { submissionKey: 'legacy-backup-secret' } }),
+    )
+  })
+
+  await openApp(appPage)
+  const research = appPage.locator('details.roll-research')
+  await research.locator('summary').click()
+
+  await expect(
+    research.getByRole('alert').filter({ hasText: 'A private key saved by an older version' }),
+  ).toContainText('Revoke or rotate that key')
+  await expect(
+    research.getByRole('alert', { name: 'Border submission queue needs recovery' }),
+  ).toBeVisible()
+  const persistedSubmissionValues = await appPage.evaluate(() =>
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith('allflame-border-roll-submission'))
+      .map((key) => localStorage.getItem(key) ?? ''),
+  )
+  expect(persistedSubmissionValues.join('\n')).not.toContain('legacy-active-secret')
+  expect(persistedSubmissionValues.join('\n')).not.toContain('legacy-backup-secret')
+  expect(persistedSubmissionValues.join('\n')).not.toContain('submissionKey')
+})
+
 test('archives a Voyage only after the automatic outbox receives a success response', async ({
   appPage,
 }) => {
