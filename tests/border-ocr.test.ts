@@ -232,7 +232,7 @@ describe('border OCR regressions', () => {
     assert.match(borderRefreshHotkey, /borderBlob := ScanBorders\(\)/)
     assert.match(borderRefreshHotkey, /rerollCostBlob := ScanRerollCost\(\)/)
     assert.match(borderRefreshHotkey, /payload := borderBlob/)
-    assert.match(borderRefreshHotkey, /PasteIntoSolver\(\s*payload/)
+    assert.match(borderRefreshHotkey, /CopyPayloadForExplicitPaste\(payload\)/)
     assert.match(ahkImporter, /\^F7:: \{/)
     assert.match(ahkImporter, /\+F7:: \{/)
     assert.match(ahkImporter, /\+F8:: \{/)
@@ -256,6 +256,45 @@ describe('border OCR regressions', () => {
       ahkImporter,
       /throw 'Windows OCR is unavailable for English \(United States\)\.'/,
     )
+  })
+
+  it('never sends a payload to a decoy solver window with the same title', () => {
+    const ahkImporter = readFileSync(
+      new URL('../public/voyage-import.ahk', import.meta.url),
+      'utf8',
+    )
+    const clipboardFunctionStart = ahkImporter.indexOf('CopyPayloadForExplicitPaste(payload)')
+    const bindHotkeyStart = ahkImporter.indexOf('^F3:: {', clipboardFunctionStart)
+    const clipboardFunction = ahkImporter.slice(clipboardFunctionStart, bindHotkeyStart)
+
+    assert.ok(clipboardFunctionStart >= 0, 'explicit clipboard handoff is missing')
+    assert.match(clipboardFunction, /A_Clipboard := payload/)
+    assert.doesNotMatch(clipboardFunction, /WinActivate|WinWaitActive|Send/)
+    assert.doesNotMatch(ahkImporter, /Allflame Voyage Solver|BrowserWinTitle/)
+    assert.doesNotMatch(ahkImporter, /Send\s+"\^v"/)
+  })
+
+  it('does not authenticate a browser merely titled Path of Exile', () => {
+    const ahkImporter = readFileSync(
+      new URL('../public/voyage-import.ahk', import.meta.url),
+      'utf8',
+    )
+
+    assert.match(ahkImporter, /ExpectedPoeClass := "POEWindowClass"/)
+    assert.match(ahkImporter, /\^F3:: \{/)
+    assert.match(ahkImporter, /activeHwnd := WinExist\("A"\)/)
+    assert.match(ahkImporter, /WinGetClass\("ahk_id " activeHwnd\) != ExpectedPoeClass/)
+    assert.match(ahkImporter, /PoeHwnd := activeHwnd/)
+    assert.match(ahkImporter, /PoePid := WinGetPID\("ahk_id " activeHwnd\)/)
+    assert.match(ahkImporter, /PoeImagePath := imagePath/)
+    assert.match(ahkImporter, /PathOfExile\[_A-Za-z0-9-\]\*\\\.exe/)
+    assert.match(ahkImporter, /installDir "\\Content\.ggpk"/)
+    assert.match(ahkImporter, /RejectReparseComponents\(imagePath\)/)
+    assert.match(ahkImporter, /candidates\.Length != 1/)
+    assert.match(ahkImporter, /ValidateBoundPoeWindow\(requireForeground := false\)/)
+    assert.match(ahkImporter, /RequireBoundPoeForeground\(\)/)
+    assert.match(ahkImporter, /WinActivate "ahk_id " PoeHwnd/)
+    assert.doesNotMatch(ahkImporter, /PoeWinTitle|SetTitleMatchMode/)
   })
 
   it.skipIf(process.platform !== 'win32')(

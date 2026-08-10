@@ -1,7 +1,6 @@
 #Requires AutoHotkey v2.0
 #SingleInstance Force
 SetWorkingDir A_ScriptDir
-SetTitleMatchMode 2          ; match window titles by "contains"
 CoordMode "Mouse", "Screen"  ; all coords are absolute screen pixels
 CoordMode "ToolTip", "Screen"
 
@@ -16,8 +15,8 @@ CoordMode "ToolTip", "Screen"
 ;              button. An in-memory PowerShell helper captures the PoE window
 ;              and reads each tooltip with the Windows OCR engine. No script is
 ;              executed from TEMP, and screenshots never leave the PC.
-;    Phase 3 - switches to the browser ONCE and pastes the whole buffer;
-;              the solver parses and imports every chart from that one paste.
+;    Phase 3 - leaves the combined payload on the clipboard. You return to the
+;              verified solver page and paste it explicitly with Ctrl+V.
 ;    Empty cells copy nothing and are skipped.
 ;
 ;  ---------------------------------------------------------------
@@ -26,10 +25,11 @@ CoordMode "ToolTip", "Screen"
 ;   2. In PoE open the Voyage board so the Chart panel is fully
 ;      visible and NOT scrolled. Use Windowed or Windowed Fullscreen
 ;      (exclusive fullscreen can block the mouse/keys).
-;   3. Open the solver in your browser; the tab title must contain
-;      "Allflame Voyage Solver", and click once inside the page so
-;      focus is on the page (not the address bar).
-;   4. Double-click this file to run it (it lives in the tray).
+;   3. Double-click this file to run it (it lives in the tray). With PoE as the
+;      foreground window, press Ctrl+F3 once per script launch to bind the exact
+;      PoE window, process, class, and installation image.
+;   4. Keep the solver open at the verified URL shown in its address bar. The
+;      script never selects a browser window or pastes automatically.
 ;
 ;  CALIBRATE THE BOARD BORDERS (once; saved to voyage-import.ini)
 ;   - Point at the TOP-LEFT corner of the border-modifier square, press F5.
@@ -56,7 +56,8 @@ CoordMode "ToolTip", "Screen"
 ;   - Set GridCols / GridRows below to match your panel.
 ;
 ;  RUN
-;   F9      = import charts + board borders
+;   Ctrl+F3 = bind the foreground PoE window for this script session
+;   F9      = copy charts + board borders to the clipboard
 ;   Ctrl+F9 = refresh only the 12 board borders (use after a reroll)
 ;             and the reroll cost when Ctrl+F7 was calibrated
 ;   F10     = abort at any time
@@ -67,8 +68,10 @@ CoordMode "ToolTip", "Screen"
 ; =====================================================================
 
 ; ---------------- CONFIG ----------------
-PoeWinTitle     := "Path of Exile"           ; PoE window title
-BrowserWinTitle := "Allflame Voyage Solver"  ; the solver's browser tab title
+ExpectedPoeClass := "POEWindowClass"
+PoeHwnd := 0
+PoePid := 0
+PoeImagePath := ""
 
 GridCols := 6    ; columns in the Chart panel
 GridRows := 10   ; rows to sweep (overshooting is fine - empty cells skip)
@@ -80,12 +83,11 @@ BorderHoverDelay := 250 ; ms for a border tooltip to appear before OCR capture
 RerollHoverDelay := 350 ; ms for the reroll-cost tooltip to appear
 BorderOcrAttempts := 2  ; retry once when both filtered and unfiltered OCR are empty
 BorderPreviewDelay := 900 ; ms per point during the Ctrl+F4 visual preview
-PasteDelay    := 90    ; ms after the single big paste
 ClipTimeout   := 0.2   ; seconds to wait for Ctrl+C (only empty cells wait the full time)
 EmptySkip     := 8     ; consecutive empty cells = the rest of the tab is empty, skip it
 OcrTimeout    := 90    ; seconds before a stuck Windows OCR scan is stopped
 ; If it ever MISSES a chart, raise HoverDelay ~10ms at a time (the cursor
-; isn't settling before Ctrl+C). If the final paste drops some, raise PasteDelay.
+; isn't settling before Ctrl+C).
 ; ----------------------------------------
 
 IniFile := A_ScriptDir "\voyage-import.ini"
@@ -232,6 +234,102 @@ ProcessImagePath(pid) {
     } finally {
         DllCall("CloseHandle", "Ptr", handle)
     }
+}
+
+CanonicalPoeImageForWindow(hwnd) {
+    pid := WinGetPID("ahk_id " hwnd)
+    imagePath := CanonicalFilePath(ProcessImagePath(pid))
+    if (SubStr(imagePath, 1, 4) = "\\?\")
+        imagePath := SubStr(imagePath, 5)
+    return LongPath(imagePath)
+}
+
+IsExpectedPoeImage(imagePath) {
+    SplitPath imagePath, &fileName, &installDir
+    if !RegExMatch(fileName, "i)^PathOfExile[_A-Za-z0-9-]*\.exe$")
+        return false
+    contentArchive := installDir "\Content.ggpk"
+    attributes := FileExist(contentArchive)
+    return attributes && !InStr(attributes, "D")
+}
+
+PoeCandidateWindows() {
+    global ExpectedPoeClass
+    candidates := []
+    for hwnd in WinGetList("ahk_class " ExpectedPoeClass) {
+        try {
+            imagePath := CanonicalPoeImageForWindow(hwnd)
+            if IsExpectedPoeImage(imagePath)
+                candidates.Push(hwnd)
+        }
+    }
+    return candidates
+}
+
+BindForegroundPoeWindow() {
+    global ExpectedPoeClass, PoeHwnd, PoePid, PoeImagePath
+    activeHwnd := WinExist("A")
+    if !activeHwnd
+        throw Error("No foreground window is available to bind.")
+    if (WinGetClass("ahk_id " activeHwnd) != ExpectedPoeClass)
+        throw Error("The foreground window is not the expected Path of Exile window class.")
+
+    candidates := PoeCandidateWindows()
+    if (candidates.Length != 1)
+        throw Error("Expected exactly one authenticated Path of Exile window; found " candidates.Length ".")
+    if (candidates[1] != activeHwnd)
+        throw Error("The authenticated Path of Exile window is not in the foreground.")
+
+    imagePath := CanonicalPoeImageForWindow(activeHwnd)
+    RejectReparseComponents(imagePath)
+    if !IsExpectedPoeImage(imagePath)
+        throw Error("The foreground process is not inside a complete Path of Exile installation.")
+
+    PoeHwnd := activeHwnd
+    PoePid := WinGetPID("ahk_id " activeHwnd)
+    PoeImagePath := imagePath
+}
+
+ValidateBoundPoeWindow(requireForeground := false) {
+    global ExpectedPoeClass, PoeHwnd, PoePid, PoeImagePath
+    if !PoeHwnd || !WinExist("ahk_id " PoeHwnd)
+        return false
+    try {
+        if (WinGetClass("ahk_id " PoeHwnd) != ExpectedPoeClass)
+            return false
+        if (WinGetPID("ahk_id " PoeHwnd) != PoePid)
+            return false
+        currentImagePath := CanonicalPoeImageForWindow(PoeHwnd)
+        RejectReparseComponents(currentImagePath)
+        if !IsExpectedPoeImage(currentImagePath)
+            return false
+        if (NormalizeWindowsPath(currentImagePath) != NormalizeWindowsPath(PoeImagePath))
+            return false
+        candidates := PoeCandidateWindows()
+        if (candidates.Length != 1 || candidates[1] != PoeHwnd)
+            return false
+        if requireForeground && (WinExist("A") != PoeHwnd)
+            return false
+        return true
+    }
+    return false
+}
+
+RequireBoundPoeForeground() {
+    if ValidateBoundPoeWindow(true)
+        return true
+    Flash "PoE identity or foreground ownership changed - aborted. Focus the real game and press Ctrl+F3 to bind it again.", 5000
+    return false
+}
+
+ActivateBoundPoeWindow() {
+    global PoeHwnd
+    if !ValidateBoundPoeWindow(false)
+        return false
+    WinActivate "ahk_id " PoeHwnd
+    if !WinWaitActive("ahk_id " PoeHwnd, , 2)
+        return false
+    return ValidateBoundPoeWindow(true)
 }
 
 PowerShellTrust := ResolveTrustedPowerShell()
@@ -743,12 +841,10 @@ ClearOcrEnvironment() {
 }
 
 PreferredOcrLanguage() {
-    global PoeWinTitle
-    try {
-        processName := WinGetProcessName(PoeWinTitle)
-        if RegExMatch(processName, "i)_KG\.exe$")
-            return "ko-KR"
-    }
+    global PoeImagePath
+    SplitPath PoeImagePath, &processName
+    if RegExMatch(processName, "i)_KG\.exe$")
+        return "ko-KR"
     return ""
 }
 
@@ -794,13 +890,19 @@ RunOcrHelper(options, cancellable := true, preferredLanguage := "") {
 }
 
 ScanBorders() {
-    global PoeWinTitle, BorderHoverDelay, BorderOcrAttempts, Running, LastBorderScanBlocks
-    WinGetPos &winX, &winY, &winW, &winH, PoeWinTitle
+    global PoeHwnd, BorderHoverDelay, BorderOcrAttempts, Running, LastBorderScanBlocks
+    if !RequireBoundPoeForeground() {
+        Running := false
+        return ""
+    }
+    WinGetPos &winX, &winY, &winW, &winH, "ahk_id " PoeHwnd
     result := ""
     LastBorderScanBlocks := 0
     for index, point in BorderPoints() {
-        if !Running
+        if !Running || !RequireBoundPoeForeground() {
+            Running := false
             break
+        }
         options := Map(
             "Index", index - 1,
             "WindowLeft", winX,
@@ -819,6 +921,10 @@ ScanBorders() {
             Sleep BorderHoverDelay + (attempt - 1) * 200
             ToolTip()
             Sleep 30
+            if !RequireBoundPoeForeground() {
+                Running := false
+                break
+            }
             block := RunOcrHelper(options)
             if (block != "")
                 && !InStr(block, "Windows OCR returned no text")
@@ -839,11 +945,15 @@ ScanBorders() {
 }
 
 ScanRerollCost() {
-    global PoeWinTitle, RerollX, RerollY, RerollHoverDelay, BorderOcrAttempts, Running
+    global PoeHwnd, RerollX, RerollY, RerollHoverDelay, BorderOcrAttempts, Running
     if !RerollCostCalibrated()
         return ""
+    if !RequireBoundPoeForeground() {
+        Running := false
+        return ""
+    }
 
-    WinGetPos &winX, &winY, &winW, &winH, PoeWinTitle
+    WinGetPos &winX, &winY, &winW, &winH, "ahk_id " PoeHwnd
     options := Map(
         "RerollCost", true,
         "WindowLeft", winX,
@@ -862,6 +972,10 @@ ScanRerollCost() {
         Sleep RerollHoverDelay + (attempt - 1) * 200
         ToolTip()
         Sleep 30
+        if !RequireBoundPoeForeground() {
+            Running := false
+            break
+        }
         block := RunOcrHelper(options)
         if RegExMatch(block, "i)Border\s+Modifiers?\s+Reroll\s+Cost")
             && RegExMatch(block, "i)(?:3|6|12|24|48)[\s,.]*[0o]{3}")
@@ -870,23 +984,15 @@ ScanRerollCost() {
     return block
 }
 
-PasteIntoSolver(payload, failureMessage) {
-    global BrowserWinTitle, ActivateDelay, PasteDelay, Running
+CopyPayloadForExplicitPaste(payload) {
     if (payload = "")
         return false
 
     A_Clipboard := payload
-    ClipWait 1
-    WinActivate BrowserWinTitle
-    if !WinWaitActive(BrowserWinTitle, , 2) {
-        Running := false
-        Flash failureMessage, 4000
+    if !ClipWait(1) {
+        Flash "Could not place the import payload on the clipboard.", 4000
         return false
     }
-
-    Sleep ActivateDelay
-    Send "^v"
-    Sleep PasteDelay
     return true
 }
 
@@ -902,9 +1008,25 @@ if A_Args.Length >= 2
     ExitApp
 }
 
+; ---- Ctrl+F3: bind one explicit, authenticated PoE window for this session ----
+^F3:: {
+    global PoeHwnd, PoePid, PoeImagePath
+    try {
+        BindForegroundPoeWindow()
+        Flash "Bound the foreground Path of Exile window.`nPID " PoePid "`n" PoeImagePath, 6000
+    } catch as error {
+        PoeHwnd := 0
+        PoePid := 0
+        PoeImagePath := ""
+        MsgBox "Could not bind Path of Exile:`n" error.Message
+    }
+}
+
 ; ---- F5 / F6: capture the outer board-border rectangle ----
 F5:: {
     global
+    if !RequireBoundPoeForeground()
+        return
     ClearExactBorderCalibration()
     MouseGetPos &x, &y
     BorderTLx := x, BorderTLy := y
@@ -914,6 +1036,8 @@ F5:: {
 }
 F6:: {
     global
+    if !RequireBoundPoeForeground()
+        return
     ClearExactBorderCalibration()
     MouseGetPos &x, &y
     BorderBRx := x, BorderBRy := y
@@ -925,6 +1049,8 @@ F6:: {
 ; ---- Ctrl+F5 / Ctrl+F6: guided exact calibration of all 12 modifiers ----
 ^F5:: {
     global
+    if !RequireBoundPoeForeground()
+        return
     ClearExactBorderCalibration()
     ExactBorderNext := 1
     Flash "Exact border calibration started."
@@ -934,6 +1060,8 @@ F6:: {
 
 ^F6:: {
     global
+    if !RequireBoundPoeForeground()
+        return
     if (ExactBorderNext < 1 || ExactBorderNext > 12) {
         Flash "Press Ctrl+F5 first to start exact border calibration.", 3500
         return
@@ -969,22 +1097,23 @@ F6:: {
         MsgBox "Calibrate borders first with F5/F6 or Ctrl+F5/Ctrl+F6."
         return
     }
-    if !WinExist(PoeWinTitle) {
-        MsgBox "Can't find the PoE window (" PoeWinTitle ")."
+    if !ValidateBoundPoeWindow(false) {
+        MsgBox "Focus the real Path of Exile window and press Ctrl+F3 before previewing."
         return
     }
 
     Running := true
-    WinActivate PoeWinTitle
-    if !WinWaitActive(PoeWinTitle, , 2) {
+    if !ActivateBoundPoeWindow() {
         Running := false
-        Flash "Couldn't focus PoE.", 3000
+        Flash "Couldn't activate the authenticated PoE window.", 3000
         return
     }
 
     for index, point in BorderPoints() {
-        if !Running
+        if !Running || !RequireBoundPoeForeground() {
+            Running := false
             break
+        }
         MouseMove point[1], point[2], 0
         ToolTip "Border preview " index "/12"
             . "`n" BorderPointLabel(index)
@@ -992,7 +1121,7 @@ F6:: {
         Sleep BorderPreviewDelay
     }
 
-    if Running && RerollCostCalibrated() {
+    if Running && RerollCostCalibrated() && RequireBoundPoeForeground() {
         MouseMove RerollX, RerollY, 0
         ToolTip "Reroll-cost preview"
             . "`nThe cost tooltip should now be visible."
@@ -1010,6 +1139,8 @@ F6:: {
 ; ---- Ctrl+F7: capture the border-reroll button ----
 ^F7:: {
     global
+    if !RequireBoundPoeForeground()
+        return
     MouseGetPos &x, &y
     RerollX := x, RerollY := y
     IniWrite RerollX, IniFile, "board", "RerollX"
@@ -1021,6 +1152,8 @@ F6:: {
 ; ---- F7 / F8: capture the grid corners ----
 F7:: {
     global
+    if !RequireBoundPoeForeground()
+        return
     MouseGetPos &x, &y
     TLx := x, TLy := y
     IniWrite TLx, IniFile, "grid", "TLx"
@@ -1029,6 +1162,8 @@ F7:: {
 }
 F8:: {
     global
+    if !RequireBoundPoeForeground()
+        return
     MouseGetPos &x, &y
     BRx := x, BRy := y
     IniWrite BRx, IniFile, "grid", "BRx"
@@ -1039,6 +1174,8 @@ F8:: {
 ; ---- Shift+F7 / Shift+F8: capture the two chart-stash tabs ----
 +F7:: {
     global
+    if !RequireBoundPoeForeground()
+        return
     MouseGetPos &x, &y
     Tab1X := x, Tab1Y := y
     IniWrite Tab1X, IniFile, "grid", "Tab1X"
@@ -1047,6 +1184,8 @@ F8:: {
 }
 +F8:: {
     global
+    if !RequireBoundPoeForeground()
+        return
     MouseGetPos &x, &y
     Tab2X := x, Tab2Y := y
     IniWrite Tab2X, IniFile, "grid", "Tab2X"
@@ -1074,20 +1213,15 @@ F10:: {
         MsgBox "Calibrate borders first with F5/F6 or Ctrl+F5/Ctrl+F6."
         return
     }
-    if !WinExist(PoeWinTitle) {
-        MsgBox "Can't find the PoE window (" PoeWinTitle ")."
-        return
-    }
-    if !WinExist(BrowserWinTitle) {
-        MsgBox "Can't find a window titled '" BrowserWinTitle "'.`nOpen the solver and make it the active browser tab."
+    if !ValidateBoundPoeWindow(false) {
+        MsgBox "Focus the real Path of Exile window and press Ctrl+F3 before scanning."
         return
     }
 
     Running := true
-    WinActivate PoeWinTitle
-    if !WinWaitActive(PoeWinTitle, , 2) {
+    if !ActivateBoundPoeWindow() {
         Running := false
-        Flash "Couldn't focus PoE.", 3000
+        Flash "Couldn't activate the authenticated PoE window.", 3000
         return
     }
     Sleep ActivateDelay
@@ -1111,18 +1245,17 @@ F10:: {
     if (payload != "" && rerollCostBlob != "")
         payload .= "`n"
     payload .= rerollCostBlob
-    if !PasteIntoSolver(
-        payload,
-        "Read the borders but couldn't focus the browser to paste."
-    )
+    if !CopyPayloadForExplicitPaste(payload) {
+        Running := false
         return
+    }
 
     Running := false
     costNote := RerollCostCalibrated()
         ? (rerollCostBlob != "" ? " + reroll cost" : " (reroll-cost OCR failed)")
         : " (reroll cost skipped: calibrate Ctrl+F7)"
-    Flash "Done. Sent " LastBorderScanBlocks "/12 border OCR results"
-        . costNote "; charts were not rescanned.", 5000
+    Flash "Copied " LastBorderScanBlocks "/12 border OCR results"
+        . costNote ". Return to the verified solver page and press Ctrl+V; charts were not rescanned.", 7000
 }
 
 ; ---- F9: the real import sweep ----
@@ -1134,12 +1267,8 @@ F9:: {
             . "Shift+F7 = tab 1, Shift+F8 = tab 2."
         return
     }
-    if !WinExist(PoeWinTitle) {
-        MsgBox "Can't find the PoE window (" PoeWinTitle ")."
-        return
-    }
-    if !WinExist(BrowserWinTitle) {
-        MsgBox "Can't find a window titled '" BrowserWinTitle "'.`nOpen the solver and make it the active browser tab."
+    if !ValidateBoundPoeWindow(false) {
+        MsgBox "Focus the real Path of Exile window and press Ctrl+F3 before scanning."
         return
     }
 
@@ -1149,38 +1278,56 @@ F9:: {
     firstChart := "", allIdentical := true, firstTabSignature := "", tabsIdentical := false
 
     ; ---- Phase 1: copy every chart while staying in PoE ----
-    WinActivate PoeWinTitle
-    if !WinWaitActive(PoeWinTitle, , 2) {
+    if !ActivateBoundPoeWindow() {
         Running := false
-        Flash "Couldn't focus PoE.", 3000
+        Flash "Couldn't activate the authenticated PoE window.", 3000
         return
     }
     Sleep ActivateDelay
 
     tabPoints := ChartTabPoints()
     for tabIndex, tabPoint in tabPoints {
-        if !Running
+        if !Running || !RequireBoundPoeForeground() {
+            Running := false
             break
+        }
         MouseMove tabPoint[1], tabPoint[2], 0
         Click
         Sleep TabSwitchDelay
+        if !RequireBoundPoeForeground() {
+            Running := false
+            break
+        }
         tabSignature := ""
         emptyStreak := 0
 
         Loop GridRows {
-            if !Running
+            if !Running || !RequireBoundPoeForeground() {
+                Running := false
                 break
+            }
             r := A_Index - 1
             Loop GridCols {
-                if !Running
+                if !Running || !RequireBoundPoeForeground() {
+                    Running := false
                     break
+                }
                 c := A_Index - 1
                 p := CellPos(r, c)
                 A_Clipboard := ""
                 MouseMove p[1], p[2], 0
                 Sleep HoverDelay
+                if !RequireBoundPoeForeground() {
+                    Running := false
+                    break
+                }
                 Send "^c"
-                if !ClipWait(ClipTimeout) {
+                copiedToClipboard := ClipWait(ClipTimeout)
+                if !RequireBoundPoeForeground() {
+                    Running := false
+                    break
+                }
+                if !copiedToClipboard {
                     tabSignature .= "|0:"
                     skipped++                 ; empty slot - nothing copied
                     emptyStreak++
@@ -1221,10 +1368,12 @@ F9:: {
     }
 
     ; Leave the stash on tab 1, matching the game's default view.
-    if Running {
+    if Running && RequireBoundPoeForeground() {
         MouseMove Tab1X, Tab1Y, 0
         Click
         Sleep TabSwitchDelay
+        if !RequireBoundPoeForeground()
+            Running := false
     }
 
     ; Distinct physical Charts always differ in their rolled values. If every
@@ -1253,7 +1402,7 @@ F9:: {
     if Running && RerollCostCalibrated()
         rerollCostBlob := ScanRerollCost()
 
-    ; ---- Phase 3: one switch, one paste of the whole batch ----
+    ; ---- Phase 3: copy once; the user pastes into the verified solver page ----
     if Running && (copied > 0 || borderBlob != "" || rerollCostBlob != "") {
         payload := blob
         if (payload != "" && borderBlob != "")
@@ -1262,11 +1411,10 @@ F9:: {
         if (payload != "" && rerollCostBlob != "")
             payload .= "`n"
         payload .= rerollCostBlob
-        if !PasteIntoSolver(
-            payload,
-            "Copied " copied " charts but couldn't focus the browser to paste."
-        )
+        if !CopyPayloadForExplicitPaste(payload) {
+            Running := false
             return
+        }
     }
 
     Running := false
@@ -1280,6 +1428,6 @@ F9:: {
         Flash calibWarn borderNote costNote, 10000
         return
     }
-    Flash "Done. Sent " copied " charts from 2 stash tabs" borderNote costNote
-        . "; skipped " skipped " empty/non-chart cells.", 6000
+    Flash "Copied " copied " charts from 2 stash tabs" borderNote costNote
+        . "; skipped " skipped " empty/non-chart cells. Return to the verified solver page and press Ctrl+V.", 8000
 }

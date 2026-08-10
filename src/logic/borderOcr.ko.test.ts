@@ -89,7 +89,7 @@ describe('Korean border OCR matching', () => {
 describe('Korean Windows OCR selection in the AHK importer', () => {
   it('detects the Korean PoE executable and passes a language hint to the helper', () => {
     expect(ahkImporter).toContain('PreferredOcrLanguage()')
-    expect(ahkImporter).toContain('WinGetProcessName(PoeWinTitle)')
+    expect(ahkImporter).toContain('SplitPath PoeImagePath, &processName')
     expect(ahkImporter).toContain('RegExMatch(processName, "i)_KG\\.exe$")')
     expect(ahkImporter).toContain('return "ko-KR"')
     expect(ahkImporter).toContain(' -PreferredLanguage ')
