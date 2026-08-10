@@ -81,6 +81,18 @@ body {
   font: 15px/1.45 var(--serif);
 }
 
+.frame-blocked {
+  box-sizing: border-box;
+  max-width: 48rem;
+  margin: 12vh auto;
+  padding: 2rem;
+  border: 1px solid var(--gold);
+  background: #10131a;
+  color: var(--text);
+  font: 600 1.1rem/1.5 var(--serif);
+  text-align: center;
+}
+
 .app {
   max-width: 1760px;
   margin: 0 auto;
