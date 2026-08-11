@@ -197,9 +197,11 @@ function migrateQueuedSubmission(
     sequenceId: item.sequenceId,
     dataset: {
       ...item.dataset,
-      samples: item.dataset.samples.map((sample) =>
-        sample.vesperUpgradeCount === undefined ? { ...sample, vesperUpgradeCount: null } : sample,
-      ),
+      samples: item.dataset.samples.map((sample) => ({
+        ...sample,
+        ...(sample.vesperUpgradeCount === undefined ? { vesperUpgradeCount: null } : {}),
+        ...(sample.samplingReason === undefined ? { samplingReason: 'unknown' as const } : {}),
+      })),
     },
     delivery:
       keepDelivery && isDeliveryState(item.delivery)

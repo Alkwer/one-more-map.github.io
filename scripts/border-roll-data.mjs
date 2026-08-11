@@ -63,6 +63,13 @@ function normalizeSample(value, index, knownBorderIds, errors, warnings) {
   ) {
     errors.push(`${path}.vesperUpgradeCount must be an integer from 0 to 5 or null.`)
   }
+  let samplingReason = value.samplingReason
+  if (samplingReason === undefined) {
+    samplingReason = 'unknown'
+    warnings.push(`${path}.samplingReason is missing; normalized to legacy/unknown.`)
+  } else if (!['gameplay', 'randomized-research', 'unknown'].includes(samplingReason)) {
+    errors.push(`${path}.samplingReason must be gameplay, randomized-research, or unknown.`)
+  }
   if (!Number.isInteger(value.rerollIndex) || value.rerollIndex < 0 || value.rerollIndex > 20) {
     errors.push(`${path}.rerollIndex must be an integer from 0 to 20.`)
   }
@@ -109,6 +116,7 @@ function normalizeSample(value, index, knownBorderIds, errors, warnings) {
     gamePatch: value.gamePatch.trim(),
     vesperUpgradeCount,
     generation: value.generation,
+    samplingReason,
     rerollIndex: value.rerollIndex,
     displayedNextRerollCost: value.displayedNextRerollCost,
     borderModIds: [...value.borderModIds],
@@ -156,6 +164,10 @@ export function validateBorderRollPayload(payload, knownBorderIds) {
   const vesperUpgradeCounts = new Set(samples.map((sample) => sample.vesperUpgradeCount))
   if (vesperUpgradeCounts.size > 1) {
     errors.push('All samples in a Voyage must use the same Vesper upgrade count.')
+  }
+  const samplingReasons = new Set(samples.map((sample) => sample.samplingReason))
+  if (samplingReasons.size > 1) {
+    errors.push('All samples in a Voyage must use the same sampling reason.')
   }
   const indexes = samples.map((sample) => sample.rerollIndex)
   if (new Set(indexes).size !== indexes.length) errors.push('rerollIndex values must be unique.')

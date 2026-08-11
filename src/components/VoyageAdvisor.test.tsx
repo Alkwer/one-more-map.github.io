@@ -6,6 +6,7 @@ import { VoyageAdvisor } from './VoyageAdvisor'
 
 const decision = (withForecast: boolean): VoyageDecision => ({
   kind: 'play',
+  decisionBasis: 'contextual-fit',
   label: 'PLAY: Test Strategy',
   reason: 'The modeled roll is worth keeping.',
   strategyId: 'test',
@@ -24,7 +25,7 @@ const decision = (withForecast: boolean): VoyageDecision => ({
   preserveRoll: false,
   rollForecast: withForecast
     ? {
-        modelVersion: 2,
+        modelVersion: 3,
         modelProfile: 'paid-reroll',
         modelConfidence: 'low',
         modelStructure: 'slot-aware',
@@ -35,7 +36,11 @@ const decision = (withForecast: boolean): VoyageDecision => ({
         medianFit: 0.18,
         sixtiethPercentileFit: 0.22,
         currentPercentile: 0.8,
+        currentPercentileRange: [0.74, 0.83],
         chanceNextRollBeatsCurrent: 0.15,
+        chanceNextRollBeatsCurrentRange: [0.12, 0.2],
+        priorSensitivity: [0.25, 2],
+        borrowedNaturalBoardCount: 27,
       }
     : null,
 })
@@ -50,10 +55,10 @@ describe('VoyageAdvisor', () => {
       />,
     )
 
-    assert.match(markup, /Paid-reroll slot model v2/)
+    assert.match(markup, /Paid-reroll slot model v3/)
     assert.match(markup, /low confidence/)
     assert.match(markup, /Current roll percentile/)
-    assert.match(markup, />80%?</)
+    assert.match(markup, />80% \(74–83%\)</)
     assert.match(markup, /Keep percentile/)
     assert.match(markup, />60%?</)
     assert.match(markup, /15%.*of modeled paid rerolls score higher than this roll/)
@@ -63,7 +68,8 @@ describe('VoyageAdvisor', () => {
     assert.match(markup, /not a percentile or the combined charts \+ borders score/)
     assert.doesNotMatch(markup, /Best-found roll fit/)
     assert.doesNotMatch(markup, />Decision line</)
-    assert.match(markup, /14 paid-reroll boards · 7 complete Voyage sequences/)
+    assert.match(markup, /14 paid-reroll boards · 7 paid Voyage sequences · 27 natural boards/)
+    assert.match(markup, /Decision basis: contextual-fit/)
     assert.match(markup, /prior-only estimates are not observed drops/)
   })
 

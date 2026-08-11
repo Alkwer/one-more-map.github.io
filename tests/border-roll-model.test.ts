@@ -2,10 +2,12 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'vitest'
 import {
   BORDER_ROLL_MODEL,
+  buildBorrowedPaidRerollModel,
   buildBorderRollModel,
   chanceModAppearsOnBoard,
   estimateModBoardChance,
   forecastBorderRoll,
+  sampleBorderRoll,
   type BorderRollDatasetInput,
 } from '../src/logic/borderRollModel'
 
@@ -78,6 +80,7 @@ describe('experimental border roll model', () => {
       chance: model.probabilitiesBySlot[1]['b-divine'],
       evidence: 'prior-only',
       observations: 0,
+      borrowedObservations: 0,
       eligibleSlots: [1],
     })
     assert.equal(estimateModBoardChance(model, 'b-chaos')?.evidence, 'observed')
@@ -153,17 +156,58 @@ describe('experimental border roll model', () => {
     assert.ok(weak.chanceNextRollBeatsCurrent > 0.6)
     assert.ok(strong.currentPercentile > weak.currentPercentile)
     assert.equal(weak.modelStructure, 'slot-aware')
+    assert.ok(weak.currentPercentileRange[0] <= weak.currentPercentileRange[1])
     assert.deepEqual(
       forecastBorderRoll(model, contributions, 1, 1, 2_000),
       forecastBorderRoll(model, contributions, 1, 1, 2_000),
     )
   })
 
+  it('borrows natural boards for weights without inflating paid confidence', () => {
+    const natural = Array(12).fill('natural-heavy')
+    const paid = Array(12).fill('paid-only')
+    const model = buildBorrowedPaidRerollModel(
+      dataset([
+        { sequenceId: 'natural-one', generation: 'natural', borderModIds: natural },
+        { sequenceId: 'paid-one', generation: 'paid-reroll', borderModIds: paid },
+      ]),
+      ['natural-heavy', 'paid-only'],
+    )
+
+    assert.equal(model.trainingProfile, 'pooled-borrowed')
+    assert.equal(model.sampleCount, 1)
+    assert.equal(model.trainingSampleCount, 2)
+    assert.equal(model.sequenceCount, 1)
+    assert.equal(model.confidence, 'low')
+    assert.equal(model.borrowedNaturalBoardCount, 1)
+    assert.equal(model.naturalBorrowWeight, 0.5)
+    assert.equal(estimateModBoardChance(model, 'natural-heavy')?.evidence, 'borrowed')
+  })
+
+  it('draws experimental boards from the physical slot distributions', () => {
+    const board = Array(12).fill('general')
+    board[1] = 'b-chaos'
+    const model = buildBorderRollModel(
+      dataset([{ sequenceId: 'one', generation: 'paid-reroll', borderModIds: board }]),
+      ['general', 'b-chaos'],
+      'paid-reroll',
+    )
+    const sampled = sampleBorderRoll(model, () => 0.999999)
+
+    assert.equal(sampled.length, 12)
+    assert.equal(sampled.filter((id) => id === 'b-chaos').length, 1)
+    assert.equal(sampled[1], 'b-chaos')
+  })
+
   it('builds the shipped paid-reroll model directly from the canonical dataset', () => {
-    assert.equal(BORDER_ROLL_MODEL.version, 2)
+    assert.equal(BORDER_ROLL_MODEL.version, 3)
     assert.equal(BORDER_ROLL_MODEL.profile, 'paid-reroll')
     assert.ok(BORDER_ROLL_MODEL.sampleCount > 0)
     assert.equal(BORDER_ROLL_MODEL.sampleCount, BORDER_ROLL_MODEL.paidRerollBoardCount)
+    assert.equal(
+      BORDER_ROLL_MODEL.trainingSampleCount,
+      BORDER_ROLL_MODEL.sampleCount + BORDER_ROLL_MODEL.borrowedNaturalBoardCount,
+    )
     assert.equal(BORDER_ROLL_MODEL.slotCount, BORDER_ROLL_MODEL.sampleCount * 12)
     assert.ok(BORDER_ROLL_MODEL.sequenceCount > 0)
     assert.ok(BORDER_ROLL_MODEL.sequenceCount <= BORDER_ROLL_MODEL.sampleCount)

@@ -76,6 +76,12 @@ export function VoyageAdvisor({
       ? Math.round(decision.keepModelPercentileLine * 100)
       : null
   const improveChance = forecast ? Math.round(forecast.chanceNextRollBeatsCurrent * 100) : null
+  const percentileRange = forecast
+    ? forecast.currentPercentileRange.map((value) => Math.round(value * 100))
+    : null
+  const improveRange = forecast
+    ? forecast.chanceNextRollBeatsCurrentRange.map((value) => Math.round(value * 100))
+    : null
 
   return (
     <section
@@ -89,6 +95,7 @@ export function VoyageAdvisor({
           </h2>
           <div className="voyage-decision-label">{decision.label}</div>
           <div className="voyage-decision-reason">{decision.reason}</div>
+          <small>Decision basis: {decision.decisionBasis}</small>
           {action && (
             <button
               className="voyage-primary-action"
@@ -112,8 +119,11 @@ export function VoyageAdvisor({
               </div>
               <div className="voyage-fit-summary voyage-model-summary">
                 <div>
-                  <span>Current roll percentile</span>
-                  <strong>{rollPercentile}%</strong>
+                  <span>Current roll percentile (prior range)</span>
+                  <strong>
+                    {rollPercentile}%
+                    {percentileRange ? ` (${percentileRange[0]}–${percentileRange[1]}%)` : ''}
+                  </strong>
                 </div>
                 <div>
                   <span>Keep percentile</span>
@@ -130,11 +140,12 @@ export function VoyageAdvisor({
               </div>
               <p className="voyage-model-insight">
                 <strong>{improveChance}%</strong> of modeled paid rerolls score higher than this
-                roll.
+                roll{improveRange ? ` (${improveRange[0]}–${improveRange[1]}% prior range)` : ''}.
               </p>
               <small>
-                {forecast.sampleCount} paid-reroll boards · {forecast.sequenceCount} complete Voyage
-                sequences
+                {forecast.sampleCount} paid-reroll boards · {forecast.sequenceCount} paid Voyage
+                sequences · {forecast.borrowedNaturalBoardCount} natural boards borrowed at half
+                weight
               </small>
             </div>
           )}
@@ -224,7 +235,7 @@ export function VoyageAdvisor({
       <div className="voyage-disclaimer">
         <span>{forecast ? 'Experimental probability model' : 'Heuristic guidance'}</span>
         {forecast
-          ? 'Slot-aware paid-reroll frequencies update with the canonical dataset. Fixed-slot family rules remain experimental, and prior-only estimates are not observed drops. This is not Sulphur expected value.'
+          ? 'Slot-aware frequencies update with the canonical dataset. Confidence counts only paid Voyage sequences; natural boards stabilize weights without raising it. Low-confidence output is diagnostic only. Slots are still modeled independently, and prior-only estimates are not observed drops. This is not Sulphur expected value.'
           : 'A modeled comparison is unavailable for this layout; this is not expected value.'}
       </div>
     </section>

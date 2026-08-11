@@ -53,10 +53,11 @@ const candidate = ({
 const forecast = (
   currentPercentile: number,
   chanceNextRollBeatsCurrent: number,
+  modelConfidence: BorderRollForecast['modelConfidence'] = 'low',
 ): BorderRollForecast => ({
-  modelVersion: 2,
+  modelVersion: 3,
   modelProfile: 'paid-reroll',
-  modelConfidence: 'low',
+  modelConfidence,
   modelStructure: 'slot-aware',
   sampleCount: 21,
   sequenceCount: 7,
@@ -65,7 +66,11 @@ const forecast = (
   medianFit: 0.18,
   sixtiethPercentileFit: 0.22,
   currentPercentile,
+  currentPercentileRange: [currentPercentile, currentPercentile],
   chanceNextRollBeatsCurrent,
+  chanceNextRollBeatsCurrentRange: [chanceNextRollBeatsCurrent, chanceNextRollBeatsCurrent],
+  priorSensitivity: [0.25, 2],
+  borrowedNaturalBoardCount: 27,
 })
 
 const decide = ({
@@ -322,7 +327,7 @@ describe('Voyage decision regressions', () => {
     assert.equal(decision.label, 'CONSIDER REROLL — next costs 3,000 Sulphur')
   })
 
-  it('keeps a contextually weak board that already beats the modeled keep percentile', () => {
+  it('does not let a low-confidence model keep a contextually weak board', () => {
     const decision = decide({
       evaluations: [
         candidate({
@@ -333,12 +338,31 @@ describe('Voyage decision regressions', () => {
       ],
     })
 
-    assert.equal(decision.kind, 'play')
+    assert.equal(decision.kind, 'reroll')
     assert.equal(decision.rollForecast?.currentPercentile, 0.8)
-    assert.match(
-      decision.reason,
-      /experimental v2 model ranks this board at the 80th percentile of paid rerolls/,
-    )
+    assert.match(decision.reason, /Low-confidence model output is diagnostic only/)
+  })
+
+  it('allows a medium-confidence model keep only when the prior range clears the line', () => {
+    const robust = forecast(0.8, 0.15, 'medium')
+    robust.currentPercentileRange = [0.65, 0.84]
+    const decision = decide({
+      evaluations: [candidate({ id: 'active', fit: 0.2, rollForecast: robust })],
+    })
+
+    assert.equal(decision.kind, 'play')
+    assert.equal(decision.decisionBasis, 'robust-model')
+    assert.match(decision.reason, /across the tested priors/)
+  })
+
+  it('does not keep when only the point estimate clears the model line', () => {
+    const fragile = forecast(0.8, 0.15, 'medium')
+    fragile.currentPercentileRange = [0.55, 0.84]
+    const decision = decide({
+      evaluations: [candidate({ id: 'active', fit: 0.2, rollForecast: fragile })],
+    })
+
+    assert.equal(decision.kind, 'reroll')
   })
 
   it('explains the modeled upside when recommending an early reroll', () => {

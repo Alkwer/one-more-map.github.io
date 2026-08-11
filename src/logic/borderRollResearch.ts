@@ -13,7 +13,9 @@ const LEGACY_SAMPLE_SCHEMA = 'allflame-border-roll/v1' as const
 const LEGACY_STORE_VERSION = 1
 const PREVIOUS_STORE_VERSION = 2
 const ARCHIVE_STORE_VERSION = 3
-const STORE_VERSION = 4
+const VESPER_STORE_VERSION = 4
+const STORE_VERSION = 5
+export const RANDOMIZED_RESEARCH_ASSIGNMENT_RATE = 0.2
 export const BORDER_RESEARCH_STORAGE_KEY = 'allflame-border-roll-research'
 const SUBMISSION_URL = 'https://github.com/Alkwer/one-more-map.github.io/issues/new'
 
@@ -32,6 +34,8 @@ export type OrderedBorderIds = [
   string,
 ]
 
+export type BorderRollSamplingReason = 'gameplay' | 'randomized-research' | 'unknown'
+
 export interface BorderRollSample {
   schema: typeof BORDER_ROLL_SAMPLE_SCHEMA
   sampleId: string
@@ -42,6 +46,8 @@ export interface BorderRollSample {
   /** Superior Sovereign progress when the board rolled; null means legacy/unknown. */
   vesperUpgradeCount: number | null
   generation: 'natural' | 'paid-reroll'
+  /** Why this Voyage was rerolled; unknown is reserved for migrated samples. */
+  samplingReason: BorderRollSamplingReason
   /** Zero is the natural board; one and above are paid rerolls in order. */
   rerollIndex: number
   /** Known next reroll price for this step; legacy v2 samples may contain the observed display. */
@@ -55,6 +61,9 @@ export interface BorderResearchStore {
   activeSequenceId: string
   /** Persisted capture setting used for newly recorded Voyage sequences. */
   vesperUpgradeCount: number | null
+  randomizedResearchEnabled: boolean
+  /** Assigned before the natural board is seen and fixed for the whole Voyage. */
+  activeSequenceSamplingReason: Exclude<BorderRollSamplingReason, 'unknown'>
   samples: BorderRollSample[]
   archivedSequenceIds: string[]
   /** Present only in memory while incompatible or unavailable storage blocks writes. */
@@ -84,6 +93,7 @@ interface CreateSampleInput {
   sequenceId: string
   gamePatch: string
   vesperUpgradeCount: number | null
+  samplingReason?: BorderRollSamplingReason
   rerollIndex: number
   displayedNextRerollCost: number | null
   borders: Borders
@@ -109,13 +119,50 @@ export function createBorderResearchStore(): BorderResearchStore {
     version: STORE_VERSION,
     activeSequenceId: createId('voyage'),
     vesperUpgradeCount: null,
+    randomizedResearchEnabled: false,
+    activeSequenceSamplingReason: 'gameplay',
     samples: [],
     archivedSequenceIds: [],
   }
 }
 
-export function startBorderRollSequence(store: BorderResearchStore): BorderResearchStore {
-  return { ...store, activeSequenceId: createId('voyage') }
+function assignedSamplingReason(
+  enabled: boolean,
+  randomValue: number,
+): Exclude<BorderRollSamplingReason, 'unknown'> {
+  return enabled && randomValue < RANDOMIZED_RESEARCH_ASSIGNMENT_RATE
+    ? 'randomized-research'
+    : 'gameplay'
+}
+
+export function startBorderRollSequence(
+  store: BorderResearchStore,
+  randomValue = Math.random(),
+): BorderResearchStore {
+  return {
+    ...store,
+    activeSequenceId: createId('voyage'),
+    activeSequenceSamplingReason: assignedSamplingReason(
+      store.randomizedResearchEnabled,
+      randomValue,
+    ),
+  }
+}
+
+export function setRandomizedResearchEnabled(
+  store: BorderResearchStore,
+  enabled: boolean,
+  randomValue = Math.random(),
+): BorderResearchStore {
+  const activeSamples = getBorderRollSequence(store.samples, store.activeSequenceId)
+  return {
+    ...store,
+    randomizedResearchEnabled: enabled,
+    activeSequenceSamplingReason:
+      activeSamples.length > 0
+        ? store.activeSequenceSamplingReason
+        : assignedSamplingReason(enabled, randomValue),
+  }
 }
 
 function isVesperUpgradeCount(value: unknown): value is number {
@@ -196,6 +243,14 @@ export function createBorderRollSample(input: CreateSampleInput): CreateSampleRe
   if (!input.sequenceId.trim()) {
     return { ok: false, message: 'Start a Voyage sequence before recording a roll.' }
   }
+  if (
+    input.samplingReason !== undefined &&
+    input.samplingReason !== 'gameplay' &&
+    input.samplingReason !== 'randomized-research' &&
+    input.samplingReason !== 'unknown'
+  ) {
+    return { ok: false, message: 'Sampling reason is not recognised.' }
+  }
 
   return {
     ok: true,
@@ -207,6 +262,7 @@ export function createBorderRollSample(input: CreateSampleInput): CreateSampleRe
       gamePatch,
       vesperUpgradeCount: input.vesperUpgradeCount,
       generation: input.rerollIndex === 0 ? 'natural' : 'paid-reroll',
+      samplingReason: input.samplingReason ?? 'gameplay',
       rerollIndex: input.rerollIndex,
       displayedNextRerollCost: input.displayedNextRerollCost,
       borderModIds,
@@ -265,12 +321,13 @@ export function nextBorderRollIndex(samples: BorderRollSample[]): number {
 export function isCompleteBorderRollSequence(samples: BorderRollSample[]): boolean {
   if (samples.length === 0) return false
   const ordered = [...samples].sort((left, right) => left.rerollIndex - right.rerollIndex)
-  const [{ sequenceId, gamePatch, vesperUpgradeCount }] = ordered
+  const [{ sequenceId, gamePatch, vesperUpgradeCount, samplingReason }] = ordered
   return ordered.every(
     (sample, index) =>
       sample.sequenceId === sequenceId &&
       sample.gamePatch === gamePatch &&
       sample.vesperUpgradeCount === vesperUpgradeCount &&
+      sample.samplingReason === samplingReason &&
       sample.rerollIndex === index,
   )
 }
@@ -291,6 +348,9 @@ function isStoredSample(value: unknown): value is BorderRollSample {
     sample.gamePatch.length <= 32 &&
     (sample.vesperUpgradeCount === null || isVesperUpgradeCount(sample.vesperUpgradeCount)) &&
     (sample.generation === 'natural' || sample.generation === 'paid-reroll') &&
+    (sample.samplingReason === 'gameplay' ||
+      sample.samplingReason === 'randomized-research' ||
+      sample.samplingReason === 'unknown') &&
     typeof sample.rerollIndex === 'number' &&
     Number.isInteger(sample.rerollIndex) &&
     sample.rerollIndex >= 0 &&
@@ -305,22 +365,40 @@ function isStoredSample(value: unknown): value is BorderRollSample {
   )
 }
 
-type PreviousBorderRollSample = Omit<BorderRollSample, 'vesperUpgradeCount'>
+type VesperBorderRollSample = Omit<BorderRollSample, 'samplingReason'>
+
+function isVesperStoredSample(value: unknown): value is VesperBorderRollSample {
+  if (!value || typeof value !== 'object') return false
+  const sample = value as Partial<BorderRollSample>
+  return (
+    sample.samplingReason === undefined && isStoredSample({ ...sample, samplingReason: 'unknown' })
+  )
+}
+
+function migrateVesperSample(sample: VesperBorderRollSample): BorderRollSample {
+  return { ...sample, samplingReason: 'unknown' }
+}
+
+type PreviousBorderRollSample = Omit<BorderRollSample, 'vesperUpgradeCount' | 'samplingReason'>
 
 function isPreviousStoredSample(value: unknown): value is PreviousBorderRollSample {
   if (!value || typeof value !== 'object') return false
   const sample = value as Partial<BorderRollSample>
   return (
     sample.vesperUpgradeCount === undefined &&
-    isStoredSample({ ...sample, vesperUpgradeCount: null })
+    sample.samplingReason === undefined &&
+    isStoredSample({ ...sample, vesperUpgradeCount: null, samplingReason: 'unknown' })
   )
 }
 
 function migratePreviousSample(sample: PreviousBorderRollSample): BorderRollSample {
-  return { ...sample, vesperUpgradeCount: null }
+  return { ...sample, vesperUpgradeCount: null, samplingReason: 'unknown' }
 }
 
-interface LegacyBorderRollSample extends Omit<BorderRollSample, 'schema' | 'vesperUpgradeCount'> {
+interface LegacyBorderRollSample extends Omit<
+  BorderRollSample,
+  'schema' | 'vesperUpgradeCount' | 'samplingReason'
+> {
   schema: typeof LEGACY_SAMPLE_SCHEMA
   voyageLevel: number
 }
@@ -343,6 +421,7 @@ function isLegacyStoredSample(value: unknown): value is LegacyBorderRollSample {
     ...currentFields,
     schema: BORDER_ROLL_SAMPLE_SCHEMA,
     vesperUpgradeCount: null,
+    samplingReason: 'unknown',
   })
 }
 
@@ -355,6 +434,7 @@ function migrateLegacySample(sample: LegacyBorderRollSample): BorderRollSample {
     gamePatch: sample.gamePatch,
     vesperUpgradeCount: null,
     generation: sample.generation,
+    samplingReason: 'unknown',
     rerollIndex: sample.rerollIndex,
     displayedNextRerollCost: sample.displayedNextRerollCost,
     borderModIds: sample.borderModIds,
@@ -379,6 +459,8 @@ export function loadBorderResearch(): BorderResearchStore {
     vesperUpgradeCount?: unknown
     samples?: unknown
     archivedSequenceIds?: unknown
+    randomizedResearchEnabled?: unknown
+    activeSequenceSamplingReason?: unknown
   }
   try {
     value = JSON.parse(raw) as typeof value
@@ -399,12 +481,47 @@ export function loadBorderResearch(): BorderResearchStore {
       value.version === STORE_VERSION &&
       typeof value.activeSequenceId === 'string' &&
       (value.vesperUpgradeCount === null || isVesperUpgradeCount(value.vesperUpgradeCount)) &&
+      typeof value.randomizedResearchEnabled === 'boolean' &&
+      (value.activeSequenceSamplingReason === 'gameplay' ||
+        value.activeSequenceSamplingReason === 'randomized-research') &&
       Array.isArray(value.samples) &&
       value.samples.every(isStoredSample) &&
       Array.isArray(value.archivedSequenceIds) &&
       value.archivedSequenceIds.every((id) => typeof id === 'string')
     ) {
       return value as BorderResearchStore
+    }
+    if (
+      value.version === VESPER_STORE_VERSION &&
+      typeof value.activeSequenceId === 'string' &&
+      (value.vesperUpgradeCount === null || isVesperUpgradeCount(value.vesperUpgradeCount)) &&
+      Array.isArray(value.samples) &&
+      value.samples.every(isVesperStoredSample) &&
+      Array.isArray(value.archivedSequenceIds) &&
+      value.archivedSequenceIds.every((id) => typeof id === 'string')
+    ) {
+      const samples = value.samples.map(migrateVesperSample)
+      const migrated: BorderResearchStore = {
+        version: STORE_VERSION,
+        activeSequenceId: value.activeSequenceId,
+        vesperUpgradeCount: value.vesperUpgradeCount,
+        randomizedResearchEnabled: false,
+        activeSequenceSamplingReason:
+          samples.find((sample) => sample.sequenceId === value.activeSequenceId)?.samplingReason ===
+          'randomized-research'
+            ? 'randomized-research'
+            : 'gameplay',
+        samples,
+        archivedSequenceIds: value.archivedSequenceIds,
+      }
+      return saveBorderResearch(migrated)
+        ? migrated
+        : {
+            ...migrated,
+            recovery: unavailableAuxiliaryStore(
+              'Migrated border research could not be saved because storage is unavailable.',
+            ),
+          }
     }
     if (
       value.version === ARCHIVE_STORE_VERSION &&
@@ -418,6 +535,8 @@ export function loadBorderResearch(): BorderResearchStore {
         version: STORE_VERSION,
         activeSequenceId: value.activeSequenceId,
         vesperUpgradeCount: null,
+        randomizedResearchEnabled: false,
+        activeSequenceSamplingReason: 'gameplay',
         samples: value.samples.map(migratePreviousSample),
         archivedSequenceIds: value.archivedSequenceIds,
       }
@@ -440,6 +559,8 @@ export function loadBorderResearch(): BorderResearchStore {
         version: STORE_VERSION,
         activeSequenceId: value.activeSequenceId,
         vesperUpgradeCount: null,
+        randomizedResearchEnabled: false,
+        activeSequenceSamplingReason: 'gameplay',
         samples: value.samples.map(migratePreviousSample),
         archivedSequenceIds: [],
       }
@@ -462,6 +583,8 @@ export function loadBorderResearch(): BorderResearchStore {
         version: STORE_VERSION,
         activeSequenceId: value.activeSequenceId,
         vesperUpgradeCount: null,
+        randomizedResearchEnabled: false,
+        activeSequenceSamplingReason: 'gameplay',
         samples: value.samples.map(migrateLegacySample),
         archivedSequenceIds: [],
       }

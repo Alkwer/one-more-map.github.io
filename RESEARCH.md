@@ -1,6 +1,6 @@
 # Allflame Voyage Solver - Mechanics and Modeling Notes
 
-Last reviewed: **2026-08-03**.
+Last reviewed: **2026-08-11**.
 
 This document separates live observations from model assumptions and unresolved
 questions. Historical preview notes are retained only where they explain the
@@ -21,10 +21,12 @@ Confidence labels:
 
 ### Result
 
-Research is sufficient to model the **Sulphur cost curve**, but not yet to
-calculate a defensible reroll EV. The game data exposes the border-mod pool and
-reroll constants, but it does **not** expose border selection weights, duplicate
-rules, or independence between slots. Border modifiers are present before any
+Research is sufficient to model the **Sulphur cost curve** and an experimental
+slot-aware roll distribution, but not a defensible reroll EV. The canonical
+2026-08-10 export contains 50 boards from 29 Voyages: 29 natural boards and 21
+paid rerolls from 12 paid sequences. It strongly supports physical slot
+families and confirms duplicates, but does not establish within-board
+independence or rare-mod probabilities. Border modifiers are present before any
 charts are placed, so the levels of subsequently placed charts cannot determine
 border-mod eligibility.
 
@@ -97,10 +99,9 @@ One community comment gives `75k` for five rerolls, but its written sequence is
   returned 404 in the community data viewer, so this is **not proof that no such
   table exists**; it only means it is not currently recoverable from the checked
   public exports.
-- The current demo/randomize button selects each of the 12 slots independently
-  and uniformly with `Math.random()`. That is useful demo behaviour, but there is
-  no evidence that it matches the game. It must not be used as the probability
-  model for a real reroll recommendation.
+- The experimental-roll button now draws from the version 3 slot-aware model.
+  It remains a model demonstration, not a proven reproduction of the server
+  roll algorithm.
 
 Current evidence and remaining unknowns:
 
@@ -108,8 +109,9 @@ Current evidence and remaining unknowns:
 2. Whether the 12 slots are independent.
 3. Exact duplicates are confirmed, including three copies of one modifier on a
    board; any higher duplicate limit remains unknown.
-4. No natural-versus-paid distribution difference is detected in the first
-   seven complete sequences, but equivalence is not yet established.
+4. A matched natural-versus-paid comparison detects no difference (`p = 0.41`),
+   but only 12 Voyages contain a paid reroll and player-selected rerolls can bias
+   the sample. This is non-detection, not evidence of equivalence.
 5. Whether the third reroll constant really enforces a five-reroll cap.
 6. Precisely when the doubling counter resets.
 
@@ -117,15 +119,16 @@ Current evidence and remaining unknowns:
 
 - A deterministic **current-roll appraiser** is unblocked: score the 12 observed
   borders against the user's planned charts and preferences.
-- Experimental **"reroll or keep" guidance** is now available from version 1 of
-  the observed-roll model. It uses smoothed, non-uniform probabilities and shows
-  its sequence count and confidence instead of presenting the estimate as fact.
-- The model compares the current layout with posterior-predictive paid rerolls,
-  but it does not price Sulphur or claim an optimal stopping policy. The existing
-  3,000/6,000 cost guardrail remains in force.
-- Strategy ranking uses a small modeled-paid-reroll compatibility component when
-  the current border is incomplete. A complete observed border roll still takes
-  priority over the forecast.
+- Experimental **"reroll or keep" guidance** is available from version 3 of the
+  observed-roll model. Natural boards enter the sparse slot estimates at half
+  weight, but only paid sequences raise confidence. The current 12 paid
+  sequences remain `low`.
+- Model output reports prior sensitivity and compares rolls on a border-blind
+  reference layout. It does not price Sulphur or claim optimal stopping; the
+  3,000/6,000 guardrail remains in force.
+- While confidence is `low`, the model is diagnostic: it cannot independently
+  issue `KEEP` or influence incomplete-border strategy ranking. Medium begins at
+  30 paid Voyage sequences and high at 100.
 - The model imports the canonical JSON dataset directly, so every accepted
   dataset rebuild updates probabilities on the next application build.
 
@@ -138,13 +141,17 @@ format described in `docs/border-roll-data.md`. Submission remains explicit
 because the static app has no collection backend. A GitHub issue workflow
 validates and closes submitted sequences, and a separate batch workflow creates
 reviewable dataset-update pull requests; issue input is never written directly
-to `main`.
+to `main`. A voluntary randomized mode pre-assigns 20% of new Voyages before the
+natural board is visible and asks for exactly one affordable paid reroll. The
+sampling reason is retained so this subset can test natural/paid equivalence
+without conditioning only on the player's keep decision.
 
 Capture natural boards and paid rerolls without discarding bad outcomes. For
 each observation store:
 
 ```text
-patch, Vesper upgrade count (0–5 or unknown), natural-or-paid, reroll index,
+patch, Vesper upgrade count (0–5 or unknown), sampling reason,
+natural-or-paid, reroll index,
 displayed cost, 12 ordered border
 modifier IDs/texts
 ```

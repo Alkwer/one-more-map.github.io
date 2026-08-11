@@ -41,10 +41,14 @@ The project separates observed game mechanics from app-level assumptions:
   6k Sulphur steps as an explicit guardrail, not an optimal-stopping claim.
   Alc & Go receives fallback preference only at 50% absolute border fit or
   better; a relative reroll-model percentile cannot promote a weaker fallback
-  to a play or switch recommendation.
-- **Still unknown:** border selection weights, duplicate and independence rules,
-  the paid-reroll distribution, and the exact reset/cap behavior. The app does
-  not present a uniform random simulation as a proven in-game probability model.
+  to a play or switch recommendation. A low-confidence probability model is
+  diagnostic only and cannot independently issue `PLAY`, `SWITCH`, or `KEEP`.
+- **Observed, still experimental:** complete boards strongly support physical
+  slot families and confirm duplicate modifiers. No natural-versus-paid
+  difference is detected yet, but the current sample does not establish
+  equivalence. Exact weights, within-board independence, Vesper effects, and the
+  reset/cap behavior remain unknown. The demo button now samples the same
+  slot-aware model and is explicitly labelled experimental.
 
 See [RESEARCH.md](RESEARCH.md) for the evidence, assumptions, and remaining
 research questions.
@@ -149,6 +153,11 @@ Successfully delivered Voyage sequences are archived and hidden from the active
 research list without deleting the local samples or removing them from exports.
 GitHub Actions validates, labels, and closes submitted issues, while a separate
 scheduled workflow prepares reviewable dataset-update pull requests.
+Contributors can additionally enable a voluntary randomized-research mode. It
+assigns 20% of new Voyages before the natural board is seen and asks for exactly
+one affordable paid reroll even if the recommendation says keep. The assignment
+reason is exported with the sequence so natural/paid comparisons are not based
+only on boards players chose to reroll.
 
 ## Architecture
 

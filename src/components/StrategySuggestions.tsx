@@ -134,10 +134,17 @@ export function StrategySuggestions({
                       <strong>
                         {suggestion.requiredBorderEvidence === 'prior-only'
                           ? 'Unknown'
-                          : `${Math.round(suggestion.requiredBorderChance * 100)}%`}
+                          : suggestion.requiredBorderEvidence === 'borrowed'
+                            ? 'Natural-only'
+                            : `${Math.round(suggestion.requiredBorderChance * 100)}%`}
                       </strong>
                       {suggestion.requiredBorderEvidence === 'prior-only' && (
                         <em className="suggestion-prior-only">prior-only · 0 observed</em>
+                      )}
+                      {suggestion.requiredBorderEvidence === 'borrowed' && (
+                        <em className="suggestion-prior-only">
+                          {suggestion.requiredBorderBorrowedObservations} natural · 0 paid
+                        </em>
                       )}
                     </span>
                   )}
@@ -186,9 +193,10 @@ export function StrategySuggestions({
 
       <div className="suggestion-disclaimer">
         Diagnostic only — expected-reroll compatibility uses the slot-aware v
-        {BORDER_ROLL_MODEL.version} model at {BORDER_ROLL_MODEL.confidence} confidence. Prior-only
-        estimates are model assumptions, not observed drops; reroll guidance is not Sulphur expected
-        value.
+        {BORDER_ROLL_MODEL.version} model at {BORDER_ROLL_MODEL.confidence} confidence. Natural
+        boards stabilize weights without raising paid confidence; borrowed and prior-only estimates
+        are not observed paid drops. At low confidence, the model cannot independently issue KEEP or
+        affect incomplete-roll ranking. Reroll guidance is not Sulphur expected value.
       </div>
     </section>
   )

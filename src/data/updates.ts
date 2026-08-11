@@ -13,6 +13,13 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    date: '2026-08-11',
+    tag: 'reworked',
+    title: 'Border decisions resist sparse-data bias',
+    detail:
+      'Low-confidence forecasts are now diagnostic only, natural boards stabilize slot weights without raising paid confidence, and prior ranges use a border-blind reference layout. Optional pre-assigned research Voyages make paid-reroll sampling less dependent on whether the natural board looked good.',
+  },
+  {
     date: '2026-08-07',
     tag: 'reworked',
     title: 'Bulk importer scans both chart pages',

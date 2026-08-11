@@ -1,6 +1,6 @@
-import { BORDER_MODS } from '../data/mods'
 import type { Board, Borders, ChartData } from '../types'
 import { START_CELL } from '../types'
+import { BORDER_ROLL_MODEL, sampleBorderRoll } from '../logic/borderRollModel'
 import { BoardCell } from './board/BoardCell'
 import { BorderPicker } from './board/BorderPicker'
 import { edgeStatusForCell } from './board/boardEdges'
@@ -62,10 +62,7 @@ export function BoardView(props: Props) {
   )
 
   const randomize = () => {
-    for (let segment = 0; segment < 12; segment++) {
-      const mod = BORDER_MODS[Math.floor(Math.random() * BORDER_MODS.length)]
-      props.onBorderChange(segment, mod.id)
-    }
+    sampleBorderRoll(BORDER_ROLL_MODEL).forEach((id, segment) => props.onBorderChange(segment, id))
   }
   const clearBorders = () => {
     for (let segment = 0; segment < 12; segment++) props.onBorderChange(segment, null)
@@ -78,8 +75,11 @@ export function BoardView(props: Props) {
           Voyage Board
         </h2>
         <span className="spacer" />
-        <button onClick={randomize} title="Simulate a border reroll">
-          🎲 Random borders
+        <button
+          onClick={randomize}
+          title="Draw an experimental slot-aware board from the current model"
+        >
+          🎲 Experimental roll
         </button>
         <button onClick={clearBorders}>Clear borders</button>
       </div>

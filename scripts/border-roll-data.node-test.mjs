@@ -32,6 +32,7 @@ const sample = (rerollIndex = 0, overrides = {}) => ({
   gamePatch: '3.29',
   vesperUpgradeCount: 3,
   generation: rerollIndex === 0 ? 'natural' : 'paid-reroll',
+  samplingReason: 'gameplay',
   rerollIndex,
   displayedNextRerollCost: [3_000, 6_000, 12_000][rerollIndex] ?? null,
   borderModIds,
@@ -97,6 +98,25 @@ test('normalizes legacy samples without Vesper progress to unknown', () => {
   assert.equal(result.status, 'accepted')
   assert.equal(result.dataset.samples[0].vesperUpgradeCount, null)
   assert.match(result.warnings[0], /legacy\/unknown/)
+})
+
+test('preserves randomized sampling labels and requires one label per Voyage', () => {
+  const randomized = validateBorderRollPayload(
+    dataset([
+      sample(0, { samplingReason: 'randomized-research' }),
+      sample(1, { samplingReason: 'randomized-research' }),
+    ]),
+    knownIds,
+  )
+  assert.equal(randomized.status, 'accepted')
+  assert.equal(randomized.dataset.samples[0].samplingReason, 'randomized-research')
+  assert.equal(
+    validateBorderRollPayload(
+      dataset([sample(0), sample(1, { samplingReason: 'randomized-research' })]),
+      knownIds,
+    ).status,
+    'invalid',
+  )
 })
 
 test('finds duplicate sample IDs in previously accepted issues', () => {

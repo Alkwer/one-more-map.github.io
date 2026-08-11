@@ -86,6 +86,7 @@ export interface StrategyInventorySuggestion {
   /** Whether that estimate has real hits in the selected generation profile. */
   requiredBorderEvidence: BorderRollChanceEvidence | null
   requiredBorderObservations: number | null
+  requiredBorderBorrowedObservations: number | null
   eligibleCharts: number
   jackpot: boolean
   /** A +1 Divine border is present for a strategy explicitly built around it. */
@@ -317,7 +318,24 @@ export function evaluateStrategyInventory(
           seed: stableSeed(strategy.id),
         })[0] ?? null)
       : null
+    // The comparison roll must not inherit a layout selected after seeing the
+    // current borders. Use a separately seeded, border-blind reference layout.
+    const forecastPotential = libraryReadiness.ready
+      ? (solve(eligiblePool, emptyBorders(), strategy.weights, {
+          ...opts,
+          topK: 1,
+          strategyRules: strategy.rules,
+          strategyRequirements: strategy.requirements,
+          strategyLayout: strategy.layout,
+          strategyLayoutPenalty: strategy.layoutPenalty,
+          forceHeuristic: true,
+          searchRestarts: POTENTIAL_SEARCH_RESTARTS,
+          searchIterations: POTENTIAL_SEARCH_ITERATIONS,
+          seed: stableSeed(`${strategy.id}:roll-independent`),
+        })[0] ?? null)
+      : null
     const potentialBoard = potential?.board ?? (Array(9).fill(null) as Board)
+    const forecastBoard = forecastPotential?.board ?? potentialBoard
     const readiness = addRunnableRequirements(
       libraryReadiness,
       eligiblePool.length,
@@ -325,14 +343,25 @@ export function evaluateStrategyInventory(
       potential?.valid ?? false,
       potential?.searchComplete ?? false,
     )
-    const potentialAppraisal = appraiseBorders(
+    const currentPotentialAppraisal = appraiseBorders(
       potentialBoard,
+      borders,
+      charts,
+      strategy.weights,
+      opts,
+    )
+    const independentForecastAppraisal = appraiseBorders(
+      forecastBoard,
       borders,
       charts,
       strategy.weights,
       opts,
       BORDER_ROLL_MODEL,
     )
+    const potentialAppraisal = {
+      ...currentPotentialAppraisal,
+      rollForecast: independentForecastAppraisal.rollForecast,
+    }
     const contributions = borderContributions(
       potentialBoard,
       borders,
@@ -396,6 +425,10 @@ export function evaluateStrategyInventory(
         reasons.push(
           `The completed current roll does not contain ${strategy.requiresBorderId!.label}; this strategy requires a border reroll. The experimental v${BORDER_ROLL_MODEL.version} model has 0 observed paid-reroll hits for this border and keeps it possible only through the prior (${BORDER_ROLL_MODEL.confidence} confidence).`,
         )
+      } else if (requiredBorderEstimate?.evidence === 'borrowed') {
+        reasons.push(
+          `The completed current roll does not contain ${strategy.requiresBorderId!.label}; this strategy requires a border reroll. It has 0 paid-reroll hits and ${requiredBorderEstimate.borrowedObservations} borrowed natural-board hit${requiredBorderEstimate.borrowedObservations === 1 ? '' : 's'}, so the estimate remains non-actionable (${BORDER_ROLL_MODEL.confidence} confidence).`,
+        )
       } else {
         reasons.push(
           `The completed current roll does not contain ${strategy.requiresBorderId!.label}; this strategy requires a border reroll. The experimental v${BORDER_ROLL_MODEL.version} model estimates a ${Math.round(
@@ -409,7 +442,7 @@ export function evaluateStrategyInventory(
       reasons.push(
         `A paid reroll is modeled at ${Math.round(
           potentialAppraisal.rollForecast.expectedFit * 100,
-        )}% contextual fit for this layout from ${BORDER_ROLL_MODEL.sampleCount} observed paid-reroll boards.`,
+        )}% contextual fit on a border-blind reference layout from ${BORDER_ROLL_MODEL.sampleCount} paid-reroll boards plus ${BORDER_ROLL_MODEL.borrowedNaturalBoardCount} borrowed natural boards.`,
       )
     }
 
@@ -454,6 +487,7 @@ export function evaluateStrategyInventory(
       requiredBorderChance,
       requiredBorderEvidence: requiredBorderEstimate?.evidence ?? null,
       requiredBorderObservations: requiredBorderEstimate?.observations ?? null,
+      requiredBorderBorrowedObservations: requiredBorderEstimate?.borrowedObservations ?? null,
       eligibleCharts: eligiblePool.length,
       jackpot,
       divineJackpot,
@@ -480,7 +514,8 @@ export function evaluateStrategyInventory(
   )
   const enteredBorderRatio = Math.min(1, enteredBorders / 12)
   const borderWeight = 0.5 * enteredBorderRatio
-  const modeledBorderWeight = 0.15 * (1 - enteredBorderRatio)
+  const modeledBorderWeight =
+    BORDER_ROLL_MODEL.confidence === 'low' ? 0 : 0.15 * (1 - enteredBorderRatio)
   const libraryWeight = 1 - borderWeight - modeledBorderWeight
 
   const evaluations: StrategyInventorySuggestion[] = rawEvaluations.map((raw) => {
