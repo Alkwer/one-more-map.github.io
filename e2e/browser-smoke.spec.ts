@@ -96,6 +96,8 @@ test('@webkit exports a download and opens a shared layout', async ({ appPage })
   })
   await openApp(appPage)
   await pasteText(appPage, ENGLISH_CHART)
+  const strategyAnalysis = appPage.getByText('Analyzing strategies…')
+  await expect(strategyAnalysis).toBeVisible()
   await appPage
     .getByRole('button', { name: 'Select Armoured Coral Reef Chart of Ice for placement' })
     .click()
@@ -112,6 +114,9 @@ test('@webkit exports a download and opens a shared layout', async ({ appPage })
   const shareUrl = appPage.url()
   expect(shareUrl).toContain(`${ORIGIN}${APP_PATH}#layout.v1.`)
 
+  // WebKit reports a worker module fetch interrupted by reload as a failed request.
+  // Finish the background analysis before the test deliberately navigates away.
+  await expect(strategyAnalysis).toBeHidden({ timeout: 20_000 })
   await appPage.reload()
   await expect(
     appPage.getByText('Viewing a shared layout. Your saved state has not been changed.'),
