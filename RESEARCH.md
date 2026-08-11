@@ -145,9 +145,11 @@ because the static app has no collection backend. A GitHub issue workflow
 validates and closes submitted sequences, and a separate batch workflow creates
 reviewable dataset-update pull requests; issue input is never written directly
 to `main`. A voluntary randomized mode pre-assigns 20% of new Voyages before the
-natural board is visible and asks for exactly one affordable paid reroll. The
-sampling reason is retained so this subset can test natural/paid equivalence
-without conditioning only on the player's keep decision.
+natural board is visible and asks for exactly one affordable paid reroll. A
+jackpot/preserve recommendation, including a Divine border, overrides that
+request so research never asks the player to destroy an exceptional natural
+board. The sampling reason is retained so this subset can test natural/paid
+equivalence without conditioning only on the player's ordinary keep decision.
 
 Capture natural boards and paid rerolls without discarding bad outcomes. For
 each observation store:
