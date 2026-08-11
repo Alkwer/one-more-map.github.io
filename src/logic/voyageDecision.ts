@@ -21,6 +21,13 @@ import type { BorderRollForecast } from './borderRollModel'
 export const ABSOLUTE_PLAYABLE_FIT = ABSOLUTE_STRATEGY_FIT
 
 export type VoyageDecisionKind = 'needs-data' | 'play' | 'switch' | 'wait' | 'reroll' | 'stop'
+export type VoyageDecisionBasis =
+  | 'insufficient-data'
+  | 'divine-exception'
+  | 'missing-requirements'
+  | 'contextual-fit'
+  | 'robust-model'
+  | 'cost-guardrail'
 
 export interface VoyageDecisionAction {
   kind: 'select-strategy'
@@ -30,6 +37,8 @@ export interface VoyageDecisionAction {
 
 export interface VoyageDecision {
   kind: VoyageDecisionKind
+  /** Machine-readable reason for audits and future recommendation telemetry. */
+  decisionBasis: VoyageDecisionBasis
   label: string
   reason: string
   strategyId: string | null
@@ -126,6 +135,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     keepModelPercentileLine,
     decisionFitLine,
     recommendationTier: null as StrategyRecommendationTier | null,
+    decisionBasis: 'insufficient-data' as VoyageDecisionBasis,
     preserveRoll: false,
     rollForecast: null,
   }
@@ -162,6 +172,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     if (!divine.ready) {
       return {
         ...base,
+        decisionBasis: 'divine-exception',
         kind: 'wait',
         label: `WAIT — missing pieces for ${divine.strategyName}`,
         reason: `Preserve the Divine border. Across all ${input.availableCharts} imported charts, ${divine.strategyName} still needs ${divine.missing.join(
@@ -181,6 +192,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     const alreadyActive = input.activeStrategyId === divine.strategyId
     return {
       ...base,
+      decisionBasis: 'divine-exception',
       kind: alreadyActive ? 'play' : 'switch',
       label: alreadyActive ? `PLAY: ${divine.strategyName}` : `SWITCH TO: ${divine.strategyName}`,
       reason: `A +1 Divine Orb border is present. ${divine.strategyName} is the best ready Divine variant for the ${input.availableCharts} imported charts. Preserve the roll and build its border-aware layout.`,
@@ -203,6 +215,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
   if (!bestInventory || input.availableCharts === 0) {
     return {
       ...base,
+      decisionBasis: 'insufficient-data',
       kind: 'needs-data',
       label: 'IMPORT CHARTS',
       reason:
@@ -219,6 +232,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
   if (!bestReady) {
     return {
       ...base,
+      decisionBasis: 'missing-requirements',
       kind: 'wait',
       label: `WAIT — missing pieces for ${bestInventory.strategyName}`,
       reason: `${bestInventory.strategyName} is the strongest charts + border match, but none of the curated strategies is runnable from all ${input.availableCharts} imported charts yet. Still needed: ${bestInventory.missing.join(
@@ -238,6 +252,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     const bordersMissing = 12 - input.enteredBorders
     return {
       ...base,
+      decisionBasis: 'insufficient-data',
       kind: 'needs-data',
       label: 'ENTER ALL BORDERS',
       reason: `${bestReady.strategyName} currently leads after combining all ${input.availableCharts} imported charts with the partial border roll. Enter ${bordersMissing} more border${
@@ -256,6 +271,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
   if (bestReady.fit === null) {
     return {
       ...base,
+      decisionBasis: 'insufficient-data',
       kind: 'needs-data',
       label: 'NO WEIGHTED ROLL SIGNAL',
       reason: `${bestReady.strategyName} is the best strategy after combining the chart library and border roll, but the roll has no comparable weighted value for the best layout found.`,
@@ -276,8 +292,9 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
   const meetsModelKeepLine =
     canUseRelativeModelKeep &&
     bestReady.rollForecast !== null &&
+    bestReady.rollForecast.modelConfidence !== 'low' &&
     keepModelPercentileLine !== null &&
-    bestReady.rollForecast.currentPercentile >= keepModelPercentileLine
+    bestReady.rollForecast.currentPercentileRange[0] >= keepModelPercentileLine
   const specializedAlternative =
     bestReady.recommendationTier === 'fallback'
       ? (ranked.find(
@@ -313,18 +330,25 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
           )}% contextual decision line.`
         : ''
     const modeledReason = meetsModelKeepLine
-      ? ` The experimental v${bestReady.rollForecast!.modelVersion} model ranks this board at the ${Math.round(
+      ? ` The experimental v${bestReady.rollForecast!.modelVersion} model robustly ranks this board at or above the ${Math.round(
+          bestReady.rollForecast!.currentPercentileRange[0] * 100,
+        )}th percentile across the tested priors (point estimate ${Math.round(
           bestReady.rollForecast!.currentPercentile * 100,
-        )}th percentile of paid rerolls, meeting the ${Math.round(
+        )}th), meeting the ${Math.round(
           keepModelPercentileLine! * 100,
         )}th-percentile keep line (${bestReady.rollForecast!.modelConfidence} confidence).`
       : bestReady.rollForecast
         ? ` The model ranks it at the ${Math.round(
             bestReady.rollForecast.currentPercentile * 100,
-          )}th percentile (${bestReady.rollForecast.modelConfidence} confidence).`
+          )}th percentile (${bestReady.rollForecast.modelConfidence} confidence).${
+            bestReady.rollForecast.modelConfidence === 'low'
+              ? ' Low-confidence model output is diagnostic only and cannot independently issue KEEP.'
+              : ''
+          }`
         : ''
     return {
       ...base,
+      decisionBasis: meetsContextFitLine ? 'contextual-fit' : 'robust-model',
       kind: alreadyActive ? 'play' : 'switch',
       label: isFallback
         ? alreadyActive
@@ -355,10 +379,15 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
           bestReady.rollForecast.currentPercentile * 100,
         )}th percentile and estimates a ${Math.round(
           bestReady.rollForecast.chanceNextRollBeatsCurrent * 100,
-        )}% chance that a paid reroll scores higher (${bestReady.rollForecast.modelConfidence} confidence).`
+        )}% chance that a paid reroll scores higher (${bestReady.rollForecast.modelConfidence} confidence).${
+          bestReady.rollForecast.modelConfidence === 'low'
+            ? ' Low-confidence model output is diagnostic only and cannot independently issue KEEP.'
+            : ''
+        }`
       : ' Border probabilities are not available for this layout.'
     return {
       ...base,
+      decisionBasis: 'cost-guardrail',
       kind: 'reroll',
       label: `CONSIDER REROLL — next costs ${sulphur(nextCost)} Sulphur`,
       reason: `After combining all ${input.availableCharts} imported charts with the current border roll, the best ready strategy is ${bestReady.strategyName}. The best layout found reaches ${percent(
@@ -387,6 +416,7 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     : ''
   return {
     ...base,
+    decisionBasis: 'cost-guardrail',
     kind: 'stop',
     label: 'STOP REROLLING — KEEP THE CURRENT BOARD',
     reason: `${bestReady.strategyName} is the best ready strategy after combining all ${input.availableCharts} imported charts with the current border roll, but the best layout found reaches only ${percent(

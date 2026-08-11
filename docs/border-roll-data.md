@@ -16,6 +16,12 @@ collects complete observed boards instead of treating the known pool as uniform.
 6. Submit only complete samples with all 12 modifiers recognised. Correct OCR
    misses before saving.
 
+Optionally enable **Voluntary randomized research**. Assignment happens before
+the natural board is seen. On an assigned Voyage, save the natural board and,
+only if the 3,000 Sulphur cost is acceptable, record exactly one paid reroll even
+when the recommendation says keep. Declining is always allowed; never exceed a
+personal Sulphur budget. Ordinary and assigned sequences are labelled separately.
+
 Every complete 12/12 OCR paste is saved automatically. The reroll-cost scan
 identifies roll 0 and later paid rerolls; after the natural board, automatic
 capture skips a scan whose reroll cost was not recognised rather than guessing
@@ -38,6 +44,8 @@ Each `allflame-border-roll/v2` record contains:
   legacy sample whose progress is unknown;
 - generation type, reroll number, and the known next reroll cost (derived by the
   current client; older v2 samples may contain the observed display value);
+- sampling reason: normal `gameplay`, pre-assigned `randomized-research`, or
+  `unknown` for a migrated legacy sample;
 - 12 canonical border modifier IDs in UI order: top, right, bottom, then left,
   with three slots per side.
 
@@ -56,6 +64,8 @@ because border modifiers already exist before chart placement and therefore
 cannot be gated by those chart levels. Older browser and submitted v2 samples
 without Vesper progress remain valid and are normalized to `null`; they are not
 silently assigned the player's current progress.
+Older v2 records without a sampling reason remain valid and are normalized to
+`unknown`; they are never relabelled as randomized evidence.
 
 ## GitHub submission processing
 
@@ -67,7 +77,8 @@ and validates:
 - the sample or dataset schema and field types;
 - all 12 canonical modifier IDs for every roll;
 - unique sample IDs and reroll indexes;
-- one game patch, one sequence ID, and one Vesper upgrade count per submission;
+- one game patch, one sequence ID, one Vesper upgrade count, and one sampling
+  reason per submission;
 - Vesper progress is `null` for legacy data or an integer from 0 to 5;
 - a contiguous sequence beginning at natural roll 0.
 
@@ -174,20 +185,22 @@ Initial analysis should report raw counts and confidence intervals by modifier,
 patch, Vesper upgrade progress, generation type, and slot. Samples whose Vesper
 progress is unknown should be reported separately. Samples from one sequence
 must remain grouped so duplicate limits and within-board dependence can be
-tested. Paid rerolls must not be mixed with natural boards until the two
-distributions are shown to agree.
+tested. Natural/paid validation should prioritize pre-assigned
+`randomized-research` sequences; ordinary gameplay rerolls remain observational
+because the decision to pay can depend on natural-board quality.
 
 ## Experimental roll model
 
-The application builds experimental model version 2 directly from
+The application builds experimental model version 3 directly from
 `data/border-rolls-v2.json` at compile time. Dataset-update pull requests
 therefore update the shipped estimates automatically without a separately
 maintained weight table.
 
-Version 2:
+Version 3:
 
-- estimates the next paid reroll from paid-reroll samples only; natural boards
-  remain separate until equivalence is supported;
+- targets the next paid reroll while borrowing natural boards at half weight to
+  stabilize the sparse slot estimates. Confidence and observed-hit labels still
+  count only paid Voyage sequences, so borrowed boards cannot promote confidence;
 - maintains a separate posterior for each physical border slot instead of
   applying one pooled modifier distribution to all 12 positions;
 - starts currency/drop, rarity, scarab-more, and experience families in their
@@ -195,18 +208,27 @@ Version 2:
   affected modifier's eligibility instead of being discarded;
 - uses a symmetric Dirichlet(1) prior within each slot's eligible pool, so a
   known but not-yet-observed eligible modifier never receives zero probability;
-- marks an individual modifier estimate as `prior-only` until that modifier is
-  observed in the selected generation profile;
+- reports sensitivity across Dirichlet priors 0.25–2 instead of presenting one
+  smoothed point estimate as exact;
+- labels modifier evidence as paid `observed`, natural `borrowed`, or
+  `prior-only`;
 - samples slots independently from their position-specific posterior means to
-  compare a concrete chart layout with a paid reroll;
+  compare a concrete chart layout with a paid reroll. The comparison uses a
+  separately optimized border-blind reference layout, not the layout selected
+  after seeing the current roll;
 - labels confidence from the number of complete Voyage sequences: low below
-  30, medium from 30 to 99, and high from 100;
+  30, medium from 30 to 99, and high from 100 paid sequences;
+- prevents low-confidence output from independently issuing a keep decision or
+  influencing incomplete-border strategy ranking. At medium/high confidence, a
+  model keep requires the full prior-sensitivity percentile range to clear the
+  threshold;
 - keeps the 3,000/6,000 Sulphur guardrail and does not convert score into
   currency expected value.
 
-The UI reports the current roll percentile, the estimated chance that a fresh
-paid reroll scores higher for the selected strategy layout, the model sample
-size, and `prior-only` status for mandatory modifiers with no observed hits.
+The UI reports the current roll percentile and prior range, the estimated chance
+that a fresh paid reroll scores higher for the selected strategy layout, paid
+and borrowed sample sizes, the decision basis, and evidence status for mandatory
+modifiers.
 These are posterior-predictive diagnostics, not a claim of optimal stopping.
 Future model versions may introduce Vesper or patch profiles once those strata
 have enough complete sequences.

@@ -1,10 +1,12 @@
 import borderRollDatasetJson from '../../data/border-rolls-v2.json'
 import { BORDER_MODS } from '../data/mods'
 
-export const BORDER_ROLL_MODEL_VERSION = 2 as const
+export const BORDER_ROLL_MODEL_VERSION = 3 as const
 export const BORDER_ROLL_PRIOR_PER_MOD = 1
 export const BORDER_ROLL_FORECAST_DRAWS = 4_096
 export const BORDER_ROLL_SLOT_COUNT = 12
+export const BORDER_ROLL_PRIOR_SENSITIVITY = [0.25, 2] as const
+export const BORDER_ROLL_NATURAL_BORROW_WEIGHT = 0.5
 
 export const BORDER_ROLL_FIXED_SLOT_FAMILIES = [
   {
@@ -35,7 +37,8 @@ const EPSILON = 1e-9
 
 export type BorderRollModelConfidence = 'low' | 'medium' | 'high'
 export type BorderRollModelProfile = 'pooled' | 'natural' | 'paid-reroll'
-export type BorderRollChanceEvidence = 'observed' | 'prior-only'
+export type BorderRollModelTrainingProfile = 'single-profile' | 'pooled-borrowed'
+export type BorderRollChanceEvidence = 'observed' | 'borrowed' | 'prior-only'
 
 interface BorderRollDatasetSample {
   sequenceId: string
@@ -51,18 +54,28 @@ export interface BorderRollDatasetInput {
 export interface BorderRollModel {
   version: typeof BORDER_ROLL_MODEL_VERSION
   profile: BorderRollModelProfile
+  trainingProfile: BorderRollModelTrainingProfile
   exportedAt: string
+  /** Target-profile boards. Confidence and actionability are based on these only. */
   sampleCount: number
   sequenceCount: number
   slotCount: number
+  /** Boards used to estimate probabilities after borrowing compatible observations. */
+  trainingSampleCount: number
+  trainingSlotCount: number
+  borrowedNaturalBoardCount: number
+  naturalBorrowWeight: number
   naturalBoardCount: number
   paidRerollBoardCount: number
   confidence: BorderRollModelConfidence
   priorPerMod: number
   modIds: string[]
+  /** Observations from the target profile, used for evidence labels. */
   observations: Record<string, number>
+  borrowedObservations: Record<string, number>
   probabilities: Record<string, number>
   slotObservationCounts: number[]
+  observationsBySlot: Record<string, number>[]
   eligibleModIdsBySlot: string[][]
   probabilitiesBySlot: Record<string, number>[]
 }
@@ -79,7 +92,11 @@ export interface BorderRollForecast {
   medianFit: number
   sixtiethPercentileFit: number
   currentPercentile: number
+  currentPercentileRange: readonly [number, number]
   chanceNextRollBeatsCurrent: number
+  chanceNextRollBeatsCurrentRange: readonly [number, number]
+  priorSensitivity: typeof BORDER_ROLL_PRIOR_SENSITIVITY
+  borrowedNaturalBoardCount: number
 }
 
 export type BorderContributionTable = Readonly<Record<string, number>>
@@ -88,6 +105,7 @@ export interface BorderModBoardChanceEstimate {
   chance: number
   evidence: BorderRollChanceEvidence
   observations: number
+  borrowedObservations: number
   eligibleSlots: number[]
 }
 
@@ -172,10 +190,15 @@ export function buildBorderRollModel(
   return {
     version: BORDER_ROLL_MODEL_VERSION,
     profile,
+    trainingProfile: 'single-profile',
     exportedAt: dataset.exportedAt,
     sampleCount: selectedSamples.length,
     sequenceCount,
     slotCount,
+    trainingSampleCount: selectedSamples.length,
+    trainingSlotCount: slotCount,
+    borrowedNaturalBoardCount: 0,
+    naturalBorrowWeight: 0,
     naturalBoardCount: dataset.samples.filter((sample) => sample.generation === 'natural').length,
     paidRerollBoardCount: dataset.samples.filter((sample) => sample.generation === 'paid-reroll')
       .length,
@@ -183,9 +206,84 @@ export function buildBorderRollModel(
     priorPerMod: BORDER_ROLL_PRIOR_PER_MOD,
     modIds: uniqueModIds,
     observations: counts,
+    borrowedObservations: Object.fromEntries(uniqueModIds.map((id) => [id, 0])),
     probabilities,
     slotObservationCounts,
+    observationsBySlot: countsBySlot,
     eligibleModIdsBySlot,
+    probabilitiesBySlot,
+  }
+}
+
+/**
+ * Estimate paid-reroll probabilities with all compatible rolls while keeping
+ * confidence tied to paid Voyage sequences. Natural boards stabilize the very
+ * sparse slot posteriors but can never move confidence out of low by themselves.
+ */
+export function buildBorrowedPaidRerollModel(
+  dataset: BorderRollDatasetInput,
+  modIds = BORDER_MODS.map((mod) => mod.id),
+): BorderRollModel {
+  const pooled = buildBorderRollModel(dataset, modIds, 'pooled')
+  const paid = buildBorderRollModel(dataset, modIds, 'paid-reroll')
+  const natural = buildBorderRollModel(dataset, modIds, 'natural')
+  const observationsBySlot = paid.observationsBySlot.map(
+    (paidSlot, slot) =>
+      Object.fromEntries(
+        paid.modIds.map((id) => [
+          id,
+          paidSlot[id] +
+            BORDER_ROLL_NATURAL_BORROW_WEIGHT * (natural.observationsBySlot[slot][id] ?? 0),
+        ]),
+      ) as Record<string, number>,
+  )
+  const slotObservationCounts = paid.slotObservationCounts.map(
+    (count, slot) =>
+      count + BORDER_ROLL_NATURAL_BORROW_WEIGHT * natural.slotObservationCounts[slot],
+  )
+  const probabilitiesBySlot = pooled.eligibleModIdsBySlot.map((eligibleIds, slot) => {
+    const eligible = new Set(eligibleIds)
+    const denominator = slotObservationCounts[slot] + BORDER_ROLL_PRIOR_PER_MOD * eligibleIds.length
+    return Object.fromEntries(
+      paid.modIds.map((id) => [
+        id,
+        eligible.has(id)
+          ? (observationsBySlot[slot][id] + BORDER_ROLL_PRIOR_PER_MOD) / denominator
+          : 0,
+      ]),
+    ) as Record<string, number>
+  })
+  const weightedObservations = Object.fromEntries(
+    paid.modIds.map((id) => [
+      id,
+      paid.observations[id] + BORDER_ROLL_NATURAL_BORROW_WEIGHT * (natural.observations[id] ?? 0),
+    ]),
+  ) as Record<string, number>
+  const weightedSlotCount = paid.slotCount + BORDER_ROLL_NATURAL_BORROW_WEIGHT * natural.slotCount
+  const probabilityDenominator = weightedSlotCount + BORDER_ROLL_PRIOR_PER_MOD * paid.modIds.length
+  const probabilities = Object.fromEntries(
+    paid.modIds.map((id) => [
+      id,
+      (weightedObservations[id] + BORDER_ROLL_PRIOR_PER_MOD) / probabilityDenominator,
+    ]),
+  )
+  return {
+    ...pooled,
+    profile: 'paid-reroll',
+    trainingProfile: 'pooled-borrowed',
+    sampleCount: paid.sampleCount,
+    sequenceCount: paid.sequenceCount,
+    slotCount: paid.slotCount,
+    confidence: paid.confidence,
+    trainingSampleCount: pooled.sampleCount,
+    trainingSlotCount: pooled.slotCount,
+    borrowedNaturalBoardCount: natural.sampleCount,
+    naturalBorrowWeight: BORDER_ROLL_NATURAL_BORROW_WEIGHT,
+    observations: paid.observations,
+    borrowedObservations: natural.observations,
+    probabilities,
+    slotObservationCounts,
+    observationsBySlot,
     probabilitiesBySlot,
   }
 }
@@ -222,6 +320,79 @@ function selectIndex(cumulative: number[], value: number): number {
 const quantile = (values: number[], probability: number) =>
   values[Math.floor(probability * (values.length - 1))]
 
+function probabilitiesForPrior(model: BorderRollModel, priorPerMod: number) {
+  return model.eligibleModIdsBySlot.map((eligibleIds, slot) => {
+    const eligible = new Set(eligibleIds)
+    const denominator = model.slotObservationCounts[slot] + priorPerMod * eligibleIds.length
+    return Object.fromEntries(
+      model.modIds.map((id) => [
+        id,
+        eligible.has(id)
+          ? ((model.observationsBySlot[slot]?.[id] ?? 0) + priorPerMod) / denominator
+          : 0,
+      ]),
+    ) as Record<string, number>
+  })
+}
+
+function simulateForecast(
+  model: BorderRollModel,
+  contributions: readonly BorderContributionTable[],
+  currentScore: number,
+  draws: number,
+  probabilitiesBySlot: Record<string, number>[],
+  seedSuffix: string,
+) {
+  const distributions = contributions.map((_, slot) => {
+    const probabilities = probabilitiesBySlot[slot] ?? model.probabilities
+    const ids = model.modIds.filter((id) => (probabilities[id] ?? 0) > 0)
+    const cumulative: number[] = []
+    let running = 0
+    for (const id of ids) {
+      running += probabilities[id] ?? 0
+      cumulative.push(running)
+    }
+    cumulative[cumulative.length - 1] = 1
+    return { cumulative, ids, probabilities }
+  })
+  const expectedScore = contributions.reduce(
+    (total, segment, slot) =>
+      total +
+      model.modIds.reduce(
+        (sum, id) => sum + (distributions[slot].probabilities[id] ?? 0) * (segment[id] ?? 0),
+        0,
+      ),
+    0,
+  )
+  const random = mulberry32(
+    stableSeed(`${model.version}:${model.exportedAt}:${contributions.length}:${seedSuffix}`),
+  )
+  const scores = Array.from({ length: draws }, () => {
+    let score = 0
+    for (const [slot, segment] of contributions.entries()) {
+      const distribution = distributions[slot]
+      const id = distribution.ids[selectIndex(distribution.cumulative, random())]
+      score += segment[id] ?? 0
+    }
+    return score
+  }).sort((left, right) => left - right)
+  let below = 0
+  let equal = 0
+  let above = 0
+  for (const score of scores) {
+    if (score < currentScore - EPSILON) below += 1
+    else if (score > currentScore + EPSILON) above += 1
+    else equal += 1
+  }
+  return {
+    distributions,
+    expectedScore,
+    scores,
+    currentPercentile: (below + equal / 2) / draws,
+    chanceNextRollBeatsCurrent: above / draws,
+  }
+}
+
 /**
  * Posterior-predictive roll forecast for one concrete chart layout. Each entry
  * in contributions retains its physical slot index and is sampled from that
@@ -236,50 +407,32 @@ export function forecastBorderRoll(
 ): BorderRollForecast | null {
   if (contributions.length === 0 || ceiling <= EPSILON || draws < 1) return null
 
-  const distributions = contributions.map((_, slot) => {
-    const probabilities = model.probabilitiesBySlot[slot] ?? model.probabilities
-    const ids = model.modIds.filter((id) => (probabilities[id] ?? 0) > 0)
-    const cumulative: number[] = []
-    let running = 0
-    for (const id of ids) {
-      running += probabilities[id] ?? 0
-      cumulative.push(running)
-    }
-    cumulative[cumulative.length - 1] = 1
-    return { cumulative, ids, probabilities }
-  })
-
-  const expectedScore = contributions.reduce(
-    (total, segment, slot) =>
-      total +
-      model.modIds.reduce(
-        (sum, id) => sum + (distributions[slot].probabilities[id] ?? 0) * (segment[id] ?? 0),
-        0,
-      ),
-    0,
+  const point = simulateForecast(
+    model,
+    contributions,
+    currentScore,
+    draws,
+    model.probabilitiesBySlot,
+    `prior-${model.priorPerMod}`,
   )
-
-  const random = mulberry32(
-    stableSeed(`${model.version}:${model.exportedAt}:${contributions.length}`),
+  const sensitivity = BORDER_ROLL_PRIOR_SENSITIVITY.map((prior) =>
+    simulateForecast(
+      model,
+      contributions,
+      currentScore,
+      draws,
+      probabilitiesForPrior(model, prior),
+      `prior-${prior}`,
+    ),
   )
-  const simulatedScores = Array.from({ length: draws }, () => {
-    let score = 0
-    for (const [slot, segment] of contributions.entries()) {
-      const distribution = distributions[slot]
-      const id = distribution.ids[selectIndex(distribution.cumulative, random())]
-      score += segment[id] ?? 0
-    }
-    return score
-  }).sort((left, right) => left - right)
-
-  let below = 0
-  let equal = 0
-  let above = 0
-  for (const score of simulatedScores) {
-    if (score < currentScore - EPSILON) below += 1
-    else if (score > currentScore + EPSILON) above += 1
-    else equal += 1
-  }
+  const percentileValues = [
+    point.currentPercentile,
+    ...sensitivity.map((item) => item.currentPercentile),
+  ]
+  const improveValues = [
+    point.chanceNextRollBeatsCurrent,
+    ...sensitivity.map((item) => item.chanceNextRollBeatsCurrent),
+  ]
 
   return {
     modelVersion: model.version,
@@ -288,13 +441,35 @@ export function forecastBorderRoll(
     modelStructure: 'slot-aware',
     sampleCount: model.sampleCount,
     sequenceCount: model.sequenceCount,
-    expectedScore,
-    expectedFit: clamp01(expectedScore / ceiling),
-    medianFit: clamp01(quantile(simulatedScores, 0.5) / ceiling),
-    sixtiethPercentileFit: clamp01(quantile(simulatedScores, 0.6) / ceiling),
-    currentPercentile: (below + equal / 2) / draws,
-    chanceNextRollBeatsCurrent: above / draws,
+    expectedScore: point.expectedScore,
+    expectedFit: clamp01(point.expectedScore / ceiling),
+    medianFit: clamp01(quantile(point.scores, 0.5) / ceiling),
+    sixtiethPercentileFit: clamp01(quantile(point.scores, 0.6) / ceiling),
+    currentPercentile: point.currentPercentile,
+    currentPercentileRange: [Math.min(...percentileValues), Math.max(...percentileValues)],
+    chanceNextRollBeatsCurrent: point.chanceNextRollBeatsCurrent,
+    chanceNextRollBeatsCurrentRange: [Math.min(...improveValues), Math.max(...improveValues)],
+    priorSensitivity: BORDER_ROLL_PRIOR_SENSITIVITY,
+    borrowedNaturalBoardCount: model.borrowedNaturalBoardCount,
   }
+}
+
+/** Draw one experimental board from the same slot-aware distribution as the model. */
+export function sampleBorderRoll(
+  model: BorderRollModel,
+  random: () => number = Math.random,
+): string[] {
+  return Array.from({ length: BORDER_ROLL_SLOT_COUNT }, (_, slot) => {
+    const probabilities = model.probabilitiesBySlot[slot] ?? model.probabilities
+    const ids = model.modIds.filter((id) => (probabilities[id] ?? 0) > 0)
+    let cumulative = 0
+    const draw = random()
+    for (const id of ids) {
+      cumulative += probabilities[id] ?? 0
+      if (draw <= cumulative) return id
+    }
+    return ids[ids.length - 1]
+  })
 }
 
 export function chanceModAppearsOnBoard(
@@ -319,18 +494,19 @@ export function estimateModBoardChance(
   const chance = chanceModAppearsOnBoard(model, modId, slots)
   if (chance === null) return null
   const observations = model.observations[modId] ?? 0
+  const borrowedObservations = model.borrowedObservations[modId] ?? 0
   return {
     chance,
-    evidence: observations === 0 ? 'prior-only' : 'observed',
+    evidence: observations > 0 ? 'observed' : borrowedObservations > 0 ? 'borrowed' : 'prior-only',
     observations,
+    borrowedObservations,
     eligibleSlots: Array.from({ length: slots }, (_, slot) => slot).filter(
       (slot) => (model.probabilitiesBySlot[slot]?.[modId] ?? model.probabilities[modId]) > 0,
     ),
   }
 }
 
-export const BORDER_ROLL_MODEL = buildBorderRollModel(
+export const BORDER_ROLL_MODEL = buildBorrowedPaidRerollModel(
   borderRollDatasetJson as BorderRollDatasetInput,
   BORDER_MODS.map((mod) => mod.id),
-  'paid-reroll',
 )

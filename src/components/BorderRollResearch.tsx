@@ -27,6 +27,9 @@ export function BorderRollResearch({ borders, controller }: Props) {
     (item) => item.delivery.status === 'pending',
   ).length
   const [showArchived, setShowArchived] = useState(false)
+  const randomizedResearchComplete = controller.activeSamples.some(
+    (sample) => sample.generation === 'paid-reroll',
+  )
   const missingBorders = useMemo(() => borders.filter((id) => id === null).length, [borders])
   const sequenceView = useMemo(() => {
     const archivedIds = new Set(store.archivedSequenceIds)
@@ -82,6 +85,42 @@ export function BorderRollResearch({ borders, controller }: Props) {
         sequences are archived locally and hidden from this list by default. Select your Superior
         Sovereign progress once so quest-gated border pools can be tested separately.
       </p>
+
+      <label className="roll-auto-submit">
+        <input
+          type="checkbox"
+          checked={store.randomizedResearchEnabled}
+          disabled={researchBlocked}
+          onChange={(event) => controller.setRandomizedResearchEnabled(event.target.checked)}
+        />
+        <span>
+          Voluntary randomized research (20% of new Voyages are assigned one paid reroll before the
+          natural board is seen)
+        </span>
+      </label>
+      {store.activeSequenceSamplingReason === 'randomized-research' && (
+        <div className="share-banner" role="status">
+          <div className="share-banner-copy">
+            <strong>
+              {randomizedResearchComplete
+                ? 'Randomized research pair complete'
+                : 'Research Voyage assigned before seeing the roll'}
+            </strong>
+            {randomizedResearchComplete ? (
+              <span>
+                The natural board and one paid reroll are labelled as a pre-assigned research pair.
+                Continue only for gameplay reasons.
+              </span>
+            ) : (
+              <span>
+                Save the natural board, then—only if you are comfortable with the cost—record
+                exactly one paid reroll even when the recommendation says KEEP. The assignment is
+                voluntary; never exceed your Sulphur budget.
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {store.recovery && (
         <AuxiliaryStoreRecovery
@@ -154,6 +193,12 @@ export function BorderRollResearch({ borders, controller }: Props) {
             : ` · next cost ${controller.displayedNextRerollCost.toLocaleString('en-US')}`}
         </span>
         <span>Sequence {store.activeSequenceId.slice(-8)}</span>
+        <span>
+          Sampling:{' '}
+          {store.activeSequenceSamplingReason === 'randomized-research'
+            ? 'randomized research'
+            : 'normal gameplay'}
+        </span>
         <span
           className={controller.vesperUpgradeCount === null ? 'sample-incomplete' : 'sample-ready'}
         >
@@ -260,7 +305,13 @@ export function BorderRollResearch({ borders, controller }: Props) {
                     {sequence.length === 1 ? 'roll' : 'rolls'} · {sequence[0].gamePatch} · Vesper{' '}
                     {sequence[0].vesperUpgradeCount === null
                       ? 'unknown'
-                      : `${sequence[0].vesperUpgradeCount}/5`}
+                      : `${sequence[0].vesperUpgradeCount}/5`}{' '}
+                    ·{' '}
+                    {sequence[0].samplingReason === 'randomized-research'
+                      ? 'randomized research'
+                      : sequence[0].samplingReason === 'unknown'
+                        ? 'legacy sampling reason'
+                        : 'normal gameplay'}
                   </span>
                   <div className="roll-sequence-actions">
                     {queuedItem && (

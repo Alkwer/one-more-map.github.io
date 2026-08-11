@@ -21,6 +21,8 @@ import {
   saveBorderResearch,
   serializeBorderRollDataset,
   setCurrentVesperUpgradeCount,
+  setRandomizedResearchEnabled,
+  startBorderRollSequence,
 } from './borderRollResearch'
 
 const completeBorders = (): Borders =>
@@ -44,6 +46,7 @@ function sample(overrides: Partial<Parameters<typeof createBorderRollSample>[0]>
 function withoutVesperUpgradeCount(value: ReturnType<typeof sample>) {
   const previous: Partial<typeof value> = { ...value }
   delete previous.vesperUpgradeCount
+  delete previous.samplingReason
   return previous
 }
 
@@ -56,6 +59,7 @@ describe('border roll research samples', () => {
       sequenceId: 'voyage-test',
       vesperUpgradeCount: 3,
       generation: 'natural',
+      samplingReason: 'gameplay',
       rerollIndex: 0,
       displayedNextRerollCost: 3000,
     })
@@ -99,6 +103,7 @@ describe('border roll research samples', () => {
       voyageLevel: 83,
     }
     delete (legacySample as Partial<typeof current>).vesperUpgradeCount
+    delete (legacySample as Partial<typeof current>).samplingReason
     const setItem = vi.fn()
     vi.stubGlobal('localStorage', {
       getItem: vi.fn(() =>
@@ -113,7 +118,7 @@ describe('border roll research samples', () => {
 
     try {
       const migrated = loadBorderResearch()
-      expect(migrated.version).toBe(4)
+      expect(migrated.version).toBe(5)
       expect(migrated.vesperUpgradeCount).toBeNull()
       expect(migrated.archivedSequenceIds).toEqual([])
       expect(migrated.samples[0]).not.toHaveProperty('voyageLevel')
@@ -143,14 +148,14 @@ describe('border roll research samples', () => {
     try {
       const migrated = loadBorderResearch()
       expect(migrated).toMatchObject({
-        version: 4,
+        version: 5,
         activeSequenceId: 'voyage-test',
         samples: [{ sampleId: current.sampleId, vesperUpgradeCount: null }],
         vesperUpgradeCount: null,
         archivedSequenceIds: [],
       })
       expect(JSON.parse(setItem.mock.calls[0][1])).toMatchObject({
-        version: 4,
+        version: 5,
         archivedSequenceIds: [],
       })
     } finally {
@@ -175,10 +180,39 @@ describe('border roll research samples', () => {
 
     try {
       expect(loadBorderResearch()).toMatchObject({
-        version: 4,
+        version: 5,
         vesperUpgradeCount: null,
         samples: [{ sampleId: current.sampleId, vesperUpgradeCount: null }],
         archivedSequenceIds: ['voyage-test'],
+      })
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('migrates stored v4 research with an explicit unknown sampling reason', () => {
+    const current = sample()
+    const previous = { ...current } as Partial<typeof current>
+    delete previous.samplingReason
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn(() =>
+        JSON.stringify({
+          version: 4,
+          activeSequenceId: 'voyage-test',
+          vesperUpgradeCount: 3,
+          samples: [previous],
+          archivedSequenceIds: [],
+        }),
+      ),
+      setItem: vi.fn(),
+    })
+
+    try {
+      expect(loadBorderResearch()).toMatchObject({
+        version: 5,
+        randomizedResearchEnabled: false,
+        activeSequenceSamplingReason: 'gameplay',
+        samples: [{ sampleId: current.sampleId, samplingReason: 'unknown' }],
       })
     } finally {
       vi.unstubAllGlobals()
@@ -246,6 +280,21 @@ describe('border roll research samples', () => {
       historical,
       expect.objectContaining({ sequenceId: 'voyage-test', vesperUpgradeCount: 4 }),
     ])
+  })
+
+  it('assigns randomized research before a new Voyage and keeps the label fixed', () => {
+    const enabled = setRandomizedResearchEnabled(createBorderResearchStore(), true, 0.1)
+    expect(enabled.activeSequenceSamplingReason).toBe('randomized-research')
+
+    const existing = sample({
+      sequenceId: enabled.activeSequenceId,
+      samplingReason: 'randomized-research',
+    })
+    const withSample = { ...enabled, samples: [existing] }
+    expect(setRandomizedResearchEnabled(withSample, false, 0.9).activeSequenceSamplingReason).toBe(
+      'randomized-research',
+    )
+    expect(startBorderRollSequence(enabled, 0.9).activeSequenceSamplingReason).toBe('gameplay')
   })
 
   it('does not relabel legacy active samples when progress is selected for new rolls', () => {
@@ -321,6 +370,9 @@ describe('border roll research samples', () => {
     expect(isCompleteBorderRollSequence([natural, { ...reroll, vesperUpgradeCount: 4 }])).toBe(
       false,
     )
+    expect(
+      isCompleteBorderRollSequence([natural, { ...reroll, samplingReason: 'randomized-research' }]),
+    ).toBe(false)
     expect(isCompleteBorderRollSequence([reroll])).toBe(false)
   })
 

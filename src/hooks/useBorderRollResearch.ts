@@ -13,6 +13,7 @@ import {
   restoreBorderRollSequence,
   saveBorderResearch,
   setCurrentVesperUpgradeCount,
+  setRandomizedResearchEnabled,
   startBorderRollSequence,
   type BorderResearchStore,
 } from '../logic/borderRollResearch'
@@ -46,6 +47,7 @@ export interface BorderRollResearchController {
   vesperUpgradeCount: number | null
   setGamePatch: (value: string) => void
   setVesperUpgradeCount: (value: number | null) => void
+  setRandomizedResearchEnabled: (enabled: boolean) => void
   setAutoSubmitEnabled: (enabled: boolean) => void
   setSubmissionKey: (value: string) => void
   submitQueuedSequences: () => void
@@ -212,6 +214,7 @@ export function useBorderRollResearch(): BorderRollResearchController {
         sequenceId: current.activeSequenceId,
         gamePatch: sequencePatch,
         vesperUpgradeCount: sequenceVesperUpgradeCount,
+        samplingReason: current.activeSequenceSamplingReason,
         rerollIndex,
         displayedNextRerollCost: nextCost,
         borders,
@@ -277,6 +280,25 @@ export function useBorderRollResearch(): BorderRollResearchController {
     if (!commitStore(startBorderRollSequence(storeRef.current))) return
     setMessage('Started a new Voyage sequence. Its first complete scan will be roll 0.')
   }, [commitStore])
+
+  const setResearchSamplingEnabled = useCallback(
+    (enabled: boolean) => {
+      const current = storeRef.current
+      const next = setRandomizedResearchEnabled(current, enabled)
+      if (!commitStore(next)) return
+      const activeSamples = getBorderRollSequence(current.samples, current.activeSequenceId)
+      setMessage(
+        enabled
+          ? activeSamples.length > 0
+            ? 'Randomized research enabled. Assignment starts with the next Voyage.'
+            : next.activeSequenceSamplingReason === 'randomized-research'
+              ? 'Randomized research enabled: this Voyage was assigned one research reroll.'
+              : 'Randomized research enabled: this Voyage stays normal gameplay.'
+          : 'Randomized research disabled. Existing sequence labels were preserved.',
+      )
+    },
+    [commitStore],
+  )
 
   const setVesperUpgradeCount = useCallback(
     (value: number | null) => {
@@ -512,6 +534,7 @@ export function useBorderRollResearch(): BorderRollResearchController {
     vesperUpgradeCount: store.vesperUpgradeCount,
     setGamePatch,
     setVesperUpgradeCount,
+    setRandomizedResearchEnabled: setResearchSamplingEnabled,
     setAutoSubmitEnabled,
     setSubmissionKey,
     submitQueuedSequences,
