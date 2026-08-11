@@ -126,9 +126,12 @@ Current evidence and remaining unknowns:
 - Model output reports prior sensitivity and compares rolls on a border-blind
   reference layout. It does not price Sulphur or claim optimal stopping; the
   3,000/6,000 guardrail remains in force.
-- While confidence is `low`, the model is diagnostic: it cannot independently
-  issue `KEEP` or influence incomplete-border strategy ranking. Medium begins at
-  30 paid Voyage sequences and high at 100.
+- Complete-board guidance uses the whole prior-sensitivity percentile range.
+  It issues `PLAY`/`SWITCH` only when every tested prior clears the keep line,
+  and suggests a cheap reroll only when every prior remains below it. If the
+  range crosses the line, the app preserves the current board. Low confidence
+  remains explicit, and incomplete-border ranking never uses the model. Medium
+  begins at 30 paid Voyage sequences and high at 100.
 - The model imports the canonical JSON dataset directly, so every accepted
   dataset rebuild updates probabilities on the next application build.
 
@@ -321,12 +324,11 @@ App policy resulting from this evidence:
 5. Limit the default reroll suggestion to the 3,000 and 6,000 Sulphur steps.
    This is a community-informed guardrail, not optimal stopping or EV.
 6. Treat strategy weights as within-strategy layout preferences and same-tier
-   tie-breakers. The explicit minimum fit for Alc & Go fallback preference is
-   50%. A fitting specialized recipe outranks a fitting Alc & Go board; a
-   fitting Alc & Go board can outrank a weak specialization; below 50%, the
-   ready specialized strategy remains ahead of the weak fallback. A relative
-   reroll-model percentile cannot promote sub-50% Alc & Go to PLAY or SWITCH.
-   Divine-border jackpots remain the preserve exception.
+   tie-breakers. The theoretical best-mod-in-every-slot ceiling ratio is
+   diagnostic only. At a robust 50th achievable-roll percentile, Alc & Go can
+   outrank a below-line specialization; when both are above or below that line,
+   the specialized tier stays ahead. Divine-border jackpots remain the preserve
+   exception.
 7. Accept 4,000 Wisps, but not 2,000 Wisps, as the documented Meatfish
    Pantheon substitute. Do not score Fracture or spare Rare-chart families in
    the exact nine-chart Meatfish recipe.

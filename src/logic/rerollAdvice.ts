@@ -4,16 +4,11 @@ export const REROLL_COSTS = [3_000, 6_000, 12_000, 24_000, 48_000] as const
 export const DEFAULT_MAX_REROLL_COST = 6_000
 
 /**
- * Contextual-fit keep lines for each next-cost step. The first cheap reroll
- * asks more of the current board; later steps retain the absolute 50% play
- * floor. These are visible heuristic thresholds, not probability/EV.
- */
-export const KEEP_FIT_LINES = [0.6, 0.5, 0.5, 0.5, 0.5] as const
-
-/**
- * Experimental posterior-percentile keep lines. A cheap first reroll asks the
- * current board to beat 60% of modeled paid rerolls; later steps use the median.
- * Sulphur is still protected separately by DEFAULT_MAX_REROLL_COST.
+ * Posterior-predictive keep lines on the achievable-roll percentile scale. A
+ * cheap first reroll asks the current board to beat 60% of modeled paid
+ * rerolls; later steps use the median. A decision is robust only when the full
+ * prior-sensitivity range lies on one side of the applicable line. Sulphur is
+ * still protected separately by DEFAULT_MAX_REROLL_COST.
  */
 export const KEEP_MODEL_PERCENTILE_LINES = [0.6, 0.5, 0.5, 0.5, 0.5] as const
 

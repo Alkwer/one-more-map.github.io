@@ -218,10 +218,14 @@ Version 3:
   after seeing the current roll;
 - labels confidence from the number of complete Voyage sequences: low below
   30, medium from 30 to 99, and high from 100 paid sequences;
-- prevents low-confidence output from independently issuing a keep decision or
-  influencing incomplete-border strategy ranking. At medium/high confidence, a
-  model keep requires the full prior-sensitivity percentile range to clear the
-  threshold;
+- uses the full prior-sensitivity percentile range for complete-board actions:
+  every tested prior must clear the keep line for `PLAY`/`SWITCH`, or remain
+  below it before a 3,000/6,000 Sulphur reroll is suggested. A range crossing
+  the line, or an unavailable modeled comparison, preserves the current board;
+- keeps the theoretical per-slot ceiling ratio as a named diagnostic only. It
+  has no keep/reroll threshold and cannot determine fallback preference;
+- never lets the probability model influence incomplete-border ranking. Low
+  confidence remains visible even when the prior-range decision is stable;
 - keeps the 3,000/6,000 Sulphur guardrail and does not convert score into
   currency expected value.
 

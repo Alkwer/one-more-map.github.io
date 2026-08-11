@@ -1,7 +1,7 @@
 import { borderModById } from '../data/mods'
 import {
-  contextualStrategyRecommendationPriority,
-  MIN_FALLBACK_RECOMMENDATION_FIT,
+  MIN_FALLBACK_RECOMMENDATION_PERCENTILE,
+  rollAwareStrategyRecommendationPriority,
   STRATEGIES,
   type StrategyDef,
   type StrategyReservationPreferences,
@@ -29,9 +29,6 @@ const EPSILON = 1e-9
 const POTENTIAL_SEARCH_RESTARTS = 12
 const POTENTIAL_SEARCH_ITERATIONS = 900
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value))
-
-/** Shared absolute fit line for contextual strategy and fallback policy. */
-export const ABSOLUTE_STRATEGY_FIT = MIN_FALLBACK_RECOMMENDATION_FIT
 
 export type SuggestionConfidence = 'low' | 'medium' | 'high'
 export type RequiredBorderStatus = 'not-required' | 'unknown' | 'met' | 'missing'
@@ -440,9 +437,9 @@ export function evaluateStrategyInventory(
 
     if (potentialAppraisal.rollForecast) {
       reasons.push(
-        `A paid reroll is modeled at ${Math.round(
+        `A paid reroll's mean contribution is ${Math.round(
           potentialAppraisal.rollForecast.expectedFit * 100,
-        )}% contextual fit on a border-blind reference layout from ${BORDER_ROLL_MODEL.sampleCount} paid-reroll boards plus ${BORDER_ROLL_MODEL.borrowedNaturalBoardCount} borrowed natural boards.`,
+        )}% of the theoretical per-slot ceiling on a border-blind reference layout from ${BORDER_ROLL_MODEL.sampleCount} paid-reroll boards plus ${BORDER_ROLL_MODEL.borrowedNaturalBoardCount} borrowed natural boards; this ratio is diagnostic only.`,
       )
     }
 
@@ -559,16 +556,22 @@ export function evaluateStrategyInventory(
       return a.readiness.ready ? -1 : 1
     }
     // A strategy's weights are calibrated for arranging that strategy, not as
-    // currency EV on a universal scale. First require contextual border fit,
-    // then apply the coarse policy tier; only then use the weighted rank.
+    // currency EV on a universal scale. Compare each roll with achievable rolls
+    // for that same strategy, then apply the coarse policy tier and weighted rank.
     if (a.readiness.ready && b.readiness.ready) {
-      const aFitsCurrentBorders =
-        enteredBorders === 12 ? a.fit !== null && a.fit >= ABSOLUTE_STRATEGY_FIT : null
-      const bFitsCurrentBorders =
-        enteredBorders === 12 ? b.fit !== null && b.fit >= ABSOLUTE_STRATEGY_FIT : null
+      const aPercentile = a.potentialAppraisal.rollForecast?.currentPercentileRange[0]
+      const bPercentile = b.potentialAppraisal.rollForecast?.currentPercentileRange[0]
+      const aHasStrongCurrentRoll =
+        enteredBorders === 12 && aPercentile !== undefined
+          ? aPercentile >= MIN_FALLBACK_RECOMMENDATION_PERCENTILE
+          : null
+      const bHasStrongCurrentRoll =
+        enteredBorders === 12 && bPercentile !== undefined
+          ? bPercentile >= MIN_FALLBACK_RECOMMENDATION_PERCENTILE
+          : null
       const priorityDifference =
-        contextualStrategyRecommendationPriority(b.strategy, bFitsCurrentBorders) -
-        contextualStrategyRecommendationPriority(a.strategy, aFitsCurrentBorders)
+        rollAwareStrategyRecommendationPriority(b.strategy, bHasStrongCurrentRoll) -
+        rollAwareStrategyRecommendationPriority(a.strategy, aHasStrongCurrentRoll)
       if (priorityDifference !== 0) return priorityDifference
     }
     return b.rankScore - a.rankScore

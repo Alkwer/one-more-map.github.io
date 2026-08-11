@@ -1,16 +1,9 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'vitest'
-import {
-  MIN_FALLBACK_RECOMMENDATION_FIT,
-  type StrategyRecommendationTier,
-} from '../src/data/strategies'
+import type { StrategyRecommendationTier } from '../src/data/strategies'
 import type { RequiredBorderStatus, StrategySuggestion } from '../src/logic/strategySuggestions'
 import type { BorderRollForecast } from '../src/logic/borderRollModel'
-import {
-  ABSOLUTE_PLAYABLE_FIT,
-  decideVoyage,
-  type VoyageDecisionInput,
-} from '../src/logic/voyageDecision'
+import { decideVoyage, type VoyageDecisionInput } from '../src/logic/voyageDecision'
 
 interface CandidateOptions {
   id: string
@@ -89,11 +82,6 @@ const decide = ({
   })
 
 describe('Voyage decision regressions', () => {
-  it('keeps the absolute playable fit threshold', () => {
-    assert.equal(ABSOLUTE_PLAYABLE_FIT, 0.5)
-    assert.equal(MIN_FALLBACK_RECOMMENDATION_FIT, 0.5)
-  })
-
   it('chooses the inventory-ranked strategy over the active strategy', () => {
     const decision = decide({
       evaluations: [
@@ -114,7 +102,7 @@ describe('Voyage decision regressions', () => {
 
     assert.equal(decision.kind, 'switch')
     assert.equal(decision.strategyId, 'alternative')
-    assert.match(decision.label, /^SWITCH TO: Best Library Strategy$/)
+    assert.match(decision.label, /^SWITCH FOR NOW TO: Best Library Strategy$/)
     assert.ok(decision.action)
     assert.equal(decision.action.strategyId, 'alternative')
     assert.match(decision.reason, /all 25 imported charts/)
@@ -145,7 +133,7 @@ describe('Voyage decision regressions', () => {
     assert.equal(decision.strategyId, 'milky-speedrun')
   })
 
-  it('prefers a fitting Alc & Go board over a ready specialized strategy with weak borders', () => {
+  it('prefers Alc & Go when its modeled roll is strong and the specialization is weak', () => {
     const decision = decide({
       activeStrategyId: null,
       evaluations: [
@@ -155,6 +143,7 @@ describe('Voyage decision regressions', () => {
           fit: 0.3,
           rankScore: 100,
           recommendationTier: 'specialized',
+          rollForecast: forecast(0.2, 0.8),
         }),
         candidate({
           id: 'alc-and-go',
@@ -162,6 +151,7 @@ describe('Voyage decision regressions', () => {
           fit: 0.7,
           rankScore: 1,
           recommendationTier: 'fallback',
+          rollForecast: forecast(0.75, 0.2),
         }),
       ],
     })
@@ -172,11 +162,11 @@ describe('Voyage decision regressions', () => {
     assert.match(decision.reason, /it is not the only runnable strategy/)
     assert.match(
       decision.reason,
-      /Speedrun Strongboxes is also runnable and is the strongest specialized alternative at 30% fit/,
+      /Speedrun Strongboxes is also runnable and is the strongest specialized alternative at the modeled 20th percentile/,
     )
   })
 
-  it('keeps weak Alc & Go behind a weak ready specialization despite its model percentile', () => {
+  it('keeps a specialization ahead when both candidates clear the percentile line', () => {
     const decision = decide({
       activeStrategyId: 'alc-and-go',
       evaluations: [
@@ -186,6 +176,7 @@ describe('Voyage decision regressions', () => {
           fit: 0.35,
           rankScore: 0.68,
           recommendationTier: 'specialized',
+          rollForecast: forecast(0.8, 0.15),
         }),
         candidate({
           id: 'alc-and-go',
@@ -198,13 +189,13 @@ describe('Voyage decision regressions', () => {
       ],
     })
 
-    assert.equal(decision.kind, 'reroll')
+    assert.equal(decision.kind, 'switch')
     assert.equal(decision.strategyId, 'anchorfield-fishing')
     assert.equal(decision.recommendationTier, 'specialized')
-    assert.doesNotMatch(decision.label, /PLAY|SWITCH/)
+    assert.match(decision.label, /SWITCH TO/)
   })
 
-  it('does not promote weak Alc & Go from a high model percentile alone', () => {
+  it('can promote Alc & Go from a high modeled percentile despite a low ceiling ratio', () => {
     const decision = decide({
       activeStrategyId: 'alc-and-go',
       evaluations: [
@@ -218,11 +209,11 @@ describe('Voyage decision regressions', () => {
       ],
     })
 
-    assert.equal(decision.kind, 'reroll')
+    assert.equal(decision.kind, 'play')
     assert.equal(decision.strategyId, 'alc-and-go')
-    assert.doesNotMatch(decision.label, /PLAY|SWITCH/)
-    assert.match(decision.reason, /below the 50% minimum for fallback preference/)
-    assert.match(decision.reason, /relative model percentile cannot promote it/)
+    assert.equal(decision.label, 'PLAY FALLBACK: Alc & Go')
+    assert.equal(decision.decisionBasis, 'modeled-percentile')
+    assert.match(decision.reason, /theoretical-ceiling ratio is diagnostic only/)
   })
 
   it('keeps a weak ready specialization ahead of a weak fallback', () => {
@@ -246,12 +237,13 @@ describe('Voyage decision regressions', () => {
       ],
     })
 
-    assert.equal(decision.kind, 'reroll')
+    assert.equal(decision.kind, 'switch')
     assert.equal(decision.strategyId, 'milky-speedrun')
     assert.equal(decision.recommendationTier, 'specialized')
+    assert.match(decision.label, /SWITCH FOR NOW TO/)
   })
 
-  it('does not play a relative winner without absolute fit', () => {
+  it('does not use an absolute ceiling ratio as a play gate', () => {
     const decision = decide({
       activeStrategyId: null,
       evaluations: [
@@ -265,8 +257,10 @@ describe('Voyage decision regressions', () => {
       ],
     })
 
-    assert.equal(decision.kind, 'reroll')
-    assert.doesNotMatch(decision.label, /PLAY|SWITCH/)
+    assert.equal(decision.kind, 'switch')
+    assert.match(decision.label, /SWITCH FOR NOW TO/)
+    assert.equal(decision.decisionBasis, 'insufficient-data')
+    assert.match(decision.reason, /theoretical-ceiling ratio is not used to justify spending/)
   })
 
   it('does not play when required library pieces are missing', () => {
@@ -319,7 +313,7 @@ describe('Voyage decision regressions', () => {
 
   it('rerolls a weak early roll', () => {
     const decision = decide({
-      evaluations: [candidate({ id: 'active', fit: 0.2 })],
+      evaluations: [candidate({ id: 'active', fit: 0.2, rollForecast: forecast(0.2, 0.7) })],
     })
 
     assert.equal(decision.kind, 'reroll')
@@ -327,7 +321,7 @@ describe('Voyage decision regressions', () => {
     assert.equal(decision.label, 'CONSIDER REROLL — next costs 3,000 Sulphur')
   })
 
-  it('does not let a low-confidence model keep a contextually weak board', () => {
+  it('keeps a low-confidence roll when every tested prior clears the percentile line', () => {
     const decision = decide({
       evaluations: [
         candidate({
@@ -338,9 +332,10 @@ describe('Voyage decision regressions', () => {
       ],
     })
 
-    assert.equal(decision.kind, 'reroll')
+    assert.equal(decision.kind, 'play')
     assert.equal(decision.rollForecast?.currentPercentile, 0.8)
-    assert.match(decision.reason, /Low-confidence model output is diagnostic only/)
+    assert.equal(decision.decisionBasis, 'modeled-percentile')
+    assert.match(decision.reason, /full 80–80 percentile prior range meets the 60th percentile/)
   })
 
   it('allows a medium-confidence model keep only when the prior range clears the line', () => {
@@ -351,18 +346,21 @@ describe('Voyage decision regressions', () => {
     })
 
     assert.equal(decision.kind, 'play')
-    assert.equal(decision.decisionBasis, 'robust-model')
-    assert.match(decision.reason, /across the tested priors/)
+    assert.equal(decision.decisionBasis, 'modeled-percentile')
+    assert.match(decision.reason, /full 65–84 percentile prior range meets/)
   })
 
-  it('does not keep when only the point estimate clears the model line', () => {
+  it('keeps for now when the prior range crosses the model line', () => {
     const fragile = forecast(0.8, 0.15, 'medium')
     fragile.currentPercentileRange = [0.55, 0.84]
     const decision = decide({
       evaluations: [candidate({ id: 'active', fit: 0.2, rollForecast: fragile })],
     })
 
-    assert.equal(decision.kind, 'reroll')
+    assert.equal(decision.kind, 'play')
+    assert.equal(decision.decisionBasis, 'model-uncertainty')
+    assert.equal(decision.label, 'PLAY FOR NOW: active')
+    assert.match(decision.reason, /no robust signal to spend Sulphur/)
   })
 
   it('explains the modeled upside when recommending an early reroll', () => {
@@ -383,14 +381,15 @@ describe('Voyage decision regressions', () => {
 
   it('stops paying for an equally weak late roll', () => {
     const decision = decide({
-      evaluations: [candidate({ id: 'active', fit: 0.2 })],
+      evaluations: [candidate({ id: 'active', fit: 0.2, rollForecast: forecast(0.2, 0.7) })],
       rerollsUsed: 3,
     })
 
     assert.equal(decision.kind, 'stop')
     assert.equal(decision.nextCost, 24_000)
     assert.equal(decision.label, 'STOP REROLLING — KEEP THE CURRENT BOARD')
-    assert.match(decision.reason, /not a quality endorsement/)
+    assert.match(decision.reason, /Sulphur guardrail wins/)
+    assert.match(decision.reason, /theoretical-ceiling ratio is diagnostic only/)
   })
 
   it('lets a ready Divine jackpot override incomplete border entry', () => {

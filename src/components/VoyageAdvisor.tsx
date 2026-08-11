@@ -67,7 +67,6 @@ export function VoyageAdvisor({
   }
 
   const fitPercent = decision.fit === null ? null : Math.round(decision.fit * 100)
-  const linePercent = Math.round(decision.decisionFitLine * 100)
   const action = decision.action
   const forecast = decision.rollForecast
   const rollPercentile = forecast ? Math.round(forecast.currentPercentile * 100) : null
@@ -119,7 +118,7 @@ export function VoyageAdvisor({
               </div>
               <div className="voyage-fit-summary voyage-model-summary">
                 <div>
-                  <span>Current roll percentile (prior range)</span>
+                  <span>Achievable-roll percentile (prior range)</span>
                   <strong>
                     {rollPercentile}%
                     {percentileRange ? ` (${percentileRange[0]}–${percentileRange[1]}%)` : ''}
@@ -156,40 +155,31 @@ export function VoyageAdvisor({
               <>
                 <div className="voyage-fit-summary">
                   <div>
-                    <span>Contextual border fit</span>
+                    <span>Theoretical ceiling ratio</span>
                     <strong>{fitPercent}%</strong>
-                  </div>
-                  <div>
-                    <span>Contextual fit line</span>
-                    <strong>{linePercent}%</strong>
                   </div>
                 </div>
                 <div className="voyage-fit-track" aria-hidden="true">
                   <span style={{ width: `${fitPercent}%` }} />
-                  <i style={{ left: `${linePercent}%` }} />
                 </div>
                 <small>
-                  Heuristic scale: border contribution versus the best-known border mix for this
-                  chart layout.
+                  Diagnostic only: contribution versus a best-known modifier in every relevant slot.
+                  No keep/reroll threshold is applied to this scale.
                 </small>
               </>
             ))}
           {forecast && fitPercent !== null && (
             <div className="voyage-fit-diagnostic">
-              <div className="voyage-fit-diagnostic-head">Secondary border-fit heuristic</div>
+              <div className="voyage-fit-diagnostic-head">Secondary ceiling diagnostic</div>
               <div className="voyage-fit-summary">
                 <div>
-                  <span>Contextual border fit</span>
+                  <span>Theoretical ceiling ratio</span>
                   <strong>{fitPercent}%</strong>
-                </div>
-                <div>
-                  <span>Contextual fit line</span>
-                  <strong>{linePercent}%</strong>
                 </div>
               </div>
               <small>
-                Separate scale: border contribution versus the best-known border mix for this chart
-                layout — not a percentile or the combined charts + borders score.
+                Contribution versus a best-known modifier in every relevant slot. This is not a
+                percentile, has no decision line, and cannot trigger KEEP or REROLL.
               </small>
             </div>
           )}
@@ -235,8 +225,8 @@ export function VoyageAdvisor({
       <div className="voyage-disclaimer">
         <span>{forecast ? 'Experimental probability model' : 'Heuristic guidance'}</span>
         {forecast
-          ? 'Slot-aware frequencies update with the canonical dataset. Confidence counts only paid Voyage sequences; natural boards stabilize weights without raising it. Low-confidence output is diagnostic only. Slots are still modeled independently, and prior-only estimates are not observed drops. This is not Sulphur expected value.'
-          : 'A modeled comparison is unavailable for this layout; this is not expected value.'}
+          ? 'Slot-aware frequencies update with the canonical dataset. Confidence counts only paid Voyage sequences; natural boards stabilize weights without raising it. A recommendation requires the full prior-sensitivity range to stay on one side of the keep line; an overlapping range preserves the board instead of recommending spend. Slots are still modeled independently, and prior-only estimates are not observed drops. This is not Sulphur expected value.'
+          : 'A modeled comparison is unavailable, so the app preserves the board instead of using the theoretical ceiling ratio as a spending signal.'}
       </div>
     </section>
   )

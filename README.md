@@ -39,10 +39,14 @@ The project separates observed game mechanics from app-level assumptions:
   Experimental strategies remain available for manual use but do not drive the
   automatic recommendation. The default reroll prompt is limited to the 3k and
   6k Sulphur steps as an explicit guardrail, not an optimal-stopping claim.
-  Alc & Go receives fallback preference only at 50% absolute border fit or
-  better; a relative reroll-model percentile cannot promote a weaker fallback
-  to a play or switch recommendation. A low-confidence probability model is
-  diagnostic only and cannot independently issue `PLAY`, `SWITCH`, or `KEEP`.
+  The theoretical ceiling ratio is diagnostic only and never acts as a
+  keep/reroll line. Complete rolls are compared with achievable slot-aware
+  paid rolls for the same strategy: the full prior-sensitivity range must clear
+  the 60th percentile initially or the median later to issue `PLAY`/`SWITCH`,
+  and must remain fully below the line before suggesting a 3k/6k reroll. An
+  overlapping range or unavailable comparison preserves the current board.
+  Alc & Go receives fallback preference at a robust 50th modeled percentile.
+  Low confidence remains visible and the guidance remains experimental.
 - **Observed, still experimental:** complete boards strongly support physical
   slot families and confirm duplicate modifiers. No natural-versus-paid
   difference is detected yet, but the current sample does not establish

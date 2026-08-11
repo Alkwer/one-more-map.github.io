@@ -149,20 +149,21 @@ export const strategyRecommendationPriority = (strategy: {
   recommendationTier?: StrategyRecommendationTier
 }): number => RECOMMENDATION_TIER_PRIORITY[strategy.recommendationTier ?? 'specialized']
 
-/** Minimum absolute border fit required before Alc & Go receives contextual
- * fallback preference or may be kept by the relative reroll model. */
-export const MIN_FALLBACK_RECOMMENDATION_FIT = 0.5
+/** Minimum robust achievable-roll percentile before Alc & Go receives
+ * roll-aware fallback preference. */
+export const MIN_FALLBACK_RECOMMENDATION_PERCENTILE = 0.5
 
-/** Fitting candidates receive a contextual boost while weak candidates retain
- * their fixed tier order. This makes fitting specialized > fitting fallback >
- * weak specialized > weak fallback without comparing strategy score scales. */
-export const contextualStrategyRecommendationPriority = (
+/** Strong-roll candidates receive a percentile boost while below-line or
+ * unmodeled candidates retain their fixed tier order. This makes strong-roll
+ * specialized > strong-roll fallback > specialized > fallback without
+ * comparing strategy-specific score scales. */
+export const rollAwareStrategyRecommendationPriority = (
   strategy: { recommendationTier?: StrategyRecommendationTier },
-  fitsCurrentBorders: boolean | null,
+  hasStrongCurrentRoll: boolean | null,
 ): number => {
-  if (fitsCurrentBorders === null) return strategyRecommendationPriority(strategy)
+  if (hasStrongCurrentRoll === null) return strategyRecommendationPriority(strategy)
   const tierPriority = strategyRecommendationPriority(strategy)
-  return fitsCurrentBorders ? 3 + tierPriority : tierPriority
+  return hasStrongCurrentRoll ? 3 + tierPriority : tierPriority
 }
 
 /** Rare-monster implicit charts are Divine-strategy fuel. */

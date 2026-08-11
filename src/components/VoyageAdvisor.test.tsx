@@ -6,7 +6,7 @@ import { VoyageAdvisor } from './VoyageAdvisor'
 
 const decision = (withForecast: boolean): VoyageDecision => ({
   kind: 'play',
-  decisionBasis: 'contextual-fit',
+  decisionBasis: 'modeled-percentile',
   label: 'PLAY: Test Strategy',
   reason: 'The modeled roll is worth keeping.',
   strategyId: 'test',
@@ -19,9 +19,7 @@ const decision = (withForecast: boolean): VoyageDecision => ({
   remainingRerolls: 5,
   spent: 0,
   nextCost: 3_000,
-  keepFitLine: 0.6,
   keepModelPercentileLine: 0.6,
-  decisionFitLine: 0.6,
   preserveRoll: false,
   rollForecast: withForecast
     ? {
@@ -57,19 +55,18 @@ describe('VoyageAdvisor', () => {
 
     assert.match(markup, /Paid-reroll slot model v3/)
     assert.match(markup, /low confidence/)
-    assert.match(markup, /Current roll percentile/)
+    assert.match(markup, /Achievable-roll percentile/)
     assert.match(markup, />80% \(74–83%\)</)
     assert.match(markup, /Keep percentile/)
     assert.match(markup, />60%?</)
     assert.match(markup, /15%.*of modeled paid rerolls score higher than this roll/)
-    assert.match(markup, /Secondary border-fit heuristic/)
-    assert.match(markup, /Contextual border fit/)
-    assert.match(markup, /Contextual fit line/)
-    assert.match(markup, /not a percentile or the combined charts \+ borders score/)
+    assert.match(markup, /Secondary ceiling diagnostic/)
+    assert.match(markup, /Theoretical ceiling ratio/)
+    assert.match(markup, /has no decision line, and cannot trigger KEEP or REROLL/)
     assert.doesNotMatch(markup, /Best-found roll fit/)
     assert.doesNotMatch(markup, />Decision line</)
     assert.match(markup, /14 paid-reroll boards · 7 paid Voyage sequences · 27 natural boards/)
-    assert.match(markup, /Decision basis: contextual-fit/)
+    assert.match(markup, /Decision basis: modeled-percentile/)
     assert.match(markup, /prior-only estimates are not observed drops/)
   })
 
@@ -83,10 +80,9 @@ describe('VoyageAdvisor', () => {
     )
 
     assert.doesNotMatch(markup, /Experimental roll model v1/)
-    assert.match(markup, /Contextual border fit/)
-    assert.match(markup, /Contextual fit line/)
-    assert.match(markup, /Heuristic scale: border contribution versus the best-known border mix/)
-    assert.match(markup, /A modeled comparison is unavailable for this layout/)
+    assert.match(markup, /Theoretical ceiling ratio/)
+    assert.match(markup, /No keep\/reroll threshold is applied to this scale/)
+    assert.match(markup, /app preserves the board instead of using the theoretical ceiling ratio/)
   })
 
   it('describes fallback decisions without presenting them as the only strategy', () => {

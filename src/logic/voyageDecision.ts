@@ -1,32 +1,25 @@
 import {
   DEFAULT_MAX_REROLL_COST,
-  KEEP_FIT_LINES,
   KEEP_MODEL_PERCENTILE_LINES,
   REROLL_COSTS,
   clampRerollsUsed,
   sulphurSpentAfter,
 } from './rerollAdvice'
 import {
-  contextualStrategyRecommendationPriority,
-  MIN_FALLBACK_RECOMMENDATION_FIT,
+  MIN_FALLBACK_RECOMMENDATION_PERCENTILE,
+  rollAwareStrategyRecommendationPriority,
   type StrategyRecommendationTier,
 } from '../data/strategies'
-import {
-  ABSOLUTE_STRATEGY_FIT,
-  type RequiredBorderStatus,
-  type StrategySuggestion,
-} from './strategySuggestions'
+import type { RequiredBorderStatus, StrategySuggestion } from './strategySuggestions'
 import type { BorderRollForecast } from './borderRollModel'
-
-export const ABSOLUTE_PLAYABLE_FIT = ABSOLUTE_STRATEGY_FIT
 
 export type VoyageDecisionKind = 'needs-data' | 'play' | 'switch' | 'wait' | 'reroll' | 'stop'
 export type VoyageDecisionBasis =
   | 'insufficient-data'
   | 'divine-exception'
   | 'missing-requirements'
-  | 'contextual-fit'
-  | 'robust-model'
+  | 'modeled-percentile'
+  | 'model-uncertainty'
   | 'cost-guardrail'
 
 export interface VoyageDecisionAction {
@@ -51,9 +44,7 @@ export interface VoyageDecision {
   remainingRerolls: number
   spent: number
   nextCost: number | null
-  keepFitLine: number | null
   keepModelPercentileLine: number | null
-  decisionFitLine: number
   preserveRoll: boolean
   rollForecast: BorderRollForecast | null
 }
@@ -82,7 +73,7 @@ interface DecisionCandidate {
 }
 
 const percent = (fit: number | null) =>
-  fit === null ? 'no measurable fit' : `${Math.round(fit * 100)}% fit`
+  fit === null ? 'no measurable ratio' : `${Math.round(fit * 100)}%`
 
 const sulphur = (value: number) => value.toLocaleString('en-US')
 
@@ -117,23 +108,45 @@ const actionFor = (
         strategyId: candidate.strategyId,
       }
 
-const hasFit = (candidate: DecisionCandidate, line: number) =>
-  candidate.fit !== null && candidate.fit >= line
+const robustPercentile = (candidate: DecisionCandidate): number | null =>
+  candidate.rollForecast?.currentPercentileRange[0] ?? null
+
+const robustlyMeetsPercentile = (candidate: DecisionCandidate, line: number): boolean => {
+  const percentile = robustPercentile(candidate)
+  return percentile !== null && percentile >= line
+}
+
+const ordinal = (value: number): string => {
+  const integer = Math.round(value)
+  const remainder100 = integer % 100
+  const suffix =
+    remainder100 >= 11 && remainder100 <= 13
+      ? 'th'
+      : integer % 10 === 1
+        ? 'st'
+        : integer % 10 === 2
+          ? 'nd'
+          : integer % 10 === 3
+            ? 'rd'
+            : 'th'
+  return `${integer}${suffix}`
+}
+
+const percentileLabel = (value: number): string => `${ordinal(value * 100)} percentile`
+
+const percentileRangeLabel = (range: readonly [number, number]): string =>
+  `${Math.round(range[0] * 100)}–${Math.round(range[1] * 100)} percentile`
 
 export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
   const rerollsUsed = clampRerollsUsed(input.rerollsUsed)
   const nextCost = REROLL_COSTS[rerollsUsed] ?? null
-  const keepFitLine = KEEP_FIT_LINES[rerollsUsed] ?? null
   const keepModelPercentileLine = KEEP_MODEL_PERCENTILE_LINES[rerollsUsed] ?? null
-  const decisionFitLine = Math.max(ABSOLUTE_PLAYABLE_FIT, keepFitLine ?? ABSOLUTE_PLAYABLE_FIT)
   const base = {
     rerollsUsed,
     remainingRerolls: REROLL_COSTS.length - rerollsUsed,
     spent: sulphurSpentAfter(rerollsUsed),
     nextCost,
-    keepFitLine,
     keepModelPercentileLine,
-    decisionFitLine,
     recommendationTier: null as StrategyRecommendationTier | null,
     decisionBasis: 'insufficient-data' as VoyageDecisionBasis,
     preserveRoll: false,
@@ -148,16 +161,19 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     }
     if (a.ready !== b.ready) return a.ready ? -1 : 1
     if (a.ready && b.ready) {
-      // Contextual fit boosts a fitting candidate above weak tiers. Below the
-      // fit line, fixed tiers keep a weak fallback behind a ready specialized
-      // strategy; a fitting Alc & Go can still beat a weak specialization.
-      const aFitsCurrentBorders =
-        input.enteredBorders === 12 ? hasFit(a, MIN_FALLBACK_RECOMMENDATION_FIT) : null
-      const bFitsCurrentBorders =
-        input.enteredBorders === 12 ? hasFit(b, MIN_FALLBACK_RECOMMENDATION_FIT) : null
+      // Compare each candidate with achievable rolls for that same strategy.
+      // Without a complete modeled comparison, retain the fixed policy tiers.
+      const aHasStrongCurrentRoll =
+        input.enteredBorders === 12
+          ? robustlyMeetsPercentile(a, MIN_FALLBACK_RECOMMENDATION_PERCENTILE)
+          : null
+      const bHasStrongCurrentRoll =
+        input.enteredBorders === 12
+          ? robustlyMeetsPercentile(b, MIN_FALLBACK_RECOMMENDATION_PERCENTILE)
+          : null
       const priorityDifference =
-        contextualStrategyRecommendationPriority(b, bFitsCurrentBorders) -
-        contextualStrategyRecommendationPriority(a, aFitsCurrentBorders)
+        rollAwareStrategyRecommendationPriority(b, bHasStrongCurrentRoll) -
+        rollAwareStrategyRecommendationPriority(a, aHasStrongCurrentRoll)
       if (priorityDifference !== 0) return priorityDifference
     }
     return b.rankScore - a.rankScore
@@ -285,16 +301,13 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     }
   }
 
-  const meetsContextFitLine = hasFit(bestReady, decisionFitLine)
-  const canUseRelativeModelKeep =
-    bestReady.recommendationTier !== 'fallback' ||
-    hasFit(bestReady, MIN_FALLBACK_RECOMMENDATION_FIT)
+  const decisionPercentileLine =
+    keepModelPercentileLine ?? KEEP_MODEL_PERCENTILE_LINES[KEEP_MODEL_PERCENTILE_LINES.length - 1]
+  const percentileRange = bestReady.rollForecast?.currentPercentileRange ?? null
   const meetsModelKeepLine =
-    canUseRelativeModelKeep &&
-    bestReady.rollForecast !== null &&
-    bestReady.rollForecast.modelConfidence !== 'low' &&
-    keepModelPercentileLine !== null &&
-    bestReady.rollForecast.currentPercentileRange[0] >= keepModelPercentileLine
+    percentileRange !== null && percentileRange[0] >= decisionPercentileLine
+  const missesModelKeepLine =
+    percentileRange !== null && percentileRange[1] < decisionPercentileLine
   const specializedAlternative =
     bestReady.recommendationTier === 'fallback'
       ? (ranked.find(
@@ -304,64 +317,49 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
             candidate.recommendationTier === 'specialized',
         ) ?? null)
       : null
-  const fallbackMinimumReason =
-    bestReady.recommendationTier === 'fallback' &&
-    !hasFit(bestReady, MIN_FALLBACK_RECOMMENDATION_FIT)
-      ? ` ${bestReady.strategyName} is below the ${Math.round(
-          MIN_FALLBACK_RECOMMENDATION_FIT * 100,
-        )}% minimum for fallback preference, so a relative model percentile cannot promote it to PLAY or SWITCH.`
-      : ''
+  const isFallback = bestReady.recommendationTier === 'fallback'
+  const selectionReason = isFallback
+    ? `${bestReady.strategyName} is the recommended fallback after combining all ${input.availableCharts} imported charts with the current border roll; it is not the only runnable strategy.`
+    : `${bestReady.strategyName} is the best ready strategy after combining all ${input.availableCharts} imported charts with the current border roll.`
+  const specializedAlternativeReason = specializedAlternative
+    ? specializedAlternative.rollForecast
+      ? ` ${specializedAlternative.strategyName} is also runnable and is the strongest specialized alternative at the modeled ${percentileLabel(
+          specializedAlternative.rollForecast.currentPercentile,
+        )}.`
+      : ` ${specializedAlternative.strategyName} is also runnable and is the strongest specialized alternative, but it has no modeled roll comparison.`
+    : ''
+  const playLabel = (alreadyActive: boolean, provisional = false) => {
+    if (provisional) {
+      return alreadyActive
+        ? `PLAY FOR NOW: ${bestReady.strategyName}`
+        : `SWITCH FOR NOW TO: ${bestReady.strategyName}`
+    }
+    if (isFallback) {
+      return alreadyActive
+        ? `PLAY FALLBACK: ${bestReady.strategyName}`
+        : `SWITCH TO FALLBACK: ${bestReady.strategyName}`
+    }
+    return alreadyActive
+      ? `PLAY: ${bestReady.strategyName}`
+      : `SWITCH TO: ${bestReady.strategyName}`
+  }
 
-  if (meetsContextFitLine || meetsModelKeepLine) {
+  if (meetsModelKeepLine) {
     const alreadyActive = input.activeStrategyId === bestReady.strategyId
-    const isFallback = bestReady.recommendationTier === 'fallback'
-    const selectionReason = isFallback
-      ? `${bestReady.strategyName} is the recommended fallback after combining all ${input.availableCharts} imported charts with the current border roll; it is not the only runnable strategy.`
-      : `${bestReady.strategyName} is the best ready strategy after combining all ${input.availableCharts} imported charts with the current border roll.`
-    const specializedAlternativeReason = specializedAlternative
-      ? ` ${specializedAlternative.strategyName} is also runnable and is the strongest specialized alternative at ${percent(
-          specializedAlternative.fit,
-        )}, but it remains below the ${Math.round(
-          decisionFitLine * 100,
-        )}% contextual decision line.`
-      : isFallback
-        ? ` No ready specialized strategy reaches the ${Math.round(
-            decisionFitLine * 100,
-          )}% contextual decision line.`
-        : ''
-    const modeledReason = meetsModelKeepLine
-      ? ` The experimental v${bestReady.rollForecast!.modelVersion} model robustly ranks this board at or above the ${Math.round(
-          bestReady.rollForecast!.currentPercentileRange[0] * 100,
-        )}th percentile across the tested priors (point estimate ${Math.round(
-          bestReady.rollForecast!.currentPercentile * 100,
-        )}th), meeting the ${Math.round(
-          keepModelPercentileLine! * 100,
-        )}th-percentile keep line (${bestReady.rollForecast!.modelConfidence} confidence).`
-      : bestReady.rollForecast
-        ? ` The model ranks it at the ${Math.round(
-            bestReady.rollForecast.currentPercentile * 100,
-          )}th percentile (${bestReady.rollForecast.modelConfidence} confidence).${
-            bestReady.rollForecast.modelConfidence === 'low'
-              ? ' Low-confidence model output is diagnostic only and cannot independently issue KEEP.'
-              : ''
-          }`
-        : ''
     return {
       ...base,
-      decisionBasis: meetsContextFitLine ? 'contextual-fit' : 'robust-model',
+      decisionBasis: 'modeled-percentile',
       kind: alreadyActive ? 'play' : 'switch',
-      label: isFallback
-        ? alreadyActive
-          ? `PLAY FALLBACK: ${bestReady.strategyName}`
-          : `SWITCH TO FALLBACK: ${bestReady.strategyName}`
-        : alreadyActive
-          ? `PLAY: ${bestReady.strategyName}`
-          : `SWITCH TO: ${bestReady.strategyName}`,
-      reason: `${selectionReason} The best layout found reaches ${percent(bestReady.fit)}${
-        meetsContextFitLine
-          ? `, meeting the ${Math.round(decisionFitLine * 100)}% contextual decision line.`
-          : ', below the contextual decision line.'
-      }${specializedAlternativeReason}${modeledReason}`,
+      label: playLabel(alreadyActive),
+      reason: `${selectionReason}${specializedAlternativeReason} The experimental v${bestReady.rollForecast!.modelVersion} model places this board at the ${percentileLabel(
+        bestReady.rollForecast!.currentPercentile,
+      )}; the full ${percentileRangeLabel(
+        bestReady.rollForecast!.currentPercentileRange,
+      )} prior range meets the ${percentileLabel(
+        decisionPercentileLine,
+      )} keep line (${bestReady.rollForecast!.modelConfidence} confidence). The ${percent(
+        bestReady.fit,
+      )} theoretical-ceiling ratio is diagnostic only and does not gate this decision.`,
       strategyId: bestReady.strategyId,
       strategyName: bestReady.strategyName,
       recommendationTier: bestReady.recommendationTier,
@@ -372,27 +370,48 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     }
   }
 
-  const linePercent = Math.round(decisionFitLine * 100)
-  if (nextCost !== null && nextCost <= DEFAULT_MAX_REROLL_COST) {
-    const modeledReason = bestReady.rollForecast
-      ? ` The experimental model places this board at the ${Math.round(
-          bestReady.rollForecast.currentPercentile * 100,
-        )}th percentile and estimates a ${Math.round(
-          bestReady.rollForecast.chanceNextRollBeatsCurrent * 100,
-        )}% chance that a paid reroll scores higher (${bestReady.rollForecast.modelConfidence} confidence).${
-          bestReady.rollForecast.modelConfidence === 'low'
-            ? ' Low-confidence model output is diagnostic only and cannot independently issue KEEP.'
-            : ''
-        }`
-      : ' Border probabilities are not available for this layout.'
+  if (!missesModelKeepLine) {
+    const alreadyActive = input.activeStrategyId === bestReady.strategyId
+    const uncertaintyReason = bestReady.rollForecast
+      ? `The ${percentileRangeLabel(
+          bestReady.rollForecast.currentPercentileRange,
+        )} prior range crosses the ${percentileLabel(
+          decisionPercentileLine,
+        )} keep line (${bestReady.rollForecast.modelConfidence} confidence), so there is no robust signal to spend Sulphur on another roll.`
+      : 'No modeled achievable-roll comparison is available for this layout, so the theoretical-ceiling ratio is not used to justify spending Sulphur.'
     return {
       ...base,
-      decisionBasis: 'cost-guardrail',
+      decisionBasis: bestReady.rollForecast ? 'model-uncertainty' : 'insufficient-data',
+      kind: alreadyActive ? 'play' : 'switch',
+      label: playLabel(alreadyActive, true),
+      reason: `${selectionReason}${specializedAlternativeReason} ${uncertaintyReason} Keep the current board for now. Its ${percent(
+        bestReady.fit,
+      )} theoretical-ceiling ratio remains a secondary diagnostic, not a keep/reroll threshold.`,
+      strategyId: bestReady.strategyId,
+      strategyName: bestReady.strategyName,
+      recommendationTier: bestReady.recommendationTier,
+      fit: bestReady.fit,
+      missing: [],
+      action: actionFor(input.activeStrategyId, bestReady),
+      rollForecast: bestReady.rollForecast,
+    }
+  }
+
+  if (nextCost !== null && nextCost <= DEFAULT_MAX_REROLL_COST) {
+    return {
+      ...base,
+      decisionBasis: 'modeled-percentile',
       kind: 'reroll',
       label: `CONSIDER REROLL — next costs ${sulphur(nextCost)} Sulphur`,
-      reason: `After combining all ${input.availableCharts} imported charts with the current border roll, the best ready strategy is ${bestReady.strategyName}. The best layout found reaches ${percent(
+      reason: `After combining all ${input.availableCharts} imported charts with the current border roll, the best ready strategy is ${bestReady.strategyName}. Its full ${percentileRangeLabel(
+        bestReady.rollForecast!.currentPercentileRange,
+      )} prior range remains below the ${percentileLabel(
+        decisionPercentileLine,
+      )} keep line, and the model estimates a ${Math.round(
+        bestReady.rollForecast!.chanceNextRollBeatsCurrent * 100,
+      )}% chance that a paid reroll scores higher (${bestReady.rollForecast!.modelConfidence} confidence). The next roll remains inside the 3k/6k default guardrail. The ${percent(
         bestReady.fit,
-      )}, below the ${linePercent}% contextual decision line while the next roll remains inside the 3k/6k default guardrail.${fallbackMinimumReason}${modeledReason} This is experimental guidance, not Sulphur expected value.`,
+      )} theoretical-ceiling ratio is diagnostic only. This is experimental guidance, not Sulphur expected value.`,
       strategyId: bestReady.strategyId,
       strategyName: bestReady.strategyName,
       recommendationTier: bestReady.recommendationTier,
@@ -407,21 +426,18 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     nextCost === null
       ? 'No further configured reroll remains.'
       : `Another attempt costs ${sulphur(nextCost)} Sulphur.`
-  const modeledReason = bestReady.rollForecast
-    ? ` The current board is at the ${Math.round(
-        bestReady.rollForecast.currentPercentile * 100,
-      )}th modeled percentile, with a ${Math.round(
-        bestReady.rollForecast.chanceNextRollBeatsCurrent * 100,
-      )}% estimated chance that a paid reroll scores higher.`
-    : ''
   return {
     ...base,
     decisionBasis: 'cost-guardrail',
     kind: 'stop',
     label: 'STOP REROLLING — KEEP THE CURRENT BOARD',
-    reason: `${bestReady.strategyName} is the best ready strategy after combining all ${input.availableCharts} imported charts with the current border roll, but the best layout found reaches only ${percent(
+    reason: `${bestReady.strategyName} is the best ready strategy after combining all ${input.availableCharts} imported charts with the current border roll. Its modeled ${percentileRangeLabel(
+      bestReady.rollForecast!.currentPercentileRange,
+    )} prior range is below the ${percentileLabel(
+      decisionPercentileLine,
+    )} keep line, but the Sulphur guardrail wins: ${costReason} Keep this board; the ${percent(
       bestReady.fit,
-    )}; this is not a quality endorsement.${fallbackMinimumReason}${modeledReason} ${costReason}`,
+    )} theoretical-ceiling ratio is diagnostic only.`,
     strategyId: bestReady.strategyId,
     strategyName: bestReady.strategyName,
     recommendationTier: bestReady.recommendationTier,
