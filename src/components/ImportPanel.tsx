@@ -28,6 +28,7 @@ interface Props {
   onImport: (charts: ChartData[]) => ChartAdditionResult
   state: AppState
   borderResearch: BorderRollResearchController
+  protectedRollStrategy: string | null
   onLoadState: (state: AppState) => void
 }
 
@@ -43,7 +44,13 @@ function parseImportSource(source: string, maxCharts: number) {
   }
 }
 
-export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Props) {
+export function ImportPanel({
+  onImport,
+  state,
+  borderResearch,
+  protectedRollStrategy,
+  onLoadState,
+}: Props) {
   const [text, setText] = useState('')
   const [msg, setMsg] = useState('')
   const [rareAlert, setRareAlert] = useState('')
@@ -459,7 +466,11 @@ export function ImportPanel({ onImport, state, borderResearch, onLoadState }: Pr
         </p>
       </details>
 
-      <BorderRollResearch borders={state.borders} controller={borderResearch} />
+      <BorderRollResearch
+        borders={state.borders}
+        controller={borderResearch}
+        protectedRollStrategy={protectedRollStrategy}
+      />
     </section>
   )
 }

@@ -12,11 +12,12 @@ import { AuxiliaryStoreRecovery } from './AuxiliaryStoreRecovery'
 interface Props {
   borders: Borders
   controller: BorderRollResearchController
+  protectedRollStrategy: string | null
 }
 
 const VESPER_UPGRADE_OPTIONS = [0, 1, 2, 3, 4, 5] as const
 
-export function BorderRollResearch({ borders, controller }: Props) {
+export function BorderRollResearch({ borders, controller, protectedRollStrategy }: Props) {
   const { store } = controller
   const researchBlocked = !!store.recovery
   const submissionBlocked = !!controller.submissionStore.recovery
@@ -30,6 +31,16 @@ export function BorderRollResearch({ borders, controller }: Props) {
   const randomizedResearchComplete = controller.activeSamples.some(
     (sample) => sample.generation === 'paid-reroll',
   )
+  const savedNaturalBoardMatches = controller.activeSamples.some(
+    (sample) =>
+      sample.generation === 'natural' &&
+      sample.borderModIds.every((borderId, index) => borderId === borders[index]),
+  )
+  const randomizedResearchProtected =
+    store.activeSequenceSamplingReason === 'randomized-research' &&
+    !randomizedResearchComplete &&
+    protectedRollStrategy !== null &&
+    savedNaturalBoardMatches
   const missingBorders = useMemo(() => borders.filter((id) => id === null).length, [borders])
   const sequenceView = useMemo(() => {
     const archivedIds = new Set(store.archivedSequenceIds)
@@ -95,18 +106,26 @@ export function BorderRollResearch({ borders, controller }: Props) {
         />
         <span>
           Voluntary randomized research (20% of new Voyages are assigned one paid reroll before the
-          natural board is seen)
+          natural board is seen; jackpot / preserve recommendations are always exempt)
         </span>
       </label>
       {store.activeSequenceSamplingReason === 'randomized-research' && (
-        <div className="share-banner" role="status">
+        <div className="share-banner" role={randomizedResearchProtected ? 'alert' : 'status'}>
           <div className="share-banner-copy">
             <strong>
-              {randomizedResearchComplete
-                ? 'Randomized research pair complete'
-                : 'Research Voyage assigned before seeing the roll'}
+              {randomizedResearchProtected
+                ? 'Jackpot protected — keep this natural board'
+                : randomizedResearchComplete
+                  ? 'Randomized research pair complete'
+                  : 'Research Voyage assigned before seeing the roll'}
             </strong>
-            {randomizedResearchComplete ? (
+            {randomizedResearchProtected ? (
+              <span>
+                {protectedRollStrategy} triggered the preserve safeguard. Do not reroll this board;
+                the randomized research assignment is waived. Its saved natural scan remains useful
+                research data.
+              </span>
+            ) : randomizedResearchComplete ? (
               <span>
                 The natural board and one paid reroll are labelled as a pre-assigned research pair.
                 Continue only for gameplay reasons.
@@ -184,19 +203,27 @@ export function BorderRollResearch({ borders, controller }: Props) {
             : `${missingBorders} borders still missing`}
         </span>
         <span>
-          Next:{' '}
-          {controller.nextRollIndex === 0
-            ? 'natural board'
-            : `paid reroll ${controller.nextRollIndex}`}
-          {controller.displayedNextRerollCost === null
-            ? ' · no known next cost'
-            : ` · next cost ${controller.displayedNextRerollCost.toLocaleString('en-US')}`}
+          {randomizedResearchProtected ? (
+            <>Next: keep natural board · research reroll waived</>
+          ) : (
+            <>
+              Next:{' '}
+              {controller.nextRollIndex === 0
+                ? 'natural board'
+                : `paid reroll ${controller.nextRollIndex}`}
+              {controller.displayedNextRerollCost === null
+                ? ' · no known next cost'
+                : ` · next cost ${controller.displayedNextRerollCost.toLocaleString('en-US')}`}
+            </>
+          )}
         </span>
         <span>Sequence {store.activeSequenceId.slice(-8)}</span>
         <span>
           Sampling:{' '}
           {store.activeSequenceSamplingReason === 'randomized-research'
-            ? 'randomized research'
+            ? randomizedResearchProtected
+              ? 'randomized research · jackpot exemption'
+              : 'randomized research'
             : 'normal gameplay'}
         </span>
         <span

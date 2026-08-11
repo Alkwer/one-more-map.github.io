@@ -19,8 +19,11 @@ collects complete observed boards instead of treating the known pool as uniform.
 Optionally enable **Voluntary randomized research**. Assignment happens before
 the natural board is seen. On an assigned Voyage, save the natural board and,
 only if the 3,000 Sulphur cost is acceptable, record exactly one paid reroll even
-when the recommendation says keep. Declining is always allowed; never exceed a
-personal Sulphur budget. Ordinary and assigned sequences are labelled separately.
+when the ordinary recommendation says keep. If the app issues a jackpot/preserve
+recommendation, including for a Divine border, keep the natural board: the
+research reroll is waived and the panel replaces the reroll instruction with a
+protection warning. Declining is always allowed; never exceed a personal Sulphur
+budget. Ordinary and assigned sequences are labelled separately.
 
 Every complete 12/12 OCR paste is saved automatically. The reroll-cost scan
 identifies roll 0 and later paid rerolls; after the natural board, automatic

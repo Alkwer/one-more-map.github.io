@@ -159,9 +159,11 @@ GitHub Actions validates, labels, and closes submitted issues, while a separate
 scheduled workflow prepares reviewable dataset-update pull requests.
 Contributors can additionally enable a voluntary randomized-research mode. It
 assigns 20% of new Voyages before the natural board is seen and asks for exactly
-one affordable paid reroll even if the recommendation says keep. The assignment
-reason is exported with the sequence so natural/paid comparisons are not based
-only on boards players chose to reroll.
+one affordable paid reroll even if the ordinary recommendation says keep. A
+jackpot/preserve recommendation, including a Divine border, always overrides the
+research assignment: the app tells the player to keep the natural board and
+waives the research reroll. The assignment reason is exported with the sequence
+so natural/paid comparisons are not based only on boards players chose to reroll.
 
 ## Architecture
 
