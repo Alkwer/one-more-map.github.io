@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { strategyById } from '../data/strategies'
+import type { BorderRollForecast } from './borderRollModel'
 import type { StrategySuggestion } from './strategySuggestions'
 import { decideVoyage } from './voyageDecision'
 
@@ -37,8 +38,32 @@ const inputFor = (evaluations: StrategySuggestion[], rerollsUsed: number) => ({
   rerollsUsed,
 })
 
+const forecast = (percentile: number): BorderRollForecast => ({
+  modelVersion: 3,
+  modelProfile: 'paid-reroll',
+  modelConfidence: 'low',
+  modelStructure: 'slot-aware',
+  sampleCount: 21,
+  sequenceCount: 7,
+  expectedScore: 10,
+  expectedFit: 0.05,
+  medianFit: 0.04,
+  sixtiethPercentileFit: 0.06,
+  currentPercentile: percentile,
+  currentPercentileRange: [percentile, percentile],
+  chanceNextRollBeatsCurrent: 1 - percentile,
+  chanceNextRollBeatsCurrentRange: [1 - percentile, 1 - percentile],
+  priorSensitivity: [0.25, 2],
+  borrowedNaturalBoardCount: 27,
+})
+
 describe('voyage reroll guardrail', () => {
-  const weakAlcAndGo = evaluation('alc-and-go')
+  const weakAlcAndGo = evaluation('alc-and-go', {
+    fit: 0.99,
+    potentialAppraisal: {
+      rollForecast: forecast(0.2),
+    } as StrategySuggestion['potentialAppraisal'],
+  })
 
   it('considers only the 3k and 6k default rerolls', () => {
     expect(decideVoyage(inputFor([weakAlcAndGo], 0)).kind).toBe('reroll')
@@ -46,8 +71,13 @@ describe('voyage reroll guardrail', () => {
     expect(decideVoyage(inputFor([weakAlcAndGo], 2)).kind).toBe('stop')
   })
 
-  it('keeps the absolute 50% play line after the cheap rerolls', () => {
-    const playable = evaluation('alc-and-go', { fit: 0.5 })
+  it('uses the achievable-roll percentile instead of the ceiling ratio', () => {
+    const playable = evaluation('alc-and-go', {
+      fit: 0.01,
+      potentialAppraisal: {
+        rollForecast: forecast(0.7),
+      } as StrategySuggestion['potentialAppraisal'],
+    })
 
     expect(decideVoyage(inputFor([playable], 2)).kind).toBe('play')
   })

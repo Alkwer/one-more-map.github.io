@@ -15,10 +15,10 @@ const STATUS_LABEL: Record<BorderAppraisalStatus, string> = {
   empty: 'Needs board data',
   incomplete: 'Partial appraisal',
   unscored: 'No weighted value',
-  weak: 'Weak fit',
-  mixed: 'Mixed fit',
-  strong: 'Strong fit',
-  excellent: 'Excellent fit',
+  weak: 'Low ceiling ratio',
+  mixed: 'Medium ceiling ratio',
+  strong: 'High ceiling ratio',
+  excellent: 'Very high ceiling ratio',
 }
 
 const ISSUE_LABEL: Record<Exclude<BorderSegmentIssue, null>, string> = {
@@ -103,7 +103,7 @@ export function BorderAppraiser({ appraisal, contextLabel }: Props) {
         </div>
         <div className="border-fit">
           <div className="border-fit-line">
-            <span>Board fit</span>
+            <span>Theoretical ceiling ratio</span>
             <strong>{fitPercent === null ? '—' : `${fitPercent}%`}</strong>
           </div>
           <div className="border-fit-track" aria-hidden="true">
@@ -119,9 +119,9 @@ export function BorderAppraiser({ appraisal, contextLabel }: Props) {
       </div>
 
       <div className="muted small-note border-appraisal-note">
-        Score is the difference versus this same layout with no borders. Fit compares each slot with
-        its best-scoring known modifier; it is not a roll percentile or a keep/reroll
-        recommendation.
+        Score is the difference versus this same layout with no borders. The ceiling ratio assumes a
+        best-scoring known modifier in every relevant slot simultaneously; it is not a roll
+        percentile and is never used as a keep/reroll threshold.
       </div>
 
       {statGains.length > 0 && (

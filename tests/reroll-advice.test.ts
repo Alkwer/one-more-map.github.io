@@ -3,7 +3,6 @@ import { describe, it } from 'vitest'
 import {
   clampRerollsUsed,
   DEFAULT_MAX_REROLL_COST,
-  KEEP_FIT_LINES,
   KEEP_MODEL_PERCENTILE_LINES,
   REROLL_COSTS,
   sulphurSpentAfter,
@@ -13,7 +12,6 @@ import { decodeShare } from '../src/logic/share'
 describe('reroll advice regressions', () => {
   it('keeps the cost curve, thresholds, and clamping', () => {
     assert.deepEqual(REROLL_COSTS, [3_000, 6_000, 12_000, 24_000, 48_000])
-    assert.deepEqual(KEEP_FIT_LINES, [0.6, 0.5, 0.5, 0.5, 0.5])
     assert.deepEqual(KEEP_MODEL_PERCENTILE_LINES, [0.6, 0.5, 0.5, 0.5, 0.5])
     assert.equal(DEFAULT_MAX_REROLL_COST, 6_000)
     assert.equal(sulphurSpentAfter(3), 21_000)

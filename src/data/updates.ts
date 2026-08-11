@@ -15,9 +15,9 @@ export const UPDATES: UpdateEntry[] = [
   {
     date: '2026-08-11',
     tag: 'reworked',
-    title: 'Border decisions resist sparse-data bias',
+    title: 'Border decisions use achievable-roll percentiles',
     detail:
-      'Low-confidence forecasts are now diagnostic only, natural boards stabilize slot weights without raising paid confidence, and prior ranges use a border-blind reference layout. Optional pre-assigned research Voyages make paid-reroll sampling less dependent on whether the natural board looked good.',
+      'The impossible best-mod-in-every-slot ratio is now diagnostic only. PLAY and cheap reroll guidance compare the current board with modeled achievable rolls and require the full prior range to agree; ambiguous or unavailable comparisons preserve the board. Natural boards still stabilize slot weights without raising paid confidence.',
   },
   {
     date: '2026-08-07',

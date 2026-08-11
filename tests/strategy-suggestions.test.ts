@@ -6,8 +6,8 @@ import type { Board, Borders, ChartData } from '../src/types'
 import { StrategySuggestions } from '../src/components/StrategySuggestions'
 import { BORDER_ROLL_MODEL, estimateModBoardChance } from '../src/logic/borderRollModel'
 import {
-  contextualStrategyRecommendationPriority,
-  MIN_FALLBACK_RECOMMENDATION_FIT,
+  MIN_FALLBACK_RECOMMENDATION_PERCENTILE,
+  rollAwareStrategyRecommendationPriority,
   strategyById,
 } from '../src/data/strategies'
 import {
@@ -36,22 +36,22 @@ const emptyBoard = (): Board => Array(9).fill(null)
 const emptyBorders = (): Borders => Array(12).fill(null)
 
 describe('strategy suggestion regressions', () => {
-  it('boosts Alc & Go only after it reaches the documented fallback fit minimum', () => {
+  it('boosts Alc & Go only after it reaches the modeled fallback percentile', () => {
     const fallback = { recommendationTier: 'fallback' as const }
     const specialized = { recommendationTier: 'specialized' as const }
 
-    assert.equal(MIN_FALLBACK_RECOMMENDATION_FIT, 0.5)
+    assert.equal(MIN_FALLBACK_RECOMMENDATION_PERCENTILE, 0.5)
     assert.ok(
-      contextualStrategyRecommendationPriority(specialized, false) >
-        contextualStrategyRecommendationPriority(fallback, false),
+      rollAwareStrategyRecommendationPriority(specialized, false) >
+        rollAwareStrategyRecommendationPriority(fallback, false),
     )
     assert.ok(
-      contextualStrategyRecommendationPriority(fallback, true) >
-        contextualStrategyRecommendationPriority(specialized, false),
+      rollAwareStrategyRecommendationPriority(fallback, true) >
+        rollAwareStrategyRecommendationPriority(specialized, false),
     )
     assert.ok(
-      contextualStrategyRecommendationPriority(specialized, true) >
-        contextualStrategyRecommendationPriority(fallback, true),
+      rollAwareStrategyRecommendationPriority(specialized, true) >
+        rollAwareStrategyRecommendationPriority(fallback, true),
     )
   })
 
@@ -166,7 +166,7 @@ describe('strategy suggestion regressions', () => {
     assert.ok(suggestion.modeledBorderFit! >= 0)
     assert.ok(
       suggestion.reasons.some((reason) =>
-        /paid reroll is modeled at .* contextual fit/.test(reason),
+        /paid reroll's mean contribution is .* theoretical per-slot ceiling/.test(reason),
       ),
     )
   })
@@ -303,8 +303,8 @@ describe('strategy suggestion regressions', () => {
     const weakFallback = withPiecesUnplaced.evaluations.find(
       (entry) => entry.strategy.id === 'alc-and-go',
     )!
-    assert.ok(weakMeatfish.fit !== null && weakMeatfish.fit < MIN_FALLBACK_RECOMMENDATION_FIT)
-    assert.ok(weakFallback.fit === null || weakFallback.fit < MIN_FALLBACK_RECOMMENDATION_FIT)
+    assert.ok(weakMeatfish.fit !== null && weakMeatfish.fit < 0.5)
+    assert.ok(weakFallback.fit === null || weakFallback.fit < 0.5)
     assert.deepEqual(
       withPiecesPlaced.evaluations.map((entry) => entry.strategy.id),
       withPiecesUnplaced.evaluations.map((entry) => entry.strategy.id),

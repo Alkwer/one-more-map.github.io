@@ -13,10 +13,10 @@ const fitLabel = {
   empty: 'NO ROLL DATA',
   incomplete: 'PARTIAL ROLL',
   unscored: 'NO WEIGHTED SIGNAL',
-  weak: 'WEAK BORDER FIT',
-  mixed: 'MIXED BORDER FIT',
-  strong: 'STRONG BORDER FIT',
-  excellent: 'EXCELLENT BORDER FIT',
+  weak: 'LOW CEILING RATIO',
+  mixed: 'MEDIUM CEILING RATIO',
+  strong: 'HIGH CEILING RATIO',
+  excellent: 'VERY HIGH CEILING RATIO',
 } as const
 
 export function StrategySuggestions({
@@ -45,9 +45,9 @@ export function StrategySuggestions({
           </h3>
           <div className="muted small-note suggestion-intro">
             Ranks the best layout each strategy can build from all imported charts together with the
-            current border roll. Fallback policy can rank Alc &amp; Go above a runnable
-            specialization whose current borders miss the fit line; combined fit is not currency EV.
-            The manual board is only a diagnostic.
+            current border roll. Fallback policy compares each strategy with achievable modeled
+            rolls on its own percentile scale; combined fit is not currency EV. The manual board is
+            only a diagnostic.
           </div>
         </div>
         {result.enteredBorders > 0 && (
@@ -113,7 +113,7 @@ export function StrategySuggestions({
                     Charts <strong>{Math.round(suggestion.libraryFit * 100)}%</strong>
                   </span>
                   <span>
-                    Borders{' '}
+                    Ceiling ratio{' '}
                     <strong>
                       {suggestion.enteredBorders === 0
                         ? '—'
@@ -121,7 +121,7 @@ export function StrategySuggestions({
                     </strong>
                   </span>
                   <span>
-                    Expected reroll{' '}
+                    Expected ceiling ratio{' '}
                     <strong>
                       {suggestion.modeledBorderFit === null
                         ? '—'
@@ -192,11 +192,11 @@ export function StrategySuggestions({
       )}
 
       <div className="suggestion-disclaimer">
-        Diagnostic only — expected-reroll compatibility uses the slot-aware v
-        {BORDER_ROLL_MODEL.version} model at {BORDER_ROLL_MODEL.confidence} confidence. Natural
-        boards stabilize weights without raising paid confidence; borrowed and prior-only estimates
-        are not observed paid drops. At low confidence, the model cannot independently issue KEEP or
-        affect incomplete-roll ranking. Reroll guidance is not Sulphur expected value.
+        Experimental — achievable-roll comparison uses the slot-aware v{BORDER_ROLL_MODEL.version}{' '}
+        model at {BORDER_ROLL_MODEL.confidence} confidence. Natural boards stabilize weights without
+        raising paid confidence; borrowed and prior-only estimates are not observed paid drops. A
+        decision must remain on the same side of its percentile line across the tested priors;
+        incomplete rolls never use it. Reroll guidance is not Sulphur expected value.
       </div>
     </section>
   )
