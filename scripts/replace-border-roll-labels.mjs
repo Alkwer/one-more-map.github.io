@@ -25,11 +25,7 @@ export async function replaceBorderRollLabels({
   const verified = await readLabels()
   const processing = verified.filter((label) => PROCESSING_LABELS.includes(label))
   const missingUnrelated = unrelated.filter((label) => !verified.includes(label))
-  if (
-    processing.length !== 1 ||
-    processing[0] !== resultLabel ||
-    missingUnrelated.length > 0
-  ) {
+  if (processing.length !== 1 || processing[0] !== resultLabel || missingUnrelated.length > 0) {
     throw new Error(
       `Border-roll label replacement was not confirmed (wanted ${resultLabel}; found ${processing.join(', ') || 'none'}).`,
     )
@@ -47,7 +43,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const issueNumber = argument('--issue')
   const resultLabel = argument('--label')
   if (!repository || !issueNumber || !resultLabel) {
-    throw new Error('Usage: replace-border-roll-labels --repo OWNER/REPO --issue NUMBER --label LABEL')
+    throw new Error(
+      'Usage: replace-border-roll-labels --repo OWNER/REPO --issue NUMBER --label LABEL',
+    )
   }
 
   const execFileAsync = promisify(execFile)

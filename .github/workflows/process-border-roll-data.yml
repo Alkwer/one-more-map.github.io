@@ -14,7 +14,13 @@ concurrency:
 
 jobs:
   validate:
-    if: startsWith(github.event.issue.title, '[data] Border roll') && !contains(github.event.issue.labels.*.name, 'border-roll:test')
+    if: >-
+      !contains(github.event.issue.labels.*.name, 'border-roll:test') &&
+      (startsWith(github.event.issue.title, '[data] Border roll') ||
+      contains(github.event.issue.labels.*.name, 'border-roll:accepted') ||
+      contains(github.event.issue.labels.*.name, 'border-roll:partial') ||
+      contains(github.event.issue.labels.*.name, 'border-roll:duplicate') ||
+      contains(github.event.issue.labels.*.name, 'border-roll:invalid'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

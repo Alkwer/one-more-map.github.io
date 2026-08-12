@@ -243,9 +243,14 @@ export function findDuplicateSampleIds(result, acceptedIssues, knownBorderIds, c
     })
 }
 
-export function buildCanonicalDataset(acceptedIssues, knownBorderIds) {
+export function buildCanonicalDataset(
+  acceptedIssues,
+  knownBorderIds,
+  { requireAcceptedDigest = false } = {},
+) {
   const samplesById = new Map()
   const conflicts = []
+  const digestMismatches = []
   const orderedIssues = acceptedIssues
     .map((issue, index) => ({ issue, index }))
     .sort(
@@ -258,6 +263,14 @@ export function buildCanonicalDataset(acceptedIssues, knownBorderIds) {
     if (isTestIssue(issue)) continue
     const result = validateBorderRollIssueBody(issue.body, knownBorderIds)
     if (result.status !== 'accepted' || !result.dataset) continue
+    if (requireAcceptedDigest && issue.acceptedHash !== result.hash) {
+      digestMismatches.push({
+        issueNumber: issue.number,
+        recordedHash: issue.acceptedHash ?? null,
+        currentHash: result.hash,
+      })
+      continue
+    }
     for (const sample of result.dataset.samples) {
       const previous = samplesById.get(sample.sampleId)
       if (previous && JSON.stringify(previous.sample) !== JSON.stringify(sample)) {
@@ -280,14 +293,18 @@ export function buildCanonicalDataset(acceptedIssues, knownBorderIds) {
         left.rerollIndex - right.rerollIndex ||
         left.sampleId.localeCompare(right.sampleId),
     )
-  if (samples.length === 0) return { dataset: null, conflicts }
-  return {
-    dataset: {
-      schema: DATASET_SCHEMA,
-      exportedAt: samples.at(-1).capturedAt,
-      sampleCount: samples.length,
-      samples,
-    },
+  const output = {
+    dataset:
+      samples.length === 0
+        ? null
+        : {
+            schema: DATASET_SCHEMA,
+            exportedAt: samples.at(-1).capturedAt,
+            sampleCount: samples.length,
+            samples,
+          },
     conflicts,
   }
+  if (requireAcceptedDigest) output.digestMismatches = digestMismatches
+  return output
 }
