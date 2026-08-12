@@ -124,6 +124,14 @@ describe('exact solver', () => {
             rewardStat: { stat: 'quantity', per: 5 },
           },
         ],
+        locked: [
+          null,
+          null,
+          ...Array.from({ length: 7 }, (_, index) => ({
+            chartUid: `cross-${index + 1}`,
+            rotation: 0,
+          })),
+        ],
       }),
     )
 
