@@ -20,15 +20,16 @@ export function RewardWeights({ weights, overridden, onChange }: Props) {
         {GROUP_ORDER.map((group) => {
           const rows = REWARD_TYPES.filter((reward) => reward.group === group)
           if (rows.length === 0) return null
+          const scopeLabel = GROUP_LABEL[group]
           return (
-            <div key={group} className="weight-group">
-              <div className="weight-group-title">{GROUP_LABEL[group]}</div>
+            <fieldset key={group} className="weight-group">
+              <legend className="weight-group-title">{scopeLabel}</legend>
               {rows.map((reward) => (
                 <div key={reward.key} className="weight-row">
                   <span className="weight-label">{reward.label}</span>
                   <input
                     type="range"
-                    aria-label={`${reward.label} reward weight`}
+                    aria-label={`${scopeLabel} — ${reward.label} reward weight`}
                     min={0}
                     max={10}
                     step={1}
@@ -39,7 +40,7 @@ export function RewardWeights({ weights, overridden, onChange }: Props) {
                   <span className="weight-val">{weights[reward.key] ?? reward.default}</span>
                 </div>
               ))}
-            </div>
+            </fieldset>
           )
         })}
       </div>
