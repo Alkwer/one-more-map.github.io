@@ -253,9 +253,16 @@ const comparePieceCharts = (a: ChartData, b: ChartData, piece: PieceType) =>
 
 /** does this strategy have any recommended piece type matching the chart?
  *  (a banked chart stays spendable by every strategy that wants its type) */
-export function strategyWantsChart(strategyId: string | undefined, c: ChartData): boolean {
+export function strategyWantsChart(
+  strategyId: string | undefined,
+  c: ChartData,
+  keeps?: Record<string, number>,
+): boolean {
   if (!strategyId) return false
-  return PIECE_TYPES.some((p) => p.strategyId === strategyId && matchesPiece(c, p))
+  const customTypes = keeps ? customPieceTypes(keeps) : []
+  return [...PIECE_TYPES, ...customTypes].some(
+    (p) => p.strategyId === strategyId && matchesPiece(c, p),
+  )
 }
 
 /** Stable key for a user-added chart type. Multi-tier families join IDs with '+'. */
