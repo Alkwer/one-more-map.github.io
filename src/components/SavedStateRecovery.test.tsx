@@ -16,6 +16,7 @@ describe('SavedStateRecovery', () => {
           warnings: ['migration required'],
           proposedState: defaultState(),
         }}
+        actionError="Migration was not committed: Browser storage is unavailable."
         onRetry={() => {}}
         onMigrate={() => {}}
         onReset={() => {}}
@@ -30,6 +31,8 @@ describe('SavedStateRecovery', () => {
     expect(html).toContain('Retry decode')
     expect(html).toContain('Migrate recovered state')
     expect(html).toContain('Reset saved state…')
+    expect(html).toContain('role="alert"')
+    expect(html).toContain('Migration was not committed')
     expect(html).not.toContain('>Close<')
   })
 })

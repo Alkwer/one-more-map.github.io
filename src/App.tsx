@@ -98,6 +98,7 @@ export default function App() {
   const { state, mutationError } = persistableState
   const [shareSession, setShareSession] = useState<ShareSession | null>(initial.shareSession)
   const [recovery, setRecovery] = useState<LocalStateRecovery | null>(initial.recovery)
+  const [recoveryActionError, setRecoveryActionError] = useState('')
   const [autosaveFailure, setAutosaveFailure] = useState<Extract<
     LocalSaveResult,
     { ok: false }
@@ -246,6 +247,7 @@ export default function App() {
   }
 
   const retrySavedState = () => {
+    setRecoveryActionError('')
     const saved = loadLocalState()
     if (saved.status === 'recovery') {
       setRecovery(saved)
@@ -259,7 +261,14 @@ export default function App() {
 
   const migrateSavedState = () => {
     if (!recovery?.backupKey || !recovery.proposedState) return
-    persistState(recovery.proposedState)
+    const result = persistState(recovery.proposedState)
+    if (!result.ok) {
+      setRecoveryActionError(
+        `Migration was not committed: ${result.message} The recovery dialog remains active; retry after browser storage is available.`,
+      )
+      return
+    }
+    setRecoveryActionError('')
     if (!shareSession) replaceState(recovery.proposedState)
     setRecovery(null)
   }
@@ -270,7 +279,14 @@ export default function App() {
       return
     }
     const fresh = defaultState()
-    persistState(fresh)
+    const result = persistState(fresh)
+    if (!result.ok) {
+      setRecoveryActionError(
+        `Reset was not committed: ${result.message} The recovery dialog remains active; retry after browser storage is available.`,
+      )
+      return
+    }
+    setRecoveryActionError('')
     if (!shareSession) replaceState(fresh)
     setRecovery(null)
   }
@@ -325,6 +341,7 @@ export default function App() {
       {recovery && (
         <SavedStateRecovery
           recovery={recovery}
+          actionError={recoveryActionError}
           onRetry={retrySavedState}
           onMigrate={migrateSavedState}
           onReset={resetSavedState}
