@@ -29,6 +29,47 @@ export type CopySequenceWriteResult =
       manualText: string | null
     }
 
+/** Generation guard for one asynchronous clipboard attempt at a time. */
+export class CopyAttemptGuard {
+  private generation = 0
+  private pending = false
+
+  get isPending(): boolean {
+    return this.pending
+  }
+
+  begin(): number | null {
+    if (this.pending) return null
+    this.pending = true
+    return ++this.generation
+  }
+
+  invalidate(): void {
+    this.generation++
+    this.pending = false
+  }
+
+  isCurrent(attempt: number): boolean {
+    return this.pending && attempt === this.generation
+  }
+
+  finish(attempt: number): boolean {
+    if (!this.isCurrent(attempt)) return false
+    this.pending = false
+    return true
+  }
+}
+
+/** Await an operation and discard its result if its generation was invalidated. */
+export async function settleCopyAttempt<T>(
+  guard: CopyAttemptGuard,
+  attempt: number,
+  operation: Promise<T>,
+): Promise<T | null> {
+  const result = await operation
+  return guard.isCurrent(attempt) ? result : null
+}
+
 export function startCopySequence(board: Board): CopySequenceState | null {
   const order = BOARD_FILL_ORDER.flatMap((cell) => {
     const placement = board[cell]

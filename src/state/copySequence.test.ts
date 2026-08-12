@@ -3,7 +3,9 @@ import type { Board, ChartData } from '../types'
 import {
   advanceCopySequence,
   BOARD_FILL_ORDER,
+  CopyAttemptGuard,
   currentCopyEntry,
+  settleCopyAttempt,
   startCopySequence,
   writeCurrentCopyAndAdvance,
 } from './copySequence'
@@ -127,4 +129,40 @@ describe('copy sequence', () => {
     })
     expect(currentCopyEntry(sequence).chartUid).toBe('chart-6')
   })
+
+  it.each([
+    ['resolve', 'cancel'],
+    ['reject', 'cancel'],
+    ['resolve', 'state replacement'],
+    ['reject', 'state replacement'],
+  ] as const)(
+    'discards a delayed clipboard %s after %s invalidates the attempt',
+    async (outcome, invalidation) => {
+      const sequence = startCopySequence(boardWith(6, 7))!
+      const guard = new CopyAttemptGuard()
+      const attempt = guard.begin()!
+      let resolveWrite!: () => void
+      let rejectWrite!: (error: Error) => void
+      const clipboardWrite = new Promise<void>((resolve, reject) => {
+        resolveWrite = resolve
+        rejectWrite = reject
+      })
+      const pending = settleCopyAttempt(
+        guard,
+        attempt,
+        writeCurrentCopyAndAdvance(sequence, chart, {
+          writeText: () => clipboardWrite,
+        }),
+      )
+
+      expect(guard.isPending).toBe(true)
+      guard.invalidate()
+      expect(guard.isPending).toBe(false)
+      if (outcome === 'resolve') resolveWrite()
+      else rejectWrite(new Error(`${invalidation} rejection`))
+
+      expect(await pending).toBeNull()
+      expect(guard.finish(attempt)).toBe(false)
+    },
+  )
 })

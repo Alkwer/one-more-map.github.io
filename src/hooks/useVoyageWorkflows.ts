@@ -9,7 +9,9 @@ import {
 import { summarizeVoyageFinish, type AppStateAction } from '../state/appStateReducer'
 import {
   advanceCopySequence,
+  CopyAttemptGuard,
   currentCopyEntry,
+  settleCopyAttempt,
   startCopySequence,
   writeCurrentCopyAndAdvance,
   type CopySequenceWriteResult,
@@ -41,16 +43,27 @@ export function useVoyageWorkflows(
     { ok: false }
   > | null>(null)
   const [copyPending, setCopyPending] = useState(false)
-  const copyInFlight = useRef(false)
+  const copyAttempt = useRef(new CopyAttemptGuard())
+  const previousState = useRef(state)
+
+  const invalidateCopyAttempt = useCallback(() => {
+    copyAttempt.current.invalidate()
+    setCopyPending(false)
+  }, [])
+
+  const cancelCopySequence = useCallback(() => {
+    invalidateCopyAttempt()
+    setCopyFailure(null)
+    setCopySequence(null)
+  }, [invalidateCopyAttempt])
 
   const stopUnavailableCopySequence = useCallback(() => {
-    setCopySequence(null)
-    setCopyFailure(null)
+    cancelCopySequence()
     setVoyageMessage(
       'Copy sequence stopped: a chart from the original sequence is no longer in your library. Review the board and start Copy into game again.',
     )
     window.setTimeout(() => setVoyageMessage(''), 5000)
-  }, [])
+  }, [cancelCopySequence])
 
   const commitFinish = useCallback(
     (keptUids: Set<string>, snapshot: VoyageFinishSnapshot) => {
@@ -111,16 +124,23 @@ export function useVoyageWorkflows(
     [commitFinish, preserveConfirmation],
   )
   const copyCurrentAndAdvance = useCallback(async () => {
-    if (!copySequence || copyInFlight.current) return
+    if (!copySequence) return
+    const attempt = copyAttempt.current.begin()
+    if (attempt === null) return
     const chart = chartMap.get(currentCopyEntry(copySequence).chartUid)
     if (!chart) {
+      copyAttempt.current.finish(attempt)
       stopUnavailableCopySequence()
       return
     }
-    copyInFlight.current = true
     setCopyPending(true)
     try {
-      const result = await writeCurrentCopyAndAdvance(copySequence, chart, navigator.clipboard)
+      const result = await settleCopyAttempt(
+        copyAttempt.current,
+        attempt,
+        writeCurrentCopyAndAdvance(copySequence, chart, navigator.clipboard),
+      )
+      if (!result) return
       if (!result.ok) {
         setCopyFailure(result)
         return
@@ -128,8 +148,7 @@ export function useVoyageWorkflows(
       setCopyFailure(null)
       setCopySequence(result.next)
     } finally {
-      copyInFlight.current = false
-      setCopyPending(false)
+      if (copyAttempt.current.finish(attempt)) setCopyPending(false)
     }
   }, [chartMap, copySequence, stopUnavailableCopySequence])
 
@@ -138,6 +157,12 @@ export function useVoyageWorkflows(
     setCopyFailure(null)
     setCopySequence(advanceCopySequence(copySequence))
   }, [copyFailure, copySequence])
+
+  useEffect(() => {
+    if (previousState.current === state) return
+    previousState.current = state
+    if (copySequence || copyAttempt.current.isPending) cancelCopySequence()
+  }, [cancelCopySequence, copySequence, state])
 
   useEffect(() => {
     if (!copySequence) return
@@ -153,12 +178,12 @@ export function useVoyageWorkflows(
         event.preventDefault()
         copyCurrentAndAdvance()
       } else if (event.key === 'Escape') {
-        setCopySequence(null)
+        cancelCopySequence()
       }
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [copyCurrentAndAdvance, copySequence])
+  }, [cancelCopySequence, copyCurrentAndAdvance, copySequence])
 
   const sequenceActive = !!copySequence || !!preserveConfirmation
   const highlightUid = copySequence
@@ -183,14 +208,12 @@ export function useVoyageWorkflows(
       window.setTimeout(() => setVoyageMessage(''), 4000)
     },
     startCopySequence: () => {
+      invalidateCopyAttempt()
       setCopyFailure(null)
       setCopySequence(startCopySequence(state.board))
     },
     copyCurrentAndAdvance,
     confirmManualCopy,
-    cancelCopySequence: () => {
-      setCopyFailure(null)
-      setCopySequence(null)
-    },
+    cancelCopySequence,
   }
 }
