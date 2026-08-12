@@ -139,6 +139,26 @@ describe('session planner', () => {
     expect(plan.leftover).toBe(0)
   })
 
+  it.each([
+    { centres: 2, sides: 7, expectedRuns: 0, expectedLeftover: 9 },
+    { centres: 9, sides: 0, expectedRuns: 0, expectedLeftover: 9 },
+    { centres: 2, sides: 16, expectedRuns: 2, expectedLeftover: 0 },
+  ])(
+    'plans $expectedRuns Speedruns from $centres centres and $sides non-centres',
+    ({ centres, sides, expectedRuns, expectedLeftover }) => {
+      const pool = [
+        ...Array.from({ length: centres }, () => chart(['adj-opbox-1'])),
+        ...junk(sides),
+      ]
+
+      const plan = planSession(pool, emptyBorders())
+      const speedrun = plan.entries.find((entry) => entry.strategyId === 'milky-speedrun')
+
+      expect(speedrun?.runs ?? 0).toBe(expectedRuns)
+      expect(plan.leftover).toBe(expectedLeftover)
+    },
+  )
+
   it('reassigns an overlapping chart when a complete distinct kit exists', () => {
     const pool = [
       chart(['adj-star-1'], 'sea-pillars'),
