@@ -18,6 +18,7 @@ import {
   type AppState,
   type StateDecodeErrorCode,
 } from './storage'
+import { chartRewardModifierIds } from './rewards'
 
 export const SHARE_VERSION = 1
 export const SHARE_PREFIX = `layout.v${SHARE_VERSION}.`
@@ -281,6 +282,9 @@ export function encodeShare(state: AppState): string {
       throw new ShareEncodeError(`Board cell ${index + 1} references a missing chart`)
     }
     for (const id of chart.modIds) relevantModIds.add(id)
+    for (const reward of chart.rewards ?? []) {
+      for (const id of chartRewardModifierIds(reward.stat)) relevantModIds.add(id)
+    }
     return {
       rotation: placement.rotation,
       chart: sharedChart(chart),

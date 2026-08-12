@@ -1,6 +1,6 @@
 import { voyageModById } from '../data/mods'
 import type { ChartData, Weights } from '../types'
-import { chartRewardKey, voyageRewardKey } from './rewards'
+import { chartRewardKey, importedChartRewardDisabled, voyageRewardKey } from './rewards'
 
 const SCOPE_REACH = { self: 1, adjacent: 3, global: 9 } as const
 
@@ -25,6 +25,7 @@ export function chartValue(
   }
 
   for (const effect of chart.rewards ?? []) {
+    if (importedChartRewardDisabled(effect.stat, disabled)) continue
     value += (weights[chartRewardKey(effect.stat)] ?? 0) * effect.percent
   }
 
