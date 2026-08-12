@@ -154,12 +154,9 @@ function objectiveScore(
     ? layoutMisses(board, charts, opts.strategyLayout) *
       (opts.strategyLayoutPenalty ?? LAYOUT_PENALTY)
     : 0
+  const connectionBonus = opts.mode === 'any' ? 0 : connectivity.connections * CONNECTION_BONUS
   return (
-    rewardTerm +
-    strat +
-    connectivity.connections * CONNECTION_BONUS -
-    layoutPen -
-    connectivity.violations * VIOLATION_PENALTY
+    rewardTerm + strat + connectionBonus - layoutPen - connectivity.violations * VIOLATION_PENALTY
   )
 }
 
