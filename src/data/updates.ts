@@ -13,6 +13,13 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    date: '2026-08-13',
+    tag: 'reworked',
+    title: 'PoE 3.29.3 border-OCR safety',
+    detail:
+      'The Windows importer now aborts when Alt is held, and ambiguous all-tooltip OCR fails closed instead of assigning one modifier to multiple positions. Cursed Ducats are called out separately because their global rewards and build-specific difficulty do not affect layout ordering and are not included in the score.',
+  },
+  {
     date: '2026-08-11',
     tag: 'reworked',
     title: 'Border decisions use achievable-roll percentiles',

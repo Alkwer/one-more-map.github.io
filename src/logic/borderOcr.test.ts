@@ -7,6 +7,7 @@ ${text}
 === END VOYAGE REROLL COST ===`
 
 const divineTooltip = 'Rare Monsters in adjacent Areas drop an additional Divine Orb'
+const chaosTooltip = 'Rare Monsters in adjacent Areas drop an additional Chaos Orb'
 const borderBlock = (
   index: number,
   text = divineTooltip,
@@ -136,6 +137,20 @@ describe('transactional border OCR snapshots', () => {
     const applied = applyBorderOcrSnapshot(existing, parsed)
 
     expect(parsed.matches).toHaveLength(0)
+    expect(applied).toMatchObject({ status: 'failed', applied: false })
+    expect(applied.borders).toEqual(existing)
+  })
+
+  it('fails closed when the all-border overlay puts multiple tooltips in every OCR block', () => {
+    const allBorderView = `${divineTooltip}\n${chaosTooltip}`
+    const parsed = parseBorderOcrPayload(
+      scanPayload(Array.from({ length: 12 }, (_, index) => borderBlock(index, allBorderView))),
+    )
+    const existing = existingBorders()
+    const applied = applyBorderOcrSnapshot(existing, parsed)
+
+    expect(parsed.matches).toHaveLength(0)
+    expect(parsed.misses).toHaveLength(12)
     expect(applied).toMatchObject({ status: 'failed', applied: false })
     expect(applied.borders).toEqual(existing)
   })

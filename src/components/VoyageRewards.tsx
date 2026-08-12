@@ -67,6 +67,14 @@ export function VoyageRewards({ score, board, pool, chartMap, notables }: Props)
         A relative score for comparing your layouts, based on your weights and estimated mod values.
         Not exact loot value. See the actual contents below.
       </div>
+      <div className="ducat-scope-note" role="note">
+        <strong>Cursed Ducats (PoE 3.29.3)</strong>
+        <span>
+          Their Voyage-wide monster Toughness, Item Quantity/Rarity, and build-specific downsides
+          are not included in this layout score. Because they affect the whole Voyage, they do not
+          change which arrangement scores best.
+        </span>
+      </div>
       <div className="reward-grid">
         {ALL_STATS.filter((stat) => score.perStat[stat] > 0)
           .sort((left, right) => score.perStat[right] - score.perStat[left])
@@ -77,7 +85,7 @@ export function VoyageRewards({ score, board, pool, chartMap, notables }: Props)
             </div>
           ))}
         {ALL_STATS.every((stat) => score.perStat[stat] === 0) && (
-          <div className="muted">Place charts to see bonuses</div>
+          <div className="muted reward-grid-empty">Place charts to see bonuses</div>
         )}
       </div>
       {ALL_STATS.some((stat) => score.perStat[stat] > 0) && (

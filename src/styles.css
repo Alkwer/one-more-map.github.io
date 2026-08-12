@@ -2799,6 +2799,9 @@ textarea {
   grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
   gap: 8px;
 }
+.reward-grid-empty {
+  grid-column: 1 / -1;
+}
 .reward-card {
   text-align: center;
   padding: 10px 6px 8px;
@@ -2917,6 +2920,22 @@ textarea {
   font-size: 12px;
   font-family: var(--italic);
   margin-top: 6px;
+}
+.ducat-scope-note {
+  display: grid;
+  gap: 3px;
+  margin-top: 9px;
+  padding: 8px 10px;
+  border-left: 2px solid var(--gold-dim);
+  background: rgba(86, 68, 30, 0.14);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.ducat-scope-note strong {
+  color: var(--gold);
+  font-family: var(--sc);
+  letter-spacing: 0.35px;
 }
 .regex-row {
   display: flex;
