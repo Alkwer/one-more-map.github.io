@@ -46,7 +46,11 @@ The project separates observed game mechanics from app-level assumptions:
   and must remain fully below the line before suggesting a 3k/6k reroll. An
   overlapping range or unavailable comparison preserves the current board.
   Alc & Go receives fallback preference at a robust 50th modeled percentile.
-  Low confidence remains visible and the guidance remains experimental.
+  Low confidence remains visible and the guidance remains experimental. PoE
+  3.29.3 Cursed Ducats are planner-wide and intentionally excluded from the
+  layout score: their global monster rewards do not change layout ordering,
+  while Toughness and the six build-specific downsides require character context
+  the solver does not model.
 - **Observed, still experimental:** complete boards strongly support physical
   slot families and confirm duplicate modifiers. No natural-versus-paid
   difference is detected yet, but the current sample does not establish

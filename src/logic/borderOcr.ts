@@ -45,6 +45,14 @@ const borderMatchVariants: BorderMatchVariant[] = BORDER_MODS.flatMap((mod) => {
   ]
 })
 
+const exactBorderIdsByText = new Map<string, Set<string>>()
+for (const variant of borderMatchVariants) {
+  const text = normalizeBorderOcrText(variant.matchText)
+  const ids = exactBorderIdsByText.get(text) ?? new Set<string>()
+  ids.add(variant.id)
+  exactBorderIdsByText.set(text, ids)
+}
+
 const borderTokenFrequency = new Map<string, number>()
 for (const variant of borderMatchVariants) {
   const uniqueTokens = new Set(normalizeBorderOcrText(variant.matchText).split(' ').filter(Boolean))
@@ -89,14 +97,19 @@ function signatureToken(token: string): boolean {
   return token.length >= (isKorean ? 1 : 4)
 }
 
-function candidateLines(raw: string): string[] {
+function candidateWindows(raw: string): string[] {
   const lines = raw.split(/\r?\n/).map(normalizeBorderOcrText).filter(Boolean)
-  const candidates = new Set(lines)
+  const candidates = [...lines]
   for (let i = 0; i < lines.length; i++) {
-    if (i + 1 < lines.length) candidates.add(`${lines[i]} ${lines[i + 1]}`)
-    if (i + 2 < lines.length) candidates.add(`${lines[i]} ${lines[i + 1]} ${lines[i + 2]}`)
+    if (i + 1 < lines.length) candidates.push(`${lines[i]} ${lines[i + 1]}`)
+    if (i + 2 < lines.length) candidates.push(`${lines[i]} ${lines[i + 1]} ${lines[i + 2]}`)
   }
-  if (lines.length === 0) {
+  return candidates
+}
+
+function candidateLines(raw: string): string[] {
+  const candidates = new Set(candidateWindows(raw))
+  if (candidates.size === 0) {
     const whole = normalizeBorderOcrText(raw)
     if (whole) candidates.add(whole)
   }
@@ -146,6 +159,18 @@ interface Match {
 function matchBorder(raw: string): Match | null {
   const candidates = candidateLines(raw)
   if (candidates.length === 0) return null
+
+  // PoE 3.29.3 can display all 12 border tooltips at once. A scan block is
+  // position-tagged by the importer and must contain exactly one tooltip; if
+  // full-window OCR sees multiple exact tooltip windows, assigning the first
+  // one to that position would silently corrupt the board snapshot.
+  const exactHitWindows = candidateWindows(raw).filter((candidate) =>
+    exactBorderIdsByText.has(candidate),
+  )
+  const exactHitIds = new Set(
+    exactHitWindows.flatMap((candidate) => [...(exactBorderIdsByText.get(candidate) ?? [])]),
+  )
+  if (exactHitWindows.length > 1 || exactHitIds.size > 1) return null
 
   const scored = borderMatchVariants.flatMap((variant) => {
     const expected = normalizeBorderOcrText(variant.matchText)

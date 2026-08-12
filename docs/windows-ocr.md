@@ -164,6 +164,14 @@ The two tab positions are stored with the grid calibration in `voyage-import.ini
   reroll, then opens the solver and imports that refresh.
 - `F10` aborts the current sweep.
 
+Release **Alt** (or the controller's **Left Trigger**) before starting a border
+scan and keep it released until the scan finishes. Patch 3.29.3 uses that input
+to display all 12 border modifiers at once, while the importer deliberately
+reads one position at a time. The helper aborts if it detects a held Alt key,
+and the solver rejects an OCR block containing multiple exact tooltips instead
+of guessing a border position. The all-border view remains useful for manually
+checking the imported result after the scan.
+
 After `F9` or `Ctrl+F9`, the solver window in the default browser becomes active
 and receives the paste automatically. If automatic opening or activation fails,
 the payload remains on the clipboard and can be pasted with `Ctrl+V`.
@@ -206,7 +214,8 @@ export it or create a share URL.
 - **The game does not receive input:** avoid exclusive fullscreen and match the
   helper's privilege level to the game.
 - **Wrong border tooltip or missed text:** keep the board unscrolled, use exact
-  calibration, and press `Ctrl+F4` to verify the 12 points.
+  calibration, release Alt/Left Trigger, and press `Ctrl+F4` to verify the 12
+  points.
 - **Reroll count does not update:** hover the reroll button until the cost is
   visible, repeat `Ctrl+F7`, and use `Ctrl+F4` to preview the saved point.
 - **Wrong charts are copied:** repeat `F7` and `F8`, then recalibrate tabs `1` and

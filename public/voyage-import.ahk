@@ -1060,8 +1060,21 @@ RunOcrHelper(options, cancellable := true, preferredLanguage := "") {
     }
 }
 
+RequireSingleBorderTooltipView() {
+    global Running
+    if !GetKeyState("LAlt", "P") && !GetKeyState("RAlt", "P")
+        return true
+
+    Running := false
+    ToolTip()
+    Flash "Release Alt before border OCR. The importer reads one tooltip at a time.", 5000
+    return false
+}
+
 ScanBorders() {
     global PoeHwnd, BorderHoverDelay, BorderOcrAttempts, Running, LastBorderScanBlocks
+    if !RequireSingleBorderTooltipView()
+        return ""
     if !RequireBoundPoeForeground() {
         Running := false
         return ""
@@ -1070,7 +1083,7 @@ ScanBorders() {
     result := ""
     LastBorderScanBlocks := 0
     for index, point in BorderPoints() {
-        if !Running || !RequireBoundPoeForeground() {
+        if !Running || !RequireSingleBorderTooltipView() || !RequireBoundPoeForeground() {
             Running := false
             break
         }
@@ -1092,7 +1105,7 @@ ScanBorders() {
             Sleep BorderHoverDelay + (attempt - 1) * 200
             ToolTip()
             Sleep 30
-            if !RequireBoundPoeForeground() {
+            if !RequireSingleBorderTooltipView() || !RequireBoundPoeForeground() {
                 Running := false
                 break
             }
@@ -1625,6 +1638,9 @@ F9:: {
     }
     if Running && RerollCostCalibrated()
         rerollCostBlob := ScanRerollCost()
+
+    if !Running
+        return
 
     ; ---- Phase 3: open or activate the solver page and paste once ----
     if Running && (copied > 0 || borderBlob != "" || rerollCostBlob != "") {
