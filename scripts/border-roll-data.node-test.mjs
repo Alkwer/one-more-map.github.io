@@ -20,6 +20,7 @@ import {
 } from './upsert-border-roll-comment.mjs'
 import { reconcileBorderRollDatasetPullRequest } from './reconcile-border-roll-dataset-pr.mjs'
 import { replaceBorderRollLabels } from './replace-border-roll-labels.mjs'
+import { validationDigestFromComments } from './fetch-accepted-border-roll-issues.mjs'
 
 const knownIds = await loadKnownBorderIds()
 const borderModIds = [...knownIds].slice(0, 12)
@@ -236,6 +237,62 @@ test('keeps the earliest accepted sample when historical IDs conflict', () => {
   assert.deepEqual(built.conflicts, [
     { sampleId: 'roll-test-0', keptIssueNumber: 41, conflictingIssueNumber: 42 },
   ])
+})
+
+test('quarantines renamed accepted issues after their normalized body changes', () => {
+  const originalBody = issueBody(dataset([sample(0)]))
+  const accepted = validateBorderRollIssueBody(originalBody, knownIds)
+  assert.equal(accepted.status, 'accepted')
+  const changedBody = issueBody(dataset([sample(0, { borderModIds: [...borderModIds].reverse() })]))
+
+  const built = buildCanonicalDataset(
+    [
+      {
+        number: 242,
+        title: 'renamed after acceptance',
+        body: changedBody,
+        acceptedHash: accepted.hash,
+        labels: [{ name: 'bug' }, { name: 'border-roll:accepted' }],
+      },
+    ],
+    knownIds,
+    { requireAcceptedDigest: true },
+  )
+
+  assert.equal(built.dataset, null)
+  assert.deepEqual(built.digestMismatches, [
+    {
+      issueNumber: 242,
+      recordedHash: accepted.hash,
+      currentHash: validateBorderRollIssueBody(changedBody, knownIds).hash,
+    },
+  ])
+})
+
+test('reads the latest canonical digest only from managed validation comments', () => {
+  assert.equal(
+    validationDigestFromComments([
+      { body: 'Canonical SHA-256: `' + 'a'.repeat(64) + '`' },
+      {
+        body:
+          '<!-- border-roll-validation -->\n✅ Accepted\nCanonical SHA-256: `' +
+          'b'.repeat(64) +
+          '`',
+      },
+    ]),
+    'b'.repeat(64),
+  )
+})
+
+test('managed edited and reopened issues revalidate after a title change', async () => {
+  const workflow = await readFile('.github/workflows/process-border-roll-data.yml', 'utf8')
+  assert.match(workflow, /types: \[opened, edited, reopened\]/)
+  for (const label of ['accepted', 'partial', 'duplicate', 'invalid']) {
+    assert.match(
+      workflow,
+      new RegExp(`contains\\(github\\.event\\.issue\\.labels.*border-roll:${label}`),
+    )
+  }
 })
 
 test('workflow serializes submissions and rechecks duplicates at the commit point', async () => {

@@ -15,7 +15,18 @@ if (!inputPath || !outputPath) {
 
 const acceptedIssues = JSON.parse(await readFile(inputPath, 'utf8'))
 const knownBorderIds = await loadKnownBorderIds()
-const { dataset, conflicts } = buildCanonicalDataset(acceptedIssues, knownBorderIds)
+const { dataset, conflicts, digestMismatches } = buildCanonicalDataset(
+  acceptedIssues,
+  knownBorderIds,
+  { requireAcceptedDigest: true },
+)
+if (digestMismatches.length > 0) {
+  throw new Error(
+    `Accepted border-roll content no longer matches its validated digest: ${digestMismatches
+      .map(({ issueNumber }) => `#${issueNumber}`)
+      .join(', ')}`,
+  )
+}
 for (const conflict of conflicts) {
   console.warn(
     `Skipped conflicting sample ${conflict.sampleId} from issue #${conflict.conflictingIssueNumber}; keeping issue #${conflict.keptIssueNumber}.`,

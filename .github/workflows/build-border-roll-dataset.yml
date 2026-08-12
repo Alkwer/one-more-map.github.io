@@ -31,20 +31,9 @@ jobs:
         run: |
           output="$RUNNER_TEMP/accepted-border-roll-issues.json"
           if gh label list --limit 1000 --json name --jq '.[].name' | grep -Fxq "border-roll:accepted"; then
-            pages="${output}.pages"
-            partial="${output}.partial"
-            # Fetch all REST pages (100 issues/request), then atomically promote
-            # one number-sorted array. A failed page cannot reach the build step.
-            gh api --method GET --paginate --slurp \
-              -f state=all \
-              -f per_page=100 \
-              -f labels="border-roll:accepted" \
-              "repos/$GITHUB_REPOSITORY/issues" \
-              > "$pages"
-            jq 'flatten | map(select(.pull_request == null) | {number, body, labels}) | sort_by(.number)' \
-              "$pages" > "$partial"
-            jq -e 'type == "array"' "$partial" >/dev/null
-            mv "$partial" "$output"
+            node scripts/fetch-accepted-border-roll-issues.mjs \
+              --repo "$GITHUB_REPOSITORY" \
+              --output "$output"
           else
             echo "[]" > "$output"
           fi
