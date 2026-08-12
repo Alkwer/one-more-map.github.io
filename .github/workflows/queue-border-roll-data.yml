@@ -1,0 +1,33 @@
+name: Queue border-roll submission
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+
+permissions:
+  issues: write
+
+jobs:
+  enqueue:
+    if: >-
+      !contains(github.event.issue.labels.*.name, 'border-roll:test') &&
+      (startsWith(github.event.issue.title, '[data] Border roll') ||
+      contains(github.event.issue.labels.*.name, 'border-roll:accepted') ||
+      contains(github.event.issue.labels.*.name, 'border-roll:partial') ||
+      contains(github.event.issue.labels.*.name, 'border-roll:duplicate') ||
+      contains(github.event.issue.labels.*.name, 'border-roll:invalid'))
+    runs-on: ubuntu-slim
+    steps:
+      - name: Persist validation request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh label create "border-roll:queued" \
+            --repo "$GITHUB_REPOSITORY" \
+            --color "0969DA" \
+            --description "Awaiting serialized border-roll validation" \
+            --force
+          gh issue edit "$ISSUE_NUMBER" \
+            --repo "$GITHUB_REPOSITORY" \
+            --add-label "border-roll:queued"

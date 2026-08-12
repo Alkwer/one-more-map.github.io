@@ -23,6 +23,7 @@ import { reconcileBorderRollDatasetPullRequest } from './reconcile-border-roll-d
 import { replaceBorderRollLabels } from './replace-border-roll-labels.mjs'
 import { validationDigestFromComments } from './fetch-accepted-border-roll-issues.mjs'
 import { verifyCanonicalDataset } from './validate-canonical-border-roll-dataset.mjs'
+import { coalesceQueuedIssues, remainingQueuedIssues } from './reconcile-border-roll-queue.mjs'
 
 const knownIds = await loadKnownBorderIds()
 const borderModIds = [...knownIds].slice(0, 12)
@@ -346,6 +347,39 @@ test('managed edited and reopened issues revalidate after a title change', async
       new RegExp(`contains\\(github\\.event\\.issue\\.labels.*border-roll:${label}`),
     )
   }
+})
+
+test('durable queue recovers B after A running, B pending, and C replaces the pending run', () => {
+  const burst = [
+    { number: 101, updated_at: '2026-08-12T10:00:00Z' },
+    { number: 102, updated_at: '2026-08-12T10:00:01Z' },
+    { number: 103, updated_at: '2026-08-12T10:00:02Z' },
+    { number: 102, updated_at: '2026-08-12T10:00:03Z' },
+  ]
+
+  assert.deepEqual(
+    coalesceQueuedIssues(burst).map(({ number }) => number),
+    [101, 102, 103],
+  )
+  assert.deepEqual(
+    remainingQueuedIssues(burst, [101, 103]).map(({ number }) => number),
+    [102],
+  )
+})
+
+test('queue workflows preserve global commit serialization and scheduled recovery', async () => {
+  const [processor, queue, reconciler] = await Promise.all([
+    readFile('.github/workflows/process-border-roll-data.yml', 'utf8'),
+    readFile('.github/workflows/queue-border-roll-data.yml', 'utf8'),
+    readFile('.github/workflows/reconcile-border-roll-queue.yml', 'utf8'),
+  ])
+  assert.match(processor, /group: border-roll-submission-validation/)
+  assert.match(processor, /workflow_dispatch:/)
+  assert.match(processor, /--remove-label "border-roll:queued"/)
+  assert.match(queue, /--add-label "border-roll:queued"/)
+  assert.doesNotMatch(queue, /concurrency:/)
+  assert.match(reconciler, /cron: '\*\/5 \* \* \* \*'/)
+  assert.match(reconciler, /reconcile-border-roll-queue\.mjs/)
 })
 
 test('workflow serializes submissions and rechecks duplicates at the commit point', async () => {
