@@ -82,3 +82,18 @@ describe('Korean clipboard aliases feed strategy readiness', () => {
     )
   })
 })
+
+describe('keeper search accessibility', () => {
+  it('labels and describes the read-only field with stable strategy context', () => {
+    const html = renderStrategy('milky-speedrun', [])
+
+    expect(html).toContain('<label for="keeper-search-milky-speedrun" class="strat-regex-label"')
+    expect(html).toMatch(
+      /<input id="keeper-search-milky-speedrun" readonly="" aria-describedby="keeper-search-milky-speedrun-description" value="[^"]+"\/?>/,
+    )
+    expect(html).toContain(
+      'Read-only keeper search for Speedrun Strongboxes. Copy it into the in-game chart search.',
+    )
+    expect(html).toContain('aria-label="Copy Speedrun Strongboxes keeper search"')
+  })
+})
