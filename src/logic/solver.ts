@@ -122,6 +122,16 @@ export interface SolverResult {
   searchComplete: boolean
 }
 
+/**
+ * Feasibility is a hard constraint, not a score component. Keep accepted
+ * boards ahead of diagnostics even when persisted reward values are large
+ * enough to outweigh the objective's search-guidance penalty.
+ */
+function compareSolverResults(a: SolverResult, b: SolverResult): number {
+  if (a.valid !== b.valid) return a.valid ? -1 : 1
+  return b.score - a.score
+}
+
 const VIOLATION_PENALTY = 10_000
 // small nudge so that among equally-rewarding runnable boards the solver prefers
 // ones with more matched connections (a better-threaded voyage; some mods scale
@@ -228,11 +238,10 @@ export function solve(
       weights,
       opts,
     )
-    if (top.length >= CAP && score <= top[top.length - 1].score) return
     const key = boardKey(board)
     if (seen.has(key)) return
     seen.add(key)
-    top.push({
+    const candidate: SolverResult = {
       board: board.map((p) => (p ? { ...p } : null)),
       score,
       reward,
@@ -241,8 +250,10 @@ export function solve(
       fullyReachable,
       searchMethod,
       searchComplete,
-    })
-    top.sort((a, b) => b.score - a.score)
+    }
+    if (top.length >= CAP && compareSolverResults(candidate, top[top.length - 1]) >= 0) return
+    top.push(candidate)
+    top.sort(compareSolverResults)
     if (top.length > CAP) top = top.slice(0, CAP)
   }
 

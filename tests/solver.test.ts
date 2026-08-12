@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { PositionRule } from '../src/data/strategies'
 import type { Borders, ChartData, Edges } from '../src/types'
 import { checkConnectivity, rotateEdges } from '../src/logic/connectivity'
+import { CHART_REWARD_STATS, chartRewardKey } from '../src/logic/rewards'
 import { solve, type SolverOptions } from '../src/logic/solver'
 
 const EMPTY_EDGES: Edges = [false, false, false, false]
@@ -92,6 +93,43 @@ describe('exact solver', () => {
     expect(
       solve([unresolved], emptyBorders(), { 'self:quant': 1 }, baseOptions({ mode: 'strict' })),
     ).toEqual([])
+  })
+
+  it('ranks a valid exhaustive result ahead of a higher-scoring invalid board', () => {
+    const cross: Edges = [true, true, true, true]
+    const topLeftOnly: Edges = [false, true, true, false]
+    const maximumRewards = CHART_REWARD_STATS.map((stat) => ({ stat, percent: 10_000 }))
+    const weights = Object.fromEntries(CHART_REWARD_STATS.map((stat) => [chartRewardKey(stat), 10]))
+    const pool = [
+      chart('required-top-left', 0, { edges: topLeftOnly }),
+      chart('maximum-reward', 0, { edges: cross, rewards: maximumRewards }),
+      ...Array.from({ length: 7 }, (_, index) => chart(`cross-${index + 1}`, 0, { edges: cross })),
+    ]
+    const borders: Borders = Array(12).fill(null)
+    borders[0] = 'b-mag-3'
+    borders[9] = 'b-mag-3'
+
+    const [result] = solve(
+      pool,
+      borders,
+      weights,
+      baseOptions({
+        mode: 'strict',
+        topK: 1,
+        strategyRules: [
+          {
+            cells: [0],
+            nameMatch: 'maximum-reward',
+            bonus: 0,
+            rewardStat: { stat: 'quantity', per: 5 },
+          },
+        ],
+      }),
+    )
+
+    expect(result.valid).toBe(true)
+    expect(result.searchComplete).toBe(true)
+    expect(result.board[0]?.chartUid).toBe('required-top-left')
   })
 })
 
