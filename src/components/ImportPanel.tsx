@@ -403,10 +403,10 @@ export function ImportPanel({
       <details className="ahk-help">
         <summary>🖱️ Bulk-import charts + board borders from PoE (Windows OCR)</summary>
         <p className="muted">
-          A self-contained AutoHotkey script copies every chart from both chart-stash tabs, reads
-          all 12 board-border tooltips with Windows OCR, opens this trusted solver page, and pastes
-          one combined payload automatically. If the browser cannot be opened and focused, the
-          payload stays on your clipboard for a manual Ctrl+V. OCR stays on your PC and no
+          A self-contained AutoHotkey script copies up to 120 charts from both chart-stash tabs,
+          reads all 12 board-border tooltips with Windows OCR, opens this trusted solver page, and
+          pastes one combined payload automatically. If the browser cannot be opened and focused,
+          the payload stays on your clipboard for a manual Ctrl+V. OCR stays on your PC and no
           screenshots are uploaded.
         </p>
         <a className="ahk-dl" href={`${import.meta.env.BASE_URL}voyage-import.ahk`} download>

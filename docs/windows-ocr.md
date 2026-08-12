@@ -156,7 +156,8 @@ The two tab positions are stored with the grid calibration in `voyage-import.ini
 
 ## Run
 
-- `F9` switches through both calibrated chart-stash tabs, copies each grid,
+- `F9` switches through both calibrated chart-stash tabs, copies up to 120
+  charts from the two default 6×10 grids,
   returns the stash to tab `1`, reads all 12 border tooltips and the calibrated
   reroll-cost tooltip, then opens the solver and imports the combined payload.
 - `Ctrl+F9` copies only the borders and reroll cost, which is useful after a
