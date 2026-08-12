@@ -92,11 +92,11 @@ from the record.
 3. Start the game and helper at the privilege levels named by the matrix row.
    Use Windowed or Windowed Fullscreen mode; exclusive fullscreen is outside the
    supported matrix.
-4. Focus the authentic game window and press `Ctrl+F3`. Record a failure if the
-   helper accepts a non-PoE window, an ambiguous installation, or a changed
-   process identity.
-5. Open the solver at its expected URL. The tester, not the helper, returns to
-   that URL and explicitly presses `Ctrl+V` after a successful scan.
+4. Focus the authentic game window and start a calibration or preview. Record a
+   failure if the helper accepts a non-PoE window, an ambiguous installation, or
+   a changed process identity. No explicit game-window binding is required.
+5. Configure a supported browser as the Windows default browser. The helper must
+   open or activate the solver and paste automatically after a successful scan.
 
 ## Calibration and preview
 
@@ -125,11 +125,13 @@ Perform the following in order for every display row:
 
 1. Press `F9`. Verify both chart tabs are copied, tab 1 is restored, all 12
    border positions are represented, and the calibrated reroll cost maps to the
-   solver's `Used` count. Explicitly paste into the verified solver page.
+   solver's `Used` count. Verify that the helper opens or activates the solver
+   and pastes without an additional shortcut or click.
 2. Compare every imported chart and modifier with the live UI. Record the
    reported OCR language and a sanitized list of any mismatch.
-3. Reroll once, press `Ctrl+F9`, and explicitly paste again. Verify charts are
-   unchanged while all 12 borders and the new reroll count are updated.
+3. Reroll once and press `Ctrl+F9`. Verify the helper returns to the solver and
+   pastes automatically, charts remain unchanged, and all 12 borders plus the
+   new reroll count are updated.
 4. Make one tooltip unreadable without changing the other positions, then run
    `Ctrl+F9`. The complete snapshot must clear that position or reject the
    sweep; it must never retain the previous modifier while claiming success.
@@ -139,8 +141,8 @@ Perform the following in order for every display row:
    repeat with an OCR timeout or unavailable recognizer. Confirm that manual
    border entry in the solver still accepts and scores a border.
 
-For `UIPI-PASS`, repeat `Ctrl+F3`, `Ctrl+F4`, `F9`, `Ctrl+F9`, and `F10` with
-matching elevated privileges. For `UIPI-FAIL`, the standard helper must fail
+For `UIPI-PASS`, repeat `Ctrl+F4`, `F9`, `Ctrl+F9`, and `F10` with matching
+elevated privileges. For `UIPI-FAIL`, the standard helper must fail
 closed against the elevated game: no input is sent, no stale success is shown,
 and the UI tells the tester to match privilege levels or use UI Access. Do not
 weaken either process merely to turn this negative row into a pass.

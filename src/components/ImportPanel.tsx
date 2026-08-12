@@ -405,8 +405,9 @@ export function ImportPanel({
         <p className="muted">
           A self-contained AutoHotkey script copies every chart from both chart-stash tabs, reads
           all 12 board-border tooltips with Windows OCR, opens this trusted solver page, and pastes
-          one combined payload automatically. If browser verification fails, the payload stays on
-          your clipboard for a manual Ctrl+V. OCR stays on your PC and no screenshots are uploaded.
+          one combined payload automatically. If the browser cannot be opened and focused, the
+          payload stays on your clipboard for a manual Ctrl+V. OCR stays on your PC and no
+          screenshots are uploaded.
         </p>
         <a className="ahk-dl" href={`${import.meta.env.BASE_URL}voyage-import.ahk`} download>
           ⬇ Download voyage-import.ahk
@@ -424,10 +425,9 @@ export function ImportPanel({
             fully visible and not scrolled.
           </li>
           <li>
-            Double-click the script. No browser or game binding is required: the helper opens this
-            trusted solver URL when needed and authenticates the foreground PoE window whenever a
-            calibration or scan hotkey is pressed. <kbd>Ctrl+F2</kbd> and <kbd>Ctrl+F3</kbd> are
-            only optional manual overrides for unusual multi-window setups.
+            Double-click the script. There is no browser or game binding: the helper opens this
+            solver URL through your default browser and authenticates the foreground PoE window
+            whenever a calibration or scan hotkey is pressed. No setup shortcut is required.
           </li>
           <li>
             Keep the real Path of Exile window focused while calibrating. Positions are saved
@@ -461,10 +461,10 @@ export function ImportPanel({
             <kbd>F9</kbd> switches through both chart-stash tabs, copies their charts, and scans the
             12 borders · <kbd>Ctrl+F9</kbd> refreshes only the 12 borders after a reroll, without
             rescanning charts, and also reads the calibrated reroll-cost tooltip. Both commands open
-            or return to the trusted solver window, verify its address bar, restore page focus
-            without a saved mouse click, and paste automatically. If any identity check fails, the
-            payload stays on the clipboard for a manual <kbd>Ctrl+V</kbd>. <kbd>F10</kbd> aborts.
-            Border OCR can take around 15–30 seconds on a 4K screen.
+            the solver in the default browser, activate its window without a saved mouse click, and
+            paste automatically. If opening or activation fails, the payload stays on the clipboard
+            for a manual <kbd>Ctrl+V</kbd>. <kbd>F10</kbd> aborts. Border OCR can take around 15–30
+            seconds on a 4K screen.
           </li>
         </ol>
         <p className="muted small">
