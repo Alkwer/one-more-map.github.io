@@ -283,6 +283,23 @@ describe('Voyage decision regressions', () => {
     assert.equal(decision.preserveRoll, false)
   })
 
+  it('requires a found layout even if a stale readiness flag says ready', () => {
+    const inconclusive = candidate({
+      id: 'active',
+      name: 'Inconclusive Strategy',
+      fit: 0.9,
+      ready: true,
+      rollForecast: forecast(0.8, 0.1),
+    })
+    inconclusive.layoutStatus = 'unknown'
+
+    const decision = decide({ evaluations: [inconclusive] })
+
+    assert.equal(decision.kind, 'wait')
+    assert.equal(decision.decisionBasis, 'layout-uncertainty')
+    assert.doesNotMatch(decision.label, /PLAY|SWITCH/)
+  })
+
   it('does not preserve a strategy whose required border is absent', () => {
     const decision = decide({
       evaluations: [

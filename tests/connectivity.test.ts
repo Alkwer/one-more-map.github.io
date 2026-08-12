@@ -148,7 +148,13 @@ describe('connectivity regressions', () => {
     assert.ok(alcAndGo)
     assert.equal(alcAndGo.potentialLaunchable, true)
     assert.equal(alcAndGo.potentialFullyReachable, false)
-    assert.equal(alcAndGo.readiness.ready, true)
+    assert.equal(alcAndGo.layoutStatus, 'unknown')
+    assert.equal(alcAndGo.readiness.ready, false)
+    assert.ok(
+      alcAndGo.readiness.missing.includes(
+        'a fully reachable layout not yet found by the bounded search',
+      ),
+    )
     assert.ok(
       alcAndGo.reasons.some((entry) => /bounded solver did not find.*not proof/.test(entry)),
     )

@@ -32,6 +32,7 @@ const clamp01 = (value: number) => Math.max(0, Math.min(1, value))
 
 export type SuggestionConfidence = 'low' | 'medium' | 'high'
 export type RequiredBorderStatus = 'not-required' | 'unknown' | 'met' | 'missing'
+export type StrategyLayoutStatus = 'not-evaluated' | 'found' | 'unknown' | 'impossible'
 
 export interface StrategyEvaluationOptions extends ScoreOptions {
   mode: ConnectivityMode
@@ -70,6 +71,8 @@ export interface StrategyInventorySuggestion {
   potentialLaunchable: boolean
   /** whether every chart on the best-found board can be reached from the start */
   potentialFullyReachable: boolean
+  /** found validity, bounded-search uncertainty, or exhaustive impossibility */
+  layoutStatus: StrategyLayoutStatus
   /** Library-only potential, normalized against the strongest evaluated strategy. */
   libraryFit: number
   /** Absolute fit of the entered border roll for the best layout found. */
@@ -247,32 +250,47 @@ function confidenceFor(
   return 'low'
 }
 
-function addRunnableRequirements(
+export function resolveRunnableReadiness(
   readiness: StrategyReadiness,
   eligibleCharts: number,
+  searchAttempted: boolean,
   potentialFound: boolean,
   potentialValidForMode: boolean,
   searchComplete: boolean,
-): StrategyReadiness {
+): { readiness: StrategyReadiness; layoutStatus: StrategyLayoutStatus } {
   const missing = [...readiness.missing]
   const capacityRatio = Math.min(1, eligibleCharts / 9)
   const layoutRatio = eligibleCharts >= 9 && !potentialValidForMode ? 0.75 : 1
+  let layoutStatus: StrategyLayoutStatus = 'not-evaluated'
   if (eligibleCharts < 9) {
     missing.push(
       `${9 - eligibleCharts}× additional eligible chart${
         9 - eligibleCharts === 1 ? '' : 's'
       } for a full voyage`,
     )
-  } else if (!potentialFound && searchComplete) {
-    missing.push('a board containing every mandatory strategy piece in an allowed position')
-  } else if (!potentialValidForMode && searchComplete) {
-    missing.push('a fully reachable connector layout from the available chart shapes')
+  } else if (searchAttempted) {
+    if (potentialValidForMode) {
+      layoutStatus = 'found'
+    } else if (searchComplete) {
+      layoutStatus = 'impossible'
+      missing.push(
+        potentialFound
+          ? 'a fully reachable connector layout from the available chart shapes'
+          : 'a board containing every mandatory strategy piece in an allowed position',
+      )
+    } else {
+      layoutStatus = 'unknown'
+      missing.push('a fully reachable layout not yet found by the bounded search')
+    }
   }
   return {
-    ...readiness,
-    ready: missing.length === 0,
-    ratio: readiness.ratio * capacityRatio * layoutRatio,
-    missing,
+    layoutStatus,
+    readiness: {
+      ...readiness,
+      ready: missing.length === 0 && layoutStatus === 'found',
+      ratio: readiness.ratio * capacityRatio * layoutRatio,
+      missing,
+    },
   }
 }
 
@@ -333,13 +351,15 @@ export function evaluateStrategyInventory(
       : null
     const potentialBoard = potential?.board ?? (Array(9).fill(null) as Board)
     const forecastBoard = forecastPotential?.board ?? potentialBoard
-    const readiness = addRunnableRequirements(
+    const runnable = resolveRunnableReadiness(
       libraryReadiness,
       eligiblePool.length,
+      libraryReadiness.ready,
       potential !== null,
       potential?.valid ?? false,
       potential?.searchComplete ?? false,
     )
+    const readiness = runnable.readiness
     const currentPotentialAppraisal = appraiseBorders(
       potentialBoard,
       borders,
@@ -477,6 +497,7 @@ export function evaluateStrategyInventory(
       potentialScore: libraryScore,
       potentialLaunchable: potential?.launchable ?? false,
       potentialFullyReachable: potential?.fullyReachable ?? false,
+      layoutStatus: runnable.layoutStatus,
       libraryFit: 0,
       borderFit: 0,
       combinedFit: 0,

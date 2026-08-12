@@ -10,7 +10,11 @@ import {
   rollAwareStrategyRecommendationPriority,
   type StrategyRecommendationTier,
 } from '../data/strategies'
-import type { RequiredBorderStatus, StrategySuggestion } from './strategySuggestions'
+import type {
+  RequiredBorderStatus,
+  StrategyLayoutStatus,
+  StrategySuggestion,
+} from './strategySuggestions'
 import type { BorderRollForecast } from './borderRollModel'
 
 export type VoyageDecisionKind = 'needs-data' | 'play' | 'switch' | 'wait' | 'reroll' | 'stop'
@@ -18,6 +22,7 @@ export type VoyageDecisionBasis =
   | 'insufficient-data'
   | 'divine-exception'
   | 'missing-requirements'
+  | 'layout-uncertainty'
   | 'modeled-percentile'
   | 'model-uncertainty'
   | 'no-modeled-upside'
@@ -71,6 +76,7 @@ interface DecisionCandidate {
   divineJackpot: boolean
   requiredBorderStatus: RequiredBorderStatus
   rollForecast: BorderRollForecast | null
+  layoutStatus: StrategyLayoutStatus
 }
 
 const percent = (fit: number | null) =>
@@ -78,24 +84,29 @@ const percent = (fit: number | null) =>
 
 const sulphur = (value: number) => value.toLocaleString('en-US')
 
-const candidateFrom = (evaluation: StrategySuggestion): DecisionCandidate => ({
-  strategyId: evaluation.strategy.id,
-  strategyName: evaluation.strategy.name,
-  fit: evaluation.fit,
-  ready: evaluation.readiness.ready,
-  missing: evaluation.readiness.missing,
-  rankScore: evaluation.rankScore,
-  recommendationTier: evaluation.strategy.recommendationTier ?? 'specialized',
-  jackpot: evaluation.jackpot,
-  divineJackpot:
-    evaluation.divineJackpot ??
-    (evaluation.jackpot &&
-      (evaluation.strategy.requiresBorderId?.id === 'b-divine' ||
-        evaluation.strategy.id === 'divine-border-rares' ||
-        evaluation.strategy.id === 'cutedog-divine-boxes')),
-  requiredBorderStatus: evaluation.requiredBorderStatus ?? 'not-required',
-  rollForecast: evaluation.potentialAppraisal?.rollForecast ?? null,
-})
+const candidateFrom = (evaluation: StrategySuggestion): DecisionCandidate => {
+  const layoutStatus =
+    evaluation.layoutStatus ?? (evaluation.readiness.ready ? 'found' : 'not-evaluated')
+  return {
+    strategyId: evaluation.strategy.id,
+    strategyName: evaluation.strategy.name,
+    fit: evaluation.fit,
+    ready: evaluation.readiness.ready && layoutStatus === 'found',
+    missing: evaluation.readiness.missing,
+    rankScore: evaluation.rankScore,
+    recommendationTier: evaluation.strategy.recommendationTier ?? 'specialized',
+    jackpot: evaluation.jackpot,
+    divineJackpot:
+      evaluation.divineJackpot ??
+      (evaluation.jackpot &&
+        (evaluation.strategy.requiresBorderId?.id === 'b-divine' ||
+          evaluation.strategy.id === 'divine-border-rares' ||
+          evaluation.strategy.id === 'cutedog-divine-boxes')),
+    requiredBorderStatus: evaluation.requiredBorderStatus ?? 'not-required',
+    rollForecast: evaluation.potentialAppraisal?.rollForecast ?? null,
+    layoutStatus,
+  }
+}
 
 const actionFor = (
   activeStrategyId: string | null,
@@ -253,6 +264,23 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
   }
 
   if (!bestReady) {
+    const inconclusiveLayout = ranked.find((candidate) => candidate.layoutStatus === 'unknown')
+    if (inconclusiveLayout) {
+      return {
+        ...base,
+        decisionBasis: 'layout-uncertainty',
+        kind: 'wait',
+        label: `WAIT — layout search inconclusive for ${inconclusiveLayout.strategyName}`,
+        reason: `The bounded solver has not found a fully reachable layout for ${inconclusiveLayout.strategyName}. This is not proof that none exists, but PLAY and SWITCH require a found fully reachable board. Retry the search or change the chart pool before launching this Voyage.`,
+        strategyId: inconclusiveLayout.strategyId,
+        strategyName: inconclusiveLayout.strategyName,
+        recommendationTier: inconclusiveLayout.recommendationTier,
+        fit: inconclusiveLayout.fit,
+        missing: inconclusiveLayout.missing,
+        action: null,
+        rollForecast: inconclusiveLayout.rollForecast,
+      }
+    }
     return {
       ...base,
       decisionBasis: 'missing-requirements',
