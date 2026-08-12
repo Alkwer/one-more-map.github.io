@@ -915,8 +915,14 @@ test('does not queue or advance a finished border sequence after a required writ
   )
   await expect(
     appPage.getByText(
-      /submission queue storage needs recovery; the border sequence was not queued or advanced/,
+      /Finish Voyage canceled: submission queue storage needs recovery\. No charts were consumed and the border sequence was not advanced/,
     ),
+  ).toBeVisible()
+  await expect(libraryHeading(appPage)).toContainText('(1)')
+  await expect(
+    appPage.getByRole('button', {
+      name: /Board cell 7, row 3, column 1, start: Armoured Coral Reef Chart of Ice; occupied/,
+    }),
   ).toBeVisible()
   expect((await storedResearch()).activeSequenceId).toBe(sequenceId)
   expect((await storedSubmission()).queue).toEqual([])
@@ -927,7 +933,6 @@ test('does not queue or advance a finished border sequence after a required writ
     .getByRole('button', { name: 'Retry / migrate' })
     .click()
   await research.getByLabel('Private submission key').fill('e2e-private-key')
-  await prepareVoyage()
   await failAuxiliaryWrites(appPage, BORDER_RESEARCH_STORAGE_KEY)
   await appPage.getByRole('button', { name: /Finish Voyage/ }).click()
   await expect(research.locator('[role="status"].muted.pad')).toContainText(
@@ -935,9 +940,10 @@ test('does not queue or advance a finished border sequence after a required writ
   )
   await expect(
     appPage.getByText(
-      /border sequence queued, but research storage needs recovery and the sequence was not advanced/,
+      /Finish Voyage canceled: the border sequence was queued, but research storage needs recovery\. No charts were consumed and the sequence was not advanced/,
     ),
   ).toBeVisible()
+  await expect(libraryHeading(appPage)).toContainText('(1)')
   expect((await storedResearch()).activeSequenceId).toBe(sequenceId)
   expect((await storedSubmission()).queue).toHaveLength(1)
   await expect(research.getByText('1 Voyage sequence queued')).toBeVisible()
