@@ -161,8 +161,8 @@ export function useVoyageWorkflows(
   useEffect(() => {
     if (previousState.current === state) return
     previousState.current = state
-    if (copySequence || copyAttempt.current.isPending) cancelCopySequence()
-  }, [cancelCopySequence, copySequence, state])
+    if (copyAttempt.current.isPending) invalidateCopyAttempt()
+  }, [invalidateCopyAttempt, state])
 
   useEffect(() => {
     if (!copySequence) return
