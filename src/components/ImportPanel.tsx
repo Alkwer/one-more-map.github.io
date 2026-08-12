@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ALL_GOOD_MODS_REGEX, RARE_IMPLICITS } from '../data/strategies'
-import { BorderRollResearch } from './BorderRollResearch'
+import { BorderRollResearch, type ProtectedBorderRoll } from './BorderRollResearch'
 import { generateDemoCharts } from '../logic/demo'
 import { applyBorderOcrSnapshot, parseBorderOcrPayload } from '../logic/borderOcr'
 import { isChartClipboardText, parseChartText } from '../logic/parser'
@@ -28,7 +28,7 @@ interface Props {
   onImport: (charts: ChartData[]) => ChartAdditionResult
   state: AppState
   borderResearch: BorderRollResearchController
-  protectedRollStrategy: string | null
+  protectedRoll: ProtectedBorderRoll | null
   onLoadState: (state: AppState) => void
 }
 
@@ -48,7 +48,7 @@ export function ImportPanel({
   onImport,
   state,
   borderResearch,
-  protectedRollStrategy,
+  protectedRoll,
   onLoadState,
 }: Props) {
   const [text, setText] = useState('')
@@ -469,7 +469,7 @@ export function ImportPanel({
       <BorderRollResearch
         borders={state.borders}
         controller={borderResearch}
-        protectedRollStrategy={protectedRollStrategy}
+        protectedRoll={protectedRoll}
       />
     </section>
   )

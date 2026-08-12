@@ -12,12 +12,17 @@ import { AuxiliaryStoreRecovery } from './AuxiliaryStoreRecovery'
 interface Props {
   borders: Borders
   controller: BorderRollResearchController
-  protectedRollStrategy: string | null
+  protectedRoll: ProtectedBorderRoll | null
+}
+
+export interface ProtectedBorderRoll {
+  strategy: string
+  borders: Borders
 }
 
 const VESPER_UPGRADE_OPTIONS = [0, 1, 2, 3, 4, 5] as const
 
-export function BorderRollResearch({ borders, controller, protectedRollStrategy }: Props) {
+export function BorderRollResearch({ borders, controller, protectedRoll }: Props) {
   const { store } = controller
   const researchBlocked = !!store.recovery
   const submissionBlocked = !!controller.submissionStore.recovery
@@ -28,6 +33,7 @@ export function BorderRollResearch({ borders, controller, protectedRollStrategy 
     (item) => item.delivery.status === 'pending',
   ).length
   const [showArchived, setShowArchived] = useState(false)
+  const missingBorders = useMemo(() => borders.filter((id) => id === null).length, [borders])
   const randomizedResearchComplete = controller.activeSamples.some(
     (sample) => sample.generation === 'paid-reroll',
   )
@@ -36,12 +42,14 @@ export function BorderRollResearch({ borders, controller, protectedRollStrategy 
       sample.generation === 'natural' &&
       sample.borderModIds.every((borderId, index) => borderId === borders[index]),
   )
+  const protectedBoardMatches =
+    protectedRoll !== null &&
+    missingBorders === 0 &&
+    protectedRoll.borders.every((borderId, index) => borderId === borders[index])
   const randomizedResearchProtected =
     store.activeSequenceSamplingReason === 'randomized-research' &&
     !randomizedResearchComplete &&
-    protectedRollStrategy !== null &&
-    savedNaturalBoardMatches
-  const missingBorders = useMemo(() => borders.filter((id) => id === null).length, [borders])
+    protectedBoardMatches
   const sequenceView = useMemo(() => {
     const archivedIds = new Set(store.archivedSequenceIds)
     const ids = [...new Set(store.samples.map((sample) => sample.sequenceId))]
@@ -121,9 +129,11 @@ export function BorderRollResearch({ borders, controller, protectedRollStrategy 
             </strong>
             {randomizedResearchProtected ? (
               <span>
-                {protectedRollStrategy} triggered the preserve safeguard. Do not reroll this board;
-                the randomized research assignment is waived. Its saved natural scan remains useful
-                research data.
+                {protectedRoll!.strategy} triggered the preserve safeguard. Do not reroll this
+                board; the randomized research assignment is waived.{' '}
+                {savedNaturalBoardMatches
+                  ? 'Its saved natural scan remains useful research data.'
+                  : 'This protection does not depend on research storage or a saved natural sample.'}
               </span>
             ) : randomizedResearchComplete ? (
               <span>
