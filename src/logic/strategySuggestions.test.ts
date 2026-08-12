@@ -79,9 +79,16 @@ describe('border-aware strategy readiness', () => {
 
   it('treats an Arcanist chart as a valid Speedrun centre piece', () => {
     const speedrun = strategyById.get('milky-speedrun')!
+    const rolled = (uid: string, modIds: string[] = []) => ({
+      ...crossing(uid, modIds),
+      rewards: [{ stat: 'quantity' as const, percent: 110 }],
+    })
     const readiness = strategyReadiness(
       speedrun,
-      [crossing('arcanist', ['adj-arcbox-2'])],
+      [
+        rolled('arcanist', ['adj-arcbox-2']),
+        ...Array.from({ length: 8 }, (_, i) => rolled(`side-${i}`)),
+      ],
       emptyBorders(),
     )
 
@@ -111,7 +118,10 @@ describe('border-aware strategy readiness', () => {
   })
 
   it('builds canonical potential only from a requirement-complete board', () => {
-    const center = crossing('operative', ['adj-opbox-2'])
+    const center = {
+      ...crossing('operative', ['adj-opbox-2']),
+      rewards: [{ stat: 'quantity' as const, percent: 110 }],
+    }
     const fillers = Array.from({ length: 9 }, (_, index) => ({
       ...crossing(`high-score-${index}`, []),
       rewards: [{ stat: 'quantity' as const, percent: 20_000 }],
@@ -132,6 +142,61 @@ describe('border-aware strategy readiness', () => {
       speedrun.potentialBoard.filter((placement) => placement?.chartUid === center.uid),
     ).toHaveLength(1)
   })
+
+  it.each([
+    { quantity: 109, expectedReady: false, expectedDecision: 'wait' },
+    { quantity: 110, expectedReady: true, expectedDecision: 'play' },
+    { quantity: 160, expectedReady: true, expectedDecision: 'play' },
+  ])(
+    'applies the 110% Speedrun quantity preflight at $quantity%',
+    ({ quantity, expectedReady, expectedDecision }) => {
+      const pool = [
+        crossing('quantity-centre', ['adj-opbox-2']),
+        ...Array.from({ length: 8 }, (_, index) => crossing(`quantity-side-${index}`, [])),
+      ].map((entry) => ({
+        ...entry,
+        rewards: [{ stat: 'quantity' as const, percent: quantity }],
+      }))
+      const borders = Array(12).fill('b-quantconn') as Borders
+      const charts = new Map(pool.map((entry) => [entry.uid, entry]))
+      const inventory = evaluateStrategyInventory(borders, charts, pool, options)
+      const speedrun = inventory.evaluations.find(
+        (entry) => entry.strategy.id === 'milky-speedrun',
+      )!
+      const decisionEvaluation = expectedReady
+        ? {
+            ...speedrun,
+            potentialAppraisal: {
+              ...speedrun.potentialAppraisal,
+              rollForecast: {
+                ...speedrun.potentialAppraisal.rollForecast!,
+                currentPercentile: 0.9,
+                currentPercentileRange: [0.9, 0.9] as [number, number],
+                chanceNextRollBeatsCurrent: 0.1,
+                chanceNextRollBeatsCurrentRange: [0.1, 0.1] as [number, number],
+              },
+            },
+          }
+        : speedrun
+      const decision = decideVoyage({
+        evaluations: [
+          {
+            ...decisionEvaluation,
+            appraisal: decisionEvaluation.potentialAppraisal,
+            currentFit: decisionEvaluation.fit,
+            currentStatus: decisionEvaluation.status,
+          },
+        ],
+        activeStrategyId: 'milky-speedrun',
+        availableCharts: pool.length,
+        enteredBorders: 12,
+        rerollsUsed: 0,
+      })
+
+      expect(speedrun.readiness.ready).toBe(expectedReady)
+      expect(decision.kind).toBe(expectedDecision)
+    },
+  )
 
   it('does not issue PLAY for a pool that cannot form a fully reachable graph', () => {
     const pool = Array.from({ length: 9 }, (_, index) => endChart(`end-${index + 1}`))

@@ -7,13 +7,14 @@ import {
 } from '../data/strategies'
 import { chartValue } from './chartRanking'
 import { selectPieceBank, strategyWantsChart } from './pieceKeeps'
+import { chartMeetsStrategyPreflight, strategyPreflightLabel } from './strategyPreflight'
 import type { ChartData, Weights } from '../types'
 
 export const KEEP_BEST_CHARTS = 9
 
 type StrategyReservations = Pick<
   StrategyDef,
-  'allowRareImplicits' | 'allowFractureCharts' | 'reservationGroups'
+  'allowRareImplicits' | 'allowFractureCharts' | 'reservationGroups' | 'minimumChartQuantity'
 > &
   Partial<Pick<StrategyDef, 'id'>>
 
@@ -77,25 +78,39 @@ export function selectStrategySolvePool(
   lockedUids: ReadonlySet<string> = new Set(),
   pieceKeeps?: Record<string, number>,
 ): { solvePool: ChartData[]; heldBack: number; heldBackFor: string[] } {
-  if (pieceKeeps === undefined) {
-    return selectLegacyStrategySolvePool(eligiblePool, strategy, preferences)
-  }
-  const bank = selectPieceBank(eligiblePool, pieceKeeps ?? {}, preferences)
-  const heldFor = new Set<string>()
+  const selection =
+    pieceKeeps === undefined
+      ? selectLegacyStrategySolvePool(eligiblePool, strategy, preferences)
+      : (() => {
+          const bank = selectPieceBank(eligiblePool, pieceKeeps, preferences)
+          const heldFor = new Set<string>()
+          const solvePool = eligiblePool.filter((chart) => {
+            if (lockedUids.has(chart.uid)) return true
+            const owner = bank.get(chart.uid)
+            if (!owner || owner.strategyId === strategy?.id) return true
+            if (strategyWantsChart(strategy?.id, chart, pieceKeeps)) return true
+            heldFor.add(owner.strategyName)
+            return false
+          })
+          return {
+            solvePool,
+            heldBack: eligiblePool.length - solvePool.length,
+            heldBackFor: [...heldFor],
+          }
+        })()
 
-  const solvePool = eligiblePool.filter((chart) => {
-    if (lockedUids.has(chart.uid)) return true
-    const owner = bank.get(chart.uid)
-    if (!owner || owner.strategyId === strategy?.id) return true
-    if (strategyWantsChart(strategy?.id, chart, pieceKeeps)) return true
-    heldFor.add(owner.strategyName)
-    return false
-  })
-
+  if (!strategy?.minimumChartQuantity) return selection
+  const solvePool = selection.solvePool.filter((chart) =>
+    chartMeetsStrategyPreflight(chart, strategy),
+  )
+  const heldFor = strategyPreflightLabel(strategy)
   return {
     solvePool,
-    heldBack: eligiblePool.length - solvePool.length,
-    heldBackFor: [...heldFor],
+    heldBack: selection.heldBack + selection.solvePool.length - solvePool.length,
+    heldBackFor:
+      solvePool.length === selection.solvePool.length || !heldFor
+        ? selection.heldBackFor
+        : [...selection.heldBackFor, heldFor],
   }
 }
 

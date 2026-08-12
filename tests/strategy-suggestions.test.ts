@@ -185,10 +185,13 @@ describe('strategy suggestion regressions', () => {
   })
 
   it('keeps Alc & Go behind a runnable specialized strategy despite a higher raw rank', () => {
-    const premiumCenter = chart('fallback-operative', ['adj-opbox-1'])
+    const premiumCenter = {
+      ...chart('fallback-operative', ['adj-opbox-1']),
+      rewards: [{ stat: 'quantity' as const, percent: 110 }],
+    }
     const quantityFillers = Array.from({ length: 9 }, (_, index) => ({
       ...chart(`fallback-quantity-${index}`),
-      rewards: [{ stat: 'quantity' as const, percent: 45 }],
+      rewards: [{ stat: 'quantity' as const, percent: 110 }],
     }))
     const pool = [premiumCenter, ...quantityFillers]
     const charts = new Map(pool.map((entry) => [entry.uid, entry]))
@@ -204,10 +207,13 @@ describe('strategy suggestion regressions', () => {
   })
 
   it('labels a policy-selected fallback and its runnable specialized alternative clearly', () => {
-    const premiumCenter = chart('fallback-operative', ['adj-opbox-1'])
+    const premiumCenter = {
+      ...chart('fallback-operative', ['adj-opbox-1']),
+      rewards: [{ stat: 'quantity' as const, percent: 110 }],
+    }
     const quantityFillers = Array.from({ length: 9 }, (_, index) => ({
       ...chart(`fallback-quantity-${index}`),
-      rewards: [{ stat: 'quantity' as const, percent: 45 }],
+      rewards: [{ stat: 'quantity' as const, percent: 110 }],
     }))
     const pool = [premiumCenter, ...quantityFillers]
     const charts = new Map(pool.map((entry) => [entry.uid, entry]))
@@ -342,8 +348,14 @@ describe('strategy suggestion regressions', () => {
       chart('border-possess', ['voy-possess']),
       chart('border-no-equipment', ['voy-noequip']),
     ]
-    const speedrunCenter = chart('border-divbox', ['adj-divbox-1'])
-    const filler = Array.from({ length: 9 }, (_, index) => chart(`border-filler-${index}`))
+    const speedrunCenter = {
+      ...chart('border-divbox', ['adj-divbox-1']),
+      rewards: [{ stat: 'quantity' as const, percent: 110 }],
+    }
+    const filler = Array.from({ length: 9 }, (_, index) => ({
+      ...chart(`border-filler-${index}`),
+      rewards: [{ stat: 'quantity' as const, percent: 110 }],
+    }))
     const pool = [...meatfishPieces, speedrunCenter, ...filler]
     const charts = new Map(pool.map((entry) => [entry.uid, entry]))
     const rareRoll = Array(12).fill('b-rare-3')

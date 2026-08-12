@@ -37,11 +37,20 @@ function renderStrategy(activeId: string, pool: ChartData[]): string {
 
 describe('Korean clipboard aliases feed strategy readiness', () => {
   it('counts an observed Korean Diviner chart for Speedrun', () => {
-    const diviner = parseKoreanImplicit('인접 지역들에 예언자의 금고 3개 추가 등장')
+    const parsed = parseKoreanImplicit('인접 지역들에 예언자의 금고 3개 추가 등장')
+    const diviner = {
+      ...parsed,
+      rewards: [{ stat: 'quantity' as const, percent: 110 }],
+    }
+    const sides = Array.from({ length: 8 }, (_, index) => ({
+      ...diviner,
+      uid: `${diviner.uid}-side-${index}`,
+      modIds: [],
+    }))
 
     expect(diviner.modIds).toEqual(['adj-divbox-2'])
 
-    const html = renderStrategy('milky-speedrun', [diviner])
+    const html = renderStrategy('milky-speedrun', [diviner, ...sides])
 
     expect(html).toContain('class="strat-ready"')
     expect(html).toContain('1/1× Operative’s / Arcanist’s / Diviner’s / Message chart (centre)')

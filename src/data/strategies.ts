@@ -127,6 +127,8 @@ export interface StrategyDef {
     rankRewardStat?: Stat
     keep: number
   }[]
+  /** Every chart placed for this strategy must meet this rolled Item Quantity. */
+  minimumChartQuantity?: number
   /** a border roll the strategy hinges on (readiness warns if not entered) */
   requiresBorderId?: { id: string; label: string }
   /** what to do instead while pieces are missing */
@@ -433,7 +435,7 @@ export const STRATEGIES: StrategyDef[] = [
         bonus: 40,
       },
       { cells: NOT_CENTER, modIds: SPEEDRUN_CENTER_MODS, bonus: -40 },
-      // 150%+ quant charts adjacent to the centre (continuous: higher = better)
+      // 110%+ quant charts adjacent to the centre (continuous: higher = better)
       { cells: EDGES, rewardStat: { stat: 'quantity', per: 6 }, bonus: 0 },
       // Filthscrabble border: park the highest-sulphur chart on its tile
       { nearBorderId: 'b-octoboss', rewardStat: { stat: 'sulphur', per: 8 }, bonus: 0 },
@@ -446,6 +448,7 @@ export const STRATEGIES: StrategyDef[] = [
         label: 'Operative’s / Arcanist’s / Diviner’s / Message chart (centre)',
       },
     ],
+    minimumChartQuantity: 110,
     waitHint: 'Run manual boards until one drops.',
     searchRegex: '"bottle|divine|arca|oper"',
   },
