@@ -122,6 +122,8 @@ export interface StrategyDef {
     label: string
     modIds?: string[]
     areaTypes?: ChartAreaType[]
+    /** Optional primary reward stat used to rank charts within this keep family. */
+    rankRewardStat?: Stat
     keep: number
   }[]
   /** a border roll the strategy hinges on (readiness warns if not entered) */
@@ -715,6 +717,7 @@ export const STRATEGIES: StrategyDef[] = [
       {
         label: 'Pelagic Abyss chart (high pack size)',
         areaTypes: ['pelagic-abyss'],
+        rankRewardStat: 'packsize',
         keep: 1,
       },
       {

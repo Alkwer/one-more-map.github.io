@@ -315,6 +315,39 @@ describe('granular keep-count solve pools', () => {
     expect(bank.has('weak')).toBe(false)
   })
 
+  it('ranks Pelagic keepers by Pack Size before unrelated rewards', () => {
+    const pool = [
+      chart('low-pack-high-total', {
+        areaType: 'pelagic-abyss',
+        rewards: [
+          { stat: 'packsize', percent: 90 },
+          { stat: 'quantity', percent: 500 },
+          { stat: 'rarity', percent: 500 },
+        ],
+      }),
+      chart('pack-only', {
+        areaType: 'pelagic-abyss',
+        rewards: [{ stat: 'packsize', percent: 100 }],
+      }),
+      chart('pack-tie-better-total', {
+        areaType: 'pelagic-abyss',
+        rewards: [
+          { stat: 'packsize', percent: 100 },
+          { stat: 'quantity', percent: 20 },
+        ],
+      }),
+    ]
+
+    const bank = selectPieceBank(
+      pool,
+      { [keyOf('Pelagic Abyss chart (high pack size)')]: 2 },
+      reservations(),
+    )
+
+    expect([...bank.keys()]).toEqual(['pack-tie-better-total', 'pack-only'])
+    expect(bank.has('low-pack-high-total')).toBe(false)
+  })
+
   it('banks user-added tier families for their selected strategy', () => {
     const barrelFamily = CUSTOM_OPTIONS.find((option) => option.modIds.includes('adj-barrel-1'))
     expect(barrelFamily).toBeDefined()
