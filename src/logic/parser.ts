@@ -425,7 +425,9 @@ export function parseChartText(text: string, options: ChartParseOptions = {}): P
       areaType,
       modIds,
       implicitText,
-      rewards: rewards.length ? rewards : undefined,
+      // A parsed chart header is authoritative even when it contains no reward
+      // rows. Only legacy/manual charts omit `rewards` and use self-mod ids.
+      rewards,
       shape,
       shapeResolved: !!shape,
       shapeInput: shape ? undefined : shapeName || undefined,

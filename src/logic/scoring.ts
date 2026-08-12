@@ -106,7 +106,7 @@ export function prepareScoreTotal(
 
   const compiledCharts = new Map<string, CompiledChartScore>()
   for (const chart of charts.values()) {
-    const hasImportedRewards = !!chart.rewards?.length
+    const hasImportedRewards = chart.rewards !== undefined
     const effects: CompiledChartEffect[] = []
     for (const modId of chart.modIds) {
       if (disabledMods.has(modId)) continue
@@ -218,7 +218,7 @@ export function scoreBoard(
     const chart = charts.get(p.chartUid)
     if (!chart) return
     const mag = 1 + tileMagnitude[i] / 100
-    const hasImportedRewards = !!chart.rewards?.length
+    const hasImportedRewards = chart.rewards !== undefined
     for (const modId of chart.modIds) {
       if (disabledMods.has(modId)) continue
       const mod = voyageModById.get(modId)

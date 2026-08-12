@@ -11,7 +11,7 @@ export function chartValue(
   disabled: ReadonlySet<string>,
 ): number {
   let value = 0
-  const hasImportedRewards = !!chart.rewards?.length
+  const hasImportedRewards = chart.rewards !== undefined
 
   for (const id of chart.modIds) {
     if (disabled.has(id)) continue
