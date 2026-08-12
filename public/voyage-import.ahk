@@ -15,10 +15,9 @@ CoordMode "ToolTip", "Screen"
 ;              button. An in-memory PowerShell helper captures the PoE window
 ;              and reads each tooltip with the Windows OCR engine. No script is
 ;              executed from TEMP, and screenshots never leave the PC.
-;    Phase 3 - activates the verified solver window (or opens the trusted
-;              solver URL), focuses the page without clicking, and pastes the
-;              payload. If verification fails, the payload stays on the
-;              clipboard for a manual Ctrl+V.
+;    Phase 3 - opens the fixed solver URL through the Windows shell, activates
+;              the resulting supported-browser window, and pastes the payload.
+;              If that fails, the payload stays on the clipboard for Ctrl+V.
 ;    Empty cells copy nothing and are skipped.
 ;
 ;  ---------------------------------------------------------------
@@ -29,9 +28,9 @@ CoordMode "ToolTip", "Screen"
 ;      (exclusive fullscreen can block the mouse/keys).
 ;   3. Double-click this file to run it (it lives in the tray).
 ;   4. Keep PoE in the foreground when using calibration or scan hotkeys. The
-;      real PoE window is authenticated and bound automatically.
-;   5. F9 opens the trusted solver page automatically when necessary. Ctrl+F2
-;      and Ctrl+F3 remain optional manual overrides for unusual window setups.
+;      real PoE window is authenticated automatically every time.
+;   5. F9 opens the solver page automatically. There are no browser or game
+;      binding hotkeys and no saved browser window state.
 ;
 ;  CALIBRATE THE BOARD BORDERS (once; saved to voyage-import.ini)
 ;   - Point at the TOP-LEFT corner of the border-modifier square, press F5.
@@ -58,8 +57,6 @@ CoordMode "ToolTip", "Screen"
 ;   - Set GridCols / GridRows below to match your panel.
 ;
 ;  RUN
-;   Ctrl+F2 = optionally bind the foreground verified solver page
-;   Ctrl+F3 = optionally rebind the foreground authenticated PoE window
 ;   F9      = copy charts + board borders and import them into the solver
 ;   Ctrl+F9 = refresh only the 12 board borders (use after a reroll)
 ;             and the reroll cost when Ctrl+F7 was calibrated
@@ -75,13 +72,9 @@ ExpectedPoeClass := "POEWindowClass"
 PoeHwnd := 0
 PoePid := 0
 PoeImagePath := ""
-SolverHwnd := 0
-SolverPid := 0
-SolverClass := ""
-SolverImagePath := ""
-SolverPageUrl := ""
 LastDeliveryError := ""
 SolverLaunchUrl := "https://alkwer.github.io/one-more-map.github.io/allflame-voyage-solver/"
+SolverPageTitle := "Allflame Voyage Solver - PoE 3.29"
 
 GridCols := 6    ; columns in the Chart panel
 GridRows := 10   ; rows to sweep (overshooting is fine - empty cells skip)
@@ -91,10 +84,9 @@ TabSwitchDelay := 180  ; ms for the selected chart-stash tab to redraw
 HoverDelay    := 28    ; ms for PoE to register the cursor before Ctrl+C
 BorderHoverDelay := 250 ; ms for a border tooltip to appear before OCR capture
 RerollHoverDelay := 350 ; ms for the reroll-cost tooltip to appear
-BrowserAddressDelay := 120 ; ms for the browser address bar to receive Ctrl+L/C
-BrowserOpenTimeout := 8 ; seconds to wait for the trusted solver page to open
+BrowserOpenTimeout := 8 ; seconds to wait for the solver page to open
 BrowserLoadDelay := 900 ; ms for a newly opened solver page to install its paste handler
-BrowserPasteDelay := 180 ; ms after returning keyboard focus to the page
+BrowserPasteDelay := 180 ; ms after activating the solver page
 BorderOcrAttempts := 2  ; retry once when both filtered and unfiltered OCR are empty
 BorderPreviewDelay := 900 ; ms per point during the Ctrl+F4 visual preview
 ClipTimeout   := 0.2   ; seconds to wait for Ctrl+C (only empty cells wait the full time)
@@ -431,157 +423,59 @@ PoeScreenPoint(clientRatioX, clientRatioY) {
     ]
 }
 
-ClearSolverBinding() {
-    global SolverHwnd, SolverPid, SolverClass, SolverImagePath, SolverPageUrl
-    SolverHwnd := 0
-    SolverPid := 0
-    SolverClass := ""
-    SolverImagePath := ""
-    SolverPageUrl := ""
-}
-
 IsExpectedBrowserImage(imagePath) {
     SplitPath imagePath, &fileName
     return RegExMatch(fileName, "i)^(?:arc|brave|chrome|firefox|librewolf|msedge|opera|opera_gx|vivaldi)\.exe$")
 }
 
-CanonicalSolverUrl(url) {
-    url := Trim(url, " `t`r`n")
-    url := RegExReplace(url, "[?#].*$")
-    url := RTrim(url, "/")
-    lowerUrl := StrLower(url)
-
-    isTrustedProductionUrl := lowerUrl = "https://one-more-map.github.io/allflame-voyage-solver"
-        || lowerUrl = "https://alkwer.github.io/one-more-map.github.io/allflame-voyage-solver"
-    isLocalDevelopmentUrl := RegExMatch(
-        lowerUrl,
-        "^http://(?:localhost|127\.0\.0\.1|\[::1\])(?::[0-9]+)?(?:/.*)?$"
-    )
-    if !isTrustedProductionUrl && !isLocalDevelopmentUrl
-        throw Error("The page is not at a trusted Allflame Voyage Solver URL.")
-
-    return lowerUrl
-}
-
-ReadForegroundBrowserUrl(hwnd) {
-    global BrowserAddressDelay
-    if (WinExist("A") != hwnd)
-        throw Error("The bound browser window is not in the foreground.")
-
-    savedClipboard := ClipboardAll()
-    try {
-        A_Clipboard := ""
-        Send "^l"
-        Sleep BrowserAddressDelay
-        Send "^c"
-        if !ClipWait(1)
-            throw Error("Could not read the browser address bar.")
-        return Trim(A_Clipboard, " `t`r`n")
-    } finally {
-        Send "{Esc}"
-        A_Clipboard := savedClipboard
-    }
-}
-
-BindForegroundSolverWindow() {
-    global ExpectedPoeClass
-    global SolverHwnd, SolverPid, SolverClass, SolverImagePath, SolverPageUrl
-
-    activeHwnd := WinExist("A")
-    if !activeHwnd
-        throw Error("No foreground window is available to bind.")
-    if (WinGetClass("ahk_id " activeHwnd) = ExpectedPoeClass)
-        throw Error("Focus the solver page in a supported browser, not Path of Exile.")
-
-    imagePath := CanonicalWindowImageForWindow(activeHwnd)
-    RejectReparseComponents(imagePath)
-    if !IsExpectedBrowserImage(imagePath)
-        throw Error("The foreground process is not a supported browser.")
-
-    pageUrl := CanonicalSolverUrl(ReadForegroundBrowserUrl(activeHwnd))
-    WinGetClientPos , , &clientWidth, &clientHeight, "ahk_id " activeHwnd
-    if (clientWidth < 320 || clientHeight < 240)
-        throw Error("The solver browser window is too small for safe automatic paste.")
-
-    SolverHwnd := activeHwnd
-    SolverPid := WinGetPID("ahk_id " activeHwnd)
-    SolverClass := WinGetClass("ahk_id " activeHwnd)
-    SolverImagePath := imagePath
-    SolverPageUrl := pageUrl
-}
-
-ValidateBoundSolverWindow(requireForeground := false) {
-    global SolverHwnd, SolverPid, SolverClass, SolverImagePath
-    if !SolverHwnd || !WinExist("ahk_id " SolverHwnd)
+IsSolverBrowserWindow(hwnd) {
+    global SolverPageTitle
+    if !hwnd || !WinExist("ahk_id " hwnd)
         return false
     try {
-        if (WinGetPID("ahk_id " SolverHwnd) != SolverPid)
-            return false
-        if (WinGetClass("ahk_id " SolverHwnd) != SolverClass)
-            return false
-        currentImagePath := CanonicalWindowImageForWindow(SolverHwnd)
-        RejectReparseComponents(currentImagePath)
-        if !IsExpectedBrowserImage(currentImagePath)
-            return false
-        if (NormalizeWindowsPath(currentImagePath) != NormalizeWindowsPath(SolverImagePath))
-            return false
-        if requireForeground && (WinExist("A") != SolverHwnd)
-            return false
-        return true
+        processName := WinGetProcessName("ahk_id " hwnd)
+        return IsExpectedBrowserImage(processName)
+            && InStr(WinGetTitle("ahk_id " hwnd), SolverPageTitle)
     }
     return false
 }
 
-ActivateBoundSolverWindow() {
-    global SolverHwnd
-    if !ValidateBoundSolverWindow(false)
-        return false
-    WinActivate "ahk_id " SolverHwnd
-    if !WinWaitActive("ahk_id " SolverHwnd, , 2)
-        return false
-    return ValidateBoundSolverWindow(true)
+FindSolverBrowserWindow() {
+    activeHwnd := WinExist("A")
+    if IsSolverBrowserWindow(activeHwnd)
+        return activeHwnd
+    for hwnd in WinGetList() {
+        if IsSolverBrowserWindow(hwnd)
+            return hwnd
+    }
+    return 0
 }
 
-FocusBoundSolverPage() {
-    global SolverHwnd, BrowserPasteDelay
-    if !ValidateBoundSolverWindow(true)
-        return false
-
-    ; Address verification uses Ctrl+L. Escape returns focus to the page that
-    ; was active before the address bar, without clicking any desktop point.
-    Send "{Esc}"
-    Sleep BrowserPasteDelay
-    return ValidateBoundSolverWindow(true)
-}
-
-OpenTrustedSolverWindow() {
+OpenSolverWindow() {
     global SolverLaunchUrl, BrowserOpenTimeout, BrowserLoadDelay
-    ClearSolverBinding()
-    try Run SolverLaunchUrl
-    catch
-        return false
+
+    solverHwnd := FindSolverBrowserWindow()
+    if !solverHwnd {
+        ; Ask the normal Windows shell to open the fixed solver URL. This also
+        ; works when the helper runs elevated and the user's browser does not.
+        try ComObject("Shell.Application").ShellExecute(SolverLaunchUrl)
+        catch
+            return 0
+    }
+
     deadline := A_TickCount + BrowserOpenTimeout * 1000
     while (A_TickCount < deadline) {
         Sleep 150
-        try {
-            BindForegroundSolverWindow()
-            Sleep BrowserLoadDelay
-            return ValidateBoundSolverWindow(true)
-        }
+        solverHwnd := FindSolverBrowserWindow()
+        if !solverHwnd
+            continue
+        WinActivate "ahk_id " solverHwnd
+        if !WinWaitActive("ahk_id " solverHwnd, , 2)
+            continue
+        Sleep BrowserLoadDelay
+        return solverHwnd
     }
-    return false
-}
-
-PrepareSolverWindow() {
-    global SolverHwnd, SolverPageUrl
-    if SolverHwnd && ActivateBoundSolverWindow() {
-        try currentUrl := CanonicalSolverUrl(ReadForegroundBrowserUrl(SolverHwnd))
-        catch
-            currentUrl := ""
-        if (currentUrl = SolverPageUrl) && ValidateBoundSolverWindow(true)
-            return true
-    }
-    return OpenTrustedSolverWindow()
+    return 0
 }
 
 PowerShellTrust := ResolveTrustedPowerShell()
@@ -1275,24 +1169,21 @@ CopyPayloadToClipboard(payload) {
 }
 
 DeliverPayloadToSolver(payload) {
-    global LastDeliveryError
+    global LastDeliveryError, BrowserPasteDelay
     LastDeliveryError := ""
     if !CopyPayloadToClipboard(payload)
         return "failed"
 
-    if !PrepareSolverWindow() {
-        LastDeliveryError := "the trusted solver page could not be opened and verified"
-        return "clipboard"
-    }
-    if !FocusBoundSolverPage() {
-        LastDeliveryError := "the verified solver page could not receive keyboard focus"
+    solverHwnd := OpenSolverWindow()
+    if !solverHwnd {
+        LastDeliveryError := "the solver browser window could not be opened and activated"
         return "clipboard"
     }
 
-    ; Address-bar verification temporarily uses the clipboard, so restore the
-    ; import payload immediately before the single paste keystroke.
-    if !CopyPayloadToClipboard(payload)
-        return "failed"
+    ; The solver listens for paste anywhere on the page. No click point, address
+    ; bar read, or saved browser binding is needed.
+    Send "{Esc}"
+    Sleep BrowserPasteDelay
     Send "^v"
     return "pasted"
 }
@@ -1300,7 +1191,7 @@ DeliverPayloadToSolver(payload) {
 DeliverySummary(delivery) {
     global LastDeliveryError
     if (delivery = "pasted")
-        return " Imported automatically into the verified solver page."
+        return " Imported automatically into the solver page."
     if (delivery = "clipboard")
         return " Auto-import skipped: " LastDeliveryError ". The payload remains on the clipboard for Ctrl+V."
     return " No payload was delivered."
@@ -1316,33 +1207,6 @@ if A_Args.Length >= 2
     result := RunOcrHelper(options, false, preferredLanguage)
     FileAppend result, "*", "UTF-8"
     ExitApp
-}
-
-; ---- Ctrl+F2: optional manual selection of a verified solver page ----
-^F2:: {
-    global SolverPid, SolverImagePath, SolverPageUrl
-    try {
-        BindForegroundSolverWindow()
-        Flash "Bound the verified solver page (no click point needed).`nPID " SolverPid
-            . "`n" SolverPageUrl "`n" SolverImagePath, 7000
-    } catch as error {
-        ClearSolverBinding()
-        MsgBox "Could not bind the solver page:`n" error.Message
-    }
-}
-
-; ---- Ctrl+F3: bind one explicit, authenticated PoE window for this session ----
-^F3:: {
-    global PoeHwnd, PoePid, PoeImagePath
-    try {
-        BindForegroundPoeWindow()
-        Flash "Bound the foreground Path of Exile window.`nPID " PoePid "`n" PoeImagePath, 6000
-    } catch as error {
-        PoeHwnd := 0
-        PoePid := 0
-        PoeImagePath := ""
-        MsgBox "Could not bind Path of Exile:`n" error.Message
-    }
 }
 
 ; ---- F5 / F6: capture the outer board-border rectangle ----
@@ -1762,7 +1626,7 @@ F9:: {
     if Running && RerollCostCalibrated()
         rerollCostBlob := ScanRerollCost()
 
-    ; ---- Phase 3: re-verify the bound solver page and paste once ----
+    ; ---- Phase 3: open or activate the solver page and paste once ----
     if Running && (copied > 0 || borderBlob != "" || rerollCostBlob != "") {
         payload := blob
         if (payload != "" && borderBlob != "")

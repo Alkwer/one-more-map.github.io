@@ -22,7 +22,7 @@ keeps planned coverage separate from executed, privacy-reviewed results.
   fullscreen can prevent reliable mouse and keyboard automation.
 - The Voyage Board fully visible and not scrolled.
 - A supported browser: Chrome, Edge, Firefox, Brave, Vivaldi, Opera, Arc, or
-  LibreWolf. The solver tab must remain in the browser window used for binding.
+  LibreWolf, configured as the Windows default browser.
 
 If Path of Exile runs as administrator, run the helper as administrator (or use
 AutoHotkey's UI Access option) so Windows permits it to send input to the game.
@@ -95,39 +95,29 @@ for managed-device and offline-source options.
    Recalibrate the required points; new coordinates are stored as ratios of the
    PoE client area and follow the game when it moves between monitors or resizes.
 
-### Solver-window identity
+### Solver window
 
-The helper opens the trusted repository Pages URL automatically when no usable
-solver window is already bound. It accepts only a supported browser process and
-reads the foreground tab's address through the browser address bar. Production
-URLs are limited
-to the official `one-more-map.github.io` solver URL and the
-`alkwer.github.io/one-more-map.github.io` repository Pages URL. HTTP is accepted
-only on localhost for development. The helper records the exact HWND, PID,
-window class, canonical browser executable, and normalized URL.
-
-Before every automatic paste, the helper activates only that exact window,
-revalidates its process identity, and reads the address bar again. It restores
-page focus with the keyboard and sends `Ctrl+V` only when the URL is still an
-exact match; it never clicks a saved screen coordinate. A changed tab, URL,
-process, or window causes the trusted URL to be opened again. If that also fails,
-the payload remains on the clipboard for a manual paste. `Ctrl+F2` remains an
-optional manual page selection for unusual multi-window setups.
+The helper opens the fixed repository Pages URL through the normal Windows
+shell, waits for the solver title in a supported browser process, activates that
+window, and sends `Ctrl+V`. It does not save a browser HWND, PID, URL, size, or
+click point, and it never reads the address bar. There is no browser-binding
+hotkey. If Windows cannot open and activate the solver within the timeout, the
+payload remains on the clipboard for a manual paste.
 
 ### Game-window identity
 
-Every calibration and scan hotkey automatically binds only a foreground window
-with the exact Path of Exile window
+Every calibration and scan hotkey automatically authenticates only a foreground
+window with the exact Path of Exile window
 class and an expected PoE executable in a complete installation (`Content.ggpk`
 on older installs or the `Bundles2` index on current Steam installs). The helper
 records its HWND, PID, canonical executable path, and rejects reparse-point path
 components. It also requires exactly one authenticated PoE candidate, so
 multiple or ambiguous candidates fail closed.
 
-The binding is revalidated before and after input and capture operations. A
+The identity is revalidated before and after input and capture operations. A
 changed window, process, class, executable path, installation, foreground owner,
-or candidate set aborts the sweep. Focus the real game and retry; `Ctrl+F3`
-remains available as an optional explicit rebind.
+or candidate set aborts the sweep. Focus the real game and retry. There is no
+game-binding hotkey.
 
 ### Border calibration
 
@@ -168,17 +158,14 @@ The two tab positions are stored with the grid calibration in `voyage-import.ini
 
 - `F9` switches through both calibrated chart-stash tabs, copies each grid,
   returns the stash to tab `1`, reads all 12 border tooltips and the calibrated
-  reroll-cost tooltip, then imports the combined payload into the verified
-  solver page.
+  reroll-cost tooltip, then opens the solver and imports the combined payload.
 - `Ctrl+F9` copies only the borders and reroll cost, which is useful after a
-  reroll, then imports that refresh into the same verified page.
+  reroll, then opens the solver and imports that refresh.
 - `F10` aborts the current sweep.
 
-After `F9` or `Ctrl+F9`, the verified solver window becomes active and receives
-the paste automatically. A page cannot receive data merely by copying the
-solver's title: window titles are never trusted, and the address-bar URL plus the
-browser identity must match. If automatic opening or verification fails, the
-payload remains on the clipboard and can be pasted with `Ctrl+V`.
+After `F9` or `Ctrl+F9`, the solver window in the default browser becomes active
+and receives the paste automatically. If automatic opening or activation fails,
+the payload remains on the clipboard and can be pasted with `Ctrl+V`.
 
 Each border sweep includes a 12-position completion marker. The solver applies
 complete snapshots atomically: an unreadable position is cleared instead of
@@ -225,10 +212,8 @@ export it or create a share URL.
   `2` with `Shift+F7` and `Shift+F8`; adjust `GridCols` or `GridRows` if necessary.
 - **The payload was not imported automatically:** verify that the default browser
   can open the solver URL. The failed automatic delivery leaves the payload on
-  the clipboard, so `Ctrl+V` remains available. `Ctrl+F2` can optionally select
-  an already-open verified solver tab.
+  the clipboard, so `Ctrl+V` remains available.
 - **The helper reports an identity change:** close duplicate PoE windows, focus
-  the real game, and retry the calibration or scan hotkey. `Ctrl+F3` can force an
-  explicit rebind but is not normally required.
+  the real game, and retry the calibration or scan hotkey.
 - **Tooltips appear too slowly:** increase `HoverDelay` near the top of the
   script.

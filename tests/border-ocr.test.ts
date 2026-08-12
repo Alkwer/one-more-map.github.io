@@ -275,72 +275,45 @@ describe('border OCR regressions', () => {
     )
   })
 
-  it('opens or reuses an address-verified solver page and focuses it without a saved click point', () => {
+  it('opens and activates the solver without Ctrl+F2 or saved browser state', () => {
     const ahkImporter = readFileSync(
       new URL('../public/voyage-import.ahk', import.meta.url),
       'utf8',
     )
-    const bindStart = ahkImporter.indexOf('BindForegroundSolverWindow()')
-    const validateStart = ahkImporter.indexOf('ValidateBoundSolverWindow(', bindStart)
-    const activateStart = ahkImporter.indexOf('ActivateBoundSolverWindow()', validateStart)
-    const focusStart = ahkImporter.indexOf('FocusBoundSolverPage()', activateStart)
-    const openStart = ahkImporter.indexOf('OpenTrustedSolverWindow()', focusStart)
-    const prepareStart = ahkImporter.indexOf('PrepareSolverWindow()', openStart)
-    const bindFunction = ahkImporter.slice(bindStart, validateStart)
-    const validateFunction = ahkImporter.slice(validateStart, activateStart)
-    const focusFunction = ahkImporter.slice(focusStart, openStart)
-    const openFunction = ahkImporter.slice(openStart, prepareStart)
-    const prepareFunction = ahkImporter.slice(
-      prepareStart,
-      ahkImporter.indexOf('PowerShellTrust :=', prepareStart),
+    const openStart = ahkImporter.indexOf('OpenSolverWindow()')
+    const openFunction = ahkImporter.slice(
+      openStart,
+      ahkImporter.indexOf('PowerShellTrust :=', openStart),
     )
     const deliveryStart = ahkImporter.indexOf('DeliverPayloadToSolver(payload)')
     const summaryStart = ahkImporter.indexOf('DeliverySummary(delivery)', deliveryStart)
     const deliveryFunction = ahkImporter.slice(deliveryStart, summaryStart)
 
-    assert.ok(bindStart >= 0, 'solver-window binding is missing')
-    assert.ok(validateStart > bindStart, 'solver-window validation is missing')
+    assert.ok(openStart >= 0, 'solver-window opening is missing')
     assert.ok(deliveryStart >= 0, 'automatic solver delivery is missing')
-    assert.match(ahkImporter, /\^F2:: \{/)
-    assert.match(ahkImporter, /CanonicalSolverUrl\(url\)/)
-    assert.match(ahkImporter, /https:\/\/one-more-map\.github\.io\/allflame-voyage-solver/)
+    assert.doesNotMatch(ahkImporter, /\^F2::|Ctrl\+F2/)
+    assert.doesNotMatch(ahkImporter, /\^F3::|Ctrl\+F3/)
     assert.match(
       ahkImporter,
       /https:\/\/alkwer\.github\.io\/one-more-map\.github\.io\/allflame-voyage-solver/,
     )
-    assert.match(ahkImporter, /localhost\|127\\\.0\\\.0\\\.1\|\\\[::1\\\]/)
-    assert.match(ahkImporter, /IsExpectedBrowserImage\(imagePath\)/)
-    assert.match(bindFunction, /activeHwnd := WinExist\("A"\)/)
-    assert.match(bindFunction, /CanonicalWindowImageForWindow\(activeHwnd\)/)
-    assert.match(bindFunction, /RejectReparseComponents\(imagePath\)/)
-    assert.match(bindFunction, /CanonicalSolverUrl\(ReadForegroundBrowserUrl\(activeHwnd\)\)/)
-    assert.doesNotMatch(bindFunction, /MouseGetPos|pasteClient/)
-    assert.doesNotMatch(ahkImporter, /SolverPasteClient|saved neutral page point/)
-    assert.match(validateFunction, /WinGetPID\("ahk_id " SolverHwnd\) != SolverPid/)
-    assert.match(validateFunction, /WinGetClass\("ahk_id " SolverHwnd\) != SolverClass/)
-    assert.match(validateFunction, /NormalizeWindowsPath\(currentImagePath\)/)
-    assert.doesNotMatch(validateFunction, /SolverClientWidth|clientWidth !=/)
-    assert.match(focusFunction, /Send "\{Esc\}"/)
-    assert.match(focusFunction, /ValidateBoundSolverWindow\(true\)/)
-    assert.doesNotMatch(focusFunction, /MouseMove|Click/)
-    assert.match(openFunction, /Run SolverLaunchUrl/)
-    assert.match(openFunction, /BindForegroundSolverWindow\(\)/)
-    assert.match(prepareFunction, /ActivateBoundSolverWindow\(\)/)
-    assert.match(
-      prepareFunction,
-      /currentUrl := CanonicalSolverUrl\(ReadForegroundBrowserUrl\(SolverHwnd\)\)/,
-    )
-    assert.match(prepareFunction, /currentUrl = SolverPageUrl/)
+    assert.match(ahkImporter, /SolverPageTitle := "Allflame Voyage Solver - PoE 3\.29"/)
+    assert.match(ahkImporter, /processName := WinGetProcessName\("ahk_id " hwnd\)/)
+    assert.match(ahkImporter, /IsExpectedBrowserImage\(processName\)/)
+    assert.match(ahkImporter, /IsSolverBrowserWindow\(hwnd\)/)
+    assert.match(ahkImporter, /InStr\(WinGetTitle\("ahk_id " hwnd\), SolverPageTitle\)/)
+    assert.match(openFunction, /ComObject\("Shell\.Application"\)\.ShellExecute\(SolverLaunchUrl\)/)
+    assert.match(openFunction, /solverHwnd := FindSolverBrowserWindow\(\)/)
+    assert.match(openFunction, /WinActivate "ahk_id " solverHwnd/)
+    assert.match(openFunction, /WinWaitActive\("ahk_id " solverHwnd/)
     assert.match(deliveryFunction, /CopyPayloadToClipboard\(payload\)/)
-    assert.match(deliveryFunction, /PrepareSolverWindow\(\)/)
-    assert.match(deliveryFunction, /FocusBoundSolverPage\(\)/)
+    assert.match(deliveryFunction, /solverHwnd := OpenSolverWindow\(\)/)
     assert.match(deliveryFunction, /Send "\^v"/)
     assert.doesNotMatch(deliveryFunction, /MouseMove|Click/)
-    assert.ok(
-      deliveryFunction.indexOf('PrepareSolverWindow()') < deliveryFunction.indexOf('Send "^v"'),
-      'paste must happen only after the solver window is prepared and verified',
+    assert.doesNotMatch(
+      ahkImporter,
+      /SolverHwnd|SolverPid|SolverClass|SolverImagePath|SolverPageUrl|CanonicalSolverUrl|ReadForegroundBrowserUrl/,
     )
-    assert.doesNotMatch(ahkImporter, /BrowserWinTitle|SetTitleMatchMode|WinGetTitle/)
   })
 
   it('does not authenticate a browser merely titled Path of Exile', () => {
@@ -350,7 +323,7 @@ describe('border OCR regressions', () => {
     )
 
     assert.match(ahkImporter, /ExpectedPoeClass := "POEWindowClass"/)
-    assert.match(ahkImporter, /\^F3:: \{/)
+    assert.doesNotMatch(ahkImporter, /\^F3::|Ctrl\+F3/)
     assert.match(ahkImporter, /activeHwnd := WinExist\("A"\)/)
     assert.match(ahkImporter, /WinGetClass\("ahk_id " activeHwnd\) != ExpectedPoeClass/)
     assert.match(ahkImporter, /PoeHwnd := activeHwnd/)
@@ -363,6 +336,7 @@ describe('border OCR regressions', () => {
     assert.match(ahkImporter, /candidates\.Length != 1/)
     assert.match(ahkImporter, /ValidateBoundPoeWindow\(requireForeground := false\)/)
     assert.match(ahkImporter, /RequireBoundPoeForeground\(\)/)
+    assert.match(ahkImporter, /RequireBoundPoeForeground\(\) \{[\s\S]*BindForegroundPoeWindow\(\)/)
     assert.match(ahkImporter, /WinActivate "ahk_id " PoeHwnd/)
     assert.doesNotMatch(ahkImporter, /PoeWinTitle|SetTitleMatchMode/)
   })
