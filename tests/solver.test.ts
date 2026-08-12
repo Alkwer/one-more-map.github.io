@@ -36,6 +36,39 @@ const boardSignature = (result: ReturnType<typeof solve>[number]) =>
     .map((placement) => (placement ? `${placement.chartUid}:${placement.rotation}` : '_'))
     .join('|')
 
+const connectorBonusPool = (connectedReward: number, disconnectedReward: number) => {
+  const cross: Edges = [true, true, true, true]
+  const fixed = [
+    chart('fixed-0'),
+    chart('fixed-1', 0, { edges: [false, false, true, false] }),
+    chart('fixed-2'),
+    chart('fixed-3', 0, { edges: [false, true, false, false] }),
+    chart('fixed-5', 0, { edges: [false, false, false, true] }),
+    chart('fixed-6'),
+    chart('fixed-7', 0, { edges: [true, false, false, false] }),
+    chart('fixed-8'),
+  ]
+  const locked = [
+    { chartUid: 'fixed-0', rotation: 0 },
+    { chartUid: 'fixed-1', rotation: 0 },
+    { chartUid: 'fixed-2', rotation: 0 },
+    { chartUid: 'fixed-3', rotation: 0 },
+    null,
+    { chartUid: 'fixed-5', rotation: 0 },
+    { chartUid: 'fixed-6', rotation: 0 },
+    { chartUid: 'fixed-7', rotation: 0 },
+    { chartUid: 'fixed-8', rotation: 0 },
+  ]
+  return {
+    pool: [
+      ...fixed,
+      chart('connected', connectedReward, { edges: cross }),
+      chart('disconnected', disconnectedReward),
+    ],
+    locked,
+  }
+}
+
 describe('exact solver', () => {
   it('returns unique top-K arrangements and places the best reward on magnitude', () => {
     const borders = ['b-mag-3', ...Array(11).fill(null)]
@@ -67,6 +100,51 @@ describe('exact solver', () => {
     expect(result.board[0]).toBeNull()
     expect(result.reward).toBeCloseTo(1.1)
     expect(result.score).toBeCloseTo(-1.1)
+  })
+
+  it('maximizes reward without a connector-count bonus in ignore-connectors mode', () => {
+    const { pool, locked } = connectorBonusPool(0, 50)
+
+    const [result] = solve(
+      pool,
+      emptyBorders(),
+      { 'self:quant': 1 },
+      baseOptions({
+        locked,
+        forceHeuristic: true,
+        searchRestarts: 2,
+        searchIterations: 500,
+        seed: 273,
+        topK: 1,
+      }),
+    )
+
+    expect(result.board[4]?.chartUid).toBe('disconnected')
+    expect(result.reward).toBeCloseTo(0.5)
+    expect(result.score).toBeCloseTo(0.5)
+  })
+
+  it('minimizes reward without a connector-count bonus in ignore-connectors mode', () => {
+    const { pool, locked } = connectorBonusPool(50, 0)
+
+    const [result] = solve(
+      pool,
+      emptyBorders(),
+      { 'self:quant': 1 },
+      baseOptions({
+        locked,
+        minimizeReward: true,
+        forceHeuristic: true,
+        searchRestarts: 2,
+        searchIterations: 500,
+        seed: 273,
+        topK: 1,
+      }),
+    )
+
+    expect(result.board[4]?.chartUid).toBe('disconnected')
+    expect(result.reward).toBe(0)
+    expect(result.score).toBeCloseTo(0)
   })
 
   it('filters unresolved shapes from strict solver inputs', () => {
