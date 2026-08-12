@@ -13,7 +13,12 @@ const chart = (modIds: string[], areaType?: ChartAreaType): ChartData => ({
   areaType,
 })
 
-const junk = (count: number) => Array.from({ length: count }, () => chart(['voy-quant-1']))
+const rolled = (modIds: string[] = []): ChartData => ({
+  ...chart(modIds),
+  rewards: [{ stat: 'quantity', percent: 110 }],
+})
+
+const junk = (count: number) => Array.from({ length: count }, () => rolled(['voy-quant-1']))
 
 const divineBorders = (segment: number) => {
   const borders = emptyBorders()
@@ -97,8 +102,8 @@ describe('session planner', () => {
   it('sequences a ready Meatfish, then Speedruns, then Alc & Go', () => {
     const pool = [
       ...meatfishKit(),
-      chart(['adj-opbox-1']), // speedrun centre
-      chart(['adj-divbox-2']), // second centre
+      rolled(['adj-opbox-1']), // speedrun centre
+      rolled(['adj-divbox-2']), // second centre
       ...junk(20),
     ]
     const plan = planSession(pool, emptyBorders())
@@ -149,7 +154,7 @@ describe('session planner', () => {
   })
 
   it('never double-spends a chart across entries', () => {
-    const pool = [...meatfishKit(), chart(['adj-opbox-1']), ...junk(8)]
+    const pool = [...meatfishKit(), rolled(['adj-opbox-1']), ...junk(8)]
     const plan = planSession(pool, emptyBorders())
     // meatfish takes its 9; the 1 centre + 8 junk feed exactly one speedrun
     expect(plan.entries.find((e) => e.strategyId === 'milky-speedrun')?.runs).toBe(1)
@@ -165,7 +170,7 @@ describe('session planner', () => {
     'plans $expectedRuns Speedruns from $centres centres and $sides non-centres',
     ({ centres, sides, expectedRuns, expectedLeftover }) => {
       const pool = [
-        ...Array.from({ length: centres }, () => chart(['adj-opbox-1'])),
+        ...Array.from({ length: centres }, () => rolled(['adj-opbox-1'])),
         ...junk(sides),
       ]
 

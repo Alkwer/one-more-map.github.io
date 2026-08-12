@@ -19,6 +19,7 @@ import { scoreBoard, type ScoreOptions } from './scoring'
 import { solve } from './solver'
 import { selectStrategySolvePool } from './solverPoolSelection'
 import { allocateStrategyRequirements } from './strategyRequirements'
+import { chartMeetsStrategyPreflight, strategyPreflightLabel } from './strategyPreflight'
 import {
   BORDER_ROLL_MODEL,
   estimateModBoardChance,
@@ -138,7 +139,10 @@ export function strategyReadiness(
   const missing: string[] = []
   const requirements: StrategyRequirementReadiness[] = []
 
-  const eligiblePool = selectSolverEligibleCharts(pool, mode)
+  const solverEligiblePool = selectSolverEligibleCharts(pool, mode)
+  const eligiblePool = solverEligiblePool.filter((chart) =>
+    chartMeetsStrategyPreflight(chart, strategy),
+  )
   const allocation = allocateStrategyRequirements(
     strategy.requirements ?? [],
     eligiblePool,
@@ -157,6 +161,16 @@ export function strategyReadiness(
     if (entry.missing > 0) {
       missing.push(`${entry.missing}× ${entry.requirement.label}`)
     }
+  }
+
+  if (strategy.minimumChartQuantity !== undefined) {
+    const required = 9
+    const count = Math.min(required, eligiblePool.length)
+    const label = strategyPreflightLabel(strategy)!
+    have += count
+    need += required
+    requirements.push({ label, have: count, need: required, missing: required - count })
+    if (count < required) missing.push(`${required - count}× ${label}`)
   }
 
   if (strategy.requiresBorderId) {

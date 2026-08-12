@@ -20,6 +20,7 @@ const chart = (
   shape: 'Crossing',
   shapeResolved: true,
   modIds,
+  rewards: [{ stat: 'quantity', percent: 110 }],
   ...overrides,
 })
 
