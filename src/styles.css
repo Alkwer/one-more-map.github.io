@@ -1838,6 +1838,9 @@ textarea {
 }
 
 /* step-through preserve confirmation (board tile glows for each) */
+.preserve-confirmation-modal {
+  width: min(520px, calc(100vw - 32px));
+}
 .preserve-confirm {
   margin-top: 10px;
   padding: 12px;
@@ -1845,6 +1848,9 @@ textarea {
   border: 1px solid var(--accent2);
   box-shadow: 0 0 14px rgba(107, 163, 200, 0.25);
   border-radius: 3px;
+}
+.preserve-confirmation-modal .preserve-confirm {
+  margin-top: 0;
 }
 .pc-head {
   font-size: 13.5px;

@@ -151,6 +151,7 @@ export default function App() {
     state,
     analysis.chartMap,
     dispatch,
+    borderResearch.store.activeSequenceId,
     borderResearch.finishVoyage,
   )
   const saveTimer = useRef<number>()
@@ -378,6 +379,19 @@ export default function App() {
       )}
       {showUpdates && <UpdatesLog onClose={() => setShowUpdates(false)} />}
       {showTutorial && <Tutorial onClose={() => setShowTutorial(false)} />}
+      {workflows.preserveConfirmation && (
+        <ModalDialog
+          labelledBy="preserve-confirmation-title"
+          onClose={workflows.cancelPreserveConfirmation}
+          className="preserve-confirmation-modal"
+        >
+          <PreserveConfirmationPrompt
+            confirmation={workflows.preserveConfirmation}
+            onDecide={workflows.decidePreserve}
+            onCancel={workflows.cancelPreserveConfirmation}
+          />
+        </ModalDialog>
+      )}
       {showAhkNotice && !chrome.showOnboarding && (
         <ModalDialog
           labelledBy="ahk-notice-title"
@@ -541,13 +555,6 @@ export default function App() {
               onCancel={workflows.cancelCopySequence}
             />
           )}
-          {workflows.preserveConfirmation && (
-            <PreserveConfirmationPrompt
-              confirmation={workflows.preserveConfirmation}
-              onDecide={workflows.decidePreserve}
-            />
-          )}
-
           <VoyageBoardStatus
             mode={state.mode}
             connectivity={analysis.connectivity}
