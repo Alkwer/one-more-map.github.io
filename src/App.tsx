@@ -107,7 +107,7 @@ export default function App() {
   const analysis = useVoyageAnalysis(state)
   const selection = useBoardSelection(state.board, state.pool, dispatch)
   const clearSelection = selection.clear
-  const borderResearch = useBorderRollResearch()
+  const borderResearch = useBorderRollResearch(state.borders)
   const [showAhkNotice, setShowAhkNotice] = useState<boolean>(() => {
     try {
       if (localStorage.getItem(AHK_PAGES_KEY)) return false

@@ -67,7 +67,7 @@ export interface BorderRollResearchController {
   finishVoyage: (expectedSequenceId: string) => VoyageResearchFinishResult
 }
 
-export function useBorderRollResearch(): BorderRollResearchController {
+export function useBorderRollResearch(currentBorders: Borders): BorderRollResearchController {
   const [store, setStore] = useState<BorderResearchStore>(loadBorderResearch)
   const [submissionStore, setSubmissionStore] =
     useState<BorderSubmissionStore>(loadBorderSubmissionStore)
@@ -285,12 +285,13 @@ export function useBorderRollResearch(): BorderRollResearchController {
   const setResearchSamplingEnabled = useCallback(
     (enabled: boolean) => {
       const current = storeRef.current
-      const next = setRandomizedResearchEnabled(current, enabled)
-      if (!commitStore(next)) return
       const activeSamples = getBorderRollSequence(current.samples, current.activeSequenceId)
+      const activeRollObserved = currentBorders.every((border) => border !== null)
+      const next = setRandomizedResearchEnabled(current, enabled, Math.random(), activeRollObserved)
+      if (!commitStore(next)) return
       setMessage(
         enabled
-          ? activeSamples.length > 0
+          ? activeSamples.length > 0 || activeRollObserved
             ? 'Randomized research enabled. Assignment starts with the next Voyage.'
             : next.activeSequenceSamplingReason === 'randomized-research'
               ? 'Randomized research enabled: this Voyage was assigned one research reroll.'
@@ -298,7 +299,7 @@ export function useBorderRollResearch(): BorderRollResearchController {
           : 'Randomized research disabled. Existing sequence labels were preserved.',
       )
     },
-    [commitStore],
+    [commitStore, currentBorders],
   )
 
   const setVesperUpgradeCount = useCallback(

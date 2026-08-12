@@ -153,13 +153,14 @@ export function setRandomizedResearchEnabled(
   store: BorderResearchStore,
   enabled: boolean,
   randomValue = Math.random(),
+  activeRollObserved = false,
 ): BorderResearchStore {
   const activeSamples = getBorderRollSequence(store.samples, store.activeSequenceId)
   return {
     ...store,
     randomizedResearchEnabled: enabled,
     activeSequenceSamplingReason:
-      activeSamples.length > 0
+      activeSamples.length > 0 || activeRollObserved
         ? store.activeSequenceSamplingReason
         : assignedSamplingReason(enabled, randomValue),
   }
