@@ -71,6 +71,12 @@ describe('parseChartText', () => {
     })
   })
 
+  it('keeps an imported header with no reward rows as authoritative', () => {
+    const chart = parseOnlyChart(englishChart.replace(/^Item (?:Quantity|Rarity):.*\n?/gm, ''))
+
+    expect(chart.rewards).toEqual([])
+  })
+
   it('imports a real Korean-client chart into canonical ids and shape names', () => {
     const chart = parseOnlyChart(koreanChart)
 

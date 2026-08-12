@@ -59,6 +59,17 @@ describe('ChartEditor imported rewards', () => {
     expect(html).toContain('aria-label="Implicit modifier"')
   })
 
+  it('keeps an explicitly empty imported reward list authoritative while editing', () => {
+    const html = renderToStaticMarkup(
+      <ChartEditor chart={{ ...importedChart(), rewards: [] }} onUpdate={() => undefined} />,
+    )
+
+    expect(html).toContain('Imported area rewards')
+    expect(html).toContain('The imported header explicitly contains no area rewards.')
+    expect(html).not.toContain('Manual area modifiers')
+    expect(html).not.toContain('aria-label="Area modifier 1"')
+  })
+
   it('round-trips an edited imported reward through saved state', () => {
     const edited = updateImportedReward(importedChart(), 0, 45)
     const decoded = decodeStateJson(serializeState({ ...defaultState(), pool: [edited] }))

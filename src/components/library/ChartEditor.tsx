@@ -61,35 +61,39 @@ export function ChartEditor({ chart, onUpdate }: Props) {
           }
         />
       </div>
-      {chart.rewards?.length ? (
+      {chart.rewards !== undefined ? (
         <fieldset className="imported-reward-editor">
           <legend>Imported area rewards</legend>
           <p className="muted">
             Header values used directly by ranking and the solver. Editing a value overrides the
             imported amount.
           </p>
-          <div className="imported-reward-grid">
-            {chart.rewards.map((reward, index) => (
-              <label key={`${reward.stat}-${index}`}>
-                <span>{STAT_LABELS[reward.stat]}</span>
-                <span className="reward-percent-input">
-                  <input
-                    type="number"
-                    aria-label={`Imported ${STAT_LABELS[reward.stat]} reward`}
-                    value={reward.percent}
-                    min={0}
-                    max={MAX_REWARD_PERCENT}
-                    onChange={(event) =>
-                      onUpdate(
-                        updateImportedReward(chart, index, Number(event.target.value || '0')),
-                      )
-                    }
-                  />
-                  %
-                </span>
-              </label>
-            ))}
-          </div>
+          {chart.rewards.length === 0 ? (
+            <p className="muted">The imported header explicitly contains no area rewards.</p>
+          ) : (
+            <div className="imported-reward-grid">
+              {chart.rewards.map((reward, index) => (
+                <label key={`${reward.stat}-${index}`}>
+                  <span>{STAT_LABELS[reward.stat]}</span>
+                  <span className="reward-percent-input">
+                    <input
+                      type="number"
+                      aria-label={`Imported ${STAT_LABELS[reward.stat]} reward`}
+                      value={reward.percent}
+                      min={0}
+                      max={MAX_REWARD_PERCENT}
+                      onChange={(event) =>
+                        onUpdate(
+                          updateImportedReward(chart, index, Number(event.target.value || '0')),
+                        )
+                      }
+                    />
+                    %
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
         </fieldset>
       ) : (
         <fieldset className="manual-mod-editor">

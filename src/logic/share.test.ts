@@ -61,6 +61,26 @@ function decodedState(hash: string): AppState {
 }
 
 describe('layout sharing', () => {
+  it('round-trips absent, empty, and populated reward states', () => {
+    const state = defaultState()
+    state.pool = [
+      chart('absent-rewards', { rewards: undefined }),
+      chart('empty-rewards', { rewards: [] }),
+      chart('populated-rewards', {
+        rewards: [{ stat: 'quantity', percent: 20 }],
+      }),
+    ]
+    state.board[0] = { chartUid: 'absent-rewards', rotation: 0 }
+    state.board[1] = { chartUid: 'empty-rewards', rotation: 0 }
+    state.board[2] = { chartUid: 'populated-rewards', rotation: 0 }
+
+    const shared = decodedState(encodeShare(state))
+
+    expect(shared.pool[0]).not.toHaveProperty('rewards')
+    expect(shared.pool[1].rewards).toEqual([])
+    expect(shared.pool[2].rewards).toEqual([{ stat: 'quantity', percent: 20 }])
+  })
+
   it('shares only placed chart data and score inputs', () => {
     const state = defaultState()
     state.pool = [

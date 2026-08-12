@@ -76,6 +76,20 @@ describe('state decoding', () => {
     expect(decoded({}).warnings).toContain('unversioned state was migrated')
   })
 
+  it('preserves absent, empty, and populated reward states', () => {
+    const absent = decoded(persisted({ pool: [chart()] })).state.pool[0]
+    const empty = decoded(persisted({ pool: [chart({ rewards: [] })] })).state.pool[0]
+    const populated = decoded(
+      persisted({
+        pool: [chart({ rewards: [{ stat: 'quantity', percent: 20 }] })],
+      }),
+    ).state.pool[0]
+
+    expect(absent).not.toHaveProperty('rewards')
+    expect(empty.rewards).toEqual([])
+    expect(populated.rewards).toEqual([{ stat: 'quantity', percent: 20 }])
+  })
+
   it('rejects malformed JSON and non-object roots', () => {
     expect(decodeStateJson('{not json')).toMatchObject({
       ok: false,

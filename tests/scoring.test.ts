@@ -129,6 +129,32 @@ describe('scoring regressions', () => {
     assertClose(scoreBoard(board, bordersWith(1, 'b-mag-1'), charts, weights, options).total, 1.4)
   })
 
+  it('distinguishes legacy fallback, authoritative empty, and populated rewards', () => {
+    const candidates = [
+      chart('absent', ['cm-quant-20']),
+      chart('empty', ['cm-quant-20'], []),
+      chart('populated', ['cm-quant-20'], [{ stat: 'quantity', percent: 100 }]),
+    ]
+    const expected = [1, 0, 5]
+    const weights = { [chartRewardKey('quantity')]: 5 }
+
+    candidates.forEach((candidate, index) => {
+      const board = boardWith([0, candidate])
+      const charts = new Map([[candidate.uid, candidate]])
+      const connectivity = analyzeConnectivity(board, charts, 'any')
+
+      assert.equal(
+        scoreBoard(board, emptyBorders(), charts, weights, options).total,
+        expected[index],
+      )
+      assert.equal(
+        prepareScoreTotal(emptyBorders(), charts, weights, options)(board, connectivity),
+        expected[index],
+      )
+      assert.equal(chartValue(candidate, weights, new Set()) / 100, expected[index])
+    })
+  })
+
   it('keeps imported aggregates authoritative over manual ids', () => {
     const c = chart('mixed', ['cm-quant-20'], [{ stat: 'quantity', percent: 100 }])
     const board = boardWith([1, c])
