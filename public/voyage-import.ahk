@@ -248,8 +248,17 @@ IsExpectedPoeImage(imagePath) {
     SplitPath imagePath, &fileName, &installDir
     if !RegExMatch(fileName, "i)^PathOfExile[_A-Za-z0-9-]*\.exe$")
         return false
+
+    ; Older installations keep the game data in Content.ggpk. Current Steam
+    ; installations use the Bundles2 index instead, so accept either complete
+    ; layout while still rejecting an executable copied outside a PoE install.
     contentArchive := installDir "\Content.ggpk"
     attributes := FileExist(contentArchive)
+    if attributes && !InStr(attributes, "D")
+        return true
+
+    bundleIndex := installDir "\Bundles2\_.index.bin"
+    attributes := FileExist(bundleIndex)
     return attributes && !InStr(attributes, "D")
 }
 
