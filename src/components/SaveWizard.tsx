@@ -88,7 +88,7 @@ export function SaveWizard({ pool, keeps, reservations, onApply, onClose }: Prop
     customsOf(strategyId).reduce((sum, c) => sum + (draft[c.key] ?? 0), 0)
 
   return (
-    <div className="onboard-backdrop" data-modal-root onClick={onClose}>
+    <div className="onboard-backdrop save-wizard-backdrop" data-modal-root onClick={onClose}>
       <div
         {...dialogProps}
         className="onboard save-wizard"

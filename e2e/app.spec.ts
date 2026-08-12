@@ -483,6 +483,53 @@ test('searches, edits, summarizes, and persists a custom keeper type', async ({ 
   await expect(appPage.getByRole('button', { name: 'Remove Barrels (any tier)' })).toBeVisible()
 })
 
+test('completes the Save Wizard at 320px without horizontal overflow', async ({ appPage }) => {
+  await appPage.setViewportSize({ width: 320, height: 568 })
+  await openApp(appPage)
+  await pasteText(appPage, ENGLISH_CHART)
+  await appPage.getByRole('button', { name: /Save charts for strategies/ }).click()
+
+  const dialog = appPage.getByRole('dialog', { name: /Keep charts for strategies/ })
+  const expectNoHorizontalOverflow = async () => {
+    expect(
+      await appPage.evaluate(() => {
+        const wizard = document.querySelector<HTMLElement>('.save-wizard')
+        if (!wizard) throw new Error('Save Wizard is not open')
+        return {
+          document: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          dialog: wizard.scrollWidth - wizard.clientWidth,
+        }
+      }),
+    ).toEqual({ document: 0, dialog: 0 })
+  }
+
+  await expect(dialog).toBeVisible()
+  await expect(appPage.getByRole('button', { name: 'Cancel' })).toBeVisible()
+
+  let visitedSteps = 0
+  while (await appPage.getByRole('button', { name: /Next/ }).count()) {
+    visitedSteps++
+    expect(visitedSteps).toBeLessThanOrEqual(10)
+    const firstRow = dialog.locator('.sw-row').first()
+    await expect(firstRow.locator('.sw-name')).toBeVisible()
+    await expect(firstRow.locator('.sw-mod')).toBeVisible()
+    await expect(firstRow.locator('.sw-stepper')).toBeVisible()
+    await expectNoHorizontalOverflow()
+    await appPage.getByRole('button', { name: /Next/ }).click()
+  }
+
+  expect(visitedSteps).toBeGreaterThan(0)
+  await expect(appPage.getByRole('button', { name: /Save keep counts/ })).toBeVisible()
+  await expectNoHorizontalOverflow()
+  await appPage.getByRole('button', { name: /Save keep counts/ }).click()
+  await expect(dialog).toHaveCount(0)
+  expect(
+    await appPage.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    ),
+  ).toBe(0)
+})
+
 test('globally imports English, Korean, and border clipboard payloads', async ({ appPage }) => {
   const workerUrls: string[] = []
   appPage.on('worker', (worker) => workerUrls.push(worker.url()))
