@@ -569,6 +569,90 @@ test('globally imports English, Korean, and border clipboard payloads', async ({
     .toBe(true)
 })
 
+test('exposes chart details to keyboard and screen-reader navigation', async ({ appPage }) => {
+  await openApp(appPage)
+  await pasteText(appPage, ENGLISH_CHART)
+
+  const chartName = 'Armoured Coral Reef Chart of Ice'
+  const libraryChart = appPage.getByRole('button', {
+    name: `Select ${chartName} for placement`,
+  })
+  const descriptionId = await libraryChart.getAttribute('aria-describedby')
+  expect(descriptionId).toBeTruthy()
+  const description = appPage.locator(`[id="${descriptionId}"]`)
+  await expect(description).toContainText('Area Level: 63 · Corner')
+  await expect(description).toContainText('+20% Item Quantity')
+  await expect(description).toContainText('Weighted value:')
+  await expect(libraryChart).toHaveAccessibleName(`Select ${chartName} for placement`)
+
+  await libraryChart.focus()
+  await expect(appPage.locator('.poe-tooltip')).toContainText(chartName)
+  await expect(appPage.locator('.poe-tooltip')).toContainText('Area Level: 63 · Corner')
+  await appPage.keyboard.press('Escape')
+  await expect(appPage.locator('.poe-tooltip')).toHaveCount(0)
+
+  await appPage.locator('body').click({ position: { x: 2, y: 2 } })
+  await libraryChart.hover()
+  await expect(appPage.locator('.poe-tooltip')).toContainText('+20% Item Quantity')
+  await appPage.mouse.move(0, 0)
+  await expect(appPage.locator('.poe-tooltip')).toHaveCount(0)
+
+  await libraryChart.click()
+  await appPage.getByRole('button', { name: /Board cell 1,.*empty/ }).click()
+  const boardChart = appPage.locator('[data-chart-name="Armoured Coral Reef Chart of Ice"]')
+  const boardDescriptionId = await boardChart.getAttribute('aria-describedby')
+  expect(boardDescriptionId).toBeTruthy()
+  await expect(appPage.locator(`[id="${boardDescriptionId}"]`)).toContainText('Weighted value:')
+  await boardChart.focus()
+  await expect(appPage.locator('.poe-tooltip')).toContainText('20% increased Dead Man')
+  await appPage.keyboard.press('Tab')
+  await expect(appPage.locator('.poe-tooltip')).toHaveCount(0)
+})
+
+test('provides touch-only detail controls without placing or deleting charts', async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    hasTouch: true,
+    isMobile: true,
+    viewport: { width: 390, height: 844 },
+  })
+  const page = await context.newPage()
+  await page.addInitScript(() => {
+    localStorage.setItem('onboarding-seen', '1')
+    localStorage.setItem('announce-ahk-page2', '1')
+  })
+  await openApp(page)
+  await pasteText(page, ENGLISH_CHART)
+
+  const chartName = 'Armoured Coral Reef Chart of Ice'
+  const libraryChart = page.getByRole('button', {
+    name: `Select ${chartName} for placement`,
+  })
+  const inspectLibrary = page.getByRole('button', {
+    name: `Inspect details for ${chartName}`,
+  })
+  await expect(inspectLibrary).toBeVisible()
+  await inspectLibrary.tap()
+  await expect(page.locator('.poe-tooltip')).toContainText('Area Level: 63 · Corner')
+  await expect(libraryChart).toHaveAttribute('aria-pressed', 'false')
+  await expect(page.getByRole('button', { name: /Board cell 1,.*empty/ })).toBeVisible()
+  await inspectLibrary.tap()
+  await expect(page.locator('.poe-tooltip')).toHaveCount(0)
+
+  await libraryChart.tap()
+  await page.getByRole('button', { name: /Board cell 1,.*empty/ }).tap()
+  const boardChart = page.locator('[data-chart-name="Armoured Coral Reef Chart of Ice"]')
+  await expect(boardChart).toBeVisible()
+  const inspectBoard = page
+    .getByRole('group', { name: `Actions for ${chartName}` })
+    .getByRole('button', { name: `Inspect details for ${chartName}` })
+  await expect(inspectBoard).toBeVisible()
+  await inspectBoard.tap({ position: { x: 8, y: 8 } })
+  await expect(page.locator('.poe-tooltip')).toContainText('Weighted value:')
+  await expect(boardChart).toBeVisible()
+})
+
 test('rejects an oversized chart paste before it can monopolize the main thread', async ({
   appPage,
 }) => {

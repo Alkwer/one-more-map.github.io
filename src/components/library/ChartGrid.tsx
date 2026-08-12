@@ -5,7 +5,7 @@ import type { PieceType } from '../../logic/pieceKeeps'
 import type { ChartData, Weights } from '../../types'
 import { STAT_LABELS, STAT_SHORT } from '../../types'
 import { EdgeGlyph } from '../icons'
-import { tooltipProps } from '../Tooltip'
+import { TooltipDescription, tooltipProps } from '../Tooltip'
 
 interface Props {
   charts: ChartData[]
@@ -60,6 +60,8 @@ export function ChartGrid(props: Props) {
             ? [{ text: 'Currently on the board', cls: 'muted' }]
             : []),
         ]
+        const tooltip = { title: chart.name, lines }
+        const descriptionId = `chart-grid-details-${chart.uid}`
         const activate = () => {
           if (unresolvedShape) {
             props.onConfirmShape(chart.uid)
@@ -83,8 +85,9 @@ export function ChartGrid(props: Props) {
               }
               aria-pressed={!unresolvedShape && props.selected === chart.uid}
               onClick={activate}
-              {...tooltipProps({ title: chart.name, lines })}
+              {...tooltipProps(tooltip, descriptionId)}
             >
+              <TooltipDescription id={descriptionId} data={tooltip} />
               {unresolvedShape ? (
                 <span className="sq-shape-warning">Confirm shape</span>
               ) : modifier?.short ? (
@@ -115,6 +118,14 @@ export function ChartGrid(props: Props) {
               )}
               <span className="sq-val">{value}</span>
               <span className="sq-lvl">L:{chart.level}</span>
+            </button>
+            <button
+              type="button"
+              className="sq-info"
+              aria-label={`Inspect details for ${chart.name}`}
+              {...tooltipProps(tooltip, descriptionId, true)}
+            >
+              ⓘ
             </button>
             <button
               type="button"
