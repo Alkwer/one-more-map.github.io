@@ -130,6 +130,24 @@ describe('session planner', () => {
     expect(alcgo?.runs).toBe(1)
   })
 
+  it('treats one Divine border roll as a single-use planning resource', () => {
+    const pool = [
+      ...divineKit('divine-border-rares', 2, 6),
+      ...divineKit('cutedog-divine-boxes', 2, 6),
+    ]
+
+    const plan = planSession(pool, divineBorders(0))
+    const rares = plan.entries.find((entry) => entry.strategyId === 'divine-border-rares')
+    const boxes = plan.entries.find((entry) => entry.strategyId === 'cutedog-divine-boxes')
+
+    expect(rares?.status).toBe('ready')
+    expect(boxes?.status).toBe('waiting')
+    expect(boxes?.note).toContain('committed to Divine Border Rares')
+    expect(boxes?.note).toContain('future roll and re-evaluation')
+    expect(plan.allocated).toBe(9)
+    expect(plan.leftover).toBe(9)
+  })
+
   it('never double-spends a chart across entries', () => {
     const pool = [...meatfishKit(), chart(['adj-opbox-1']), ...junk(8)]
     const plan = planSession(pool, emptyBorders())
