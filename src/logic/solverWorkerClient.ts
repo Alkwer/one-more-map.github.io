@@ -1,5 +1,6 @@
 import type { StrategyInventoryResult } from './strategySuggestions'
 import type { SolverResult } from './solver'
+import type { ChartData } from '../types'
 import type {
   SolveWorkerPayload,
   SolverWorkerJob,
@@ -7,6 +8,15 @@ import type {
   SolverWorkerResponse,
   StrategyInventoryWorkerPayload,
 } from './solverWorkerProtocol'
+import { toSolverChartDto } from './solverWorkerProtocol'
+
+type StrategyInventoryClientPayload = Omit<StrategyInventoryWorkerPayload, 'pool'> & {
+  pool: ChartData[]
+}
+
+type SolveClientPayload = Omit<SolveWorkerPayload, 'pool'> & {
+  pool: ChartData[]
+}
 
 export interface WorkerLike {
   onmessage: ((event: MessageEvent<SolverWorkerResponse>) => void) | null
@@ -46,16 +56,22 @@ export class SolverWorkerClient {
   constructor(private readonly workerFactory: SolverWorkerFactory = createSolverWorker) {}
 
   evaluateStrategyInventory(
-    payload: StrategyInventoryWorkerPayload,
+    payload: StrategyInventoryClientPayload,
   ): Promise<StrategyInventoryResult> {
     return this.run<StrategyInventoryResult>(
-      { type: 'strategy-inventory', payload },
+      {
+        type: 'strategy-inventory',
+        payload: { ...payload, pool: payload.pool.map(toSolverChartDto) },
+      },
       'strategy-inventory-result',
     )
   }
 
-  solve(payload: SolveWorkerPayload): Promise<SolverResult[]> {
-    return this.run<SolverResult[]>({ type: 'solve', payload }, 'solve-result')
+  solve(payload: SolveClientPayload): Promise<SolverResult[]> {
+    return this.run<SolverResult[]>(
+      { type: 'solve', payload: { ...payload, pool: payload.pool.map(toSolverChartDto) } },
+      'solve-result',
+    )
   }
 
   cancel() {
