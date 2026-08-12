@@ -9,6 +9,7 @@ import {
 } from '../logic/storage'
 import type { ChartData } from '../types'
 import { chartAdditionResult } from '../logic/chartCapacity'
+import { createVoyageFinishSnapshot, validateVoyageFinishSnapshot } from '../logic/voyageFinish'
 import {
   appStateReducer,
   persistableAppStateReducer,
@@ -183,16 +184,45 @@ describe('appStateReducer', () => {
       borderRerollsUsed: 4,
     }
     const kept = new Set(['b'])
+    const boardUids = state.board.map((placement) => placement?.chartUid ?? null)
 
-    expect(summarizeVoyageFinish(state, kept)).toEqual({ consumed: 1, kept: 1 })
+    expect(summarizeVoyageFinish(state, kept, boardUids)).toEqual({ consumed: 1, kept: 1 })
     const finished = appStateReducer(state, {
       type: 'voyage/finish',
       keptUids: [...kept],
+      boardUids,
     })
 
     expect(finished.pool.map(({ uid }) => uid)).toEqual(['b', 'c'])
     expect(finished.pool[0].preserved).toBe(false)
     expect(finished.board).toEqual(Array(9).fill(null))
     expect(finished.borderRerollsUsed).toBe(0)
+  })
+
+  it('validates the immutable Voyage board and research-sequence snapshot', () => {
+    const state: AppState = {
+      ...stateWithCharts(),
+      board: [{ chartUid: 'a', rotation: 0 }, ...Array(8).fill(null)],
+    }
+    const snapshot = createVoyageFinishSnapshot(state, 'voyage-1')
+
+    expect(
+      validateVoyageFinishSnapshot(
+        { ...state, pool: [...state.pool, chart('unrelated')] },
+        'voyage-1',
+        snapshot,
+      ),
+    ).toEqual({ ok: true })
+    expect(
+      validateVoyageFinishSnapshot(
+        { ...state, board: [{ chartUid: 'b', rotation: 0 }, ...Array(8).fill(null)] },
+        'voyage-1',
+        snapshot,
+      ),
+    ).toEqual({ ok: false, reason: 'board-changed' })
+    expect(validateVoyageFinishSnapshot(state, 'voyage-2', snapshot)).toEqual({
+      ok: false,
+      reason: 'research-sequence-changed',
+    })
   })
 })

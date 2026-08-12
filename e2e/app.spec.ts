@@ -915,8 +915,14 @@ test('does not queue or advance a finished border sequence after a required writ
   )
   await expect(
     appPage.getByText(
-      /submission queue storage needs recovery; the border sequence was not queued or advanced/,
+      /Finish Voyage canceled: submission queue storage needs recovery\. No charts were consumed and the border sequence was not advanced/,
     ),
+  ).toBeVisible()
+  await expect(libraryHeading(appPage)).toContainText('(1)')
+  await expect(
+    appPage.getByRole('button', {
+      name: /Board cell 7, row 3, column 1, start: Armoured Coral Reef Chart of Ice; occupied/,
+    }),
   ).toBeVisible()
   expect((await storedResearch()).activeSequenceId).toBe(sequenceId)
   expect((await storedSubmission()).queue).toEqual([])
@@ -927,7 +933,6 @@ test('does not queue or advance a finished border sequence after a required writ
     .getByRole('button', { name: 'Retry / migrate' })
     .click()
   await research.getByLabel('Private submission key').fill('e2e-private-key')
-  await prepareVoyage()
   await failAuxiliaryWrites(appPage, BORDER_RESEARCH_STORAGE_KEY)
   await appPage.getByRole('button', { name: /Finish Voyage/ }).click()
   await expect(research.locator('[role="status"].muted.pad')).toContainText(
@@ -935,9 +940,10 @@ test('does not queue or advance a finished border sequence after a required writ
   )
   await expect(
     appPage.getByText(
-      /border sequence queued, but research storage needs recovery and the sequence was not advanced/,
+      /Finish Voyage canceled: the border sequence was queued, but research storage needs recovery\. No charts were consumed and the sequence was not advanced/,
     ),
   ).toBeVisible()
+  await expect(libraryHeading(appPage)).toContainText('(1)')
   expect((await storedResearch()).activeSequenceId).toBe(sequenceId)
   expect((await storedSubmission()).queue).toHaveLength(1)
   await expect(research.getByText('1 Voyage sequence queued')).toBeVisible()
@@ -1488,6 +1494,77 @@ test('steps through chart copying and preserves a confirmed Voyage survivor', as
   await expect(
     appPage.getByRole('button', {
       name: 'Select Armoured Coral Reef Chart of Ice for placement',
+    }),
+  ).toBeVisible()
+})
+
+test('makes preserve confirmation atomic across background controls and state replacement', async ({
+  appPage,
+}) => {
+  await openApp(appPage)
+  await pasteText(appPage, ENGLISH_CHART)
+  await pasteText(appPage, KOREAN_CHART)
+
+  await appPage
+    .getByRole('button', { name: 'Select Armoured Coral Reef Chart of Ice for placement' })
+    .click()
+  await appPage.getByRole('button', { name: 'Board cell 7, row 3, column 1, start: empty' }).click()
+  await appPage
+    .getByRole('button', { name: /Select .* for placement/ })
+    .nth(1)
+    .click()
+  await appPage.getByRole('button', { name: 'Board cell 8, row 3, column 2: empty' }).click()
+  const preserveButton = appPage.getByRole('button', {
+    name: /Preserve Armoured Coral Reef Chart of Ice in row 3, column 1/,
+  })
+  await preserveButton.focus()
+  await appPage.keyboard.press('Space')
+
+  await appPage.getByRole('button', { name: /Finish Voyage/ }).click()
+  const dialog = appPage.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByText(/Preserved chart 1 of 1/)).toBeFocused()
+  await expect(appPage.locator('main')).toHaveJSProperty('inert', true)
+  expect(
+    await appPage
+      .locator('.board-wrap, .library-col, .solver-col, .import-panel')
+      .evaluateAll((surfaces) =>
+        surfaces.every((surface) => (surface.closest('main') as HTMLElement | null)?.inert),
+      ),
+  ).toBe(true)
+
+  const replacement = defaultState()
+  replacement.pool = [
+    {
+      uid: 'replacement-chart',
+      name: 'Replacement Chart',
+      level: 83,
+      edges: [true, true, true, true],
+      modIds: [],
+      shape: 'Crossing',
+      shapeResolved: true,
+    },
+  ]
+  replacement.board[0] = { chartUid: 'replacement-chart', rotation: 0 }
+  await appPage.locator('input[type="file"]').setInputFiles({
+    name: 'replacement.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(serializeState(replacement)),
+  })
+  await expect(appPage.getByText('State loaded from JSON', { exact: true })).toBeVisible()
+
+  await dialog.getByRole('button', { name: /Kept it/ }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(appPage.locator('main')).toHaveJSProperty('inert', false)
+  await expect(
+    appPage.getByText(
+      'Finish Voyage canceled: the board changed after confirmation started. No charts were consumed.',
+    ),
+  ).toBeVisible()
+  await expect(libraryHeading(appPage)).toContainText('(1)')
+  await expect(
+    appPage.getByRole('button', {
+      name: /Board cell 1, row 1, column 1: Replacement Chart; occupied/,
     }),
   ).toBeVisible()
 })

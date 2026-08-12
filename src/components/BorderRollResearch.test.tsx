@@ -84,7 +84,7 @@ function researchController({
     resetResearchStore: () => undefined,
     retrySubmissionRecovery: () => undefined,
     resetSubmissionStore: () => undefined,
-    finishVoyage: () => '',
+    finishVoyage: () => ({ ok: true, summary: '' }),
   }
 }
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { BorderRerollCostMatch } from '../logic/borderOcr'
+import type { VoyageResearchFinishResult } from '../logic/voyageFinish'
 import {
   addBorderRollSample,
   archiveBorderRollSequence,
@@ -63,7 +64,7 @@ export interface BorderRollResearchController {
   resetResearchStore: () => void
   retrySubmissionRecovery: () => void
   resetSubmissionStore: () => void
-  finishVoyage: () => string
+  finishVoyage: (expectedSequenceId: string) => VoyageResearchFinishResult
 }
 
 export function useBorderRollResearch(): BorderRollResearchController {
@@ -340,37 +341,54 @@ export function useBorderRollResearch(): BorderRollResearchController {
     [commitStore, commitSubmissionStore],
   )
 
-  const finishVoyage = useCallback(() => {
-    const current = storeRef.current
-    const sequence = getBorderRollSequence(current.samples, current.activeSequenceId)
-    const settings = submissionRef.current.settings
-    let summary: string
-    let queuedForSubmission = false
-
-    if (sequence.length === 0) {
-      summary = 'no border scans recorded'
-    } else if (!isCompleteBorderRollSequence(sequence)) {
-      summary = 'incomplete border sequence kept locally'
-    } else if (!settings.enabled) {
-      summary = `${sequence.length} border roll${sequence.length === 1 ? '' : 's'} saved locally`
-    } else if (!BORDER_ROLL_INTAKE_URL || !settings.submissionKey.trim()) {
-      summary = 'border sequence saved; automatic submission needs setup'
-    } else {
-      if (!commitSubmissionStore(enqueueBorderRollSequence(submissionRef.current, sequence))) {
-        return 'submission queue storage needs recovery; the border sequence was not queued or advanced'
+  const finishVoyage = useCallback(
+    (expectedSequenceId: string): VoyageResearchFinishResult => {
+      const current = storeRef.current
+      if (current.activeSequenceId !== expectedSequenceId) {
+        return {
+          ok: false,
+          message:
+            'Finish Voyage canceled: the border-research Voyage changed after confirmation started. No charts were consumed.',
+        }
       }
-      summary = `${sequence.length} border roll${sequence.length === 1 ? '' : 's'} queued for submission`
-      queuedForSubmission = true
-    }
+      const sequence = getBorderRollSequence(current.samples, current.activeSequenceId)
+      const settings = submissionRef.current.settings
+      let summary: string
+      let queuedForSubmission = false
 
-    if (!commitStore(startBorderRollSequence(current))) {
-      return queuedForSubmission
-        ? 'border sequence queued, but research storage needs recovery and the sequence was not advanced'
-        : 'border research storage needs recovery; the sequence was not advanced'
-    }
-    if (queuedForSubmission) queueMicrotask(() => void flushQueue())
-    return summary
-  }, [commitStore, commitSubmissionStore, flushQueue])
+      if (sequence.length === 0) {
+        summary = 'no border scans recorded'
+      } else if (!isCompleteBorderRollSequence(sequence)) {
+        summary = 'incomplete border sequence kept locally'
+      } else if (!settings.enabled) {
+        summary = `${sequence.length} border roll${sequence.length === 1 ? '' : 's'} saved locally`
+      } else if (!BORDER_ROLL_INTAKE_URL || !settings.submissionKey.trim()) {
+        summary = 'border sequence saved; automatic submission needs setup'
+      } else {
+        if (!commitSubmissionStore(enqueueBorderRollSequence(submissionRef.current, sequence))) {
+          return {
+            ok: false,
+            message:
+              'Finish Voyage canceled: submission queue storage needs recovery. No charts were consumed and the border sequence was not advanced.',
+          }
+        }
+        summary = `${sequence.length} border roll${sequence.length === 1 ? '' : 's'} queued for submission`
+        queuedForSubmission = true
+      }
+
+      if (!commitStore(startBorderRollSequence(current))) {
+        return {
+          ok: false,
+          message: queuedForSubmission
+            ? 'Finish Voyage canceled: the border sequence was queued, but research storage needs recovery. No charts were consumed and the sequence was not advanced.'
+            : 'Finish Voyage canceled: border research storage needs recovery. No charts were consumed and the sequence was not advanced.',
+        }
+      }
+      if (queuedForSubmission) queueMicrotask(() => void flushQueue())
+      return { ok: true, summary }
+    },
+    [commitStore, commitSubmissionStore, flushQueue],
+  )
 
   const setAutoSubmitEnabled = useCallback(
     (enabled: boolean) => {

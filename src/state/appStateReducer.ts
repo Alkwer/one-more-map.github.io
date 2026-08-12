@@ -19,7 +19,7 @@ export type AppStateAction =
   | { type: 'board/rotate'; cell: number }
   | { type: 'board/apply'; board: Board }
   | { type: 'borders/set'; segment: number; id: string | null }
-  | { type: 'voyage/finish'; keptUids: string[] }
+  | { type: 'voyage/finish'; keptUids: string[]; boardUids: (string | null)[] }
 
 export interface VoyageFinishSummary {
   consumed: number
@@ -50,8 +50,9 @@ export function persistableAppStateReducer(
 export function summarizeVoyageFinish(
   state: AppState,
   keptUids: ReadonlySet<string>,
+  boardUids: readonly (string | null)[],
 ): VoyageFinishSummary {
-  const onBoard = new Set(state.board.filter(Boolean).map((placement) => placement!.chartUid))
+  const onBoard = new Set(boardUids.filter((uid): uid is string => uid !== null))
   let consumed = 0
   let kept = 0
 
@@ -144,7 +145,7 @@ export function appStateReducer(state: AppState, action: AppStateAction): AppSta
     }
     case 'voyage/finish': {
       const keptUids = new Set(action.keptUids)
-      const onBoard = new Set(state.board.filter(Boolean).map((placement) => placement!.chartUid))
+      const onBoard = new Set(action.boardUids.filter((uid): uid is string => uid !== null))
       const pool = state.pool
         .filter((chart) => !onBoard.has(chart.uid) || keptUids.has(chart.uid))
         .map((chart) => (keptUids.has(chart.uid) ? { ...chart, preserved: false } : chart))

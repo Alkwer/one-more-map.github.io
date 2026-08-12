@@ -104,12 +104,22 @@ export function CopySequencePrompt(props: CopySequenceProps) {
 interface PreserveConfirmationProps {
   confirmation: PreserveConfirmation
   onDecide: (survived: boolean) => void
+  onCancel: () => void
 }
 
-export function PreserveConfirmationPrompt({ confirmation, onDecide }: PreserveConfirmationProps) {
+export function PreserveConfirmationPrompt({
+  confirmation,
+  onDecide,
+  onCancel,
+}: PreserveConfirmationProps) {
   return (
     <div className="preserve-confirm">
-      <div className="pc-head">
+      <div
+        className="pc-head"
+        id="preserve-confirmation-title"
+        data-dialog-initial-focus
+        tabIndex={-1}
+      >
         Preserved chart {confirmation.index + 1} of {confirmation.charts.length} (its square is
         glowing). Did it actually survive the Voyage?
       </div>
@@ -120,6 +130,9 @@ export function PreserveConfirmationPrompt({ confirmation, onDecide }: PreserveC
         </button>
         <button className="pc-lost" onClick={() => onDecide(false)}>
           ✕ Was consumed
+        </button>
+        <button className="pc-lost" onClick={onCancel}>
+          Cancel Finish
         </button>
       </div>
     </div>
