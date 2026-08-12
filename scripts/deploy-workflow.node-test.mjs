@@ -65,7 +65,8 @@ test('dataset-only updates keep required checks while skipping browser jobs', as
   assert.match(qualityBlock, /^    needs: scope$/m)
   assert.match(qualityBlock, /^      - name: Validate dataset update$/m)
   assert.match(qualityBlock, /^        if: needs\.scope\.outputs\.data_only == 'true'$/m)
-  assert.match(qualityBlock, /^        run: npm run validate:data-update$/m)
+  assert.match(qualityBlock, /fetch-accepted-border-roll-issues\.mjs/)
+  assert.match(qualityBlock, /^          npm run validate:data-update$/m)
   assert.match(qualityBlock, /^      - name: Run full validation$/m)
   assert.match(qualityBlock, /^        if: needs\.scope\.outputs\.data_only != 'true'$/m)
   assert.match(qualityBlock, /^        run: npm run validate$/m)
@@ -76,7 +77,7 @@ test('dataset-only updates keep required checks while skipping browser jobs', as
   )
   assert.equal(
     packageJson.scripts['validate:data-update'],
-    'npm run test:data && vitest run --config vitest.config.ts tests/border-roll-model.test.ts && npm run build',
+    'node scripts/validate-canonical-border-roll-dataset.mjs && npm run test:data && vitest run --config vitest.config.ts tests/border-roll-model.test.ts && npm run build',
   )
 })
 

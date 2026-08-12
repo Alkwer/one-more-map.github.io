@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  issues: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -72,7 +73,14 @@ jobs:
         run: npm run audit:ci
       - name: Validate dataset update
         if: needs.scope.outputs.data_only == 'true'
-        run: npm run validate:data-update
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BORDER_ROLL_ACCEPTED_PATH: ${{ runner.temp }}/accepted-border-roll-issues.json
+        run: |
+          node scripts/fetch-accepted-border-roll-issues.mjs \
+            --repo "$GITHUB_REPOSITORY" \
+            --output "$BORDER_ROLL_ACCEPTED_PATH"
+          npm run validate:data-update
       - name: Run full validation
         if: needs.scope.outputs.data_only != 'true'
         run: npm run validate

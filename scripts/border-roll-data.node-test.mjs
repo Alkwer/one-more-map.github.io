@@ -13,6 +13,7 @@ import {
   SAMPLE_SCHEMA,
   validateBorderRollIssueBody,
   validateBorderRollPayload,
+  validateCanonicalDataset,
 } from './border-roll-data.mjs'
 import {
   BORDER_ROLL_COMMENT_MARKER,
@@ -21,6 +22,7 @@ import {
 import { reconcileBorderRollDatasetPullRequest } from './reconcile-border-roll-dataset-pr.mjs'
 import { replaceBorderRollLabels } from './replace-border-roll-labels.mjs'
 import { validationDigestFromComments } from './fetch-accepted-border-roll-issues.mjs'
+import { verifyCanonicalDataset } from './validate-canonical-border-roll-dataset.mjs'
 
 const knownIds = await loadKnownBorderIds()
 const borderModIds = [...knownIds].slice(0, 12)
@@ -282,6 +284,57 @@ test('reads the latest canonical digest only from managed validation comments', 
     ]),
     'b'.repeat(64),
   )
+})
+
+test('dataset-only verification rejects malformed and non-canonical proposed data', () => {
+  const body = issueBody(dataset([sample(0)]))
+  const accepted = validateBorderRollIssueBody(body, knownIds)
+  const acceptedIssues = [{ number: 1, body, acceptedHash: accepted.hash }]
+  const canonical = buildCanonicalDataset(acceptedIssues, knownIds, {
+    requireAcceptedDigest: true,
+  }).dataset
+  const verify = (value) =>
+    verifyCanonicalDataset(`${JSON.stringify(value, null, 2)}\n`, acceptedIssues, knownIds)
+
+  assert.equal(verify(canonical).ok, true)
+  assert.equal(verify({ ...canonical, schema: undefined }).ok, false)
+  assert.equal(verify({ ...canonical, sampleCount: 2 }).ok, false)
+  assert.equal(
+    verify({ ...canonical, samples: [...canonical.samples, canonical.samples[0]] }).ok,
+    false,
+  )
+  assert.equal(
+    verify({
+      ...canonical,
+      samples: [{ ...canonical.samples[0], sampleId: 'roll-unaccepted' }],
+    }).ok,
+    false,
+  )
+  assert.equal(
+    verify({
+      ...canonical,
+      samples: [
+        {
+          ...canonical.samples[0],
+          borderModIds: [...canonical.samples[0].borderModIds].reverse(),
+        },
+      ],
+    }).ok,
+    false,
+  )
+})
+
+test('validates the actual canonical JSON independently', () => {
+  const candidate = {
+    schema: DATASET_SCHEMA,
+    exportedAt: sample(0).capturedAt,
+    sampleCount: 2,
+    samples: [sample(0), sample(0)],
+  }
+  const result = validateCanonicalDataset(candidate, knownIds)
+  assert.equal(result.ok, false)
+  assert.ok(result.errors.includes('sampleId values must be unique.'))
+  assert.ok(result.errors.includes('sampleCount must equal samples.length.') === false)
 })
 
 test('managed edited and reopened issues revalidate after a title change', async () => {
