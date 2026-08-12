@@ -282,13 +282,57 @@ describe('border-aware strategy readiness', () => {
 })
 
 describe('Divine strategy selection', () => {
+  const completeDivinePool = [
+    crossing('pelagic', [], 'pelagic-abyss'),
+    crossing('box-1', ['adj-box-3']),
+    crossing('box-2', ['adj-opbox-2']),
+    ...Array.from({ length: 6 }, (_, index) => crossing(`rares-${index + 1}`, ['voy-rare'])),
+  ]
+
+  it.each([
+    {
+      label: 'completed',
+      borders: (() => {
+        const borders = Array(12).fill('b-rare-3') as Borders
+        borders[0] = 'b-divine'
+        return borders
+      })(),
+      expectedStatus: 'missing' as const,
+    },
+    {
+      label: 'partial',
+      borders: divineBorders(0),
+      expectedStatus: 'unknown' as const,
+    },
+  ])(
+    'treats a disabled required border as unavailable on a $label roll',
+    ({ borders, expectedStatus }) => {
+      const charts = new Map(completeDivinePool.map((chart) => [chart.uid, chart]))
+      const inventory = evaluateStrategyInventory(borders, charts, completeDivinePool, {
+        ...options,
+        disabledMods: new Set(['b-divine']),
+      })
+      const strongboxes = inventory.evaluations.find(
+        (entry) => entry.strategy.id === 'cutedog-divine-boxes',
+      )!
+      const requiredBorder = strongboxes.strategy.requiresBorderId!
+
+      expect(strongboxes.readiness.ready).toBe(false)
+      expect(strongboxes.readiness.missing).toContain(requiredBorder.label)
+      expect(strongboxes.requiredBorderStatus).toBe(expectedStatus)
+      expect(strongboxes.divineJackpot).toBe(false)
+      expect(strongboxes.potentialBoard.every((placement) => placement === null)).toBe(true)
+      expect(strongboxes.reasons).toContain(
+        'A layout search was not run because the library is missing declared strategy requirements.',
+      )
+      expect(strongboxes.reasons).not.toContain(
+        `All ${strongboxes.readiness.need} declared chart/border requirements are available.`,
+      )
+    },
+  )
+
   it('selects the ready Strongbox variant instead of waiting for the Rares variant', () => {
-    const pool = [
-      crossing('pelagic', [], 'pelagic-abyss'),
-      crossing('box-1', ['adj-box-3']),
-      crossing('box-2', ['adj-opbox-2']),
-      ...Array.from({ length: 6 }, (_, index) => crossing(`rares-${index + 1}`, ['voy-rare'])),
-    ]
+    const pool = completeDivinePool
     const borders = divineBorders(0)
     const charts = new Map(pool.map((chart) => [chart.uid, chart]))
     const inventory = evaluateStrategyInventory(borders, charts, pool, options)

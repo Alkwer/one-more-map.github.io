@@ -150,16 +150,21 @@ export interface StrategySuggestionResult {
   hasEvidence: boolean
 }
 
+const enabledBorders = (borders: Borders, disabledMods?: ReadonlySet<string>): Borders =>
+  borders.map((modId) => (modId && disabledMods?.has(modId) ? null : modId)) as Borders
+
 export function strategyReadiness(
   strategy: StrategyDef,
   pool: ChartData[],
   borders: Borders,
   mode: ConnectivityMode = 'strict',
+  disabledMods?: ReadonlySet<string>,
 ): StrategyReadiness {
   let have = 0
   let need = 0
   const missing: string[] = []
   const requirements: StrategyRequirementReadiness[] = []
+  const effectiveBorders = enabledBorders(borders, disabledMods)
 
   const solverEligiblePool = selectSolverEligibleCharts(pool, mode)
   const eligiblePool = solverEligiblePool.filter((chart) =>
@@ -168,7 +173,7 @@ export function strategyReadiness(
   const allocation = allocateStrategyRequirements(
     strategy.requirements ?? [],
     eligiblePool,
-    borders,
+    effectiveBorders,
   )
   for (const entry of allocation.allocations) {
     const count = entry.chartUids.length
@@ -197,7 +202,7 @@ export function strategyReadiness(
 
   if (strategy.requiresBorderId) {
     need += 1
-    const hasBorder = borders.includes(strategy.requiresBorderId.id)
+    const hasBorder = effectiveBorders.includes(strategy.requiresBorderId.id)
     if (hasBorder) have += 1
     else missing.push(strategy.requiresBorderId.label)
     requirements.push({
@@ -343,8 +348,9 @@ export function evaluateStrategyInventory(
 ): StrategyInventoryResult {
   const solverEligiblePool = selectSolverEligibleCharts(pool, opts.mode)
   const enteredBorders = borders.filter(Boolean).length
+  const effectiveBorders = enabledBorders(borders, opts.disabledMods)
   const hasNoEquipment = solverEligiblePool.some((chart) => chart.modIds.includes('voy-noequip'))
-  const hasDivineBorder = borders.includes('b-divine') && !opts.disabledMods?.has('b-divine')
+  const hasDivineBorder = effectiveBorders.includes('b-divine')
 
   const rawEvaluations = STRATEGIES.map((strategy) => {
     const eligiblePool = selectStrategySolvePool(
@@ -354,9 +360,14 @@ export function evaluateStrategyInventory(
       undefined,
       opts.pieceKeeps,
     ).solvePool
-    const libraryReadiness = strategyReadiness(strategy, solverEligiblePool, borders, opts.mode)
+    const libraryReadiness = strategyReadiness(
+      strategy,
+      solverEligiblePool,
+      effectiveBorders,
+      opts.mode,
+    )
     const potential = libraryReadiness.ready
-      ? (solve(eligiblePool, borders, strategy.weights, {
+      ? (solve(eligiblePool, effectiveBorders, strategy.weights, {
           ...opts,
           topK: 1,
           strategyRules: strategy.rules,
@@ -443,8 +454,7 @@ export function evaluateStrategyInventory(
     const jackpot = divineJackpot || equipmentJackpot
     const requiredBorderStatus: RequiredBorderStatus = !strategy.requiresBorderId
       ? 'not-required'
-      : borders.includes(strategy.requiresBorderId.id) &&
-          !opts.disabledMods?.has(strategy.requiresBorderId.id)
+      : effectiveBorders.includes(strategy.requiresBorderId.id)
         ? 'met'
         : enteredBorders < 12
           ? 'unknown'
