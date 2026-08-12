@@ -12,7 +12,7 @@ import {
   type StrategyReservationPreferences,
 } from '../data/strategies'
 import { VOYAGE_MODS, voyageModById } from '../data/mods'
-import type { ChartData } from '../types'
+import type { ChartData, Stat } from '../types'
 
 export interface PieceType {
   /** stable key: strategyId + matcher fingerprint */
@@ -24,6 +24,8 @@ export interface PieceType {
   label: string
   modIds?: string[]
   areaTypes?: string[]
+  /** primary imported reward stat for ranking within this family */
+  rankRewardStat?: Stat
   /** the strategy's own requirement count */
   recommended: number
   /** what we bank when the user hasn't set a count */
@@ -144,6 +146,7 @@ function buildPieceTypes(): PieceType[] {
           label: bankType.label,
           modIds: bankType.modIds,
           areaTypes: bankType.areaTypes,
+          rankRewardStat: bankType.rankRewardStat,
           count: bankType.keep,
           keep: bankType.keep,
         }))
@@ -151,6 +154,7 @@ function buildPieceTypes(): PieceType[] {
           label: requirement.label,
           modIds: requirement.modIds,
           areaTypes: requirement.areaTypes,
+          rankRewardStat: undefined,
           count: requirement.count,
           keep: requirement.modIds?.includes('voy-rare')
             ? requirement.count + 1
@@ -171,6 +175,7 @@ function buildPieceTypes(): PieceType[] {
         label: source.label,
         modIds: source.modIds,
         areaTypes: source.areaTypes,
+        rankRewardStat: source.rankRewardStat,
         recommended: source.count,
         defaultKeep: source.keep,
         banks: !owner,
@@ -232,6 +237,19 @@ const tierValue = (c: ChartData, p: PieceType) =>
       .map((id) => voyageModById.get(id)?.effects[0]?.percent ?? 0),
   )
 const rewardSum = (c: ChartData) => (c.rewards ?? []).reduce((s, e) => s + e.percent, 0)
+const rewardStatValue = (c: ChartData, stat: Stat) =>
+  (c.rewards ?? []).reduce((sum, reward) => sum + (reward.stat === stat ? reward.percent : 0), 0)
+
+/** Best-first ranking within one family. A designated stat is always primary;
+ * ties use implicit tier, total rewards, level, then stable chart uid. */
+const comparePieceCharts = (a: ChartData, b: ChartData, piece: PieceType) =>
+  (piece.rankRewardStat
+    ? rewardStatValue(b, piece.rankRewardStat) - rewardStatValue(a, piece.rankRewardStat)
+    : 0) ||
+  tierValue(b, piece) - tierValue(a, piece) ||
+  rewardSum(b) - rewardSum(a) ||
+  b.level - a.level ||
+  a.uid.localeCompare(b.uid)
 
 /** does this strategy have any recommended piece type matching the chart?
  *  (a banked chart stays spendable by every strategy that wants its type) */
@@ -320,10 +338,7 @@ export function selectPieceBank(
     if (keep <= 0) continue
     pool
       .filter((c) => !bank.has(c.uid) && matchesPiece(c, p) && protectionEnabled(c, p, prefs))
-      .sort(
-        (a, b) =>
-          tierValue(b, p) - tierValue(a, p) || rewardSum(b) - rewardSum(a) || b.level - a.level,
-      )
+      .sort((a, b) => comparePieceCharts(a, b, p))
       .slice(0, keep)
       .forEach((c) => bank.set(c.uid, p))
   }
