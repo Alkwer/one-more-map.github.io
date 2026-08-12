@@ -232,7 +232,7 @@ describe('border OCR regressions', () => {
     assert.match(borderRefreshHotkey, /borderBlob := ScanBorders\(\)/)
     assert.match(borderRefreshHotkey, /rerollCostBlob := ScanRerollCost\(\)/)
     assert.match(borderRefreshHotkey, /payload := borderBlob/)
-    assert.match(borderRefreshHotkey, /CopyPayloadForExplicitPaste\(payload\)/)
+    assert.match(borderRefreshHotkey, /DeliverPayloadToSolver\(payload\)/)
     assert.match(ahkImporter, /\^F7:: \{/)
     assert.match(ahkImporter, /\+F7:: \{/)
     assert.match(ahkImporter, /\+F8:: \{/)
@@ -258,20 +258,59 @@ describe('border OCR regressions', () => {
     )
   })
 
-  it('never sends a payload to a decoy solver window with the same title', () => {
+  it('auto-pastes only into an explicitly bound and address-reverified solver page', () => {
     const ahkImporter = readFileSync(
       new URL('../public/voyage-import.ahk', import.meta.url),
       'utf8',
     )
-    const clipboardFunctionStart = ahkImporter.indexOf('CopyPayloadForExplicitPaste(payload)')
-    const bindHotkeyStart = ahkImporter.indexOf('^F3:: {', clipboardFunctionStart)
-    const clipboardFunction = ahkImporter.slice(clipboardFunctionStart, bindHotkeyStart)
+    const bindStart = ahkImporter.indexOf('BindForegroundSolverWindow()')
+    const validateStart = ahkImporter.indexOf('ValidateBoundSolverWindow(', bindStart)
+    const activateStart = ahkImporter.indexOf('ActivateBoundSolverWindow()', validateStart)
+    const bindFunction = ahkImporter.slice(bindStart, validateStart)
+    const validateFunction = ahkImporter.slice(validateStart, activateStart)
+    const deliveryStart = ahkImporter.indexOf('DeliverPayloadToSolver(payload)')
+    const summaryStart = ahkImporter.indexOf('DeliverySummary(delivery)', deliveryStart)
+    const deliveryFunction = ahkImporter.slice(deliveryStart, summaryStart)
 
-    assert.ok(clipboardFunctionStart >= 0, 'explicit clipboard handoff is missing')
-    assert.match(clipboardFunction, /A_Clipboard := payload/)
-    assert.doesNotMatch(clipboardFunction, /WinActivate|WinWaitActive|Send/)
-    assert.doesNotMatch(ahkImporter, /Allflame Voyage Solver|BrowserWinTitle/)
-    assert.doesNotMatch(ahkImporter, /Send\s+"\^v"/)
+    assert.ok(bindStart >= 0, 'solver-window binding is missing')
+    assert.ok(validateStart > bindStart, 'solver-window validation is missing')
+    assert.ok(deliveryStart >= 0, 'automatic solver delivery is missing')
+    assert.match(ahkImporter, /\^F2:: \{/)
+    assert.match(ahkImporter, /CanonicalSolverUrl\(url\)/)
+    assert.match(ahkImporter, /https:\/\/one-more-map\.github\.io\/allflame-voyage-solver/)
+    assert.match(
+      ahkImporter,
+      /https:\/\/alkwer\.github\.io\/one-more-map\.github\.io\/allflame-voyage-solver/,
+    )
+    assert.match(ahkImporter, /localhost\|127\\\.0\\\.0\\\.1\|\\\[::1\\\]/)
+    assert.match(ahkImporter, /IsExpectedBrowserImage\(imagePath\)/)
+    assert.match(bindFunction, /activeHwnd := WinExist\("A"\)/)
+    assert.match(bindFunction, /CanonicalWindowImageForWindow\(activeHwnd\)/)
+    assert.match(bindFunction, /RejectReparseComponents\(imagePath\)/)
+    assert.match(bindFunction, /CanonicalSolverUrl\(ReadForegroundBrowserUrl\(activeHwnd\)\)/)
+    assert.match(bindFunction, /MouseGetPos &mouseX, &mouseY/)
+    assert.match(bindFunction, /SolverPasteClientX := pasteClientX/)
+    assert.match(bindFunction, /SolverClientWidth := clientWidth/)
+    assert.match(validateFunction, /WinGetPID\("ahk_id " SolverHwnd\) != SolverPid/)
+    assert.match(validateFunction, /WinGetClass\("ahk_id " SolverHwnd\) != SolverClass/)
+    assert.match(validateFunction, /NormalizeWindowsPath\(currentImagePath\)/)
+    assert.match(validateFunction, /clientWidth != SolverClientWidth/)
+    assert.match(deliveryFunction, /CopyPayloadToClipboard\(payload\)/)
+    assert.match(deliveryFunction, /ActivateBoundSolverWindow\(\)/)
+    assert.match(
+      deliveryFunction,
+      /currentUrl := CanonicalSolverUrl\(ReadForegroundBrowserUrl\(SolverHwnd\)\)/,
+    )
+    assert.match(deliveryFunction, /currentUrl != SolverPageUrl/)
+    assert.match(deliveryFunction, /ValidateBoundSolverWindow\(true\)/)
+    assert.match(deliveryFunction, /MouseMove clientLeft \+ SolverPasteClientX/)
+    assert.match(deliveryFunction, /Send "\^v"/)
+    assert.ok(
+      deliveryFunction.indexOf('currentUrl != SolverPageUrl') <
+        deliveryFunction.indexOf('Send "^v"'),
+      'paste must happen only after exact URL comparison',
+    )
+    assert.doesNotMatch(ahkImporter, /BrowserWinTitle|SetTitleMatchMode|WinGetTitle/)
   })
 
   it('does not authenticate a browser merely titled Path of Exile', () => {

@@ -424,10 +424,15 @@ export function ImportPanel({
             fully visible and not scrolled.
           </li>
           <li>
-            Double-click the script, focus the real Path of Exile window, and press{' '}
-            <kbd>Ctrl+F3</kbd> once. The helper binds that exact game window, process, class, and
-            installation for this run; it stops if any of them changes or another matching game
-            window appears.
+            Double-click the script. On this solver page, verify the browser URL, point at a neutral
+            non-interactive area below the browser toolbar, and press <kbd>Ctrl+F2</kbd>. Keep this
+            tab open and do not resize its window; the helper will recheck its exact browser
+            process, URL, and size before every automatic paste.
+          </li>
+          <li>
+            Focus the real Path of Exile window and press <kbd>Ctrl+F3</kbd> once. The helper binds
+            that exact game window, process, class, and installation for this run; it stops if any
+            of them changes or another matching game window appears.
           </li>
           <li>
             For quick board calibration, point at the{' '}
@@ -455,9 +460,10 @@ export function ImportPanel({
             <kbd>F9</kbd> switches through both chart-stash tabs, copies their charts, and scans the
             12 borders · <kbd>Ctrl+F9</kbd> refreshes only the 12 borders after a reroll, without
             rescanning charts, and also reads the calibrated reroll-cost tooltip. Both commands
-            leave the payload on the clipboard: return to this verified solver URL and press{' '}
-            <kbd>Ctrl+V</kbd>. The helper never selects a browser tab or pastes automatically.{' '}
-            <kbd>F10</kbd> aborts. Border OCR can take around 15–30 seconds on a 4K screen.
+            return to the explicitly bound solver window, verify its address bar again, and paste
+            automatically. If any identity check fails, the payload stays on the clipboard for a
+            manual <kbd>Ctrl+V</kbd>. <kbd>F10</kbd> aborts. Border OCR can take around 15–30
+            seconds on a 4K screen.
           </li>
         </ol>
         <p className="muted small">

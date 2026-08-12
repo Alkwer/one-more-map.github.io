@@ -15,8 +15,9 @@ CoordMode "ToolTip", "Screen"
 ;              button. An in-memory PowerShell helper captures the PoE window
 ;              and reads each tooltip with the Windows OCR engine. No script is
 ;              executed from TEMP, and screenshots never leave the PC.
-;    Phase 3 - leaves the combined payload on the clipboard. You return to the
-;              verified solver page and paste it explicitly with Ctrl+V.
+;    Phase 3 - activates the explicitly bound solver window, re-verifies its
+;              address-bar URL, and pastes the payload. If verification fails,
+;              the payload stays on the clipboard for a manual Ctrl+V.
 ;    Empty cells copy nothing and are skipped.
 ;
 ;  ---------------------------------------------------------------
@@ -25,11 +26,14 @@ CoordMode "ToolTip", "Screen"
 ;   2. In PoE open the Voyage board so the Chart panel is fully
 ;      visible and NOT scrolled. Use Windowed or Windowed Fullscreen
 ;      (exclusive fullscreen can block the mouse/keys).
-;   3. Double-click this file to run it (it lives in the tray). With PoE as the
+;   3. Double-click this file to run it (it lives in the tray). Open the solver,
+;      verify its URL, point at a neutral non-interactive part of the page, and
+;      press Ctrl+F2 once to bind that browser window and paste point.
+;   4. With PoE as the
 ;      foreground window, press Ctrl+F3 once per script launch to bind the exact
 ;      PoE window, process, class, and installation image.
-;   4. Keep the solver open at the verified URL shown in its address bar. The
-;      script never selects a browser window or pastes automatically.
+;   5. Keep the bound solver tab open. Automatic paste is refused if the window,
+;      process, URL, or window size changes after binding.
 ;
 ;  CALIBRATE THE BOARD BORDERS (once; saved to voyage-import.ini)
 ;   - Point at the TOP-LEFT corner of the border-modifier square, press F5.
@@ -56,8 +60,9 @@ CoordMode "ToolTip", "Screen"
 ;   - Set GridCols / GridRows below to match your panel.
 ;
 ;  RUN
+;   Ctrl+F2 = bind the foreground solver page and safe paste point
 ;   Ctrl+F3 = bind the foreground PoE window for this script session
-;   F9      = copy charts + board borders to the clipboard
+;   F9      = copy charts + board borders and import them into the bound solver
 ;   Ctrl+F9 = refresh only the 12 board borders (use after a reroll)
 ;             and the reroll cost when Ctrl+F7 was calibrated
 ;   F10     = abort at any time
@@ -72,6 +77,16 @@ ExpectedPoeClass := "POEWindowClass"
 PoeHwnd := 0
 PoePid := 0
 PoeImagePath := ""
+SolverHwnd := 0
+SolverPid := 0
+SolverClass := ""
+SolverImagePath := ""
+SolverPageUrl := ""
+SolverPasteClientX := 0
+SolverPasteClientY := 0
+SolverClientWidth := 0
+SolverClientHeight := 0
+LastDeliveryError := ""
 
 GridCols := 6    ; columns in the Chart panel
 GridRows := 10   ; rows to sweep (overshooting is fine - empty cells skip)
@@ -81,6 +96,8 @@ TabSwitchDelay := 180  ; ms for the selected chart-stash tab to redraw
 HoverDelay    := 28    ; ms for PoE to register the cursor before Ctrl+C
 BorderHoverDelay := 250 ; ms for a border tooltip to appear before OCR capture
 RerollHoverDelay := 350 ; ms for the reroll-cost tooltip to appear
+BrowserAddressDelay := 120 ; ms for the browser address bar to receive Ctrl+L/C
+BrowserPasteDelay := 80 ; ms after focusing the saved neutral page point
 BorderOcrAttempts := 2  ; retry once when both filtered and unfiltered OCR are empty
 BorderPreviewDelay := 900 ; ms per point during the Ctrl+F4 visual preview
 ClipTimeout   := 0.2   ; seconds to wait for Ctrl+C (only empty cells wait the full time)
@@ -236,12 +253,16 @@ ProcessImagePath(pid) {
     }
 }
 
-CanonicalPoeImageForWindow(hwnd) {
+CanonicalWindowImageForWindow(hwnd) {
     pid := WinGetPID("ahk_id " hwnd)
     imagePath := CanonicalFilePath(ProcessImagePath(pid))
     if (SubStr(imagePath, 1, 4) = "\\?\")
         imagePath := SubStr(imagePath, 5)
     return LongPath(imagePath)
+}
+
+CanonicalPoeImageForWindow(hwnd) {
+    return CanonicalWindowImageForWindow(hwnd)
 }
 
 IsExpectedPoeImage(imagePath) {
@@ -339,6 +360,140 @@ ActivateBoundPoeWindow() {
     if !WinWaitActive("ahk_id " PoeHwnd, , 2)
         return false
     return ValidateBoundPoeWindow(true)
+}
+
+ClearSolverBinding() {
+    global SolverHwnd, SolverPid, SolverClass, SolverImagePath, SolverPageUrl
+    global SolverPasteClientX, SolverPasteClientY, SolverClientWidth, SolverClientHeight
+    SolverHwnd := 0
+    SolverPid := 0
+    SolverClass := ""
+    SolverImagePath := ""
+    SolverPageUrl := ""
+    SolverPasteClientX := 0
+    SolverPasteClientY := 0
+    SolverClientWidth := 0
+    SolverClientHeight := 0
+}
+
+IsExpectedBrowserImage(imagePath) {
+    SplitPath imagePath, &fileName
+    return RegExMatch(fileName, "i)^(?:arc|brave|chrome|firefox|librewolf|msedge|opera|opera_gx|vivaldi)\.exe$")
+}
+
+CanonicalSolverUrl(url) {
+    url := Trim(url, " `t`r`n")
+    url := RegExReplace(url, "[?#].*$")
+    url := RTrim(url, "/")
+    lowerUrl := StrLower(url)
+
+    isTrustedProductionUrl := lowerUrl = "https://one-more-map.github.io/allflame-voyage-solver"
+        || lowerUrl = "https://alkwer.github.io/one-more-map.github.io/allflame-voyage-solver"
+    isLocalDevelopmentUrl := RegExMatch(
+        lowerUrl,
+        "^http://(?:localhost|127\.0\.0\.1|\[::1\])(?::[0-9]+)?(?:/.*)?$"
+    )
+    if !isTrustedProductionUrl && !isLocalDevelopmentUrl
+        throw Error("The page is not at a trusted Allflame Voyage Solver URL.")
+
+    return lowerUrl
+}
+
+ReadForegroundBrowserUrl(hwnd) {
+    global BrowserAddressDelay
+    if (WinExist("A") != hwnd)
+        throw Error("The bound browser window is not in the foreground.")
+
+    savedClipboard := ClipboardAll()
+    try {
+        A_Clipboard := ""
+        Send "^l"
+        Sleep BrowserAddressDelay
+        Send "^c"
+        if !ClipWait(1)
+            throw Error("Could not read the browser address bar.")
+        return Trim(A_Clipboard, " `t`r`n")
+    } finally {
+        Send "{Esc}"
+        A_Clipboard := savedClipboard
+    }
+}
+
+BindForegroundSolverWindow() {
+    global ExpectedPoeClass
+    global SolverHwnd, SolverPid, SolverClass, SolverImagePath, SolverPageUrl
+    global SolverPasteClientX, SolverPasteClientY, SolverClientWidth, SolverClientHeight
+
+    activeHwnd := WinExist("A")
+    if !activeHwnd
+        throw Error("No foreground window is available to bind.")
+    if (WinGetClass("ahk_id " activeHwnd) = ExpectedPoeClass)
+        throw Error("Focus the solver page in a supported browser, not Path of Exile.")
+
+    imagePath := CanonicalWindowImageForWindow(activeHwnd)
+    RejectReparseComponents(imagePath)
+    if !IsExpectedBrowserImage(imagePath)
+        throw Error("The foreground process is not a supported browser.")
+
+    pageUrl := CanonicalSolverUrl(ReadForegroundBrowserUrl(activeHwnd))
+    WinGetClientPos &clientLeft, &clientTop, &clientWidth, &clientHeight, "ahk_id " activeHwnd
+    MouseGetPos &mouseX, &mouseY
+    pasteClientX := mouseX - clientLeft
+    pasteClientY := mouseY - clientTop
+    if (clientWidth < 320 || clientHeight < 240)
+        throw Error("The solver browser window is too small for safe automatic paste.")
+    if (pasteClientX < 8 || pasteClientX > clientWidth - 24
+        || pasteClientY < 100 || pasteClientY > clientHeight - 16)
+        throw Error("Point at a neutral place inside the solver page, below the browser toolbar, and press Ctrl+F2 again.")
+
+    SolverHwnd := activeHwnd
+    SolverPid := WinGetPID("ahk_id " activeHwnd)
+    SolverClass := WinGetClass("ahk_id " activeHwnd)
+    SolverImagePath := imagePath
+    SolverPageUrl := pageUrl
+    SolverPasteClientX := pasteClientX
+    SolverPasteClientY := pasteClientY
+    SolverClientWidth := clientWidth
+    SolverClientHeight := clientHeight
+}
+
+ValidateBoundSolverWindow(requireForeground := false) {
+    global SolverHwnd, SolverPid, SolverClass, SolverImagePath
+    global SolverPasteClientX, SolverPasteClientY, SolverClientWidth, SolverClientHeight
+    if !SolverHwnd || !WinExist("ahk_id " SolverHwnd)
+        return false
+    try {
+        if (WinGetPID("ahk_id " SolverHwnd) != SolverPid)
+            return false
+        if (WinGetClass("ahk_id " SolverHwnd) != SolverClass)
+            return false
+        currentImagePath := CanonicalWindowImageForWindow(SolverHwnd)
+        RejectReparseComponents(currentImagePath)
+        if !IsExpectedBrowserImage(currentImagePath)
+            return false
+        if (NormalizeWindowsPath(currentImagePath) != NormalizeWindowsPath(SolverImagePath))
+            return false
+        WinGetClientPos &clientLeft, &clientTop, &clientWidth, &clientHeight, "ahk_id " SolverHwnd
+        if (clientWidth != SolverClientWidth || clientHeight != SolverClientHeight)
+            return false
+        if (SolverPasteClientX < 8 || SolverPasteClientX > clientWidth - 24
+            || SolverPasteClientY < 100 || SolverPasteClientY > clientHeight - 16)
+            return false
+        if requireForeground && (WinExist("A") != SolverHwnd)
+            return false
+        return true
+    }
+    return false
+}
+
+ActivateBoundSolverWindow() {
+    global SolverHwnd
+    if !ValidateBoundSolverWindow(false)
+        return false
+    WinActivate "ahk_id " SolverHwnd
+    if !WinWaitActive("ahk_id " SolverHwnd, , 2)
+        return false
+    return ValidateBoundSolverWindow(true)
 }
 
 PowerShellTrust := ResolveTrustedPowerShell()
@@ -993,7 +1148,7 @@ ScanRerollCost() {
     return block
 }
 
-CopyPayloadForExplicitPaste(payload) {
+CopyPayloadToClipboard(payload) {
     if (payload = "")
         return false
 
@@ -1003,6 +1158,59 @@ CopyPayloadForExplicitPaste(payload) {
         return false
     }
     return true
+}
+
+DeliverPayloadToSolver(payload) {
+    global SolverHwnd, SolverPageUrl, SolverPasteClientX, SolverPasteClientY
+    global LastDeliveryError, BrowserPasteDelay
+    LastDeliveryError := ""
+    if !CopyPayloadToClipboard(payload)
+        return "failed"
+
+    if !SolverHwnd {
+        LastDeliveryError := "bind the verified solver page with Ctrl+F2"
+        return "clipboard"
+    }
+    if !ActivateBoundSolverWindow() {
+        LastDeliveryError := "the bound browser identity or window size changed; verify the solver and press Ctrl+F2 again"
+        return "clipboard"
+    }
+
+    try currentUrl := CanonicalSolverUrl(ReadForegroundBrowserUrl(SolverHwnd))
+    catch as error {
+        LastDeliveryError := "the solver address could not be verified; " error.Message
+        return "clipboard"
+    }
+    if (currentUrl != SolverPageUrl) {
+        LastDeliveryError := "the bound browser tab is no longer at the verified solver URL; verify it and press Ctrl+F2 again"
+        return "clipboard"
+    }
+    if !ValidateBoundSolverWindow(true) {
+        LastDeliveryError := "the browser identity changed during URL verification"
+        return "clipboard"
+    }
+
+    WinGetClientPos &clientLeft, &clientTop, &clientWidth, &clientHeight, "ahk_id " SolverHwnd
+    MouseMove clientLeft + SolverPasteClientX, clientTop + SolverPasteClientY, 0
+    Click
+    Sleep BrowserPasteDelay
+    if !ValidateBoundSolverWindow(true) {
+        LastDeliveryError := "the bound solver window lost focus before paste"
+        return "clipboard"
+    }
+    if !CopyPayloadToClipboard(payload)
+        return "failed"
+    Send "^v"
+    return "pasted"
+}
+
+DeliverySummary(delivery) {
+    global LastDeliveryError
+    if (delivery = "pasted")
+        return " Imported automatically into the verified solver page."
+    if (delivery = "clipboard")
+        return " Auto-import skipped: " LastDeliveryError ". The payload remains on the clipboard for Ctrl+V."
+    return " No payload was delivered."
 }
 
 ; Developer smoke-test: run the embedded Windows OCR helper against an image.
@@ -1015,6 +1223,19 @@ if A_Args.Length >= 2
     result := RunOcrHelper(options, false, preferredLanguage)
     FileAppend result, "*", "UTF-8"
     ExitApp
+}
+
+; ---- Ctrl+F2: bind one explicit, address-verified solver page for this session ----
+^F2:: {
+    global SolverPid, SolverImagePath, SolverPageUrl
+    try {
+        BindForegroundSolverWindow()
+        Flash "Bound the verified solver page and paste point.`nPID " SolverPid
+            . "`n" SolverPageUrl "`n" SolverImagePath, 7000
+    } catch as error {
+        ClearSolverBinding()
+        MsgBox "Could not bind the solver page:`n" error.Message
+    }
 }
 
 ; ---- Ctrl+F3: bind one explicit, authenticated PoE window for this session ----
@@ -1254,7 +1475,8 @@ F10:: {
     if (payload != "" && rerollCostBlob != "")
         payload .= "`n"
     payload .= rerollCostBlob
-    if !CopyPayloadForExplicitPaste(payload) {
+    delivery := DeliverPayloadToSolver(payload)
+    if (delivery = "failed") {
         Running := false
         return
     }
@@ -1264,7 +1486,7 @@ F10:: {
         ? (rerollCostBlob != "" ? " + reroll cost" : " (reroll-cost OCR failed)")
         : " (reroll cost skipped: calibrate Ctrl+F7)"
     Flash "Copied " LastBorderScanBlocks "/12 border OCR results"
-        . costNote ". Return to the verified solver page and press Ctrl+V; charts were not rescanned.", 7000
+        . costNote "; charts were not rescanned." DeliverySummary(delivery), 8000
 }
 
 ; ---- F9: the real import sweep ----
@@ -1284,6 +1506,7 @@ F9:: {
     Running := true
     copied := 0, skipped := 0, scannedCharts := 0
     blob := "", borderBlob := "", rerollCostBlob := ""
+    delivery := "none"
     firstChart := "", allIdentical := true, firstTabSignature := "", tabsIdentical := false
 
     ; ---- Phase 1: copy every chart while staying in PoE ----
@@ -1411,7 +1634,7 @@ F9:: {
     if Running && RerollCostCalibrated()
         rerollCostBlob := ScanRerollCost()
 
-    ; ---- Phase 3: copy once; the user pastes into the verified solver page ----
+    ; ---- Phase 3: re-verify the bound solver page and paste once ----
     if Running && (copied > 0 || borderBlob != "" || rerollCostBlob != "") {
         payload := blob
         if (payload != "" && borderBlob != "")
@@ -1420,7 +1643,8 @@ F9:: {
         if (payload != "" && rerollCostBlob != "")
             payload .= "`n"
         payload .= rerollCostBlob
-        if !CopyPayloadForExplicitPaste(payload) {
+        delivery := DeliverPayloadToSolver(payload)
+        if (delivery = "failed") {
             Running := false
             return
         }
@@ -1438,5 +1662,5 @@ F9:: {
         return
     }
     Flash "Copied " copied " charts from 2 stash tabs" borderNote costNote
-        . "; skipped " skipped " empty/non-chart cells. Return to the verified solver page and press Ctrl+V.", 8000
+        . "; skipped " skipped " empty/non-chart cells." DeliverySummary(delivery), 9000
 }

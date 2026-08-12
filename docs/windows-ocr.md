@@ -3,8 +3,8 @@
 `public/voyage-import.ahk` is an optional Windows helper for the Allflame Voyage
 Solver. It copies Charted Charts from both chart-stash tabs in Path of Exile, reads the 12 visible
 Corruption Current tooltips, and optionally reads the next border-reroll cost
-with Windows Runtime OCR before placing the combined text on the clipboard for
-an explicit paste into the solver.
+with Windows Runtime OCR before returning to an explicitly bound solver page,
+re-verifying its address, and pasting the combined payload automatically.
 
 The web app and manual border entry do not require this helper.
 
@@ -20,8 +20,8 @@ keeps planned coverage separate from executed, privacy-reviewed results.
 - Path of Exile in **Windowed** or **Windowed Fullscreen** mode. Exclusive
   fullscreen can prevent reliable mouse and keyboard automation.
 - The Voyage Board fully visible and not scrolled.
-- The solver open at the expected URL. Verify the address bar before pasting;
-  the helper never discovers browser tabs from their page-controlled titles.
+- A supported browser: Chrome, Edge, Firefox, Brave, Vivaldi, Opera, Arc, or
+  LibreWolf. The solver tab must remain in the browser window used for binding.
 
 If Path of Exile runs as administrator, run the helper as administrator (or use
 AutoHotkey's UI Access option) so Windows permits it to send input to the game.
@@ -86,13 +86,32 @@ for managed-device and offline-source options.
 
 1. Download [the script](../public/voyage-import.ahk) and run it with AutoHotkey
    v2.
-2. Open the Voyage Board in Path of Exile and keep the complete border visible.
-3. With the real game in the foreground, press `Ctrl+F3`. Do this once after
+2. Open the solver, verify its URL in the browser address bar, point at a neutral
+   non-interactive part of the page below the browser toolbar, and press
+   `Ctrl+F2`. Do this once after every helper launch. Keep that tab and browser
+   window open without resizing it.
+3. Open the Voyage Board in Path of Exile and keep the complete border visible.
+4. With the real game in the foreground, press `Ctrl+F3`. Do this once after
    every helper launch to bind the exact game window and process for the session.
-4. Open the solver at its expected URL. Keep it available for a manual paste
-   after each scan; the helper does not activate or type into the browser.
 5. Calibrate the board and chart grid once. Calibration is saved to
    `voyage-import.ini` beside the script.
+
+### Solver-window identity
+
+`Ctrl+F2` accepts only a supported browser process and reads the foreground
+tab's address through the browser address bar. Production bindings are limited
+to the official `one-more-map.github.io` solver URL and the
+`alkwer.github.io/one-more-map.github.io` repository Pages URL. HTTP is accepted
+only on localhost for development. The helper records the exact HWND, PID,
+window class, canonical browser executable, normalized URL, client size, and the
+neutral page point selected by the user.
+
+Before every automatic paste, the helper activates only that exact window,
+revalidates its process identity and unchanged size, and reads the address bar
+again. It clicks the saved neutral point and sends `Ctrl+V` only when the URL is
+still an exact match. A changed tab, URL, process, window, or size makes the
+operation fail closed: the payload remains on the clipboard for a manual paste,
+and the solver must be rebound with `Ctrl+F2`.
 
 ### Game-window identity
 
@@ -144,17 +163,20 @@ The two tab positions are stored with the grid calibration in `voyage-import.ini
 
 ## Run
 
-- `F9` switches through both calibrated chart-stash tabs, copies each grid, returns
-  the stash to tab `1`, reads all 12 border tooltips and the calibrated
-  reroll-cost tooltip, and copies the combined payload to the clipboard.
+- `F9` switches through both calibrated chart-stash tabs, copies each grid,
+  returns the stash to tab `1`, reads all 12 border tooltips and the calibrated
+  reroll-cost tooltip, then imports the combined payload into the verified bound
+  solver page.
 - `Ctrl+F9` copies only the borders and reroll cost, which is useful after a
-  reroll.
+  reroll, then imports that refresh into the same verified page.
 - `F10` aborts the current sweep.
 
-After `F9` or `Ctrl+F9`, return to the solver, verify its URL in the address bar,
-focus the page, and press `Ctrl+V`. A decoy page cannot receive data merely by
-copying the solver's title because the helper never selects or pastes into a
-browser window.
+After `F9` or `Ctrl+F9`, the verified solver window becomes active and receives
+the paste automatically. A page cannot receive data merely by copying the
+solver's title: window titles are never trusted, and the address-bar URL plus the
+bound browser identity must match. If verification fails, follow the helper's
+message, rebind with `Ctrl+F2`, and paste the payload already on the clipboard
+with `Ctrl+V` if desired.
 
 Each border sweep includes a 12-position completion marker. The solver applies
 complete snapshots atomically: an unreadable position is cleared instead of
@@ -199,8 +221,11 @@ export it or create a share URL.
   visible, repeat `Ctrl+F7`, and use `Ctrl+F4` to preview the saved point.
 - **Wrong charts are copied:** repeat `F7` and `F8`, then recalibrate tabs `1` and
   `2` with `Shift+F7` and `Shift+F8`; adjust `GridCols` or `GridRows` if necessary.
-- **The payload was not imported:** after the scan, return to the verified solver
-  URL, click the page body, and press `Ctrl+V`.
+- **The payload was not imported automatically:** verify the solver URL, point at
+  a neutral page area, and press `Ctrl+F2` again. The failed automatic delivery
+  leaves the payload on the clipboard, so `Ctrl+V` remains available.
+- **The helper reports that the solver window changed:** restore its original
+  size and tab or bind the current verified page again with `Ctrl+F2`.
 - **The helper reports an identity change:** close duplicate PoE windows, focus
   the real game, and press `Ctrl+F3` again.
 - **Tooltips appear too slowly:** increase `HoverDelay` near the top of the
