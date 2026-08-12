@@ -289,6 +289,7 @@ describe('border OCR regressions', () => {
     assert.match(ahkImporter, /PoeImagePath := imagePath/)
     assert.match(ahkImporter, /PathOfExile\[_A-Za-z0-9-\]\*\\\.exe/)
     assert.match(ahkImporter, /installDir "\\Content\.ggpk"/)
+    assert.match(ahkImporter, /installDir "\\Bundles2\\_\.index\.bin"/)
     assert.match(ahkImporter, /RejectReparseComponents\(imagePath\)/)
     assert.match(ahkImporter, /candidates\.Length != 1/)
     assert.match(ahkImporter, /ValidateBoundPoeWindow\(requireForeground := false\)/)

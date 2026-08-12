@@ -97,10 +97,11 @@ for managed-device and offline-source options.
 ### Game-window identity
 
 `Ctrl+F3` binds only a foreground window with the exact Path of Exile window
-class and an expected PoE executable in a complete installation (including
-`Content.ggpk`). The helper records its HWND, PID, canonical executable path,
-and rejects reparse-point path components. It also requires exactly one
-authenticated PoE candidate, so multiple or ambiguous candidates fail closed.
+class and an expected PoE executable in a complete installation (`Content.ggpk`
+on older installs or the `Bundles2` index on current Steam installs). The helper
+records its HWND, PID, canonical executable path, and rejects reparse-point path
+components. It also requires exactly one authenticated PoE candidate, so
+multiple or ambiguous candidates fail closed.
 
 The binding is revalidated before and after input and capture operations. A
 changed window, process, class, executable path, installation, foreground owner,
