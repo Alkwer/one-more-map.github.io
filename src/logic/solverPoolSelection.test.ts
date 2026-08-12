@@ -331,6 +331,22 @@ describe('granular keep-count solve pools', () => {
     expect(withDiviners.get('diviner')?.strategyId).toBe('cutedog-divine-boxes')
   })
 
+  it('keeps a generic +1 Strongbox feeder available to Cutedog despite another strategy keep', () => {
+    const genericFamily = CUSTOM_OPTIONS.find((option) => option.modIds.includes('adj-box-1'))!
+    const kit = [
+      chart('pelagic', { areaType: 'pelagic-abyss' }),
+      chart('generic-1', { modIds: ['adj-box-1'] }),
+      chart('generic-2', { modIds: ['adj-box-1'] }),
+      ...Array.from({ length: 6 }, (_, index) => chart(`rare-${index}`, { modIds: ['voy-rare'] })),
+    ]
+    const keeps = { [customKey('milky-speedrun', genericFamily.modIds)]: 2 }
+
+    expect(
+      selectStrategySolvePool(kit, { id: 'cutedog-divine-boxes' }, reservations(), new Set(), keeps)
+        .solvePool,
+    ).toEqual(kit)
+  })
+
   it('banks six voyage-wide rares while adjacent rares remain spendable by default', () => {
     const pool = [
       ...Array.from({ length: 8 }, (_, index) => chart(`voy-${index}`, { modIds: ['voy-rare'] })),
