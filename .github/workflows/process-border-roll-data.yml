@@ -97,10 +97,10 @@ jobs:
           SHOULD_CLOSE: ${{ steps.commit.outputs.close }}
           CLOSE_REASON: ${{ steps.commit.outputs.reason }}
         run: |
-          for label in "border-roll:accepted" "border-roll:partial" "border-roll:duplicate" "border-roll:invalid"; do
-            gh issue edit "$ISSUE_NUMBER" --remove-label "$label" >/dev/null 2>&1 || true
-          done
-          gh issue edit "$ISSUE_NUMBER" --add-label "$RESULT_LABEL"
+          node scripts/replace-border-roll-labels.mjs \
+            --repo "$GITHUB_REPOSITORY" \
+            --issue "$ISSUE_NUMBER" \
+            --label "$RESULT_LABEL"
           node scripts/upsert-border-roll-comment.mjs "$RUNNER_TEMP/border-roll-comment.md"
           if [ "$SHOULD_CLOSE" = "true" ]; then
             gh issue close "$ISSUE_NUMBER" --reason "$CLOSE_REASON"

@@ -19,6 +19,7 @@ import {
   upsertBorderRollComment,
 } from './upsert-border-roll-comment.mjs'
 import { reconcileBorderRollDatasetPullRequest } from './reconcile-border-roll-dataset-pr.mjs'
+import { replaceBorderRollLabels } from './replace-border-roll-labels.mjs'
 
 const knownIds = await loadKnownBorderIds()
 const borderModIds = [...knownIds].slice(0, 12)
@@ -565,6 +566,32 @@ test('issue processor rejects a conflicting accepted ID with an audit comment', 
   } finally {
     await rm(directory, { recursive: true, force: true })
   }
+})
+
+test('processing-label replacement fails closed when an accepted label cannot be removed', async () => {
+  const original = ['bug', 'border-roll:accepted']
+  let labels = [...original]
+  let commentUpdated = false
+
+  await assert.rejects(
+    replaceBorderRollLabels({
+      currentLabels: original,
+      resultLabel: 'border-roll:invalid',
+      applyLabels: async () => {
+        // Fault injection: the API claims success but retains accepted while
+        // also applying the proposed invalid label.
+        labels = [...original, 'border-roll:invalid']
+      },
+      readLabels: async () => labels,
+    }).then(() => {
+      commentUpdated = true
+    }),
+    /label replacement was not confirmed/,
+  )
+
+  assert.equal(commentUpdated, false)
+  assert.ok(labels.includes('bug'))
+  assert.ok(labels.includes('border-roll:accepted'))
 })
 
 test('creates the validation comment when the issue has no bot marker comment', async () => {
