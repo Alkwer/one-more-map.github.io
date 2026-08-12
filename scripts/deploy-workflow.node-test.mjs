@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { test } from 'node:test'
 
 const workflowUrl = new URL('../.github/workflows/deploy.yml', import.meta.url)
+const securityAuditUrl = new URL('../.github/workflows/security-audit.yml', import.meta.url)
 const dependabotUrl = new URL('../.github/dependabot.yml', import.meta.url)
 const packageUrl = new URL('../package.json', import.meta.url)
 
@@ -108,4 +109,16 @@ test('dependency maintenance and audit policy stay enforced', async () => {
   assert.equal(packageJson.scripts['audit:production'], 'npm audit --omit=dev')
   assert.equal(packageJson.scripts['audit:high'], 'npm audit --audit-level=high')
   assert.equal(packageJson.scripts['audit:ci'], 'npm run audit:production && npm run audit:high')
+})
+
+test('dependency audit runs on an independent weekly schedule', async () => {
+  const workflow = await readFile(securityAuditUrl, 'utf8')
+
+  assert.match(workflow, /^name: Dependency security audit$/m)
+  assert.match(workflow, /^  schedule:$/m)
+  assert.match(workflow, /^    - cron: '17 3 \* \* 1'$/m)
+  assert.match(workflow, /^  workflow_dispatch:$/m)
+  assert.match(workflow, /^permissions:\n  contents: read$/m)
+  assert.match(workflow, /^      - run: npm ci$/m)
+  assert.match(workflow, /^        run: npm run audit:ci$/m)
 })
