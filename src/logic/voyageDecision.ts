@@ -20,6 +20,7 @@ export type VoyageDecisionBasis =
   | 'missing-requirements'
   | 'modeled-percentile'
   | 'model-uncertainty'
+  | 'no-modeled-upside'
   | 'cost-guardrail'
 
 export interface VoyageDecisionAction {
@@ -136,6 +137,12 @@ const percentileLabel = (value: number): string => `${ordinal(value * 100)} perc
 
 const percentileRangeLabel = (range: readonly [number, number]): string =>
   `${Math.round(range[0] * 100)}–${Math.round(range[1] * 100)} percentile`
+
+const improvementChanceLabel = (chance: number): string => {
+  if (chance <= 0) return '0%'
+  if (chance < 0.01) return '<1%'
+  return `${Math.round(chance * 100)}%`
+}
 
 export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
   const rerollsUsed = clampRerollsUsed(input.rerollsUsed)
@@ -397,6 +404,24 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
     }
   }
 
+  const chanceNextRollBeatsCurrent = bestReady.rollForecast!.chanceNextRollBeatsCurrent
+  if (chanceNextRollBeatsCurrent <= 0) {
+    return {
+      ...base,
+      decisionBasis: 'no-modeled-upside',
+      kind: 'stop',
+      label: 'KEEP — NO PAID REROLL CAN IMPROVE THIS BOARD',
+      reason: `${bestReady.strategyName} is the best ready strategy after combining all ${input.availableCharts} imported charts with the current border roll. The model gives a 0% chance that a paid reroll scores strictly higher. Ties do not justify spending Sulphur, so keep this board even though its tie-adjusted percentile is below the usual keep line.`,
+      strategyId: bestReady.strategyId,
+      strategyName: bestReady.strategyName,
+      recommendationTier: bestReady.recommendationTier,
+      fit: bestReady.fit,
+      missing: [],
+      action: null,
+      rollForecast: bestReady.rollForecast,
+    }
+  }
+
   if (nextCost !== null && nextCost <= DEFAULT_MAX_REROLL_COST) {
     return {
       ...base,
@@ -407,9 +432,9 @@ export function decideVoyage(input: VoyageDecisionInput): VoyageDecision {
         bestReady.rollForecast!.currentPercentileRange,
       )} prior range remains below the ${percentileLabel(
         decisionPercentileLine,
-      )} keep line, and the model estimates a ${Math.round(
-        bestReady.rollForecast!.chanceNextRollBeatsCurrent * 100,
-      )}% chance that a paid reroll scores higher (${bestReady.rollForecast!.modelConfidence} confidence). The next roll remains inside the 3k/6k default guardrail. The ${percent(
+      )} keep line, and the model estimates a ${improvementChanceLabel(
+        chanceNextRollBeatsCurrent,
+      )} chance that a paid reroll scores higher (${bestReady.rollForecast!.modelConfidence} confidence). The next roll remains inside the 3k/6k default guardrail. The ${percent(
         bestReady.fit,
       )} theoretical-ceiling ratio is diagnostic only. This is experimental guidance, not Sulphur expected value.`,
       strategyId: bestReady.strategyId,

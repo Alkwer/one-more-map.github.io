@@ -163,6 +163,41 @@ describe('experimental border roll model', () => {
     )
   })
 
+  it('uses the mid-rank percentile for all ties without inventing strict upside', () => {
+    const onlyMod = Array(12).fill('only-mod')
+    const model = buildBorderRollModel(
+      dataset([{ sequenceId: 'one', generation: 'paid-reroll', borderModIds: onlyMod }]),
+      ['only-mod'],
+      'paid-reroll',
+    )
+    const contributions = Array.from({ length: 12 }, () => ({ 'only-mod': 1 }))
+    const result = forecastBorderRoll(model, contributions, 12, 12, 1_000)!
+
+    assert.equal(result.currentPercentile, 0.5)
+    assert.deepEqual(result.currentPercentileRange, [0.5, 0.5])
+    assert.equal(result.chanceNextRollBeatsCurrent, 0)
+    assert.deepEqual(result.chanceNextRollBeatsCurrentRange, [0, 0])
+  })
+
+  it('reports no strict upside for a maximum result with substantial tie mass', () => {
+    const samples = Array.from({ length: 4 }, (_, sampleIndex) => ({
+      sequenceId: `balanced-${sampleIndex}`,
+      generation: 'paid-reroll' as const,
+      borderModIds: Array.from({ length: 12 }, (_, slot) =>
+        (sampleIndex + slot) % 2 === 0 ? 'maximum' : 'lower',
+      ),
+    }))
+    const model = buildBorderRollModel(dataset(samples), ['maximum', 'lower'], 'paid-reroll')
+    const contributions = Array.from({ length: 12 }, (_, slot) =>
+      slot < 10 ? { maximum: 1, lower: 1 } : { maximum: 1, lower: 0 },
+    )
+    const result = forecastBorderRoll(model, contributions, 12, 12, 4_000)!
+
+    assert.equal(result.chanceNextRollBeatsCurrent, 0)
+    assert.ok(result.currentPercentile > 0.75)
+    assert.ok(result.currentPercentile < 0.95)
+  })
+
   it('borrows natural boards for weights without inflating paid confidence', () => {
     const natural = Array(12).fill('natural-heavy')
     const paid = Array(12).fill('paid-only')
