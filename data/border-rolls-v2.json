@@ -11,6 +11,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": null,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -36,6 +37,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": null,
       "generation": "paid-reroll",
+      "samplingReason": "unknown",
       "rerollIndex": 1,
       "displayedNextRerollCost": 6000,
       "borderModIds": [
@@ -61,6 +63,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": null,
       "generation": "paid-reroll",
+      "samplingReason": "unknown",
       "rerollIndex": 2,
       "displayedNextRerollCost": 12000,
       "borderModIds": [
@@ -86,6 +89,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": null,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -111,6 +115,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": null,
       "generation": "paid-reroll",
+      "samplingReason": "unknown",
       "rerollIndex": 1,
       "displayedNextRerollCost": 6000,
       "borderModIds": [
@@ -136,6 +141,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": null,
       "generation": "paid-reroll",
+      "samplingReason": "unknown",
       "rerollIndex": 2,
       "displayedNextRerollCost": 12000,
       "borderModIds": [
@@ -161,6 +167,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": null,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -186,6 +193,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": null,
       "generation": "paid-reroll",
+      "samplingReason": "unknown",
       "rerollIndex": 1,
       "displayedNextRerollCost": 6000,
       "borderModIds": [
@@ -211,6 +219,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": null,
       "generation": "paid-reroll",
+      "samplingReason": "unknown",
       "rerollIndex": 2,
       "displayedNextRerollCost": 12000,
       "borderModIds": [
@@ -236,6 +245,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": null,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -261,6 +271,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": null,
       "generation": "paid-reroll",
+      "samplingReason": "unknown",
       "rerollIndex": 1,
       "displayedNextRerollCost": 6000,
       "borderModIds": [
@@ -286,6 +297,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": null,
       "generation": "paid-reroll",
+      "samplingReason": "unknown",
       "rerollIndex": 2,
       "displayedNextRerollCost": 12000,
       "borderModIds": [
@@ -311,6 +323,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -336,6 +349,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "paid-reroll",
+      "samplingReason": "unknown",
       "rerollIndex": 1,
       "displayedNextRerollCost": 6000,
       "borderModIds": [
@@ -361,6 +375,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "paid-reroll",
+      "samplingReason": "unknown",
       "rerollIndex": 2,
       "displayedNextRerollCost": 12000,
       "borderModIds": [
@@ -386,6 +401,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -411,6 +427,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "paid-reroll",
+      "samplingReason": "unknown",
       "rerollIndex": 1,
       "displayedNextRerollCost": 6000,
       "borderModIds": [
@@ -436,6 +453,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "paid-reroll",
+      "samplingReason": "unknown",
       "rerollIndex": 2,
       "displayedNextRerollCost": 12000,
       "borderModIds": [
@@ -461,6 +479,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -486,6 +505,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "paid-reroll",
+      "samplingReason": "unknown",
       "rerollIndex": 1,
       "displayedNextRerollCost": 6000,
       "borderModIds": [
@@ -511,6 +531,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "paid-reroll",
+      "samplingReason": "unknown",
       "rerollIndex": 2,
       "displayedNextRerollCost": 12000,
       "borderModIds": [
@@ -536,6 +557,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -561,6 +583,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "paid-reroll",
+      "samplingReason": "unknown",
       "rerollIndex": 1,
       "displayedNextRerollCost": 6000,
       "borderModIds": [
@@ -586,6 +609,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "paid-reroll",
+      "samplingReason": "unknown",
       "rerollIndex": 2,
       "displayedNextRerollCost": 12000,
       "borderModIds": [
@@ -611,6 +635,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -636,6 +661,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "paid-reroll",
+      "samplingReason": "unknown",
       "rerollIndex": 1,
       "displayedNextRerollCost": 6000,
       "borderModIds": [
@@ -661,6 +687,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -686,6 +713,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -711,6 +739,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -736,6 +765,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -761,6 +791,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "paid-reroll",
+      "samplingReason": "unknown",
       "rerollIndex": 1,
       "displayedNextRerollCost": 6000,
       "borderModIds": [
@@ -786,6 +817,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -811,6 +843,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -836,6 +869,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -861,6 +895,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "paid-reroll",
+      "samplingReason": "unknown",
       "rerollIndex": 1,
       "displayedNextRerollCost": 6000,
       "borderModIds": [
@@ -886,6 +921,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "paid-reroll",
+      "samplingReason": "unknown",
       "rerollIndex": 2,
       "displayedNextRerollCost": 12000,
       "borderModIds": [
@@ -911,6 +947,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -936,6 +973,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -961,6 +999,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -986,6 +1025,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -1011,6 +1051,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -1036,6 +1077,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "paid-reroll",
+      "samplingReason": "unknown",
       "rerollIndex": 1,
       "displayedNextRerollCost": 6000,
       "borderModIds": [
@@ -1061,6 +1103,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -1086,6 +1129,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -1111,6 +1155,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -1136,6 +1181,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -1161,6 +1207,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -1186,6 +1233,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -1211,6 +1259,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
@@ -1236,6 +1285,7 @@
       "gamePatch": "3.29",
       "vesperUpgradeCount": 5,
       "generation": "natural",
+      "samplingReason": "unknown",
       "rerollIndex": 0,
       "displayedNextRerollCost": 3000,
       "borderModIds": [
