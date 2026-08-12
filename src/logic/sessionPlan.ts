@@ -59,12 +59,26 @@ export function planSession(
 ): SessionPlan {
   const eligiblePool = selectSolverEligibleCharts(pool, mode)
   const used = new Set<string>()
+  const consumedBorderRolls = new Map<string, string>()
   const entries: PlanEntry[] = []
   const remaining = () => eligiblePool.filter((c) => !used.has(c.uid))
 
   // ---- juiced one-offs, best first ----
   for (const id of JUICED_ORDER) {
     const s = byId.get(id) as StrategyDef
+    const consumedBy = s.requiresBorderId
+      ? consumedBorderRolls.get(s.requiresBorderId.id)
+      : undefined
+    if (consumedBy) {
+      entries.push({
+        strategyId: s.id,
+        name: s.name,
+        status: 'waiting',
+        runs: 1,
+        note: `current ${s.requiresBorderId!.label} is committed to ${consumedBy} - requires a future roll and re-evaluation`,
+      })
+      continue
+    }
     const borderMissing = s.requiresBorderId && !borders.includes(s.requiresBorderId.id)
     // the strategy may only spend what its own reservations allow
     const spendable = selectStrategySolvePool(
@@ -108,6 +122,7 @@ export function planSession(
     }
     fillers.forEach((c) => tentative.add(c.uid))
     tentative.forEach((uid) => used.add(uid))
+    if (s.requiresBorderId) consumedBorderRolls.set(s.requiresBorderId.id, s.name)
     entries.push({
       strategyId: s.id,
       name: s.name,
