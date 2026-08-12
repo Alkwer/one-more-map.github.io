@@ -78,6 +78,29 @@ export const CHART_REWARD_STATS: Stat[] = [
   'currency',
 ]
 
+const CHART_REWARD_MODIFIER_IDS = new Map<Stat, string[]>()
+for (const modifier of VOYAGE_MODS) {
+  if (modifier.scope !== 'self') continue
+  for (const effect of modifier.effects) {
+    const ids = CHART_REWARD_MODIFIER_IDS.get(effect.stat) ?? []
+    if (!ids.includes(modifier.id)) ids.push(modifier.id)
+    CHART_REWARD_MODIFIER_IDS.set(effect.stat, ids)
+  }
+}
+
+export const chartRewardModifierIds = (stat: Stat): readonly string[] =>
+  CHART_REWARD_MODIFIER_IDS.get(stat) ?? []
+
+/** Imported headers aggregate away their source tier. Treat that aggregate as
+ * disabled only when every known self-mod tier for the stat is disabled. */
+export const importedChartRewardDisabled = (
+  stat: Stat,
+  disabledMods: ReadonlySet<string>,
+): boolean => {
+  const modifierIds = chartRewardModifierIds(stat)
+  return modifierIds.length > 0 && modifierIds.every((id) => disabledMods.has(id))
+}
+
 /** weight key for an imported, self-scope chart header reward */
 export const chartRewardKey = (stat: Stat): string => `self:${CHART_REWARD_FAMILY[stat]}`
 

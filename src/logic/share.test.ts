@@ -4,6 +4,7 @@ import englishChart from './__fixtures__/charted.en.txt?raw'
 import koreanChart from './__fixtures__/charted.ko.txt?raw'
 import type { ChartData, ModEffect } from '../types'
 import { parseChartText } from './parser'
+import { chartRewardModifierIds } from './rewards'
 import {
   decodeShare,
   encodeShare,
@@ -208,12 +209,16 @@ describe('layout sharing', () => {
     const state = defaultState()
     state.pool = parsed.charts
     state.board[0] = { chartUid: parsed.charts[0].uid, rotation: 0 }
+    state.disabledMods = [...chartRewardModifierIds('quantity')]
 
     const result = decodeShare(encodeShare(state))
 
     expect(result).toMatchObject({
       ok: true,
-      state: { pool: [expect.objectContaining({ areaType })] },
+      state: {
+        pool: [expect.objectContaining({ areaType })],
+        disabledMods: state.disabledMods,
+      },
     })
   })
 

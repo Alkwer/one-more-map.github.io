@@ -28,6 +28,7 @@ import {
 import { decodeShare } from './share'
 import { customKey } from './pieceKeeps'
 import { parseChartText } from './parser'
+import { chartRewardModifierIds } from './rewards'
 
 const chart = (overrides: Partial<ChartData> = {}): ChartData => ({
   uid: 'chart-1',
@@ -479,11 +480,18 @@ describe('state decoding', () => {
     expect(parsed.charts).toHaveLength(1)
     expect(parsed.charts[0].areaType).toBe(areaType)
 
-    const state = { ...defaultState(), pool: parsed.charts }
+    const state = {
+      ...defaultState(),
+      pool: parsed.charts,
+      disabledMods: [...chartRewardModifierIds('quantity')],
+    }
     const jsonResult = decodeStateJson(serializeState(state))
     expect(jsonResult).toMatchObject({
       ok: true,
-      state: { pool: [expect.objectContaining({ areaType })] },
+      state: {
+        pool: [expect.objectContaining({ areaType })],
+        disabledMods: state.disabledMods,
+      },
     })
 
     const values = new Map<string, string>()
@@ -494,6 +502,7 @@ describe('state decoding', () => {
     saveLocal(state)
 
     expect(loadLocal()?.pool[0].areaType).toBe(areaType)
+    expect(loadLocal()?.disabledMods).toEqual(state.disabledMods)
   })
 
   it('enforces state resource limits at their boundaries', () => {

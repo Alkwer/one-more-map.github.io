@@ -3,9 +3,13 @@ import { describe, it } from 'vitest'
 import type { Board, Borders, ChartData, ModEffect } from '../src/types'
 import { appraiseBorders } from '../src/logic/borderAppraisal'
 import { analyzeConnectivity } from '../src/logic/connectivity'
-import { chartRewardKey, DEFAULT_WEIGHTS } from '../src/logic/rewards'
+import { chartRewardKey, chartRewardModifierIds, DEFAULT_WEIGHTS } from '../src/logic/rewards'
 import { prepareScoreTotal, scoreBoard, type ScoreOptions } from '../src/logic/scoring'
 import { createPerformanceFixture } from '../benchmarks/performance-fixture'
+import englishChart from '../src/logic/__fixtures__/charted.en.txt?raw'
+import { parseChartText } from '../src/logic/parser'
+import { chartValue } from '../src/logic/chartRanking'
+import { updateImportedReward } from '../src/components/library/chartEditorRewards'
 
 const options: ScoreOptions = {
   adjacencyMode: 'physical',
@@ -41,6 +45,31 @@ const assertClose = (actual: number, expected: number) =>
   assert.ok(Math.abs(actual - expected) < 1e-9, `${actual} !== ${expected}`)
 
 describe('scoring regressions', () => {
+  it('disables imported aggregate quantity consistently after editing', () => {
+    const parsed = parseChartText(englishChart)
+    assert.deepEqual(parsed.rejected, [])
+    assert.equal(parsed.charts.length, 1)
+    const imported = parsed.charts[0]
+    const quantityIndex = imported.rewards!.findIndex((reward) => reward.stat === 'quantity')
+    const edited = updateImportedReward(imported, quantityIndex, 30)
+    const disabledMods = new Set(chartRewardModifierIds('quantity'))
+    const disabledOptions = { ...options, disabledMods }
+    const weights = { [chartRewardKey('quantity')]: 1 }
+
+    for (const candidate of [imported, edited]) {
+      const board = boardWith([0, candidate])
+      const charts = new Map([[candidate.uid, candidate]])
+      const connectivity = analyzeConnectivity(board, charts, 'any')
+
+      assert.equal(scoreBoard(board, emptyBorders(), charts, weights, disabledOptions).total, 0)
+      assert.equal(
+        prepareScoreTotal(emptyBorders(), charts, weights, disabledOptions)(board, connectivity),
+        0,
+      )
+      assert.equal(chartValue(candidate, weights, disabledMods), 0)
+    }
+  })
+
   it('stacks effects additively within an area', () => {
     const c = chart(
       'additive',

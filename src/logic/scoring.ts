@@ -2,7 +2,12 @@ import { borderModById, voyageModById } from '../data/mods'
 import type { Board, Borders, ChartData, ModEffect, Scope, Stat, Weights } from '../types'
 import { ALL_STATS, borderTouches } from '../types'
 import { analyzeConnectivity, type ConnectivityAnalysis } from './connectivity'
-import { borderRewardKey, chartRewardKey, voyageRewardKey } from './rewards'
+import {
+  borderRewardKey,
+  chartRewardKey,
+  importedChartRewardDisabled,
+  voyageRewardKey,
+} from './rewards'
 
 /** an effect tagged with the reward-type key it should be weighted under */
 type Tagged = ModEffect & { reward: string }
@@ -115,6 +120,7 @@ export function prepareScoreTotal(
 
     let importedValue = 0
     for (const effect of chart.rewards ?? []) {
+      if (importedChartRewardDisabled(effect.stat, disabledMods)) continue
       importedValue += (effect.percent / 100) * (weights[chartRewardKey(effect.stat)] ?? 0)
     }
     compiledCharts.set(chart.uid, { effects, importedValue })
@@ -179,10 +185,11 @@ export function scoreBoard(
   opts: ScoreOptions = DEFAULT_SCORE_OPTS,
   connectivity?: ScoreConnectivity,
 ): ScoreBreakdown {
+  const disabledMods = opts.disabledMods ?? new Set<string>()
   // border meta-mods: % increased magnitude of the touched chart's own mods
   const tileMagnitude: number[] = Array(9).fill(0)
   borders.forEach((id, seg) => {
-    if (!id || opts.disabledMods?.has(id)) return
+    if (!id || disabledMods.has(id)) return
     const mod = borderModById.get(id)
     if (mod?.magnitude) tileMagnitude[borderTouches(seg)] += mod.magnitude
   })
@@ -213,7 +220,7 @@ export function scoreBoard(
     const mag = 1 + tileMagnitude[i] / 100
     const hasImportedRewards = !!chart.rewards?.length
     for (const modId of chart.modIds) {
-      if (opts.disabledMods?.has(modId)) continue
+      if (disabledMods.has(modId)) continue
       const mod = voyageModById.get(modId)
       if (!mod) continue
       // Imported header rewards are the authoritative aggregate of a chart's
@@ -236,6 +243,7 @@ export function scoreBoard(
       else for (const n of adjacentTargets(i)) tileEffects[n].push(...effects)
     }
     for (const effect of chart.rewards ?? []) {
+      if (importedChartRewardDisabled(effect.stat, disabledMods)) continue
       tileEffects[i].push({
         ...effect,
         percent: effect.percent * mag,
@@ -245,7 +253,7 @@ export function scoreBoard(
   })
 
   borders.forEach((id, seg) => {
-    if (!id || opts.disabledMods?.has(id)) return
+    if (!id || disabledMods.has(id)) return
     const mod = borderModById.get(id)
     if (!mod) return
     const tile = borderTouches(seg)
