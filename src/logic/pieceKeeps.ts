@@ -12,7 +12,8 @@ import {
   type StrategyReservationPreferences,
 } from '../data/strategies'
 import { VOYAGE_MODS, voyageModById } from '../data/mods'
-import type { ChartData, Stat } from '../types'
+import type { ChartAreaType, ChartData, Stat } from '../types'
+import { chartMatchesStrategyMatcher } from './strategyRequirements'
 
 export interface PieceType {
   /** stable key: strategyId + matcher fingerprint */
@@ -23,7 +24,8 @@ export interface PieceType {
   reservationIds: StrategyReservationId[]
   label: string
   modIds?: string[]
-  areaTypes?: string[]
+  nameMatch?: string
+  areaTypes?: ChartAreaType[]
   /** primary imported reward stat for ranking within this family */
   rankRewardStat?: Stat
   /** the strategy's own requirement count */
@@ -132,11 +134,12 @@ function buildPieceTypes(): PieceType[] {
   // charts) - one keep knob per family, sized for the HUNGRIEST strategy.
   // The later type still exists so its strategy "wants" those charts and may
   // spend the shared bank.
-  const familyOwner = (p: { modIds?: string[]; areaTypes?: string[] }) =>
+  const familyOwner = (p: { modIds?: string[]; nameMatch?: string; areaTypes?: ChartAreaType[] }) =>
     out.find(
       (q) =>
         q.banks &&
         (!p.modIds || (q.modIds && p.modIds.every((id) => q.modIds!.includes(id)))) &&
+        (!p.nameMatch || q.nameMatch === p.nameMatch) &&
         (!p.areaTypes || (q.areaTypes && p.areaTypes.every((a) => q.areaTypes!.includes(a)))),
     )
   for (const sid of STRATEGY_ORDER) {
@@ -145,6 +148,7 @@ function buildPieceTypes(): PieceType[] {
       ? s.bankTypes.map((bankType) => ({
           label: bankType.label,
           modIds: bankType.modIds,
+          nameMatch: bankType.nameMatch,
           areaTypes: bankType.areaTypes,
           rankRewardStat: bankType.rankRewardStat,
           count: bankType.keep,
@@ -153,6 +157,7 @@ function buildPieceTypes(): PieceType[] {
       : (s.requirements ?? []).map((requirement) => ({
           label: requirement.label,
           modIds: requirement.modIds,
+          nameMatch: requirement.nameMatch,
           areaTypes: requirement.areaTypes,
           rankRewardStat: undefined,
           count: requirement.count,
@@ -166,7 +171,11 @@ function buildPieceTypes(): PieceType[] {
         owner.recommended = Math.max(owner.recommended, source.count)
         owner.defaultKeep = Math.max(owner.defaultKeep, source.keep)
       }
-      const fingerprint = (source.modIds ?? source.areaTypes ?? []).join('|')
+      const fingerprint = [
+        ...(source.modIds ?? []),
+        ...(source.areaTypes ?? []),
+        ...(source.nameMatch ? [`name:${source.nameMatch}`] : []),
+      ].join('|')
       out.push({
         key: `${s.id}:${fingerprint}`,
         strategyId: s.id,
@@ -174,6 +183,7 @@ function buildPieceTypes(): PieceType[] {
         reservationIds: RESERVATIONS_OF[s.id] ?? [],
         label: source.label,
         modIds: source.modIds,
+        nameMatch: source.nameMatch,
         areaTypes: source.areaTypes,
         rankRewardStat: source.rankRewardStat,
         recommended: source.count,
@@ -222,10 +232,7 @@ function buildPieceTypes(): PieceType[] {
 export const PIECE_TYPES: PieceType[] = buildPieceTypes()
 
 export function matchesPiece(c: ChartData, p: PieceType): boolean {
-  return (
-    (p.modIds?.some((id) => c.modIds.includes(id)) ?? false) ||
-    (p.areaTypes && c.areaType ? p.areaTypes.includes(c.areaType) : false)
-  )
+  return chartMatchesStrategyMatcher(c, p)
 }
 
 /** best-first ranking inside a piece type: implicit tier, then rolls, then level */
