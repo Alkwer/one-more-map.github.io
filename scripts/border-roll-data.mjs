@@ -192,6 +192,43 @@ export function validateBorderRollPayload(payload, knownBorderIds) {
   }
 }
 
+export function validateCanonicalDataset(payload, knownBorderIds) {
+  const errors = []
+  const warnings = []
+  if (!isRecord(payload) || payload.schema !== DATASET_SCHEMA) {
+    return { ok: false, errors: [`schema must be ${DATASET_SCHEMA}.`], warnings: [] }
+  }
+  if (typeof payload.exportedAt !== 'string' || !Number.isFinite(Date.parse(payload.exportedAt))) {
+    errors.push('exportedAt must be an ISO-compatible timestamp.')
+  }
+  const rawSamples = Array.isArray(payload.samples) ? payload.samples : []
+  if (!Array.isArray(payload.samples) || rawSamples.length === 0) {
+    errors.push('samples must be a non-empty array.')
+  }
+  if (payload.sampleCount !== rawSamples.length) {
+    errors.push('sampleCount must equal samples.length.')
+  }
+  const samples = rawSamples
+    .map((sample, index) => normalizeSample(sample, index, knownBorderIds, errors, warnings))
+    .filter(Boolean)
+  const sampleIds = samples.map(({ sampleId }) => sampleId)
+  if (new Set(sampleIds).size !== sampleIds.length) errors.push('sampleId values must be unique.')
+  const canonical = [...samples].sort(
+    (left, right) =>
+      left.capturedAt.localeCompare(right.capturedAt) ||
+      left.sequenceId.localeCompare(right.sequenceId) ||
+      left.rerollIndex - right.rerollIndex ||
+      left.sampleId.localeCompare(right.sampleId),
+  )
+  if (JSON.stringify(samples) !== JSON.stringify(canonical)) {
+    errors.push('samples must use canonical ordering.')
+  }
+  if (samples.length > 0 && payload.exportedAt !== samples.at(-1).capturedAt) {
+    errors.push('exportedAt must equal the final canonical sample timestamp.')
+  }
+  return { ok: errors.length === 0, errors, warnings }
+}
+
 export function validateBorderRollIssueBody(body, knownBorderIds) {
   try {
     return validateBorderRollPayload(extractJsonPayload(body), knownBorderIds)
