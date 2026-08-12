@@ -297,6 +297,24 @@ describe('border roll research samples', () => {
     expect(startBorderRollSequence(enabled, 0.9).activeSequenceSamplingReason).toBe('gameplay')
   })
 
+  it.each(['unknown Vesper progress', 'research persistence failure', 'manual border entry'])(
+    'does not assign randomized research after observation via %s',
+    () => {
+      const store = createBorderResearchStore()
+      const enabled = setRandomizedResearchEnabled(store, true, 0, true)
+
+      expect(enabled.randomizedResearchEnabled).toBe(true)
+      expect(enabled.activeSequenceSamplingReason).toBe('gameplay')
+    },
+  )
+
+  it('preserves a genuinely pre-assigned sequence after its roll is observed', () => {
+    const assigned = setRandomizedResearchEnabled(createBorderResearchStore(), true, 0)
+    const observed = setRandomizedResearchEnabled(assigned, true, 1, true)
+
+    expect(observed.activeSequenceSamplingReason).toBe('randomized-research')
+  })
+
   it('does not relabel legacy active samples when progress is selected for new rolls', () => {
     const legacyActive = { ...sample(), vesperUpgradeCount: null }
     const store = {
