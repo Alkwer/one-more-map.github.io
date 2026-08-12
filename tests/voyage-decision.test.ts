@@ -321,6 +321,37 @@ describe('Voyage decision regressions', () => {
     assert.equal(decision.label, 'CONSIDER REROLL — next costs 3,000 Sulphur')
   })
 
+  it('keeps an all-ties roll when no paid reroll can score strictly higher', () => {
+    const decision = decide({
+      evaluations: [candidate({ id: 'active', fit: 1, rollForecast: forecast(0.5, 0) })],
+    })
+
+    assert.equal(decision.kind, 'stop')
+    assert.equal(decision.decisionBasis, 'no-modeled-upside')
+    assert.equal(decision.label, 'KEEP — NO PAID REROLL CAN IMPROVE THIS BOARD')
+    assert.match(decision.reason, /0% chance that a paid reroll scores strictly higher/)
+    assert.match(decision.reason, /Ties do not justify spending Sulphur/)
+  })
+
+  it('keeps a maximum roll with enough tie mass to remain below the keep line', () => {
+    const decision = decide({
+      evaluations: [candidate({ id: 'active', fit: 1, rollForecast: forecast(0.55, 0) })],
+    })
+
+    assert.equal(decision.kind, 'stop')
+    assert.equal(decision.decisionBasis, 'no-modeled-upside')
+  })
+
+  it('does not describe a small positive reroll chance as zero percent', () => {
+    const decision = decide({
+      evaluations: [candidate({ id: 'active', fit: 0.2, rollForecast: forecast(0.2, 0.004) })],
+    })
+
+    assert.equal(decision.kind, 'reroll')
+    assert.match(decision.reason, /<1% chance/)
+    assert.doesNotMatch(decision.reason, /0% chance/)
+  })
+
   it('keeps a low-confidence roll when every tested prior clears the percentile line', () => {
     const decision = decide({
       evaluations: [
