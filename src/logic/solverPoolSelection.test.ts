@@ -342,6 +342,44 @@ describe('granular keep-count solve pools', () => {
     expect(selection.solvePool.map(({ uid }) => uid)).toEqual(['voy-6', 'voy-7', 'adjacent'])
   })
 
+  it.each([
+    {
+      strategyId: 'milky-meatfish',
+      candidate: chart('legacy-pillar', { name: 'Forgotten Sea-Pillar Chart' }),
+    },
+    {
+      strategyId: 'milky-meatfish',
+      candidate: chart('modern-pillar', {
+        name: 'Localized destination',
+        areaType: 'sea-pillars',
+      }),
+    },
+    {
+      strategyId: 'cutedog-divine-boxes',
+      candidate: chart('legacy-pelagic', { name: 'Forgotten Pelagic Chart' }),
+    },
+    {
+      strategyId: 'cutedog-divine-boxes',
+      candidate: chart('modern-pelagic', {
+        name: 'Localized destination',
+        areaType: 'pelagic-abyss',
+      }),
+    },
+  ])(
+    'shares legacy name and modern area matches with $strategyId without exposing them to fallback',
+    ({ strategyId, candidate }) => {
+      const pool = [candidate]
+
+      expect(
+        selectStrategySolvePool(pool, { id: 'alc-and-go' }, reservations(), new Set(), {})
+          .solvePool,
+      ).toEqual([])
+      expect(
+        selectStrategySolvePool(pool, { id: strategyId }, reservations(), new Set(), {}).solvePool,
+      ).toEqual(pool)
+    },
+  )
+
   it('ranks matching charts by their rolls within a kept type', () => {
     const pool = [
       chart('weak', { modIds: ['voy-rare'] }),

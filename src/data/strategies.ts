@@ -121,6 +121,7 @@ export interface StrategyDef {
   bankTypes?: {
     label: string
     modIds?: string[]
+    nameMatch?: string
     areaTypes?: ChartAreaType[]
     /** Optional primary reward stat used to rank charts within this keep family. */
     rankRewardStat?: Stat
@@ -606,7 +607,12 @@ export const STRATEGIES: StrategyDef[] = [
     // Banking is more granular than readiness: typed boxes remain available
     // to Speedrun, while voyage-wide rares outrank adjacent rares.
     bankTypes: [
-      { label: 'Sea-Pillar chart', areaTypes: ['sea-pillars'], keep: 1 },
+      {
+        label: 'Sea-Pillar chart',
+        nameMatch: 'pillar',
+        areaTypes: ['sea-pillars'],
+        keep: 1,
+      },
       { label: 'Giant Starfish chart', modIds: ['adj-star-1', 'adj-star-2'], keep: 3 },
       {
         label: 'Strongbox chart (+2-4 / +5)',
@@ -716,6 +722,7 @@ export const STRATEGIES: StrategyDef[] = [
     bankTypes: [
       {
         label: 'Pelagic Abyss chart (high pack size)',
+        nameMatch: 'pelagic',
         areaTypes: ['pelagic-abyss'],
         rankRewardStat: 'packsize',
         keep: 1,
