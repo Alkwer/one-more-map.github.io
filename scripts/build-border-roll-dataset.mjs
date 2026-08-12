@@ -22,8 +22,9 @@ for (const conflict of conflicts) {
   )
 }
 if (!dataset) {
-  console.log('No accepted complete Voyage sequences were found; dataset was not changed.')
-  process.exit(0)
+  throw new Error(
+    'Canonical border-roll source corpus is empty. Refusing to retain or publish an existing dataset; maintainer review is required.',
+  )
 }
 
 await mkdir(dirname(outputPath), { recursive: true })

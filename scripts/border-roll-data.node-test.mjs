@@ -197,6 +197,29 @@ test('excludes issues manually labelled as test data', () => {
   assert.deepEqual(built, { dataset: null, conflicts: [] })
 })
 
+test('dataset CLI fails visibly instead of retaining a non-empty artifact for an empty corpus', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'border-roll-empty-'))
+  const inputPath = join(directory, 'accepted.json')
+  const outputPath = join(directory, 'dataset.json')
+  const existing = JSON.stringify({ schema: DATASET_SCHEMA, sampleCount: 1 })
+  await writeFile(inputPath, '[]')
+  await writeFile(outputPath, existing)
+
+  try {
+    await assert.rejects(
+      execFileAsync(
+        process.execPath,
+        ['scripts/build-border-roll-dataset.mjs', '--input', inputPath, '--output', outputPath],
+        { cwd: process.cwd() },
+      ),
+      /Canonical border-roll source corpus is empty/,
+    )
+    assert.equal(await readFile(outputPath, 'utf8'), existing)
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
 test('keeps the earliest accepted sample when historical IDs conflict', () => {
   const first = sample(0)
   const conflicting = sample(0, { borderModIds: [...borderModIds].reverse() })
