@@ -244,9 +244,26 @@ describe('border OCR regressions', () => {
     assert.match(fullImportHotkey, /MouseMove tabPoint\[1\], tabPoint\[2\], 0\s+Click/)
     assert.match(fullImportHotkey, /emptyStreak >= EmptySkip/)
     assert.match(fullImportHotkey, /tabsIdentical := true/)
-    assert.match(fullImportHotkey, /MouseMove Tab1X, Tab1Y, 0\s+Click/)
+    assert.match(
+      fullImportHotkey,
+      /tab1Point := ChartTabPoints\(\)\[1\]\s+MouseMove tab1Point\[1\], tab1Point\[2\], 0\s+Click/,
+    )
     assert.doesNotMatch(fullImportHotkey, /seen\.Has\(clip\)/)
-    assert.match(ahkImporter, /MouseMove RerollX, RerollY, 0/)
+    assert.match(ahkImporter, /rerollPoint := RerollScreenPoint\(\)/)
+    assert.match(ahkImporter, /MouseMove rerollPoint\[1\], rerollPoint\[2\], 0/)
+    assert.doesNotMatch(ahkImporter, /MouseMove RerollX, RerollY, 0/)
+    assert.match(ahkImporter, /CalibrationSpaceVersion := "poe-client-ratio-v1"/)
+    assert.match(ahkImporter, /CapturePoeClientPoint\(\)/)
+    assert.match(
+      ahkImporter,
+      /return \[\(mouseX - clientLeft\) \/ clientWidth, \(mouseY - clientTop\) \/ clientHeight\]/,
+    )
+    assert.match(ahkImporter, /PoeScreenPoint\(clientRatioX, clientRatioY\)/)
+    assert.match(ahkImporter, /return PoeScreenPoint\(TLx \+ col \* dx, TLy \+ row \* dy\)/)
+    assert.match(
+      ahkImporter,
+      /return \[PoeScreenPoint\(Tab1X, Tab1Y\), PoeScreenPoint\(Tab2X, Tab2Y\)\]/,
+    )
     assert.match(ahkImporter, /-Unfiltered:\$RerollCost/)
     assert.doesNotMatch(
       borderRefreshHotkey,
@@ -258,7 +275,7 @@ describe('border OCR regressions', () => {
     )
   })
 
-  it('auto-pastes only into an explicitly bound and address-reverified solver page', () => {
+  it('opens or reuses an address-verified solver page and focuses it without a saved click point', () => {
     const ahkImporter = readFileSync(
       new URL('../public/voyage-import.ahk', import.meta.url),
       'utf8',
@@ -266,8 +283,17 @@ describe('border OCR regressions', () => {
     const bindStart = ahkImporter.indexOf('BindForegroundSolverWindow()')
     const validateStart = ahkImporter.indexOf('ValidateBoundSolverWindow(', bindStart)
     const activateStart = ahkImporter.indexOf('ActivateBoundSolverWindow()', validateStart)
+    const focusStart = ahkImporter.indexOf('FocusBoundSolverPage()', activateStart)
+    const openStart = ahkImporter.indexOf('OpenTrustedSolverWindow()', focusStart)
+    const prepareStart = ahkImporter.indexOf('PrepareSolverWindow()', openStart)
     const bindFunction = ahkImporter.slice(bindStart, validateStart)
     const validateFunction = ahkImporter.slice(validateStart, activateStart)
+    const focusFunction = ahkImporter.slice(focusStart, openStart)
+    const openFunction = ahkImporter.slice(openStart, prepareStart)
+    const prepareFunction = ahkImporter.slice(
+      prepareStart,
+      ahkImporter.indexOf('PowerShellTrust :=', prepareStart),
+    )
     const deliveryStart = ahkImporter.indexOf('DeliverPayloadToSolver(payload)')
     const summaryStart = ahkImporter.indexOf('DeliverySummary(delivery)', deliveryStart)
     const deliveryFunction = ahkImporter.slice(deliveryStart, summaryStart)
@@ -288,27 +314,31 @@ describe('border OCR regressions', () => {
     assert.match(bindFunction, /CanonicalWindowImageForWindow\(activeHwnd\)/)
     assert.match(bindFunction, /RejectReparseComponents\(imagePath\)/)
     assert.match(bindFunction, /CanonicalSolverUrl\(ReadForegroundBrowserUrl\(activeHwnd\)\)/)
-    assert.match(bindFunction, /MouseGetPos &mouseX, &mouseY/)
-    assert.match(bindFunction, /SolverPasteClientX := pasteClientX/)
-    assert.match(bindFunction, /SolverClientWidth := clientWidth/)
+    assert.doesNotMatch(bindFunction, /MouseGetPos|pasteClient/)
+    assert.doesNotMatch(ahkImporter, /SolverPasteClient|saved neutral page point/)
     assert.match(validateFunction, /WinGetPID\("ahk_id " SolverHwnd\) != SolverPid/)
     assert.match(validateFunction, /WinGetClass\("ahk_id " SolverHwnd\) != SolverClass/)
     assert.match(validateFunction, /NormalizeWindowsPath\(currentImagePath\)/)
-    assert.match(validateFunction, /clientWidth != SolverClientWidth/)
-    assert.match(deliveryFunction, /CopyPayloadToClipboard\(payload\)/)
-    assert.match(deliveryFunction, /ActivateBoundSolverWindow\(\)/)
+    assert.doesNotMatch(validateFunction, /SolverClientWidth|clientWidth !=/)
+    assert.match(focusFunction, /Send "\{Esc\}"/)
+    assert.match(focusFunction, /ValidateBoundSolverWindow\(true\)/)
+    assert.doesNotMatch(focusFunction, /MouseMove|Click/)
+    assert.match(openFunction, /Run SolverLaunchUrl/)
+    assert.match(openFunction, /BindForegroundSolverWindow\(\)/)
+    assert.match(prepareFunction, /ActivateBoundSolverWindow\(\)/)
     assert.match(
-      deliveryFunction,
+      prepareFunction,
       /currentUrl := CanonicalSolverUrl\(ReadForegroundBrowserUrl\(SolverHwnd\)\)/,
     )
-    assert.match(deliveryFunction, /currentUrl != SolverPageUrl/)
-    assert.match(deliveryFunction, /ValidateBoundSolverWindow\(true\)/)
-    assert.match(deliveryFunction, /MouseMove clientLeft \+ SolverPasteClientX/)
+    assert.match(prepareFunction, /currentUrl = SolverPageUrl/)
+    assert.match(deliveryFunction, /CopyPayloadToClipboard\(payload\)/)
+    assert.match(deliveryFunction, /PrepareSolverWindow\(\)/)
+    assert.match(deliveryFunction, /FocusBoundSolverPage\(\)/)
     assert.match(deliveryFunction, /Send "\^v"/)
+    assert.doesNotMatch(deliveryFunction, /MouseMove|Click/)
     assert.ok(
-      deliveryFunction.indexOf('currentUrl != SolverPageUrl') <
-        deliveryFunction.indexOf('Send "^v"'),
-      'paste must happen only after exact URL comparison',
+      deliveryFunction.indexOf('PrepareSolverWindow()') < deliveryFunction.indexOf('Send "^v"'),
+      'paste must happen only after the solver window is prepared and verified',
     )
     assert.doesNotMatch(ahkImporter, /BrowserWinTitle|SetTitleMatchMode|WinGetTitle/)
   })
