@@ -797,8 +797,8 @@ test('plans the complete corner Divine composition with two feeders and six Rare
 
   await expect(readyDivine).toContainText('pieces ready - run this board')
   await expect(
-    planner.locator('.plan-row.waiting').filter({ hasText: 'Divine Border Rares' }),
-  ).toHaveCount(0)
+    planner.locator('.plan-row.waiting').filter({ hasText: 'Divine Strongboxes' }),
+  ).toContainText('committed to Divine Border Rares')
 })
 
 test('keeps existing borders after an interrupted Windows OCR sweep', async ({ appPage }) => {
