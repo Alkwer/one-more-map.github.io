@@ -47,19 +47,40 @@ function Readiness({
  * adds placement rules that shape what the solver suggests. Its own section so
  * it's obvious when a strategy - not your sliders - is steering results.
  */
-function RegexRow({ regex }: { regex: string }) {
+function RegexRow({
+  regex,
+  strategyId,
+  strategyName,
+}: {
+  regex: string
+  strategyId: string
+  strategyName: string
+}) {
   const [copied, setCopied] = useState(false)
   const [copyMessage, setCopyMessage] = useState('')
+  const inputId = `keeper-search-${strategyId}`
+  const descriptionId = `${inputId}-description`
   return (
     <div className="strat-regex-row">
-      <span
+      <label
+        htmlFor={inputId}
         className="strat-regex-label"
         title="Paste into the in-game chart search to highlight this strategy's keeper charts"
       >
         Keeper search
+      </label>
+      <input
+        id={inputId}
+        readOnly
+        value={regex}
+        aria-describedby={descriptionId}
+        onFocus={(e) => e.target.select()}
+      />
+      <span id={descriptionId} className="sr-only">
+        Read-only keeper search for {strategyName}. Copy it into the in-game chart search.
       </span>
-      <input readOnly value={regex} onFocus={(e) => e.target.select()} />
       <button
+        aria-label={`Copy ${strategyName} keeper search`}
         onClick={async () => {
           const result = await writeClipboardText(regex)
           if (!result.ok) {
@@ -151,7 +172,9 @@ export function StrategiesPanel({ activeId, pool, borders, onSelect }: Props) {
                 ))}
               </div>
             )}
-            {(isActive || isOpen) && s.searchRegex && <RegexRow regex={s.searchRegex} />}
+            {(isActive || isOpen) && s.searchRegex && (
+              <RegexRow regex={s.searchRegex} strategyId={s.id} strategyName={s.name} />
+            )}
             {(isActive || isOpen) && <Readiness strategy={s} pool={pool} borders={borders} />}
             <button
               className={`strat-use ${isActive ? 'on' : ''}`}
