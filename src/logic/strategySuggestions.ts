@@ -22,14 +22,36 @@ import { allocateStrategyRequirements } from './strategyRequirements'
 import { chartMeetsStrategyPreflight, strategyPreflightLabel } from './strategyPreflight'
 import {
   BORDER_ROLL_MODEL,
+  BORDER_ROLL_SLOT_COUNT,
   estimateModBoardChance,
   type BorderRollChanceEvidence,
+  type BorderRollModelConfidence,
 } from './borderRollModel'
 
 const EPSILON = 1e-9
 const POTENTIAL_SEARCH_RESTARTS = 12
 const POTENTIAL_SEARCH_ITERATIONS = 900
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value))
+
+export function strategyRankingWeights(
+  enteredBorders: number,
+  modelConfidence: BorderRollModelConfidence,
+) {
+  const enteredBorderRatio = Math.min(1, enteredBorders / BORDER_ROLL_SLOT_COUNT)
+  const borderWeight = 0.5 * enteredBorderRatio
+  // Future-roll estimates are never ranking inputs for a partial board. Keep
+  // the complete-board expression explicit so confidence growth cannot silently
+  // relax that policy. At a complete board its interpolation naturally reaches 0.
+  const modeledBorderWeight =
+    enteredBorders < BORDER_ROLL_SLOT_COUNT || modelConfidence === 'low'
+      ? 0
+      : 0.15 * (1 - enteredBorderRatio)
+  return {
+    borderWeight,
+    modeledBorderWeight,
+    libraryWeight: 1 - borderWeight - modeledBorderWeight,
+  }
+}
 
 export type SuggestionConfidence = 'low' | 'medium' | 'high'
 export type RequiredBorderStatus = 'not-required' | 'unknown' | 'met' | 'missing'
@@ -544,11 +566,10 @@ export function evaluateStrategyInventory(
     EPSILON,
     ...rawEvaluations.map((evaluation) => evaluation.rollAffinity),
   )
-  const enteredBorderRatio = Math.min(1, enteredBorders / 12)
-  const borderWeight = 0.5 * enteredBorderRatio
-  const modeledBorderWeight =
-    BORDER_ROLL_MODEL.confidence === 'low' ? 0 : 0.15 * (1 - enteredBorderRatio)
-  const libraryWeight = 1 - borderWeight - modeledBorderWeight
+  const { borderWeight, modeledBorderWeight, libraryWeight } = strategyRankingWeights(
+    enteredBorders,
+    BORDER_ROLL_MODEL.confidence,
+  )
 
   const evaluations: StrategyInventorySuggestion[] = rawEvaluations.map((raw) => {
     const { libraryAffinity, rollAffinity, equipmentJackpot, ...evaluation } = raw

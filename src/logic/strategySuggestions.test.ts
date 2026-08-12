@@ -6,6 +6,7 @@ import { decideVoyage } from './voyageDecision'
 import {
   evaluateStrategyInventory,
   resolveRunnableReadiness,
+  strategyRankingWeights,
   strategyReadiness,
 } from './strategySuggestions'
 
@@ -42,6 +43,28 @@ const options = {
   adjacencyMode: 'physical' as const,
   adjacentAffectsSelf: false,
 }
+
+describe('strategy ranking model policy', () => {
+  it.each(['medium', 'high'] as const)(
+    'keeps %s-confidence future-roll modeling out of incomplete input',
+    (confidence) => {
+      expect(strategyRankingWeights(0, confidence)).toEqual({
+        borderWeight: 0,
+        modeledBorderWeight: 0,
+        libraryWeight: 1,
+      })
+      const elevenBorders = strategyRankingWeights(11, confidence)
+      expect(elevenBorders.borderWeight).toBeCloseTo(11 / 24)
+      expect(elevenBorders.modeledBorderWeight).toBe(0)
+      expect(elevenBorders.libraryWeight).toBeCloseTo(13 / 24)
+      expect(strategyRankingWeights(12, confidence)).toEqual({
+        borderWeight: 0.5,
+        modeledBorderWeight: 0,
+        libraryWeight: 0.5,
+      })
+    },
+  )
+})
 
 describe('border-aware strategy readiness', () => {
   const strategy = strategyById.get('cutedog-divine-boxes')!
