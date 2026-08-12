@@ -5,7 +5,7 @@ import { buildSingleChartSearch } from '../../logic/regex'
 import { writeClipboardText } from '../../logic/clipboard'
 import type { ChartData, Placement } from '../../types'
 import { STAT_LABELS, STAT_SHORT } from '../../types'
-import { tooltipProps } from '../Tooltip'
+import { TooltipDescription, tooltipProps } from '../Tooltip'
 import type { EdgeStatus } from './boardEdges'
 
 interface BoardCellProps {
@@ -71,7 +71,7 @@ export function BoardCell({
   const edges = rotateEdges(chart.edges, placement.rotation)
   const mods = chart.modIds.map((id) => voyageModById.get(id)).filter(Boolean)
   const scopeLabel = { self: 'this Area', adjacent: 'adjacent Areas', global: 'the whole Voyage' }
-  const tooltip = tooltipProps({
+  const tooltipData = {
     title: chart.name,
     lines: [
       { text: `Area Level: ${chart.level}${chart.shape ? ` · ${chart.shape}` : ''}`, cls: 'muted' },
@@ -83,8 +83,13 @@ export function BoardCell({
         text: `${mod!.text}  (${scopeLabel[mod!.scope]})`,
         cls: `scope-${mod!.scope}`,
       })),
+      { text: `Weighted value: ${score.toFixed(1)}`, cls: 'val' },
+      ...(chart.preserved
+        ? [{ text: '🔒 Preserved - Finish Voyage will not consume it', cls: 'muted' }]
+        : []),
     ],
-  })
+  }
+  const descriptionId = `board-chart-details-${cellIndex}`
   // show the implicit (adjacent/voyage) on the tile - it's the strategic mod
   const primary = mods.find((mod) => mod!.scope !== 'self') ?? mods[0]
   const rotationDegrees = placement.rotation * 90
@@ -100,8 +105,9 @@ export function BoardCell({
         aria-pressed={selected}
         data-chart-name={chart.name}
         onClick={onClick}
-        {...tooltip}
+        {...tooltipProps(tooltipData, descriptionId)}
       >
+        <TooltipDescription id={descriptionId} data={tooltipData} />
         {(['n', 'e', 's', 'w'] as const).map((direction, edge) =>
           edges[edge] ? (
             <span key={direction} className={`path-bar ${direction} ${edgeStatus[edge]}`} />
@@ -152,6 +158,15 @@ export function BoardCell({
         <span className="tile-score">{score.toFixed(1)}</span>
       </button>
       <div className="tile-actions" role="group" aria-label={`Actions for ${chart.name}`}>
+        <button
+          type="button"
+          className="tile-inspect"
+          aria-label={`Inspect details for ${chart.name}`}
+          title="Inspect chart details"
+          {...tooltipProps(tooltipData, descriptionId, true)}
+        >
+          ⓘ
+        </button>
         <button
           type="button"
           className={chart.preserved ? 'active' : ''}

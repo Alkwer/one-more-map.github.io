@@ -3,7 +3,7 @@ import { isChartShapeResolved } from '../../logic/chartShapes'
 import type { PieceType } from '../../logic/pieceKeeps'
 import type { ChartData } from '../../types'
 import { EdgeGlyph } from '../icons'
-import { tooltipProps } from '../Tooltip'
+import { TooltipDescription, tooltipProps } from '../Tooltip'
 import { ChartEditor } from './ChartEditor'
 
 interface Props {
@@ -37,6 +37,25 @@ export function ChartList(props: Props) {
           }
           props.onSelect(chart.uid)
         }
+        const tooltip = {
+          title: chart.name,
+          lines: [
+            {
+              text: `Area Level: ${chart.level}${chart.shape ? ` · ${chart.shape}` : ''}`,
+              cls: 'muted',
+            },
+            ...(chart.rewards ?? []).map((effect) => ({
+              text: `+${effect.percent}% ${effect.stat}`,
+              cls: 'scope-self',
+            })),
+            ...modifiers.map((candidate) => ({
+              text: candidate!.text,
+              cls: `scope-${candidate!.scope}`,
+            })),
+            ...(lock ? [{ text: `🔒 ${lock} - other solves won't spend it`, cls: 'muted' }] : []),
+          ],
+        }
+        const descriptionId = `chart-list-details-${chart.uid}`
 
         return (
           <div
@@ -53,7 +72,9 @@ export function ChartList(props: Props) {
               }
               aria-pressed={!unresolvedShape && props.selected === chart.uid}
               onClick={activate}
+              {...tooltipProps(tooltip, descriptionId)}
             >
+              <TooltipDescription id={descriptionId} data={tooltip} />
               <span className="chart-card-head">
                 {unresolvedShape ? (
                   <span className="shape-alert" aria-label="Shape confirmation required">
@@ -73,19 +94,7 @@ export function ChartList(props: Props) {
                 {props.onBoard.has(chart.uid) && <span className="badge">on board</span>}
               </span>
               {modifier && (
-                <span
-                  className={`chart-mod scope-${modifier.scope}`}
-                  {...tooltipProps({
-                    title: chart.name,
-                    lines: [
-                      { text: `Area Level: ${chart.level}`, cls: 'muted' },
-                      ...modifiers.map((candidate) => ({
-                        text: candidate!.text,
-                        cls: `scope-${candidate!.scope}`,
-                      })),
-                    ],
-                  })}
-                >
+                <span className={`chart-mod scope-${modifier.scope}`}>
                   {modifiers.map((candidate) => (
                     <span
                       key={candidate!.id}
