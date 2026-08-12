@@ -732,6 +732,7 @@ export const STRATEGIES: StrategyDef[] = [
         modIds: ['adj-box-2', 'adj-box-3'],
         keep: 3,
       },
+      { label: 'Strongbox chart (+1)', modIds: ['adj-box-1'], keep: 0 },
       {
         label: "Diviner's Strongbox chart",
         modIds: ['adj-divbox-1', 'adj-divbox-2'],
