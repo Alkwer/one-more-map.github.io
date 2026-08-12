@@ -87,7 +87,7 @@ export function selectStrategySolvePool(
     if (lockedUids.has(chart.uid)) return true
     const owner = bank.get(chart.uid)
     if (!owner || owner.strategyId === strategy?.id) return true
-    if (strategyWantsChart(strategy?.id, chart)) return true
+    if (strategyWantsChart(strategy?.id, chart, pieceKeeps)) return true
     heldFor.add(owner.strategyName)
     return false
   })

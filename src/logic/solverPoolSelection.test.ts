@@ -407,6 +407,25 @@ describe('granular keep-count solve pools', () => {
     expect(bank.has('small-barrel')).toBe(false)
   })
 
+  it('shares a custom keeper family with every selected strategy regardless of key order', () => {
+    const barrelFamily = CUSTOM_OPTIONS.find((option) => option.modIds.includes('adj-barrel-1'))!
+    const barrel = chart('shared-barrel', { modIds: ['adj-barrel-2'] })
+    const divineKey = customKey('divine-border-rares', barrelFamily.modIds)
+    const speedrunKey = customKey('milky-speedrun', barrelFamily.modIds)
+    const keepOrders = [
+      { [divineKey]: 1, [speedrunKey]: 1 },
+      { [speedrunKey]: 1, [divineKey]: 1 },
+    ]
+
+    for (const keeps of keepOrders) {
+      for (const strategyId of ['divine-border-rares', 'milky-speedrun']) {
+        expect(
+          selectStrategySolvePool([barrel], { id: strategyId }, reservations(), new Set(), keeps),
+        ).toEqual({ solvePool: [barrel], heldBack: 0, heldBackFor: [] })
+      }
+    }
+  })
+
   it('gates a user-added type with its matching granular protection', () => {
     const starfishFamily = CUSTOM_OPTIONS.find((option) => option.modIds.includes('adj-star-1'))
     expect(starfishFamily).toBeDefined()
