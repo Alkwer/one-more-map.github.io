@@ -133,7 +133,7 @@ export function planSession(
     const centre = centres[0]
     if (!centre) break
     // sides never waste a spare centre chart - those seed the NEXT run
-    const sides = [...spendable.filter((c) => !isCentre(c)), ...centres.slice(1)].slice(0, 8)
+    const sides = spendable.filter((c) => !isCentre(c)).slice(0, 8)
     if (sides.length < 8) break
     used.add(centre.uid)
     sides.forEach((c) => used.add(c.uid))
