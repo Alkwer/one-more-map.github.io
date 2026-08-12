@@ -2,6 +2,32 @@ import type { StrategyEvaluationOptions, StrategyInventoryResult } from './strat
 import type { SolverOptions, SolverResult } from './solver'
 import type { Borders, ChartData, Weights } from '../types'
 
+export type SolverChartDto = Pick<
+  ChartData,
+  'uid' | 'name' | 'edges' | 'areaType' | 'modIds' | 'rewards' | 'shapeResolved'
+>
+
+/**
+ * Keep structured-clone traffic limited to the chart fields consumed by the
+ * solver and strategy inventory. In particular, imported source text and UI
+ * state must never cross the worker boundary.
+ */
+export const toSolverChartDto = (chart: ChartData): SolverChartDto => ({
+  uid: chart.uid,
+  name: chart.name,
+  edges: [...chart.edges],
+  areaType: chart.areaType,
+  modIds: [...chart.modIds],
+  rewards: chart.rewards?.map((reward) => ({ ...reward })),
+  shapeResolved: chart.shapeResolved,
+})
+
+/** Restore the storage-only required field after the DTO crosses the worker boundary. */
+export const hydrateSolverChartDto = (chart: SolverChartDto): ChartData => ({
+  ...chart,
+  level: 0,
+})
+
 export type SerializedStrategyEvaluationOptions = Omit<
   StrategyEvaluationOptions,
   'disabledMods'
@@ -14,14 +40,14 @@ export type SerializedSolverOptions = Omit<SolverOptions, 'disabledMods'> & {
 }
 
 export interface StrategyInventoryWorkerPayload {
-  pool: ChartData[]
+  pool: SolverChartDto[]
   borders: Borders
   options: SerializedStrategyEvaluationOptions
   limit?: number
 }
 
 export interface SolveWorkerPayload {
-  pool: ChartData[]
+  pool: SolverChartDto[]
   borders: Borders
   weights: Weights
   options: SerializedSolverOptions

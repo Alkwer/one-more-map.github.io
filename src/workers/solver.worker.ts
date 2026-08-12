@@ -1,6 +1,10 @@
 import { evaluateStrategyInventory } from '../logic/strategySuggestions'
 import { solve } from '../logic/solver'
-import type { SolverWorkerRequest, SolverWorkerResponse } from '../logic/solverWorkerProtocol'
+import {
+  hydrateSolverChartDto,
+  type SolverWorkerRequest,
+  type SolverWorkerResponse,
+} from '../logic/solverWorkerProtocol'
 
 interface WorkerScope {
   onmessage: ((event: MessageEvent<SolverWorkerRequest>) => void) | null
@@ -13,10 +17,11 @@ workerScope.onmessage = ({ data }) => {
   try {
     if (data.type === 'strategy-inventory') {
       const { pool, borders, options, limit } = data.payload
+      const charts = pool.map(hydrateSolverChartDto)
       const result = evaluateStrategyInventory(
         borders,
-        new Map(pool.map((chart) => [chart.uid, chart])),
-        pool,
+        new Map(charts.map((chart) => [chart.uid, chart])),
+        charts,
         {
           ...options,
           disabledMods: new Set(options.disabledMods),
@@ -32,7 +37,7 @@ workerScope.onmessage = ({ data }) => {
     }
 
     const { pool, borders, weights, options } = data.payload
-    const result = solve(pool, borders, weights, {
+    const result = solve(pool.map(hydrateSolverChartDto), borders, weights, {
       ...options,
       disabledMods: new Set(options.disabledMods),
     })
