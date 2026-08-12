@@ -9,8 +9,8 @@ CoordMode "ToolTip", "Screen"
 ;
 ;  Three phases:
 ;    Phase 1 - stays in PoE, switches through both chart-stash tabs, hovers
-;              every cell and Ctrl+C's it, appending each chart's text into
-;              one buffer (no window switching).
+;              every cell and Ctrl+C's it, appending up to 120 chart slots
+;              with the default 6x10 grids (no window switching).
 ;    Phase 2 - hovers the 12 board-border modifiers and the optional reroll
 ;              button. An in-memory PowerShell helper captures the PoE window
 ;              and reads each tooltip with the Windows OCR engine. No script is
@@ -1191,7 +1191,7 @@ DeliverPayloadToSolver(payload) {
 DeliverySummary(delivery) {
     global LastDeliveryError
     if (delivery = "pasted")
-        return " Imported automatically into the solver page."
+        return " Sent the payload to the solver page. Check the Import status for the result."
     if (delivery = "clipboard")
         return " Auto-import skipped: " LastDeliveryError ". The payload remains on the clipboard for Ctrl+V."
     return " No payload was delivered."

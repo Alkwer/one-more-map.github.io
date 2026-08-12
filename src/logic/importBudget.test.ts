@@ -72,6 +72,21 @@ describe('clipboard import resource budget', () => {
     ).toThrow(/line exceeds/)
   })
 
+  it('accepts a full bulk import with many charts and noisy Windows OCR blocks', () => {
+    const charts = Array.from(
+      { length: 120 },
+      (_, index) => `Item Class: Chart\nRarity: Rare\nTest Chart ${index + 1}\n--------`,
+    ).join('\n')
+    const borders = Array.from({ length: MAX_IMPORT_BORDER_BLOCKS }, (_, index) =>
+      borderBlock(
+        index,
+        Array.from({ length: 96 }, (__, line) => `recognized tooltip line ${line + 1}`),
+      ),
+    ).join('\n')
+
+    expect(() => assertImportWithinBudget(`${charts}\n${borders}`)).not.toThrow()
+  })
+
   it('rejects repeated or unterminated OCR markers without running block regexes', () => {
     expect(() =>
       assertImportWithinBudget('=== VOYAGE BORDER 0 ===\n=== VOYAGE BORDER 1 ==='),
