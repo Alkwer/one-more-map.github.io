@@ -3350,9 +3350,12 @@ textarea {
   margin-top: 6px;
 }
 .save-wizard {
+  width: min(640px, 100%);
+  min-width: 0;
   max-width: 640px;
   max-height: 86vh;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 .sw-progress {
   font-size: 12px;
@@ -3406,10 +3409,12 @@ textarea {
   text-align: center;
 }
 .sw-name {
+  min-width: 0;
   font-family: var(--sc);
   letter-spacing: 0.3px;
 }
 .sw-mod {
+  min-width: 0;
   color: var(--adjacent);
   font-size: 12.5px;
 }
@@ -3451,6 +3456,8 @@ textarea {
 }
 .sw-add input {
   flex: 1;
+  min-width: 0;
+  width: 100%;
 }
 .sw-add-list {
   display: flex;
@@ -3486,6 +3493,100 @@ textarea {
   width: auto;
   margin-top: 0;
   padding: 6px 22px;
+}
+
+@media (max-width: 400px) {
+  .save-wizard-backdrop {
+    align-items: flex-start;
+    padding: 8px;
+  }
+
+  .save-wizard {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - 16px);
+    border-width: 16px 18px;
+    padding: 8px;
+  }
+
+  .save-wizard > .panel-title {
+    flex-wrap: wrap;
+    gap: 6px 8px;
+  }
+
+  .save-wizard > .panel-title .panel-title-heading {
+    flex: 1 1 160px;
+    min-width: 0;
+  }
+
+  .save-wizard > .panel-title .sw-progress {
+    margin-left: 0;
+  }
+
+  .save-wizard > .panel-title .spacer {
+    display: none;
+  }
+
+  .save-wizard > .panel-title button {
+    margin-left: auto;
+  }
+
+  .sw-row:not(.summary) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 4px 8px;
+    padding: 6px;
+  }
+
+  .sw-row:not(.summary) > .sw-name {
+    grid-column: 1 / -1;
+    overflow-wrap: anywhere;
+  }
+
+  .sw-row:not(.summary) > .sw-mod {
+    grid-column: 1;
+  }
+
+  .sw-row:not(.summary) > .spacer {
+    display: none;
+  }
+
+  .sw-row:not(.summary) > .sw-stepper {
+    grid-column: 2;
+    justify-self: end;
+  }
+
+  .sw-row:not(.summary) > .sw-remove {
+    grid-column: 3;
+  }
+
+  .sw-row.summary {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    gap: 4px 8px;
+    padding: 6px;
+  }
+
+  .sw-row.summary > .sw-pin {
+    grid-column: 1;
+  }
+
+  .sw-row.summary > .sw-name {
+    grid-column: 2;
+    overflow-wrap: anywhere;
+  }
+
+  .sw-row.summary > .sw-mod {
+    grid-column: 1 / -1;
+  }
+
+  .sw-actions {
+    flex-wrap: wrap;
+  }
+
+  .sw-actions button {
+    min-width: 0;
+  }
 }
 .session-plan {
   max-width: 600px;
