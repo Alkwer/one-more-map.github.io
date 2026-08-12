@@ -1,7 +1,7 @@
 #Requires AutoHotkey v2.0
 #SingleInstance Force
 SetWorkingDir A_ScriptDir
-CoordMode "Mouse", "Screen"  ; all coords are absolute screen pixels
+CoordMode "Mouse", "Screen"  ; runtime targets are screen pixels; saved points are PoE-client ratios
 CoordMode "ToolTip", "Screen"
 
 ; =====================================================================
@@ -15,9 +15,10 @@ CoordMode "ToolTip", "Screen"
 ;              button. An in-memory PowerShell helper captures the PoE window
 ;              and reads each tooltip with the Windows OCR engine. No script is
 ;              executed from TEMP, and screenshots never leave the PC.
-;    Phase 3 - activates the explicitly bound solver window, re-verifies its
-;              address-bar URL, and pastes the payload. If verification fails,
-;              the payload stays on the clipboard for a manual Ctrl+V.
+;    Phase 3 - activates the verified solver window (or opens the trusted
+;              solver URL), focuses the page without clicking, and pastes the
+;              payload. If verification fails, the payload stays on the
+;              clipboard for a manual Ctrl+V.
 ;    Empty cells copy nothing and are skipped.
 ;
 ;  ---------------------------------------------------------------
@@ -26,14 +27,11 @@ CoordMode "ToolTip", "Screen"
 ;   2. In PoE open the Voyage board so the Chart panel is fully
 ;      visible and NOT scrolled. Use Windowed or Windowed Fullscreen
 ;      (exclusive fullscreen can block the mouse/keys).
-;   3. Double-click this file to run it (it lives in the tray). Open the solver,
-;      verify its URL, point at a neutral non-interactive part of the page, and
-;      press Ctrl+F2 once to bind that browser window and paste point.
-;   4. With PoE as the
-;      foreground window, press Ctrl+F3 once per script launch to bind the exact
-;      PoE window, process, class, and installation image.
-;   5. Keep the bound solver tab open. Automatic paste is refused if the window,
-;      process, URL, or window size changes after binding.
+;   3. Double-click this file to run it (it lives in the tray).
+;   4. Keep PoE in the foreground when using calibration or scan hotkeys. The
+;      real PoE window is authenticated and bound automatically.
+;   5. F9 opens the trusted solver page automatically when necessary. Ctrl+F2
+;      and Ctrl+F3 remain optional manual overrides for unusual window setups.
 ;
 ;  CALIBRATE THE BOARD BORDERS (once; saved to voyage-import.ini)
 ;   - Point at the TOP-LEFT corner of the border-modifier square, press F5.
@@ -60,9 +58,9 @@ CoordMode "ToolTip", "Screen"
 ;   - Set GridCols / GridRows below to match your panel.
 ;
 ;  RUN
-;   Ctrl+F2 = bind the foreground solver page and safe paste point
-;   Ctrl+F3 = bind the foreground PoE window for this script session
-;   F9      = copy charts + board borders and import them into the bound solver
+;   Ctrl+F2 = optionally bind the foreground verified solver page
+;   Ctrl+F3 = optionally rebind the foreground authenticated PoE window
+;   F9      = copy charts + board borders and import them into the solver
 ;   Ctrl+F9 = refresh only the 12 board borders (use after a reroll)
 ;             and the reroll cost when Ctrl+F7 was calibrated
 ;   F10     = abort at any time
@@ -82,11 +80,8 @@ SolverPid := 0
 SolverClass := ""
 SolverImagePath := ""
 SolverPageUrl := ""
-SolverPasteClientX := 0
-SolverPasteClientY := 0
-SolverClientWidth := 0
-SolverClientHeight := 0
 LastDeliveryError := ""
+SolverLaunchUrl := "https://alkwer.github.io/one-more-map.github.io/allflame-voyage-solver/"
 
 GridCols := 6    ; columns in the Chart panel
 GridRows := 10   ; rows to sweep (overshooting is fine - empty cells skip)
@@ -97,7 +92,9 @@ HoverDelay    := 28    ; ms for PoE to register the cursor before Ctrl+C
 BorderHoverDelay := 250 ; ms for a border tooltip to appear before OCR capture
 RerollHoverDelay := 350 ; ms for the reroll-cost tooltip to appear
 BrowserAddressDelay := 120 ; ms for the browser address bar to receive Ctrl+L/C
-BrowserPasteDelay := 80 ; ms after focusing the saved neutral page point
+BrowserOpenTimeout := 8 ; seconds to wait for the trusted solver page to open
+BrowserLoadDelay := 900 ; ms for a newly opened solver page to install its paste handler
+BrowserPasteDelay := 180 ; ms after returning keyboard focus to the page
 BorderOcrAttempts := 2  ; retry once when both filtered and unfiltered OCR are empty
 BorderPreviewDelay := 900 ; ms per point during the Ctrl+F4 visual preview
 ClipTimeout   := 0.2   ; seconds to wait for Ctrl+C (only empty cells wait the full time)
@@ -108,6 +105,8 @@ OcrTimeout    := 90    ; seconds before a stuck Windows OCR scan is stopped
 ; ----------------------------------------
 
 IniFile := A_ScriptDir "\voyage-import.ini"
+CalibrationSpaceVersion := "poe-client-ratio-v1"
+CalibrationSpace := IniRead(IniFile, "meta", "CoordinateSpace", "legacy-screen")
 TLx := IniRead(IniFile, "grid", "TLx", "0") + 0
 TLy := IniRead(IniFile, "grid", "TLy", "0") + 0
 BRx := IniRead(IniFile, "grid", "BRx", "0") + 0
@@ -131,6 +130,16 @@ Loop 12 {
         break
     }
     ExactBorderPoints.Push([exactX, exactY])
+}
+if (CalibrationSpace != CalibrationSpaceVersion) {
+    ; Absolute desktop coordinates from older builds cannot be translated after
+    ; PoE moves to another monitor. Ignore them and clear them lazily when the
+    ; first new calibration point is captured.
+    TLx := TLy := BRx := BRy := 0
+    Tab1X := Tab1Y := Tab2X := Tab2Y := 0
+    BorderTLx := BorderTLy := BorderBRx := BorderBRy := 0
+    RerollX := RerollY := 0
+    ExactBorderPoints := []
 }
 ExactBorderNext := 0
 ScriptPid := ProcessExist()
@@ -346,10 +355,19 @@ ValidateBoundPoeWindow(requireForeground := false) {
 }
 
 RequireBoundPoeForeground() {
+    global PoeHwnd, PoePid, PoeImagePath
     if ValidateBoundPoeWindow(true)
         return true
-    Flash "PoE identity or foreground ownership changed - aborted. Focus the real game and press Ctrl+F3 to bind it again.", 5000
-    return false
+    try {
+        BindForegroundPoeWindow()
+        return true
+    } catch as error {
+        PoeHwnd := 0
+        PoePid := 0
+        PoeImagePath := ""
+        Flash "Focus the real Path of Exile window and try again.`n" error.Message, 5000
+        return false
+    }
 }
 
 ActivateBoundPoeWindow() {
@@ -362,18 +380,64 @@ ActivateBoundPoeWindow() {
     return ValidateBoundPoeWindow(true)
 }
 
+ResetCalibrationVariables() {
+    global TLx, TLy, BRx, BRy, Tab1X, Tab1Y, Tab2X, Tab2Y
+    global BorderTLx, BorderTLy, BorderBRx, BorderBRy, RerollX, RerollY
+    global ExactBorderPoints, ExactBorderNext
+    TLx := TLy := BRx := BRy := 0
+    Tab1X := Tab1Y := Tab2X := Tab2Y := 0
+    BorderTLx := BorderTLy := BorderBRx := BorderBRy := 0
+    RerollX := RerollY := 0
+    ExactBorderPoints := []
+    ExactBorderNext := 0
+}
+
+BeginClientCalibration() {
+    global CalibrationSpace, CalibrationSpaceVersion, IniFile
+    if (CalibrationSpace = CalibrationSpaceVersion)
+        return
+
+    ; Do not mix legacy desktop pixels with monitor-independent client ratios.
+    try IniDelete IniFile, "grid"
+    try IniDelete IniFile, "board"
+    try IniDelete IniFile, "board-exact"
+    ResetCalibrationVariables()
+    CalibrationSpace := CalibrationSpaceVersion
+    IniWrite CalibrationSpace, IniFile, "meta", "CoordinateSpace"
+    Flash "Old screen-based calibration was cleared once.`nRecalibrate the required points in PoE.", 5000
+}
+
+CapturePoeClientPoint() {
+    global PoeHwnd
+    BeginClientCalibration()
+    WinGetClientPos &clientLeft, &clientTop, &clientWidth, &clientHeight, "ahk_id " PoeHwnd
+    if (clientWidth <= 0 || clientHeight <= 0)
+        throw Error("Could not read the Path of Exile client area.")
+    MouseGetPos &mouseX, &mouseY
+    if (mouseX < clientLeft || mouseX > clientLeft + clientWidth
+        || mouseY < clientTop || mouseY > clientTop + clientHeight)
+        throw Error("The mouse pointer is outside the bound Path of Exile window.")
+    return [(mouseX - clientLeft) / clientWidth, (mouseY - clientTop) / clientHeight]
+}
+
+PoeScreenPoint(clientRatioX, clientRatioY) {
+    global PoeHwnd
+    WinGetClientPos &clientLeft, &clientTop, &clientWidth, &clientHeight, "ahk_id " PoeHwnd
+    if (clientWidth <= 0 || clientHeight <= 0)
+        throw Error("Could not read the Path of Exile client area.")
+    return [
+        Round(clientLeft + clientRatioX * clientWidth),
+        Round(clientTop + clientRatioY * clientHeight)
+    ]
+}
+
 ClearSolverBinding() {
     global SolverHwnd, SolverPid, SolverClass, SolverImagePath, SolverPageUrl
-    global SolverPasteClientX, SolverPasteClientY, SolverClientWidth, SolverClientHeight
     SolverHwnd := 0
     SolverPid := 0
     SolverClass := ""
     SolverImagePath := ""
     SolverPageUrl := ""
-    SolverPasteClientX := 0
-    SolverPasteClientY := 0
-    SolverClientWidth := 0
-    SolverClientHeight := 0
 }
 
 IsExpectedBrowserImage(imagePath) {
@@ -422,7 +486,6 @@ ReadForegroundBrowserUrl(hwnd) {
 BindForegroundSolverWindow() {
     global ExpectedPoeClass
     global SolverHwnd, SolverPid, SolverClass, SolverImagePath, SolverPageUrl
-    global SolverPasteClientX, SolverPasteClientY, SolverClientWidth, SolverClientHeight
 
     activeHwnd := WinExist("A")
     if !activeHwnd
@@ -436,30 +499,19 @@ BindForegroundSolverWindow() {
         throw Error("The foreground process is not a supported browser.")
 
     pageUrl := CanonicalSolverUrl(ReadForegroundBrowserUrl(activeHwnd))
-    WinGetClientPos &clientLeft, &clientTop, &clientWidth, &clientHeight, "ahk_id " activeHwnd
-    MouseGetPos &mouseX, &mouseY
-    pasteClientX := mouseX - clientLeft
-    pasteClientY := mouseY - clientTop
+    WinGetClientPos , , &clientWidth, &clientHeight, "ahk_id " activeHwnd
     if (clientWidth < 320 || clientHeight < 240)
         throw Error("The solver browser window is too small for safe automatic paste.")
-    if (pasteClientX < 8 || pasteClientX > clientWidth - 24
-        || pasteClientY < 100 || pasteClientY > clientHeight - 16)
-        throw Error("Point at a neutral place inside the solver page, below the browser toolbar, and press Ctrl+F2 again.")
 
     SolverHwnd := activeHwnd
     SolverPid := WinGetPID("ahk_id " activeHwnd)
     SolverClass := WinGetClass("ahk_id " activeHwnd)
     SolverImagePath := imagePath
     SolverPageUrl := pageUrl
-    SolverPasteClientX := pasteClientX
-    SolverPasteClientY := pasteClientY
-    SolverClientWidth := clientWidth
-    SolverClientHeight := clientHeight
 }
 
 ValidateBoundSolverWindow(requireForeground := false) {
     global SolverHwnd, SolverPid, SolverClass, SolverImagePath
-    global SolverPasteClientX, SolverPasteClientY, SolverClientWidth, SolverClientHeight
     if !SolverHwnd || !WinExist("ahk_id " SolverHwnd)
         return false
     try {
@@ -472,12 +524,6 @@ ValidateBoundSolverWindow(requireForeground := false) {
         if !IsExpectedBrowserImage(currentImagePath)
             return false
         if (NormalizeWindowsPath(currentImagePath) != NormalizeWindowsPath(SolverImagePath))
-            return false
-        WinGetClientPos &clientLeft, &clientTop, &clientWidth, &clientHeight, "ahk_id " SolverHwnd
-        if (clientWidth != SolverClientWidth || clientHeight != SolverClientHeight)
-            return false
-        if (SolverPasteClientX < 8 || SolverPasteClientX > clientWidth - 24
-            || SolverPasteClientY < 100 || SolverPasteClientY > clientHeight - 16)
             return false
         if requireForeground && (WinExist("A") != SolverHwnd)
             return false
@@ -494,6 +540,48 @@ ActivateBoundSolverWindow() {
     if !WinWaitActive("ahk_id " SolverHwnd, , 2)
         return false
     return ValidateBoundSolverWindow(true)
+}
+
+FocusBoundSolverPage() {
+    global SolverHwnd, BrowserPasteDelay
+    if !ValidateBoundSolverWindow(true)
+        return false
+
+    ; Address verification uses Ctrl+L. Escape returns focus to the page that
+    ; was active before the address bar, without clicking any desktop point.
+    Send "{Esc}"
+    Sleep BrowserPasteDelay
+    return ValidateBoundSolverWindow(true)
+}
+
+OpenTrustedSolverWindow() {
+    global SolverLaunchUrl, BrowserOpenTimeout, BrowserLoadDelay
+    ClearSolverBinding()
+    try Run SolverLaunchUrl
+    catch
+        return false
+    deadline := A_TickCount + BrowserOpenTimeout * 1000
+    while (A_TickCount < deadline) {
+        Sleep 150
+        try {
+            BindForegroundSolverWindow()
+            Sleep BrowserLoadDelay
+            return ValidateBoundSolverWindow(true)
+        }
+    }
+    return false
+}
+
+PrepareSolverWindow() {
+    global SolverHwnd, SolverPageUrl
+    if SolverHwnd && ActivateBoundSolverWindow() {
+        try currentUrl := CanonicalSolverUrl(ReadForegroundBrowserUrl(SolverHwnd))
+        catch
+            currentUrl := ""
+        if (currentUrl = SolverPageUrl) && ValidateBoundSolverWindow(true)
+            return true
+    }
+    return OpenTrustedSolverWindow()
 }
 
 PowerShellTrust := ResolveTrustedPowerShell()
@@ -537,14 +625,22 @@ CellPos(row, col) {
     global TLx, TLy, BRx, BRy, GridCols, GridRows
     dx := (GridCols > 1) ? (BRx - TLx) / (GridCols - 1) : 0
     dy := (GridRows > 1) ? (BRy - TLy) / (GridRows - 1) : 0
-    return [Round(TLx + col * dx), Round(TLy + row * dy)]
+    return PoeScreenPoint(TLx + col * dx, TLy + row * dy)
 }
 
-GridCalibrated() => (TLx != 0 && TLy != 0 && BRx != 0 && BRy != 0)
+ClientRatioPointValid(x, y) => (x > 0 && x <= 1 && y > 0 && y <= 1)
+
+GridCalibrated() {
+    global TLx, TLy, BRx, BRy
+    return ClientRatioPointValid(TLx, TLy)
+        && ClientRatioPointValid(BRx, BRy)
+        && BRx > TLx && BRy > TLy
+}
 
 StashTabsCalibrated() {
     global Tab1X, Tab1Y, Tab2X, Tab2Y
-    return Tab1X != 0 && Tab1Y != 0 && Tab2X != 0 && Tab2Y != 0
+    return ClientRatioPointValid(Tab1X, Tab1Y)
+        && ClientRatioPointValid(Tab2X, Tab2Y)
         && (Tab1X != Tab2X || Tab1Y != Tab2Y)
 }
 
@@ -552,7 +648,7 @@ Calibrated() => GridCalibrated() && StashTabsCalibrated()
 
 ChartTabPoints() {
     global Tab1X, Tab1Y, Tab2X, Tab2Y
-    return [[Tab1X, Tab1Y], [Tab2X, Tab2Y]]
+    return [PoeScreenPoint(Tab1X, Tab1Y), PoeScreenPoint(Tab2X, Tab2Y)]
 }
 
 IsChartText(text) {
@@ -562,18 +658,26 @@ IsChartText(text) {
 
 ExactBordersCalibrated() {
     global ExactBorderPoints
-    return ExactBorderPoints.Length = 12
+    if (ExactBorderPoints.Length != 12)
+        return false
+    for point in ExactBorderPoints {
+        if !ClientRatioPointValid(point[1], point[2])
+            return false
+    }
+    return true
 }
 
 BoardCalibrated() {
     global BorderTLx, BorderTLy, BorderBRx, BorderBRy
     return ExactBordersCalibrated()
-        || (BorderTLx != 0 && BorderTLy != 0 && BorderBRx > BorderTLx && BorderBRy > BorderTLy)
+        || (ClientRatioPointValid(BorderTLx, BorderTLy)
+            && ClientRatioPointValid(BorderBRx, BorderBRy)
+            && BorderBRx > BorderTLx && BorderBRy > BorderTLy)
 }
 
 RerollCostCalibrated() {
     global RerollX, RerollY
-    return RerollX != 0 && RerollY != 0
+    return ClientRatioPointValid(RerollX, RerollY)
 }
 
 BorderPointLabel(index) {
@@ -596,28 +700,37 @@ ClearExactBorderCalibration() {
 BorderPoints() {
     global BorderTLx, BorderTLy, BorderBRx, BorderBRy, ExactBorderPoints
     if ExactBordersCalibrated()
-        return ExactBorderPoints
+        clientPoints := ExactBorderPoints
+    else {
+        ; F5/F6 define the outer rectangle. Each modifier sits at the centre
+        ; of one of the three equal edge segments, never outside that rectangle.
+        cellW := (BorderBRx - BorderTLx) / 3
+        cellH := (BorderBRy - BorderTLy) / 3
+        clientPoints := []
 
-    ; F5/F6 define the outer rectangle. Each modifier sits at the centre
-    ; of one of the three equal edge segments, never outside that rectangle.
-    cellW := (BorderBRx - BorderTLx) / 3
-    cellH := (BorderBRy - BorderTLy) / 3
+        ; indices 0-2: top, left to right
+        Loop 3
+            clientPoints.Push([BorderTLx + (A_Index - 0.5) * cellW, BorderTLy])
+        ; indices 3-5: right, top to bottom
+        Loop 3
+            clientPoints.Push([BorderBRx, BorderTLy + (A_Index - 0.5) * cellH])
+        ; indices 6-8: bottom, left to right
+        Loop 3
+            clientPoints.Push([BorderTLx + (A_Index - 0.5) * cellW, BorderBRy])
+        ; indices 9-11: left, top to bottom
+        Loop 3
+            clientPoints.Push([BorderTLx, BorderTLy + (A_Index - 0.5) * cellH])
+    }
+
     points := []
-
-    ; indices 0-2: top, left to right
-    Loop 3
-        points.Push([Round(BorderTLx + (A_Index - 0.5) * cellW), BorderTLy])
-    ; indices 3-5: right, top to bottom
-    Loop 3
-        points.Push([BorderBRx, Round(BorderTLy + (A_Index - 0.5) * cellH)])
-    ; indices 6-8: bottom, left to right
-    Loop 3
-        points.Push([Round(BorderTLx + (A_Index - 0.5) * cellW), BorderBRy])
-    ; indices 9-11: left, top to bottom
-    Loop 3
-        points.Push([BorderTLx, Round(BorderTLy + (A_Index - 0.5) * cellH)])
-
+    for point in clientPoints
+        points.Push(PoeScreenPoint(point[1], point[2]))
     return points
+}
+
+RerollScreenPoint() {
+    global RerollX, RerollY
+    return PoeScreenPoint(RerollX, RerollY)
 }
 
 OcrPowerShell() {
@@ -1126,13 +1239,14 @@ ScanRerollCost() {
         "WindowHeight", winH
     )
     block := ""
+    rerollPoint := RerollScreenPoint()
     Loop BorderOcrAttempts {
         if !Running
             break
         attempt := A_Index
         ToolTip "Reading border reroll cost..."
             . (attempt > 1 ? "`nRetrying tooltip OCR..." : "")
-        MouseMove RerollX, RerollY, 0
+        MouseMove rerollPoint[1], rerollPoint[2], 0
         Sleep RerollHoverDelay + (attempt - 1) * 200
         ToolTip()
         Sleep 30
@@ -1161,43 +1275,22 @@ CopyPayloadToClipboard(payload) {
 }
 
 DeliverPayloadToSolver(payload) {
-    global SolverHwnd, SolverPageUrl, SolverPasteClientX, SolverPasteClientY
-    global LastDeliveryError, BrowserPasteDelay
+    global LastDeliveryError
     LastDeliveryError := ""
     if !CopyPayloadToClipboard(payload)
         return "failed"
 
-    if !SolverHwnd {
-        LastDeliveryError := "bind the verified solver page with Ctrl+F2"
+    if !PrepareSolverWindow() {
+        LastDeliveryError := "the trusted solver page could not be opened and verified"
         return "clipboard"
     }
-    if !ActivateBoundSolverWindow() {
-        LastDeliveryError := "the bound browser identity or window size changed; verify the solver and press Ctrl+F2 again"
-        return "clipboard"
-    }
-
-    try currentUrl := CanonicalSolverUrl(ReadForegroundBrowserUrl(SolverHwnd))
-    catch as error {
-        LastDeliveryError := "the solver address could not be verified; " error.Message
-        return "clipboard"
-    }
-    if (currentUrl != SolverPageUrl) {
-        LastDeliveryError := "the bound browser tab is no longer at the verified solver URL; verify it and press Ctrl+F2 again"
-        return "clipboard"
-    }
-    if !ValidateBoundSolverWindow(true) {
-        LastDeliveryError := "the browser identity changed during URL verification"
+    if !FocusBoundSolverPage() {
+        LastDeliveryError := "the verified solver page could not receive keyboard focus"
         return "clipboard"
     }
 
-    WinGetClientPos &clientLeft, &clientTop, &clientWidth, &clientHeight, "ahk_id " SolverHwnd
-    MouseMove clientLeft + SolverPasteClientX, clientTop + SolverPasteClientY, 0
-    Click
-    Sleep BrowserPasteDelay
-    if !ValidateBoundSolverWindow(true) {
-        LastDeliveryError := "the bound solver window lost focus before paste"
-        return "clipboard"
-    }
+    ; Address-bar verification temporarily uses the clipboard, so restore the
+    ; import payload immediately before the single paste keystroke.
     if !CopyPayloadToClipboard(payload)
         return "failed"
     Send "^v"
@@ -1225,12 +1318,12 @@ if A_Args.Length >= 2
     ExitApp
 }
 
-; ---- Ctrl+F2: bind one explicit, address-verified solver page for this session ----
+; ---- Ctrl+F2: optional manual selection of a verified solver page ----
 ^F2:: {
     global SolverPid, SolverImagePath, SolverPageUrl
     try {
         BindForegroundSolverWindow()
-        Flash "Bound the verified solver page and paste point.`nPID " SolverPid
+        Flash "Bound the verified solver page (no click point needed).`nPID " SolverPid
             . "`n" SolverPageUrl "`n" SolverImagePath, 7000
     } catch as error {
         ClearSolverBinding()
@@ -1258,22 +1351,30 @@ F5:: {
     if !RequireBoundPoeForeground()
         return
     ClearExactBorderCalibration()
-    MouseGetPos &x, &y
-    BorderTLx := x, BorderTLy := y
+    try point := CapturePoeClientPoint()
+    catch as captureError {
+        MsgBox captureError.Message
+        return
+    }
+    BorderTLx := point[1], BorderTLy := point[2]
     IniWrite BorderTLx, IniFile, "board", "TopLeftX"
     IniWrite BorderTLy, IniFile, "board", "TopY"
-    Flash "Top-left board border set: " BorderTLx ", " BorderTLy
+    Flash "Top-left board border saved relative to the PoE window."
 }
 F6:: {
     global
     if !RequireBoundPoeForeground()
         return
     ClearExactBorderCalibration()
-    MouseGetPos &x, &y
-    BorderBRx := x, BorderBRy := y
+    try point := CapturePoeClientPoint()
+    catch as captureError {
+        MsgBox captureError.Message
+        return
+    }
+    BorderBRx := point[1], BorderBRy := point[2]
     IniWrite BorderBRx, IniFile, "board", "BottomRightX"
     IniWrite BorderBRy, IniFile, "board", "BottomY"
-    Flash "Bottom-right board border set: " BorderBRx ", " BorderBRy
+    Flash "Bottom-right board border saved relative to the PoE window."
 }
 
 ; ---- Ctrl+F5 / Ctrl+F6: guided exact calibration of all 12 modifiers ----
@@ -1281,6 +1382,7 @@ F6:: {
     global
     if !RequireBoundPoeForeground()
         return
+    BeginClientCalibration()
     ClearExactBorderCalibration()
     ExactBorderNext := 1
     Flash "Exact border calibration started."
@@ -1297,11 +1399,15 @@ F6:: {
         return
     }
 
-    MouseGetPos &x, &y
+    try point := CapturePoeClientPoint()
+    catch as captureError {
+        MsgBox captureError.Message
+        return
+    }
     savedIndex := ExactBorderNext
-    ExactBorderPoints.Push([x, y])
-    IniWrite x, IniFile, "board-exact", "Point" savedIndex "X"
-    IniWrite y, IniFile, "board-exact", "Point" savedIndex "Y"
+    ExactBorderPoints.Push(point)
+    IniWrite point[1], IniFile, "board-exact", "Point" savedIndex "X"
+    IniWrite point[2], IniFile, "board-exact", "Point" savedIndex "Y"
     ExactBorderNext++
 
     if (ExactBorderNext > 12) {
@@ -1327,8 +1433,8 @@ F6:: {
         MsgBox "Calibrate borders first with F5/F6 or Ctrl+F5/Ctrl+F6."
         return
     }
-    if !ValidateBoundPoeWindow(false) {
-        MsgBox "Focus the real Path of Exile window and press Ctrl+F3 before previewing."
+    if !RequireBoundPoeForeground() {
+        MsgBox "Focus the real Path of Exile window and try the preview again."
         return
     }
 
@@ -1352,7 +1458,8 @@ F6:: {
     }
 
     if Running && RerollCostCalibrated() && RequireBoundPoeForeground() {
-        MouseMove RerollX, RerollY, 0
+        rerollPoint := RerollScreenPoint()
+        MouseMove rerollPoint[1], rerollPoint[2], 0
         ToolTip "Reroll-cost preview"
             . "`nThe cost tooltip should now be visible."
             . "`n(F10 to abort)", 20, 20
@@ -1371,11 +1478,15 @@ F6:: {
     global
     if !RequireBoundPoeForeground()
         return
-    MouseGetPos &x, &y
-    RerollX := x, RerollY := y
+    try point := CapturePoeClientPoint()
+    catch as captureError {
+        MsgBox captureError.Message
+        return
+    }
+    RerollX := point[1], RerollY := point[2]
     IniWrite RerollX, IniFile, "board", "RerollX"
     IniWrite RerollY, IniFile, "board", "RerollY"
-    Flash "Border reroll button set: " RerollX ", " RerollY
+    Flash "Border reroll button saved relative to the PoE window."
         . "`nIts tooltip cost will be read during F9 / Ctrl+F9.", 4000
 }
 
@@ -1384,21 +1495,29 @@ F7:: {
     global
     if !RequireBoundPoeForeground()
         return
-    MouseGetPos &x, &y
-    TLx := x, TLy := y
+    try point := CapturePoeClientPoint()
+    catch as captureError {
+        MsgBox captureError.Message
+        return
+    }
+    TLx := point[1], TLy := point[2]
     IniWrite TLx, IniFile, "grid", "TLx"
     IniWrite TLy, IniFile, "grid", "TLy"
-    Flash "Top-left set: " TLx ", " TLy
+    Flash "Top-left chart saved relative to the PoE window."
 }
 F8:: {
     global
     if !RequireBoundPoeForeground()
         return
-    MouseGetPos &x, &y
-    BRx := x, BRy := y
+    try point := CapturePoeClientPoint()
+    catch as captureError {
+        MsgBox captureError.Message
+        return
+    }
+    BRx := point[1], BRy := point[2]
     IniWrite BRx, IniFile, "grid", "BRx"
     IniWrite BRy, IniFile, "grid", "BRy"
-    Flash "Bottom-right set: " BRx ", " BRy
+    Flash "Bottom-right chart saved relative to the PoE window."
 }
 
 ; ---- Shift+F7 / Shift+F8: capture the two chart-stash tabs ----
@@ -1406,21 +1525,29 @@ F8:: {
     global
     if !RequireBoundPoeForeground()
         return
-    MouseGetPos &x, &y
-    Tab1X := x, Tab1Y := y
+    try point := CapturePoeClientPoint()
+    catch as captureError {
+        MsgBox captureError.Message
+        return
+    }
+    Tab1X := point[1], Tab1Y := point[2]
     IniWrite Tab1X, IniFile, "grid", "Tab1X"
     IniWrite Tab1Y, IniFile, "grid", "Tab1Y"
-    Flash "Chart-stash tab 1 set: " Tab1X ", " Tab1Y
+    Flash "Chart-stash tab 1 saved relative to the PoE window."
 }
 +F8:: {
     global
     if !RequireBoundPoeForeground()
         return
-    MouseGetPos &x, &y
-    Tab2X := x, Tab2Y := y
+    try point := CapturePoeClientPoint()
+    catch as captureError {
+        MsgBox captureError.Message
+        return
+    }
+    Tab2X := point[1], Tab2Y := point[2]
     IniWrite Tab2X, IniFile, "grid", "Tab2X"
     IniWrite Tab2Y, IniFile, "grid", "Tab2Y"
-    Flash "Chart-stash tab 2 set: " Tab2X ", " Tab2Y
+    Flash "Chart-stash tab 2 saved relative to the PoE window."
 }
 
 ; ---- F10: abort ----
@@ -1443,8 +1570,8 @@ F10:: {
         MsgBox "Calibrate borders first with F5/F6 or Ctrl+F5/Ctrl+F6."
         return
     }
-    if !ValidateBoundPoeWindow(false) {
-        MsgBox "Focus the real Path of Exile window and press Ctrl+F3 before scanning."
+    if !RequireBoundPoeForeground() {
+        MsgBox "Focus the real Path of Exile window and press Ctrl+F9 again."
         return
     }
 
@@ -1498,8 +1625,8 @@ F9:: {
             . "Shift+F7 = tab 1, Shift+F8 = tab 2."
         return
     }
-    if !ValidateBoundPoeWindow(false) {
-        MsgBox "Focus the real Path of Exile window and press Ctrl+F3 before scanning."
+    if !RequireBoundPoeForeground() {
+        MsgBox "Focus the real Path of Exile window and press F9 again."
         return
     }
 
@@ -1601,7 +1728,8 @@ F9:: {
 
     ; Leave the stash on tab 1, matching the game's default view.
     if Running && RequireBoundPoeForeground() {
-        MouseMove Tab1X, Tab1Y, 0
+        tab1Point := ChartTabPoints()[1]
+        MouseMove tab1Point[1], tab1Point[2], 0
         Click
         Sleep TabSwitchDelay
         if !RequireBoundPoeForeground()
