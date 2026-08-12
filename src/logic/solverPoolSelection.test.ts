@@ -172,6 +172,50 @@ describe('solver pool selection', () => {
     ])
   })
 
+  it('protects the exact top nine across a display rounding boundary', () => {
+    const eligiblePool = [
+      ...Array.from({ length: 9 }, (_, index) =>
+        chart(`value-149-${index}`, {
+          rewards: [{ stat: 'quantity', percent: 149 }],
+        }),
+      ),
+      chart('value-150', {
+        rewards: [{ stat: 'quantity', percent: 150 }],
+      }),
+    ]
+
+    const fillerPool = selectFillerPool(
+      eligiblePool,
+      { [chartRewardKey('quantity')]: 1 },
+      new Set(),
+      null,
+    )
+
+    expect(fillerPool.map(({ uid }) => uid)).toEqual(['value-149-8'])
+  })
+
+  it('uses exact values and stable uid ties within one display bucket', () => {
+    const eligiblePool = [
+      ...Array.from({ length: 9 }, (_, index) =>
+        chart(`value-101-${index}`, {
+          rewards: [{ stat: 'quantity', percent: 101 }],
+        }),
+      ),
+      chart('value-149', {
+        rewards: [{ stat: 'quantity', percent: 149 }],
+      }),
+    ]
+
+    const fillerPool = selectFillerPool(
+      eligiblePool,
+      { [chartRewardKey('quantity')]: 1 },
+      new Set(),
+      null,
+    )
+
+    expect(fillerPool.map(({ uid }) => uid)).toEqual(['value-101-8'])
+  })
+
   it('keeps enabled strategy reservations out of a filler pool', () => {
     const eligiblePool = [
       ...Array.from({ length: 12 }, (_, index) =>

@@ -5,7 +5,7 @@ import {
   type StrategyDef,
   type StrategyReservationPreferences,
 } from '../data/strategies'
-import { displayChartValue } from './chartRanking'
+import { chartValue } from './chartRanking'
 import { selectPieceBank, strategyWantsChart } from './pieceKeeps'
 import type { ChartData, Weights } from '../types'
 
@@ -109,11 +109,14 @@ export function selectFillerPool(
 ): ChartData[] {
   const keep = new Set<string>()
   eligiblePool.forEach((chart) => chart.preserved && keep.add(chart.uid))
+  const exactValues = new Map(
+    eligiblePool.map((chart) => [chart.uid, chartValue(chart, weights, disabledMods)]),
+  )
   ;[...eligiblePool]
     .sort(
       (left, right) =>
-        displayChartValue(right, weights, disabledMods) -
-        displayChartValue(left, weights, disabledMods),
+        exactValues.get(right.uid)! - exactValues.get(left.uid)! ||
+        left.uid.localeCompare(right.uid),
     )
     .slice(0, KEEP_BEST_CHARTS)
     .forEach((chart) => keep.add(chart.uid))
