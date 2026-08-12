@@ -13,9 +13,9 @@ test('main ruleset requires pull requests and every deployment check', () => {
   assert.ok(byType.has('deletion'))
   assert.ok(byType.has('non_fast_forward'))
   assert.deepEqual(
-    byType.get('required_status_checks').parameters.required_status_checks.map(({ context }) =>
-      context,
-    ),
+    byType
+      .get('required_status_checks')
+      .parameters.required_status_checks.map(({ context }) => context),
     ['scope', 'quality', 'windows-playwright-exit'],
   )
   assert.equal(
