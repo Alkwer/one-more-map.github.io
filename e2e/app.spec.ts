@@ -268,7 +268,14 @@ test('keeps every modal workflow labelled, contained, dismissible, and focus-saf
     appPage.getByRole('button', { name: 'Mods' }),
     'Chart Modifiers',
   )
-  await expectAccessibleModal(appPage, appPage.getByRole('button', { name: 'Updates' }), 'Updates')
+  const unseenUpdatesTrigger = appPage.getByRole('button', {
+    name: 'Updates — new updates',
+  })
+  await expect(unseenUpdatesTrigger).toHaveAccessibleName('Updates — new updates')
+  await expectAccessibleModal(appPage, appPage.locator('.updates-btn'), 'Updates')
+  await expect(appPage.getByRole('button', { name: 'Updates', exact: true })).toHaveAccessibleName(
+    'Updates',
+  )
   await expectAccessibleModal(
     appPage,
     appPage.getByRole('button', { name: /TUTORIAL/ }),
@@ -285,7 +292,7 @@ test('keeps every modal workflow labelled, contained, dismissible, and focus-saf
     'Session Plan',
   )
 
-  const updatesTrigger = appPage.getByRole('button', { name: 'Updates' })
+  const updatesTrigger = appPage.getByRole('button', { name: 'Updates', exact: true })
   await updatesTrigger.click()
   await appPage.locator('.onboard-backdrop').click({ position: { x: 2, y: 2 } })
   await expect(updatesTrigger).toBeFocused()

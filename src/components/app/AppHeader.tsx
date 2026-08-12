@@ -30,6 +30,7 @@ export function AppHeader(props: Props) {
           ?
         </button>
         <button
+          aria-label={props.updatesUnseen ? 'Updates — new updates' : 'Updates'}
           className={props.updatesUnseen ? 'updates-btn unseen' : 'updates-btn'}
           title="What's new on the site"
           onClick={props.onOpenUpdates}
