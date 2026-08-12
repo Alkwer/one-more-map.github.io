@@ -6,12 +6,10 @@ export interface VoyageFinishSnapshot {
 }
 
 export type VoyageResearchFinishResult =
-  | { ok: true; summary: string }
-  | { ok: false; message: string }
+  { ok: true; summary: string } | { ok: false; message: string }
 
 export type VoyageFinishSnapshotValidation =
-  | { ok: true }
-  | { ok: false; reason: 'board-changed' | 'research-sequence-changed' }
+  { ok: true } | { ok: false; reason: 'board-changed' | 'research-sequence-changed' }
 
 const boardUids = (state: AppState): (string | null)[] =>
   state.board.map((placement) => placement?.chartUid ?? null)
