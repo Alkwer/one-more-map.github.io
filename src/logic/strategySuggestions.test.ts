@@ -3,7 +3,11 @@ import { defaultStrategyReservations, strategyById } from '../data/strategies'
 import type { Borders, ChartAreaType, ChartData } from '../types'
 import { emptyBorders } from '../types'
 import { decideVoyage } from './voyageDecision'
-import { evaluateStrategyInventory, strategyReadiness } from './strategySuggestions'
+import {
+  evaluateStrategyInventory,
+  resolveRunnableReadiness,
+  strategyReadiness,
+} from './strategySuggestions'
 
 const crossing = (uid: string, modIds: string[], areaType?: ChartAreaType): ChartData => ({
   uid,
@@ -14,6 +18,16 @@ const crossing = (uid: string, modIds: string[], areaType?: ChartAreaType): Char
   shapeResolved: true,
   modIds,
   areaType,
+})
+
+const endChart = (uid: string): ChartData => ({
+  uid,
+  name: `${uid} Chart`,
+  level: 83,
+  edges: [true, false, false, false],
+  shape: 'End',
+  shapeResolved: true,
+  modIds: [],
 })
 
 const divineBorders = (segment: number): Borders => {
@@ -117,6 +131,65 @@ describe('border-aware strategy readiness', () => {
     expect(
       speedrun.potentialBoard.filter((placement) => placement?.chartUid === center.uid),
     ).toHaveLength(1)
+  })
+
+  it('does not issue PLAY for a pool that cannot form a fully reachable graph', () => {
+    const pool = Array.from({ length: 9 }, (_, index) => endChart(`end-${index + 1}`))
+    const borders = Array(12).fill('b-rare-3') as Borders
+    const charts = new Map(pool.map((entry) => [entry.uid, entry]))
+    const inventory = evaluateStrategyInventory(borders, charts, pool, options)
+    const alcAndGo = inventory.evaluations.find((entry) => entry.strategy.id === 'alc-and-go')!
+
+    expect(alcAndGo.potentialFullyReachable).toBe(false)
+    expect(alcAndGo.layoutStatus).toBe('unknown')
+    expect(alcAndGo.readiness.ready).toBe(false)
+    expect(alcAndGo.readiness.missing).toContain(
+      'a fully reachable layout not yet found by the bounded search',
+    )
+
+    const decision = decideVoyage({
+      evaluations: [
+        {
+          ...alcAndGo,
+          appraisal: alcAndGo.potentialAppraisal,
+          currentFit: alcAndGo.fit,
+          currentStatus: alcAndGo.status,
+        },
+      ],
+      activeStrategyId: 'alc-and-go',
+      availableCharts: pool.length,
+      enteredBorders: 12,
+      rerollsUsed: 0,
+    })
+
+    expect(decision.kind).toBe('wait')
+    expect(decision.decisionBasis).toBe('layout-uncertainty')
+    expect(decision.label).not.toMatch(/PLAY|SWITCH/)
+    expect(decision.reason).toMatch(/not proof that none exists/)
+  })
+
+  it('distinguishes a bounded heuristic miss from exhaustive impossibility', () => {
+    const requirementsReady = {
+      ready: true,
+      have: 0,
+      need: 0,
+      ratio: 1,
+      missing: [],
+      requirements: [],
+    }
+    const boundedMiss = resolveRunnableReadiness(requirementsReady, 9, true, true, false, false)
+    const exactMiss = resolveRunnableReadiness(requirementsReady, 9, true, true, false, true)
+
+    expect(boundedMiss.layoutStatus).toBe('unknown')
+    expect(boundedMiss.readiness.ready).toBe(false)
+    expect(boundedMiss.readiness.missing).toContain(
+      'a fully reachable layout not yet found by the bounded search',
+    )
+    expect(exactMiss.layoutStatus).toBe('impossible')
+    expect(exactMiss.readiness.ready).toBe(false)
+    expect(exactMiss.readiness.missing).toContain(
+      'a fully reachable connector layout from the available chart shapes',
+    )
   })
 })
 
