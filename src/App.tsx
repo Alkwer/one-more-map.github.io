@@ -488,9 +488,13 @@ export default function App() {
             onImport={addCharts}
             state={state}
             borderResearch={borderResearch}
-            protectedRollStrategy={
-              analysis.voyageDecision.preserveRoll
-                ? (analysis.voyageDecision.strategyName ?? 'The current jackpot board')
+            protectedRoll={
+              analysis.voyageDecision.preserveRoll &&
+              state.borders.every((border) => border !== null)
+                ? {
+                    strategy: analysis.voyageDecision.strategyName ?? 'The current jackpot board',
+                    borders: state.borders,
+                  }
                 : null
             }
             onLoadState={replaceState}

@@ -9,27 +9,51 @@ import { BorderRollResearch } from './BorderRollResearch'
 
 const borders = Array(12).fill('b-divine') as Borders
 
-function researchController(
-  samplingReason: 'gameplay' | 'randomized-research',
-): BorderRollResearchController {
+interface ControllerOptions {
+  samplingReason: 'gameplay' | 'randomized-research'
+  includeNaturalSample?: boolean
+  vesperUpgradeCount?: number | null
+  storageUnavailable?: boolean
+}
+
+function researchController({
+  samplingReason,
+  includeNaturalSample = true,
+  vesperUpgradeCount = 5,
+  storageUnavailable = false,
+}: ControllerOptions): BorderRollResearchController {
   const baseStore = createBorderResearchStore()
-  const created = createBorderRollSample({
-    sequenceId: baseStore.activeSequenceId,
-    gamePatch: '3.29.2',
-    vesperUpgradeCount: 5,
-    samplingReason,
-    rerollIndex: 0,
-    displayedNextRerollCost: 3_000,
-    borders,
-  })
-  if (!created.ok) throw new Error(created.message)
+  const samples = []
+  if (includeNaturalSample) {
+    const created = createBorderRollSample({
+      sequenceId: baseStore.activeSequenceId,
+      gamePatch: '3.29.2',
+      vesperUpgradeCount,
+      samplingReason,
+      rerollIndex: 0,
+      displayedNextRerollCost: 3_000,
+      borders,
+    })
+    if (!created.ok) throw new Error(created.message)
+    samples.push(created.sample)
+  }
 
   const store = {
     ...baseStore,
-    vesperUpgradeCount: 5,
+    vesperUpgradeCount,
     randomizedResearchEnabled: samplingReason === 'randomized-research',
     activeSequenceSamplingReason: samplingReason,
-    samples: [created.sample],
+    samples,
+    ...(storageUnavailable
+      ? {
+          recovery: {
+            code: 'unavailable' as const,
+            message: 'Border research storage is unavailable.',
+            raw: null,
+            backupKey: null,
+          },
+        }
+      : {}),
   }
 
   return {
@@ -41,7 +65,7 @@ function researchController(
     activeSamples: store.samples,
     nextRollIndex: 1,
     displayedNextRerollCost: 3_000,
-    vesperUpgradeCount: 5,
+    vesperUpgradeCount,
     setGamePatch: () => undefined,
     setVesperUpgradeCount: () => undefined,
     setRandomizedResearchEnabled: () => undefined,
@@ -69,8 +93,8 @@ describe('BorderRollResearch jackpot protection', () => {
     const markup = renderToStaticMarkup(
       <BorderRollResearch
         borders={borders}
-        controller={researchController('randomized-research')}
-        protectedRollStrategy="Divine Border Rares"
+        controller={researchController({ samplingReason: 'randomized-research' })}
+        protectedRoll={{ strategy: 'Divine Border Rares', borders }}
       />,
     )
 
@@ -83,12 +107,82 @@ describe('BorderRollResearch jackpot protection', () => {
     assert.doesNotMatch(markup, /record exactly one paid reroll even when/)
   })
 
+  it('protects a complete current jackpot when unknown Vesper progress prevents capture', () => {
+    const markup = renderToStaticMarkup(
+      <BorderRollResearch
+        borders={borders}
+        controller={researchController({
+          samplingReason: 'randomized-research',
+          includeNaturalSample: false,
+          vesperUpgradeCount: null,
+        })}
+        protectedRoll={{ strategy: 'Divine Border Rares', borders }}
+      />,
+    )
+
+    assert.match(markup, /Jackpot protected — keep this natural board/)
+    assert.match(markup, /does not depend on research storage or a saved natural sample/)
+    assert.match(markup, /Vesper progress unknown/)
+    assert.doesNotMatch(markup, /record exactly one paid reroll even when/)
+  })
+
+  it('keeps jackpot protection active when research storage is unavailable', () => {
+    const markup = renderToStaticMarkup(
+      <BorderRollResearch
+        borders={borders}
+        controller={researchController({
+          samplingReason: 'randomized-research',
+          includeNaturalSample: false,
+          storageUnavailable: true,
+        })}
+        protectedRoll={{ strategy: 'Divine Border Rares', borders }}
+      />,
+    )
+
+    assert.match(markup, /Jackpot protected — keep this natural board/)
+    assert.match(markup, /Border research storage is unavailable/)
+    assert.doesNotMatch(markup, /record exactly one paid reroll even when/)
+  })
+
+  it('keeps jackpot protection after the matching natural sample is removed', () => {
+    const markup = renderToStaticMarkup(
+      <BorderRollResearch
+        borders={borders}
+        controller={researchController({
+          samplingReason: 'randomized-research',
+          includeNaturalSample: false,
+        })}
+        protectedRoll={{ strategy: 'Divine Border Rares', borders }}
+      />,
+    )
+
+    assert.match(markup, /Jackpot protected — keep this natural board/)
+    assert.doesNotMatch(markup, /record exactly one paid reroll even when/)
+  })
+
+  it('does not apply stale protection to unrelated displayed borders', () => {
+    const staleBorders = Array(12).fill('b-chaos') as Borders
+    const markup = renderToStaticMarkup(
+      <BorderRollResearch
+        borders={borders}
+        controller={researchController({
+          samplingReason: 'randomized-research',
+          includeNaturalSample: false,
+        })}
+        protectedRoll={{ strategy: 'Stale Jackpot', borders: staleBorders }}
+      />,
+    )
+
+    assert.doesNotMatch(markup, /Jackpot protected — keep this natural board/)
+    assert.match(markup, /record exactly one paid reroll even when/)
+  })
+
   it('does not label an ordinary gameplay Voyage as a waived research assignment', () => {
     const markup = renderToStaticMarkup(
       <BorderRollResearch
         borders={borders}
-        controller={researchController('gameplay')}
-        protectedRollStrategy="Divine Border Rares"
+        controller={researchController({ samplingReason: 'gameplay' })}
+        protectedRoll={{ strategy: 'Divine Border Rares', borders }}
       />,
     )
 
