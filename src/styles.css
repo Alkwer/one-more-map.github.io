@@ -3096,6 +3096,11 @@ textarea {
 .poe-tooltip {
   position: fixed;
   z-index: 999;
+  box-sizing: border-box;
+  max-width: calc(100vw - 16px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   pointer-events: none;
   filter: drop-shadow(0 8px 22px rgba(0, 0, 0, 0.85));
 }

@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer'
 import AxeBuilder from '@axe-core/playwright'
 import type { Locator } from '@playwright/test'
+import { VOYAGE_MODS } from '../src/data/mods'
 import { MAX_IMPORT_TEXT_LENGTH } from '../src/logic/importBudget'
 import { defaultState, serializeState } from '../src/logic/storage'
 import {
@@ -607,6 +608,91 @@ test('exposes chart details to keyboard and screen-reader navigation', async ({ 
   await expect(appPage.locator('.poe-tooltip')).toContainText('20% increased Dead Man')
   await appPage.keyboard.press('Tab')
   await expect(appPage.locator('.poe-tooltip')).toHaveCount(0)
+})
+
+test('keeps chart tooltips inside every visual viewport edge at 200% zoom', async ({ appPage }) => {
+  const seededState = defaultState()
+  seededState.pool = [
+    {
+      uid: 'viewport-tooltip-chart',
+      name: 'Viewport Tooltip Regression Chart',
+      level: 83,
+      edges: [true, true, true, true],
+      modIds: VOYAGE_MODS.slice(0, 64).map((mod) => mod.id),
+      shape: 'Crossing',
+      shapeResolved: true,
+    },
+  ]
+  const serializedState = serializeState(seededState)
+  await appPage.addInitScript((raw) => {
+    localStorage.setItem('allflame-voyage-solver', raw)
+  }, serializedState)
+  await appPage.setViewportSize({ width: 320, height: 568 })
+  await openApp(appPage)
+  const cdp = await appPage.context().newCDPSession(appPage)
+  await cdp.send('Emulation.setPageScaleFactor', { pageScaleFactor: 2 })
+
+  const chart = appPage.getByRole('button', {
+    name: 'Select Viewport Tooltip Regression Chart for placement',
+  })
+  const tooltip = appPage.locator('.poe-tooltip')
+  for (const edge of ['top', 'bottom', 'left', 'right'] as const) {
+    await chart.evaluate((element, targetEdge) => {
+      const anchor = element as HTMLElement
+      const viewport = window.visualViewport
+      const left = viewport?.offsetLeft ?? 0
+      const top = viewport?.offsetTop ?? 0
+      const width = viewport?.width ?? window.innerWidth
+      const height = viewport?.height ?? window.innerHeight
+      const anchorWidth = anchor.offsetWidth
+      const anchorHeight = anchor.offsetHeight
+      anchor.style.position = 'fixed'
+      anchor.style.zIndex = '2'
+      anchor.style.left = `${
+        targetEdge === 'left'
+          ? left
+          : targetEdge === 'right'
+            ? left + width - anchorWidth
+            : left + (width - anchorWidth) / 2
+      }px`
+      anchor.style.top = `${
+        targetEdge === 'top'
+          ? top
+          : targetEdge === 'bottom'
+            ? top + height - anchorHeight
+            : top + (height - anchorHeight) / 2
+      }px`
+    }, edge)
+    await chart.evaluate((element) => (element as HTMLElement).blur())
+    await chart.focus()
+    await expect(tooltip).toBeVisible()
+
+    const metrics = await tooltip.evaluate((element) => {
+      const rect = element.getBoundingClientRect()
+      const viewport = window.visualViewport
+      const left = viewport?.offsetLeft ?? 0
+      const top = viewport?.offsetTop ?? 0
+      const width = viewport?.width ?? window.innerWidth
+      const height = viewport?.height ?? window.innerHeight
+      return {
+        rect: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
+        viewport: { left, top, right: left + width, bottom: top + height },
+        scrollHeight: element.scrollHeight,
+        clientHeight: element.clientHeight,
+        documentOverflow:
+          document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      }
+    })
+    expect(metrics.rect.left).toBeGreaterThanOrEqual(metrics.viewport.left + 7.5)
+    expect(metrics.rect.top).toBeGreaterThanOrEqual(metrics.viewport.top + 7.5)
+    expect(metrics.rect.right).toBeLessThanOrEqual(metrics.viewport.right - 7.5)
+    expect(metrics.rect.bottom).toBeLessThanOrEqual(metrics.viewport.bottom - 7.5)
+    expect(metrics.scrollHeight).toBeGreaterThan(metrics.clientHeight)
+    expect(metrics.documentOverflow).toBe(0)
+
+    await appPage.keyboard.press('Escape')
+    await expect(tooltip).toHaveCount(0)
+  }
 })
 
 test('provides touch-only detail controls without placing or deleting charts', async ({
