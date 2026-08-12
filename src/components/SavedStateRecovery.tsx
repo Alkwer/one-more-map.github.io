@@ -4,6 +4,7 @@ import { useModalDialog } from './ModalDialog'
 
 interface Props {
   recovery: LocalStateRecovery
+  actionError?: string
   onRetry: () => void
   onMigrate: () => void
   onReset: () => void
@@ -19,7 +20,7 @@ function exportRawState(raw: string) {
   URL.revokeObjectURL(url)
 }
 
-export function SavedStateRecovery({ recovery, onRetry, onMigrate, onReset }: Props) {
+export function SavedStateRecovery({ recovery, actionError, onRetry, onMigrate, onReset }: Props) {
   const titleId = useId()
   const hasBackup = recovery.backupKey !== null
   const { dialogProps } = useModalDialog({
@@ -51,6 +52,11 @@ export function SavedStateRecovery({ recovery, onRetry, onMigrate, onReset }: Pr
             ? `Exact raw backup created as localStorage entry “${recovery.backupKey}”.`
             : 'A browser backup could not be created. Export remains available; migration and reset stay disabled.'}
         </p>
+        {actionError && (
+          <p className="recovery-backup-error" role="alert">
+            {actionError}
+          </p>
+        )}
         <div className="saved-state-recovery-actions">
           <button onClick={() => exportRawState(recovery.raw)}>Export original JSON</button>
           <button onClick={onRetry}>Retry decode</button>

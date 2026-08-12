@@ -2037,3 +2037,42 @@ test('pauses autosave and preserves a newer saved state until explicit reset', a
   expect(reset.active.v).toBe(3)
   expect(reset.backups).toContain(raw)
 })
+
+test('keeps recovery active when a migrated state cannot be persisted', async ({ appPage }) => {
+  const raw = JSON.stringify({ v: 2 })
+  await appPage.addInitScript((payload) => {
+    localStorage.setItem('allflame-voyage-solver', payload)
+  }, raw)
+  await openApp(appPage)
+
+  const recovery = appPage.getByRole('alertdialog', { name: 'Saved state needs recovery' })
+  await expect(recovery).toBeVisible()
+  await failAuxiliaryWrites(appPage, 'allflame-voyage-solver')
+  await recovery.getByRole('button', { name: 'Migrate recovered state' }).click()
+
+  await expect(recovery).toBeVisible()
+  await expect(recovery.getByRole('alert')).toContainText('Migration was not committed')
+  await expect(recovery.getByRole('alert')).toContainText('Browser storage is full')
+  await expect(appPage.locator('main')).toHaveJSProperty('inert', true)
+  expect(await appPage.evaluate(() => localStorage.getItem('allflame-voyage-solver'))).toBe(raw)
+})
+
+test('keeps recovery active when reset cannot be persisted', async ({ appPage }) => {
+  const raw = JSON.stringify({ v: 999, pool: [{ valuable: 'future chart data' }] })
+  await appPage.addInitScript((payload) => {
+    localStorage.setItem('allflame-voyage-solver', payload)
+  }, raw)
+  await openApp(appPage)
+
+  const recovery = appPage.getByRole('alertdialog', { name: 'Saved state needs recovery' })
+  await expect(recovery).toBeVisible()
+  await failAuxiliaryWrites(appPage, 'allflame-voyage-solver')
+  appPage.once('dialog', (dialog) => dialog.accept())
+  await recovery.getByRole('button', { name: /Reset saved state/ }).click()
+
+  await expect(recovery).toBeVisible()
+  await expect(recovery.getByRole('alert')).toContainText('Reset was not committed')
+  await expect(recovery.getByRole('alert')).toContainText('Browser storage is full')
+  await expect(appPage.locator('main')).toHaveJSProperty('inert', true)
+  expect(await appPage.evaluate(() => localStorage.getItem('allflame-voyage-solver'))).toBe(raw)
+})
