@@ -3,6 +3,12 @@ name: Process border-roll submission
 on:
   issues:
     types: [opened, edited, reopened]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Queued issue number to revalidate
+        required: true
+        type: number
 
 permissions:
   contents: read
@@ -15,18 +21,38 @@ concurrency:
 jobs:
   validate:
     if: >-
-      !contains(github.event.issue.labels.*.name, 'border-roll:test') &&
+      github.event_name == 'workflow_dispatch' ||
+      (!contains(github.event.issue.labels.*.name, 'border-roll:test') &&
       (startsWith(github.event.issue.title, '[data] Border roll') ||
       contains(github.event.issue.labels.*.name, 'border-roll:accepted') ||
       contains(github.event.issue.labels.*.name, 'border-roll:partial') ||
       contains(github.event.issue.labels.*.name, 'border-roll:duplicate') ||
-      contains(github.event.issue.labels.*.name, 'border-roll:invalid'))
+      contains(github.event.issue.labels.*.name, 'border-roll:invalid')))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
+
+      - id: event
+        name: Resolve the latest issue state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          QUEUED_ISSUE_NUMBER: ${{ inputs.issue_number }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            event_path="$RUNNER_TEMP/reconciled-issue-event.json"
+            gh api "repos/$GITHUB_REPOSITORY/issues/$QUEUED_ISSUE_NUMBER" \
+              | jq '{issue: .}' > "$event_path"
+          else
+            event_path="$GITHUB_EVENT_PATH"
+          fi
+          issue_number="$(jq -r '.issue.number' "$event_path")"
+          issue_state="$(jq -r '.issue.state' "$event_path")"
+          echo "path=$event_path" >> "$GITHUB_OUTPUT"
+          echo "issue_number=$issue_number" >> "$GITHUB_OUTPUT"
+          echo "issue_state=$issue_state" >> "$GITHUB_OUTPUT"
 
       - name: Ensure processing labels exist
         env:
@@ -63,7 +89,7 @@ jobs:
         name: Validate and normalize issue JSON
         run: |
           node scripts/process-border-roll-issue.mjs \
-            --event "$GITHUB_EVENT_PATH" \
+            --event "${{ steps.event.outputs.path }}" \
             --accepted "$RUNNER_TEMP/accepted-border-roll-issues.json" \
             --result "$RUNNER_TEMP/border-roll-result.json" \
             --comment "$RUNNER_TEMP/border-roll-comment.md"
@@ -90,7 +116,7 @@ jobs:
         name: Revalidate duplicate IDs immediately before applying labels
         run: |
           node scripts/process-border-roll-issue.mjs \
-            --event "$GITHUB_EVENT_PATH" \
+            --event "${{ steps.event.outputs.path }}" \
             --accepted "$RUNNER_TEMP/accepted-border-roll-issues.json" \
             --result "$RUNNER_TEMP/border-roll-result.json" \
             --comment "$RUNNER_TEMP/border-roll-comment.md"
@@ -98,7 +124,8 @@ jobs:
       - name: Apply result to issue
         env:
           GH_TOKEN: ${{ github.token }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_NUMBER: ${{ steps.event.outputs.issue_number }}
+          ISSUE_STATE: ${{ steps.event.outputs.issue_state }}
           RESULT_LABEL: ${{ steps.commit.outputs.label }}
           SHOULD_CLOSE: ${{ steps.commit.outputs.close }}
           CLOSE_REASON: ${{ steps.commit.outputs.reason }}
@@ -110,6 +137,7 @@ jobs:
           node scripts/upsert-border-roll-comment.mjs "$RUNNER_TEMP/border-roll-comment.md"
           if [ "$SHOULD_CLOSE" = "true" ]; then
             gh issue close "$ISSUE_NUMBER" --reason "$CLOSE_REASON"
-          elif [ "${{ github.event.issue.state }}" = "closed" ]; then
+          elif [ "$ISSUE_STATE" = "closed" ]; then
             gh issue reopen "$ISSUE_NUMBER"
           fi
+          gh issue edit "$ISSUE_NUMBER" --remove-label "border-roll:queued"
