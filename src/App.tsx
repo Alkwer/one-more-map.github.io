@@ -803,6 +803,10 @@ export default function App() {
             pool={state.pool}
             borders={state.borders}
             onSelect={(id) => patch({ strategyId: id })}
+            layoutChoice={state.layoutChoice}
+            onLayoutChoice={(sid, lid) =>
+              patch({ layoutChoice: { ...state.layoutChoice, [sid]: lid } })
+            }
           />
         </section>
       </main>

@@ -191,7 +191,13 @@ export function SolverPanel({ state, activeStrategy, onPatch, onResults, onClose
         </fieldset>
       )}
 
-      <details className="weights-panel">
+      {/* keyed remount: weights open themselves in manual mode (they ARE the
+          mode), stay collapsed while a strategy overrides them */}
+      <details
+        key={activeStrategy ? 'overridden' : 'manual'}
+        className="weights-panel"
+        open={!activeStrategy}
+      >
         <summary className="panel-title small weights-summary">
           Reward weights{activeStrategy ? ' (overridden)' : ''}
         </summary>

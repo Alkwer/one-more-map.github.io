@@ -7,6 +7,9 @@ interface Props {
   pool: ChartData[]
   borders: Borders
   onSelect: (id: string | null) => void
+  /** chosen layout variant per strategy id (missing = default) */
+  layoutChoice?: Record<string, string>
+  onLayoutChoice?: (strategyId: string, layoutId: string) => void
 }
 
 /** per-requirement tally of what the library can supply */
@@ -88,7 +91,7 @@ function RegexRow({ regex }: { regex: string }) {
   )
 }
 
-export function StrategiesPanel({ activeId, pool, borders, onSelect }: Props) {
+export function StrategiesPanel({ activeId, pool, borders, onSelect, layoutChoice, onLayoutChoice }: Props) {
   const [expanded, setExpanded] = useState<string | null>(activeId)
 
   return (
@@ -107,7 +110,9 @@ export function StrategiesPanel({ activeId, pool, borders, onSelect }: Props) {
         onClick={() => onSelect(null)}
       >
         <span className="strat-name">None (manual)</span>
-        <span className="strat-tagline">Use your own reward weights below.</span>
+        <span className="strat-tagline">
+          Use your own reward weights - set them in ⚙ Settings, next to Solve.
+        </span>
       </button>
 
       {STRATEGIES.map((s) => {
@@ -150,6 +155,22 @@ export function StrategiesPanel({ activeId, pool, borders, onSelect }: Props) {
                   >
                     🔗 {l.label}
                   </a>
+                ))}
+              </div>
+            )}
+            {(isActive || isOpen) && s.layouts && (
+              <div className="strat-layouts">
+                <span className="strat-layouts-label">Layout:</span>
+                {s.layouts.map((v) => (
+                  <label key={v.id} className="strat-layout-option">
+                    <input
+                      type="radio"
+                      name={`layout-${s.id}`}
+                      checked={(layoutChoice?.[s.id] ?? s.layouts![0].id) === v.id}
+                      onChange={() => onLayoutChoice?.(s.id, v.id)}
+                    />
+                    {v.label}
+                  </label>
                 ))}
               </div>
             )}

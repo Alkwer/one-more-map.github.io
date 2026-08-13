@@ -66,7 +66,7 @@ BorderPreviewDelay := 900 ; ms per point during the Ctrl+F4 visual preview
 PasteDelay    := 90    ; ms after the single big paste
 ClipTimeout   := 0.2   ; seconds to wait for Ctrl+C (only empty cells wait the full time)
 PageFlipDelay := 150   ; ms for the chart panel to redraw after clicking a page tab
-EmptySkip     := 8     ; consecutive empty cells = the rest of the page is empty, skip it
+AltRevealDelay := 350  ; ms for held-Alt to reveal every border tooltip at once
 OcrTimeout    := 90    ; seconds before a stuck Windows OCR scan is stopped
 ; If it ever MISSES a chart, raise HoverDelay ~10ms at a time (the cursor
 ; isn't settling before Ctrl+C). If the final paste drops some, raise PasteDelay.
@@ -86,6 +86,10 @@ PagesCalibrated() {
     global Page1TabX, Page1TabY, Page2TabX, Page2TabY
     return (Page1TabX || Page1TabY) && (Page2TabX || Page2TabY)
 }
+; after this many fully blank ROWS in a row the sweep skips the rest of the
+; page. 0 = never skip (for players who park charts past big gaps). Set in
+; the wizard's "Sweep speed" step.
+EmptySkipRows := IniRead(IniFile, "sweep", "EmptySkipRows", "2") + 0
 BorderTLx := IniRead(IniFile, "board", "TopLeftX", "0") + 0
 BorderTLy := IniRead(IniFile, "board", "TopY", "0") + 0
 BorderBRx := IniRead(IniFile, "board", "BottomRightX", "0") + 0
@@ -301,6 +305,13 @@ WizardSteps() {
         Map("id", "page-tab-2", "wait", "PageTab2", "title", "Chart pages - Page 2 tab",
             "body", "Now hover the PAGE 2 tab button and press "
             . KeyLabel(Keys["WizardSet"]) "."),
+        Map("id", "sweep-skip", "wait", "EmptySkip", "title", "Sweep speed - blank rows",
+            "body", "Charts usually pack from the top, so after enough fully blank rows"
+            . " the sweep skips the rest of the page instead of waiting on every"
+            . " empty slot.`n`nCurrently: skip after " EmptySkipRows " blank row"
+            . (EmptySkipRows = 1 ? "" : "s") (EmptySkipRows = 0 ? " (never skip)" : "")
+            . ".`n`nPress " KeyLabel(Keys["WizardSet"]) " to change it - set 0 if you"
+            . " keep charts parked at the bottom of a page. Or click Skip to keep it."),
         Map("id", "border-exact", "wait", "ExactDone", "title", "Board borders - all 12 points",
             "body", "Now teach it exactly where each of the 12 border modifiers sits.`n`n"
             . "Recording starts automatically.`n`n"
@@ -439,6 +450,8 @@ WizardSetPressed(*) {
         SetPageTab(1)
     else if (id = "page-tab-2")
         SetPageTab(2)
+    else if (id = "sweep-skip")
+        PromptEmptySkip()
     else if (id = "border-exact")
         SaveExactPoint()
     else if (id = "preview")
@@ -869,6 +882,135 @@ function Get-BorderBlock {
     return $builder.ToString()
 }
 
+function Get-OcrLineRects {
+    param([string]$Path, $Engine, [double]$Scale, [double]$Pad)
+    $file = Await-Result ([Windows.Storage.StorageFile]::GetFileFromPathAsync($Path)) ([Windows.Storage.StorageFile])
+    $stream = Await-Result ($file.OpenAsync([Windows.Storage.FileAccessMode]::Read)) ([Windows.Storage.Streams.IRandomAccessStream])
+    try {
+        $decoder = Await-Result ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($stream)) ([Windows.Graphics.Imaging.BitmapDecoder])
+        $bitmap = Await-Result ($decoder.GetSoftwareBitmapAsync()) ([Windows.Graphics.Imaging.SoftwareBitmap])
+        try {
+            $result = Await-Result ($Engine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
+            $found = @()
+            foreach ($line in $result.Lines) {
+                $minX = [double]::MaxValue
+                $minY = [double]::MaxValue
+                $maxX = 0.0
+                $maxY = 0.0
+                foreach ($word in $line.Words) {
+                    $r = $word.BoundingRect
+                    if ($r.X -lt $minX) { $minX = $r.X }
+                    if ($r.Y -lt $minY) { $minY = $r.Y }
+                    if (($r.X + $r.Width) -gt $maxX) { $maxX = $r.X + $r.Width }
+                    if (($r.Y + $r.Height) -gt $maxY) { $maxY = $r.Y + $r.Height }
+                }
+                if ($minX -eq [double]::MaxValue) { continue }
+                $found += [pscustomobject]@{
+                    Text = $line.Text
+                    X = ($minX - $Pad) / $Scale
+                    Y = ($minY - $Pad) / $Scale
+                    R = ($maxX - $Pad) / $Scale
+                    B = ($maxY - $Pad) / $Scale
+                }
+            }
+            return $found
+        } finally {
+            if ($null -ne $bitmap) { $bitmap.Dispose() }
+        }
+    } finally {
+        $stream.Dispose()
+    }
+}
+
+# One held-Alt screenshot shows every border tooltip at once. OCR it with
+# per-line geometry, cluster lines into tooltip blocks, then assign each
+# block to its nearest border point.
+function Get-AllBorderBlocks {
+    param([int]$Left, [int]$Top, [int]$Width, [int]$Height, [string]$PointSpec, $Engine)
+    $builder = [System.Text.StringBuilder]::new()
+    $png = Join-Path $env:TEMP "voyage-border-$PID-all.png"
+    $prepared = Join-Path $env:TEMP "voyage-border-$PID-all-prep.png"
+    try {
+        if ($Width -le 0 -or $Height -le 0) {
+            throw 'Invalid Path of Exile window size.'
+        }
+        $image = [System.Drawing.Bitmap]::new($Width, $Height)
+        $graphics = [System.Drawing.Graphics]::FromImage($image)
+        try {
+            $graphics.CopyFromScreen($Left, $Top, 0, 0, $image.Size)
+            $image.Save($png, [System.Drawing.Imaging.ImageFormat]::Png)
+        } finally {
+            $graphics.Dispose()
+            $image.Dispose()
+        }
+        # mirror the transform inside VoyageOcrImage::Prepare so rects map back
+        $scale = [Math]::Min(2.0, 6000.0 / [Math]::Max($Width, $Height))
+        [VoyageOcrImage]::Prepare($png, $prepared)
+        $lines = @(Get-OcrLineRects $prepared $Engine $scale 64.0)
+        if ($lines.Count -eq 0) { $lines = @(Get-OcrLineRects $png $Engine 1.0 0.0) }
+        if ($lines.Count -eq 0) { throw 'Windows OCR found no border tooltips in the Alt overview.' }
+        # cluster vertically-adjacent, horizontally-overlapping lines
+        $blocks = @()
+        foreach ($line in ($lines | Sort-Object Y)) {
+            $joined = $false
+            foreach ($block in $blocks) {
+                $lineHeight = [Math]::Max(12.0, $line.B - $line.Y)
+                $xOverlap = [Math]::Min($line.R, $block.R) - [Math]::Max($line.X, $block.X)
+                if (($line.Y - $block.B) -le ($lineHeight * 0.9) -and $xOverlap -gt 0) {
+                    $block.Text = $block.Text + [Environment]::NewLine + $line.Text
+                    if ($line.X -lt $block.X) { $block.X = $line.X }
+                    if ($line.R -gt $block.R) { $block.R = $line.R }
+                    if ($line.B -gt $block.B) { $block.B = $line.B }
+                    $joined = $true
+                    break
+                }
+            }
+            if (-not $joined) {
+                $blocks += [pscustomobject]@{ Text = $line.Text; X = $line.X; Y = $line.Y; R = $line.R; B = $line.B }
+            }
+        }
+        $points = @()
+        foreach ($pair in $PointSpec.Split(';')) {
+            $xy = $pair.Split(',')
+            $points += [pscustomobject]@{ X = [double]$xy[0]; Y = [double]$xy[1] }
+        }
+        # greedy nearest matching, one block per border point
+        $pairs = @()
+        for ($p = 0; $p -lt $points.Count; $p++) {
+            for ($b = 0; $b -lt $blocks.Count; $b++) {
+                $cx = ($blocks[$b].X + $blocks[$b].R) / 2.0
+                $cy = ($blocks[$b].Y + $blocks[$b].B) / 2.0
+                $dx = $cx - $points[$p].X
+                $dy = $cy - $points[$p].Y
+                $pairs += [pscustomobject]@{ P = $p; B = $b; D = ($dx * $dx + $dy * $dy) }
+            }
+        }
+        $assigned = @{}
+        $usedBlocks = @{}
+        foreach ($pair in ($pairs | Sort-Object D)) {
+            if ($assigned.ContainsKey($pair.P) -or $usedBlocks.ContainsKey($pair.B)) { continue }
+            $assigned[$pair.P] = $pair.B
+            $usedBlocks[$pair.B] = $true
+        }
+        for ($p = 0; $p -lt $points.Count; $p++) {
+            if ($assigned.ContainsKey($p)) {
+                Add-Block $builder $p $blocks[$assigned[$p]].Text
+            } else {
+                Add-Block $builder $p 'OCR ERROR: no tooltip found near this border.'
+            }
+        }
+    } catch {
+        $builder = [System.Text.StringBuilder]::new()
+        for ($p = 0; $p -lt 12; $p++) {
+            Add-Block $builder $p ('OCR ERROR: ' + $_.Exception.Message)
+        }
+    } finally {
+        Remove-Item -LiteralPath $png -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $prepared -Force -ErrorAction SilentlyContinue
+    }
+    return $builder.ToString()
+}
+
 if ($ImagePath) {
     $engine = New-OcrEngine -PreferredLanguage $PreferredLanguage
     $builder = [System.Text.StringBuilder]::new()
@@ -898,6 +1040,11 @@ while ($true) {
         Remove-Item -LiteralPath $cmdFile -Force -ErrorAction SilentlyContinue
         if ($line -eq 'quit') { break }
         $parts = $line.Split('|')
+        if ($parts[0] -eq 'scanall' -and $parts.Count -ge 7) {
+            $block = Get-AllBorderBlocks -Left ([int]$parts[2]) -Top ([int]$parts[3]) -Width ([int]$parts[4]) -Height ([int]$parts[5]) -PointSpec $parts[6] -Engine $engine
+            Write-Atomic "$Session-res-all.txt" $block
+            continue
+        }
         if ($parts[0] -ne 'capture' -or $parts.Count -lt 6) { continue }
         $idx = [int]$parts[1]
         $block = Get-BorderBlock -Index $idx -Left ([int]$parts[2]) -Top ([int]$parts[3]) -Width ([int]$parts[4]) -Height ([int]$parts[5]) -Engine $engine
@@ -1053,7 +1200,76 @@ StopOcrServer() {
     try FileDelete OcrSession ".ready"
 }
 
+; Preferred path: the game now reveals EVERY border tooltip while Alt is held,
+; so one screenshot + one OCR pass covers all 12 (seconds instead of 15-30s).
+; Tooltip text is assigned to segments by proximity to the calibration points.
+; Any failure falls back to the per-border hover scan below.
+ScanBordersAlt() {
+    global PoeWinTitle, AltRevealDelay, OcrSession, OcrPid, OcrTimeout, Running
+    WinGetPos &winX, &winY, &winW, &winH, PoeWinTitle
+    StartOcrServer()
+    ready := WaitOcrReady(45000)
+    if (ready = "" || !Running)
+        return "ABORT"
+    if (ready != "READY") {
+        StopOcrServer()
+        MsgBox "Border OCR unavailable:`n`n" ready
+        return "ABORT"
+    }
+    points := ""
+    for index, point in BorderPoints()
+        points .= (points = "" ? "" : ";") (point[1] - winX) "," (point[2] - winY)
+    ToolTip "Reading all 12 borders in one Alt scan..."
+    ; park the cursor mid-board so no single tooltip is hover-highlighted
+    MouseMove winX + winW // 2, winY + winH // 2, 0
+    Send "{Alt down}"
+    Sleep AltRevealDelay
+    resFile := OcrSession "-res-all.txt"
+    try FileDelete resFile
+    OcrSendCommand("scanall|all|" winX "|" winY "|" winW "|" winH "|" points)
+    block := ""
+    deadline := A_TickCount + OcrTimeout * 1000
+    while (A_TickCount < deadline) {
+        if !Running
+            break
+        if FileExist(resFile) {
+            block := FileRead(resFile, "UTF-8")
+            try FileDelete resFile
+            break
+        }
+        if !ProcessExist(OcrPid)
+            break
+        Sleep 40
+    }
+    Send "{Alt up}"
+    ToolTip()
+    if !Running
+        return "ABORT"
+    ; quality gate: too many unreadable segments means the Alt overview didn't
+    ; work here (old client, overlapping tooltips) - use the hover scan
+    errors := 0
+    pos := 1
+    while (pos := InStr(block, "OCR ERROR", , pos)) {
+        errors++
+        pos++
+    }
+    if (block = "" || errors > 4)
+        return ""
+    StopOcrServer()
+    return block
+}
+
 ScanBorders() {
+    result := ScanBordersAlt()
+    if (result = "ABORT")
+        return ""
+    if (result != "")
+        return result
+    ToolTip "Alt overview didn't work here - falling back to the per-border scan..."
+    return ScanBordersHover()
+}
+
+ScanBordersHover() {
     global PoeWinTitle, BorderHoverDelay, BorderOcrAttempts, Running
     WinGetPos &winX, &winY, &winW, &winH, PoeWinTitle
     ; one persistent helper per sweep: PowerShell boots and compiles while we
@@ -1228,6 +1444,23 @@ SetGridBottomRight(*) {
     IniWrite BRy, IniFile, "grid", "BRy"
     Flash "Bottom-right set: " BRx ", " BRy
 }
+; how many fully blank rows end a page sweep (wizard-only setting)
+PromptEmptySkip(*) {
+    global EmptySkipRows, IniFile
+    result := InputBox("Skip the rest of a page after how many fully blank rows in a row?"
+        . "`n0 = never skip (scan every cell).", "Blank-row skip", "w380 h140", EmptySkipRows)
+    if (result.Result != "OK")
+        return
+    if !RegExMatch(Trim(result.Value), "^\d+$") {
+        Flash "Enter a whole number (0 or more).", 2500
+        return
+    }
+    EmptySkipRows := Trim(result.Value) + 0
+    IniWrite EmptySkipRows, IniFile, "sweep", "EmptySkipRows"
+    WizardOnAction("EmptySkip")
+    Flash "Blank-row skip: " (EmptySkipRows = 0 ? "never skip" : "after " EmptySkipRows " blank rows"), 2500
+}
+
 ; the chart panel's two page-tab buttons (wizard-only calibration)
 SetPageTab(n) {
     global
@@ -1245,6 +1478,12 @@ SetPageTab(n) {
     Flash "Page " n " tab set: " x ", " y
 }
 
+; the script sends Ctrl (copies/paste) and holds Alt (border reveal) - make
+; sure none of them stay logically held if a sweep ends mid-keystroke
+ReleaseModifiers() {
+    Send "{Ctrl up}{Alt up}{Shift up}"
+}
+
 ; ---- abort (default F10) ----
 AbortAll(*) {
     global Running, OcrPid, ExactBorderNext
@@ -1254,6 +1493,7 @@ AbortAll(*) {
         ProcessClose OcrPid
         OcrPid := 0
     }
+    ReleaseModifiers()
     Flash "Aborting..."
 }
 
@@ -1309,6 +1549,7 @@ RunBordersOnly(*) {
 
     completed := Running
     Running := false
+    ReleaseModifiers()
     Flash completed
         ? (borderBlob != "" ? "Done. Sent 12 border OCR scans." : "Border OCR returned nothing - check calibration.")
         : "Aborted.", 5000
@@ -1354,7 +1595,9 @@ RunSweep(*) {
         }
         ; charts pack from the top - a run of empty cells means the rest of
         ; the page is blank, so stop paying the clipboard timeout for them
+        ; (row count set in the wizard; 0 disables for bottom-parked charts)
         emptyStreak := 0
+        emptySkipCells := EmptySkipRows * GridCols
         Loop GridRows {
             if !Running
                 break
@@ -1371,8 +1614,8 @@ RunSweep(*) {
                 if !ClipWait(ClipTimeout) {
                     skipped++             ; empty slot - nothing copied
                     emptyStreak++
-                    if (emptyStreak >= EmptySkip) {
-                        ToolTip "Page " page ": rest looks empty - skipping ahead..."
+                    if (emptySkipCells > 0 && emptyStreak >= emptySkipCells) {
+                        ToolTip "Page " page ": " EmptySkipRows " blank rows - skipping the rest..."
                         break 2
                     }
                     continue
@@ -1444,6 +1687,7 @@ RunSweep(*) {
     }
 
     Running := false
+    ReleaseModifiers()
     borderNote := BoardCalibrated()
         ? (borderBlob != "" ? " + 12 border OCR scans" : " (border OCR failed)")
         : " (borders skipped: run the tray Setup wizard)"

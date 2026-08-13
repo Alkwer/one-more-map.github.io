@@ -249,10 +249,25 @@ assert.match(ahkImporter, /TempDir := LongPath\(A_Temp\)/)
 // two-page chart panel: the sweep must visit both page tabs when calibrated
 // (and stay single-page for old calibrations), and a run of empty cells must
 // skip the rest of the page instead of paying the clipboard timeout each.
+// The skip length is user-tunable in the wizard (0 disables it - people park
+// charts past big gaps, see the Reddit feedback thread).
 assert.match(ahkImporter, /PagesCalibrated\(\) \? 2 : 1/)
 assert.match(ahkImporter, /"page-tab-1"/)
 assert.match(ahkImporter, /"page-tab-2"/)
-assert.match(ahkImporter, /emptyStreak >= EmptySkip/)
+assert.match(ahkImporter, /EmptySkipRows := IniRead/)
+assert.match(ahkImporter, /emptySkipCells > 0 && emptyStreak >= emptySkipCells/)
+assert.match(ahkImporter, /"sweep-skip"/)
+
+// held-Alt reveals every border tooltip at once: the one-scan path must exist
+// with its geometry assignment, fall back to the hover scan, and never leave
+// Alt (or Ctrl) logically held after a run.
+assert.match(ahkImporter, /ScanBordersAlt/)
+assert.match(ahkImporter, /scanall\|all\|/)
+assert.match(ahkImporter, /Get-AllBorderBlocks/)
+assert.match(ahkImporter, /\{Alt down\}/)
+assert.match(ahkImporter, /\{Alt up\}/)
+assert.match(ahkImporter, /ReleaseModifiers\(\)/)
+assert.match(ahkImporter, /ScanBordersHover/)
 
 // The helper script is written to disk by AutoHotkey from a continuation
 // string - backtick is AHK's escape character, so any backtick in the

@@ -47,6 +47,11 @@ export function SolveBar({ state, activeStrategy, results, appliedIdx, onResults
           lockedUids,
           state.pieceKeeps,
         )
+        // a strategy with selectable layouts uses the user's pick (or its first)
+        const layoutVariant =
+          activeStrategy?.layouts?.find(
+            (v) => v.id === state.layoutChoice[activeStrategy.id],
+          ) ?? activeStrategy?.layouts?.[0]
         const res = solve(solvePool, state.borders, weights, {
           mode: state.mode,
           allowRotation: state.allowRotation,
@@ -55,7 +60,7 @@ export function SolveBar({ state, activeStrategy, results, appliedIdx, onResults
           disabledMods: new Set(state.disabledMods),
           topK: 5,
           strategyRules: activeStrategy?.rules,
-          strategyLayout: activeStrategy?.layout,
+          strategyLayout: layoutVariant?.layout ?? activeStrategy?.layout,
           strategyLayoutPenalty: activeStrategy?.layoutPenalty,
           locked,
         })

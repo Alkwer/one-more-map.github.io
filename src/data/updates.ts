@@ -13,6 +13,20 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    date: '2026-08-11',
+    tag: 'reworked',
+    title: 'One-scan border OCR (hold-Alt)',
+    detail:
+      'The game now shows every border tooltip while Alt is held, so the importer reads all 12 from a single screenshot - a couple of seconds instead of 15-30. It falls back to the old per-border scan automatically if the overview fails. The blank-row skip is also configurable in the wizard now (set 0 if you park charts at the bottom of a page). Re-download the script to get both.',
+  },
+  {
+    date: '2026-08-11',
+    tag: 'new',
+    title: 'Alc & Go layout picker',
+    detail:
+      'Pick your highway shape on the strategy card: the classic three-lane highway (burns end and corner pieces evenly) or the community-requested S-snake - one continuous path, fastest to actually run. Your choice sticks.',
+  },
+  {
     date: '2026-08-07',
     tag: 'reworked',
     title: 'Bulk importer scans both chart pages',
