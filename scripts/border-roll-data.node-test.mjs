@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFile } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -53,6 +54,13 @@ const dataset = (samples) => ({
 
 const issueBody = (payload) =>
   `Protocol confirmation.\n\n\`\`\`json\n${JSON.stringify(payload, null, 2)}\n\`\`\``
+const hashDataset = (payload) => createHash('sha256').update(JSON.stringify(payload)).digest('hex')
+const withoutSampleFields = (payload, fields) => ({
+  ...payload,
+  samples: payload.samples.map((entry) =>
+    Object.fromEntries(Object.entries(entry).filter(([field]) => !fields.has(field))),
+  ),
+})
 
 test('loads the canonical border modifier IDs from the application source', () => {
   assert.equal(knownIds.size, 64)
@@ -103,6 +111,50 @@ test('normalizes legacy samples without Vesper progress to unknown', () => {
   assert.equal(result.status, 'accepted')
   assert.equal(result.dataset.samples[0].vesperUpgradeCount, null)
   assert.match(result.warnings[0], /legacy\/unknown/)
+})
+
+test('accepts historical digests only while legacy fields remain absent', () => {
+  const beforeVesper = sample(0)
+  delete beforeVesper.vesperUpgradeCount
+  delete beforeVesper.samplingReason
+  const beforeVesperPayload = dataset([beforeVesper])
+  const beforeVesperResult = validateBorderRollPayload(beforeVesperPayload, knownIds)
+  const beforeVesperHash = hashDataset(
+    withoutSampleFields(
+      beforeVesperResult.dataset,
+      new Set(['vesperUpgradeCount', 'samplingReason']),
+    ),
+  )
+
+  const beforeSampling = sample(0)
+  delete beforeSampling.samplingReason
+  const beforeSamplingPayload = dataset([beforeSampling])
+  const beforeSamplingResult = validateBorderRollPayload(beforeSamplingPayload, knownIds)
+  const beforeSamplingHash = hashDataset(
+    withoutSampleFields(beforeSamplingResult.dataset, new Set(['samplingReason'])),
+  )
+
+  for (const [number, body, acceptedHash] of [
+    [60, issueBody(beforeVesperPayload), beforeVesperHash],
+    [214, issueBody(beforeSamplingPayload), beforeSamplingHash],
+  ]) {
+    const built = buildCanonicalDataset([{ number, body, acceptedHash }], knownIds, {
+      requireAcceptedDigest: true,
+    })
+    assert.equal(built.dataset.sampleCount, 1)
+    assert.deepEqual(built.digestMismatches, [])
+  }
+
+  const editedBody = issueBody(
+    dataset([sample(0, { vesperUpgradeCount: null, samplingReason: 'unknown' })]),
+  )
+  const edited = buildCanonicalDataset(
+    [{ number: 60, body: editedBody, acceptedHash: beforeVesperHash }],
+    knownIds,
+    { requireAcceptedDigest: true },
+  )
+  assert.equal(edited.dataset, null)
+  assert.equal(edited.digestMismatches[0].issueNumber, 60)
 })
 
 test('preserves randomized sampling labels and requires one label per Voyage', () => {

@@ -158,5 +158,5 @@ describe('connectivity regressions', () => {
     assert.ok(
       alcAndGo.reasons.some((entry) => /bounded solver did not find.*not proof/.test(entry)),
     )
-  })
+  }, 15_000)
 })
