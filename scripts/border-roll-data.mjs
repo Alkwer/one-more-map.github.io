@@ -8,6 +8,13 @@ const KNOWN_NEXT_COSTS = [3_000, 6_000, 12_000, 24_000, 48_000]
 const ID_PATTERN = /^(?:roll|voyage)-[A-Za-z0-9-]{1,120}$/
 
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
+const hashDataset = (dataset) => createHash('sha256').update(JSON.stringify(dataset)).digest('hex')
+const omitSampleFields = (dataset, fields) => ({
+  ...dataset,
+  samples: dataset.samples.map((sample) =>
+    Object.fromEntries(Object.entries(sample).filter(([field]) => !fields.has(field))),
+  ),
+})
 
 export async function loadKnownBorderIds(sourcePath = 'src/data/mods.ts') {
   const source = await readFile(sourcePath, 'utf8')
@@ -182,13 +189,30 @@ export function validateBorderRollPayload(payload, knownBorderIds) {
     sampleCount: samples.length,
     samples,
   }
-  const hash = createHash('sha256').update(JSON.stringify(dataset)).digest('hex')
+  const hash = hashDataset(dataset)
+  const acceptedHashCandidates = new Set([hash])
+  const allSamplesOmit = (field) =>
+    rawSamples.every((sample) => isRecord(sample) && sample[field] === undefined)
+
+  // Accepted comments store the normalized dataset hash produced at validation time.
+  // Older validators predate these fields, so reproduce their hashes only while the
+  // current issue body still omits the corresponding fields. Adding or changing a
+  // field after acceptance therefore remains a digest mismatch.
+  if (allSamplesOmit('samplingReason')) {
+    acceptedHashCandidates.add(hashDataset(omitSampleFields(dataset, new Set(['samplingReason']))))
+    if (allSamplesOmit('vesperUpgradeCount')) {
+      acceptedHashCandidates.add(
+        hashDataset(omitSampleFields(dataset, new Set(['vesperUpgradeCount', 'samplingReason']))),
+      )
+    }
+  }
   return {
     status: complete ? 'accepted' : 'partial',
     errors,
     warnings,
     dataset,
     hash,
+    acceptedHashCandidates: [...acceptedHashCandidates],
   }
 }
 
@@ -300,7 +324,7 @@ export function buildCanonicalDataset(
     if (isTestIssue(issue)) continue
     const result = validateBorderRollIssueBody(issue.body, knownBorderIds)
     if (result.status !== 'accepted' || !result.dataset) continue
-    if (requireAcceptedDigest && issue.acceptedHash !== result.hash) {
+    if (requireAcceptedDigest && !result.acceptedHashCandidates.includes(issue.acceptedHash)) {
       digestMismatches.push({
         issueNumber: issue.number,
         recordedHash: issue.acceptedHash ?? null,
