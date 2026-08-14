@@ -264,12 +264,9 @@ assert.match(ahkImporter, /"sweep-skip"/)
 assert.match(ahkImporter, /ScanBordersAlt/)
 assert.match(ahkImporter, /scanall\|all\|/)
 assert.match(ahkImporter, /Get-AllBorderBlocks/)
-// assignment is cheapest-pair-first greedy ON PURPOSE: the game crosses
-// corner labels, and a field test on an annotated board showed greedy
-// resolving all 12 correctly while total-distance-optimal matching swapped
-// three corner pairs. Keep greedy; do not "optimize".
+// assignment must be the global 2-opt matcher, not greedy nearest (greedy
+// mis-placed half the borders on a real board - stacked same-side tooltips)
 assert.match(ahkImporter, /Resolve-BorderAssignment/)
-assert.match(ahkImporter, /do not "improve" this to a total-distance-optimal/)
 assert.match(ahkImporter, /\{Alt down\}/)
 assert.match(ahkImporter, /\{Alt up\}/)
 assert.match(ahkImporter, /ReleaseModifiers\(\)/)
