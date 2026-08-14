@@ -1,5 +1,6 @@
 import type { StrategySuggestionResult } from '../logic/strategySuggestions'
 import { BORDER_ROLL_MODEL } from '../logic/borderRollModel'
+import { hasOptimalityGuarantee } from '../logic/solver'
 
 interface Props {
   result: StrategySuggestionResult
@@ -75,6 +76,8 @@ export function StrategySuggestions({
             const requiresReroll = suggestion.requiredBorderStatus === 'missing'
             const isSpecializedAlternative =
               suggestion.strategy.id === bestReadySpecializedAlternativeId
+            const optimalityProven =
+              suggestion.searchMethod !== null && hasOptimalityGuarantee(suggestion)
             return (
               <article
                 className={`suggestion-card ${index === 0 ? 'best' : ''} ${
@@ -176,7 +179,7 @@ export function StrategySuggestions({
                     <strong>
                       {suggestion.searchMethod === null
                         ? 'Not run'
-                        : suggestion.searchComplete
+                        : optimalityProven
                           ? 'Exhaustive · optimal proven'
                           : 'Heuristic · best found (no global guarantee)'}
                     </strong>

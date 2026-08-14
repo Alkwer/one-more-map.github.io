@@ -58,4 +58,14 @@ describe('solver search guarantees', () => {
     expect(rotationActions).toContain('bounded heuristic search')
     expect(results).not.toContain('#1 is optimal')
   })
+
+  it('does not trust searchComplete without an exhaustive search method', () => {
+    const results = renderToStaticMarkup(
+      <SolverResults results={[result('heuristic', true)]} onApply={() => {}} />,
+    )
+
+    expect(results).toContain('Search method: <strong>Heuristic</strong>')
+    expect(results).toContain('Guarantee: Best found; global optimum not proven.')
+    expect(results).not.toContain('optimal within the supported search space')
+  })
 })

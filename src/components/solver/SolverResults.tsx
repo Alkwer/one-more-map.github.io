@@ -1,4 +1,4 @@
-import type { SolverResult } from '../../logic/solver'
+import { hasOptimalityGuarantee, type SolverResult } from '../../logic/solver'
 import type { Board } from '../../types'
 
 interface Props {
@@ -10,7 +10,7 @@ export function SolverResults({ results, onApply }: Props) {
   if (results.length === 0) return null
   const search = results[0]
   const methodLabel = search.searchMethod === 'exhaustive' ? 'Exhaustive' : 'Heuristic'
-  const guaranteeLabel = search.searchComplete
+  const guaranteeLabel = hasOptimalityGuarantee(search)
     ? '#1 is optimal within the supported search space.'
     : 'Best found; global optimum not proven.'
 

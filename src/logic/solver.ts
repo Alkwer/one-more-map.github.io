@@ -122,6 +122,12 @@ export interface SolverResult {
   searchComplete: boolean
 }
 
+/** A global ordering guarantee requires both exhaustive enumeration and completion. */
+export const hasOptimalityGuarantee = (result: {
+  searchMethod: SolverResult['searchMethod'] | null
+  searchComplete: boolean
+}): boolean => result.searchMethod === 'exhaustive' && result.searchComplete
+
 /**
  * Feasibility is a hard constraint, not a score component. Keep accepted
  * boards ahead of diagnostics even when persisted reward values are large

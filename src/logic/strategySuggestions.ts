@@ -17,7 +17,7 @@ import {
 import { borderRewardKey } from './rewards'
 import { selectSolverEligibleCharts } from './chartShapes'
 import { scoreBoard, type ScoreOptions } from './scoring'
-import { solve, type SolverResult } from './solver'
+import { hasOptimalityGuarantee, solve, type SolverResult } from './solver'
 import { selectStrategySolvePool } from './solverPoolSelection'
 import { strategyReadiness, type StrategyReadiness } from './strategyReadiness'
 
@@ -323,13 +323,14 @@ export function evaluateStrategyInventory(
       : null
     const potentialBoard = potential?.board ?? (Array(9).fill(null) as Board)
     const forecastBoard = forecastPotential?.board ?? potentialBoard
+    const potentialHasOptimalityGuarantee = potential ? hasOptimalityGuarantee(potential) : false
     const runnable = resolveRunnableReadiness(
       libraryReadiness,
       eligiblePool.length,
       libraryReadiness.ready,
       potential !== null,
       potential?.valid ?? false,
-      potential?.searchComplete ?? false,
+      potentialHasOptimalityGuarantee,
     )
     const readiness = runnable.readiness
     const currentPotentialAppraisal = appraiseBorders(
@@ -393,10 +394,10 @@ export function evaluateStrategyInventory(
       !libraryReadiness.ready
         ? `A layout search was not run because the library is missing declared strategy requirements.`
         : potential?.valid
-          ? potential.searchComplete
+          ? potentialHasOptimalityGuarantee
             ? `The exhaustive solver proved an optimal fully reachable layout within the supported search space for ${eligiblePool.length} eligible imported charts.`
             : `The heuristic solver's best-found result is a fully reachable layout from ${eligiblePool.length} eligible imported charts; global optimality is not proven.`
-          : potential?.searchComplete
+          : potentialHasOptimalityGuarantee
             ? `The exhaustive solver proved that these ${eligiblePool.length} eligible imported charts have no fully reachable layout.`
             : `The bounded solver did not find a fully reachable layout from ${eligiblePool.length} eligible imported charts; this is not proof that none exists.`,
     ]

@@ -227,7 +227,7 @@ describe('strategy suggestion regressions', () => {
           ...result,
           suggestions: [
             { ...alc, searchMethod: 'exhaustive', searchComplete: true },
-            { ...speedrun, searchMethod: 'heuristic', searchComplete: false },
+            { ...speedrun, searchMethod: 'heuristic', searchComplete: true },
           ],
         },
         activeId: 'alc-and-go',
@@ -241,6 +241,7 @@ describe('strategy suggestion regressions', () => {
     assert.match(markup, /Combined fit/)
     assert.match(markup, /Exhaustive · optimal proven/)
     assert.match(markup, /Heuristic · best found \(no global guarantee\)/)
+    assert.doesNotMatch(markup, /Heuristic · optimal proven/)
     assert.doesNotMatch(markup, /Best charts \+ border strategy/)
   })
 
