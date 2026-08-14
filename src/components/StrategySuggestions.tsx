@@ -1,5 +1,6 @@
 import type { StrategySuggestionResult } from '../logic/strategySuggestions'
 import { BORDER_ROLL_MODEL } from '../logic/borderRollModel'
+import { hasOptimalityGuarantee } from '../logic/solver'
 
 interface Props {
   result: StrategySuggestionResult
@@ -44,10 +45,11 @@ export function StrategySuggestions({
             Strategy compatibility
           </h3>
           <div className="muted small-note suggestion-intro">
-            Ranks the best layout each strategy can build from all imported charts together with the
-            current border roll. Fallback policy compares each strategy with achievable modeled
-            rolls on its own percentile scale; combined fit is not currency EV. The manual board is
-            only a diagnostic.
+            Ranks the best layout found for each strategy by bounded heuristic search across all
+            imported charts together with the current border roll; global optimality is not proven.
+            Fallback policy compares each strategy with achievable modeled rolls on its own
+            percentile scale; combined fit is not currency EV. The manual board is only a
+            diagnostic.
           </div>
         </div>
         {result.enteredBorders > 0 && (
@@ -74,6 +76,8 @@ export function StrategySuggestions({
             const requiresReroll = suggestion.requiredBorderStatus === 'missing'
             const isSpecializedAlternative =
               suggestion.strategy.id === bestReadySpecializedAlternativeId
+            const optimalityProven =
+              suggestion.searchMethod !== null && hasOptimalityGuarantee(suggestion)
             return (
               <article
                 className={`suggestion-card ${index === 0 ? 'best' : ''} ${
@@ -169,6 +173,16 @@ export function StrategySuggestions({
                   </span>
                   <span>
                     Library <strong>{suggestion.eligibleCharts} eligible</strong>
+                  </span>
+                  <span>
+                    Search{' '}
+                    <strong>
+                      {suggestion.searchMethod === null
+                        ? 'Not run'
+                        : optimalityProven
+                          ? 'Exhaustive · optimal proven'
+                          : 'Heuristic · best found (no global guarantee)'}
+                    </strong>
                   </span>
                 </div>
                 {index === 0 && (

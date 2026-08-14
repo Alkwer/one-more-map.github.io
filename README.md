@@ -15,9 +15,9 @@ Exile 3.29 _Curse of the Allflame_.
 - Lets low-investment strategies protect Speedrun, Divine, and Meatfish
   keeper charts independently, so imported charts remain available when a
   protection is switched off.
-- Finds an optimal layout exhaustively for pools of up to nine charts without
-  rotation. Larger or rotational searches use seeded hill climbing with
-  restarts.
+- Finds and proves an optimal layout exhaustively for pools of up to nine charts
+  without rotation. Larger or rotational searches report the best layout found
+  by seeded hill climbing with restarts, without a global optimality guarantee.
 - Saves data in the browser, imports/exports JSON, and shares layouts through
   URL state.
 - Includes an optional Windows AutoHotkey helper for copying charts and reading

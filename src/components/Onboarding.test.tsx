@@ -32,6 +32,20 @@ describe('Onboarding', () => {
     expect(html).not.toContain('The library is full (250-chart limit)')
   })
 
+  it('qualifies exhaustive and heuristic solver guarantees', () => {
+    const html = renderToStaticMarkup(
+      <Onboarding
+        onClose={() => {}}
+        onDemo={() => ({ added: 25, skipped: 0 })}
+        remainingChartCapacity={250}
+      />,
+    )
+
+    expect(html).toContain('exhaustive search proves result #1 optimal')
+    expect(html).toContain('best layout found without claiming a global optimum')
+    expect(html).not.toContain('highest-value arrangement')
+  })
+
   it('only closes after the whole demo batch was added', () => {
     expect(shouldCloseOnboardingAfterDemo({ added: 25, skipped: 0 })).toBe(true)
     expect(shouldCloseOnboardingAfterDemo({ added: 1, skipped: 24 })).toBe(false)

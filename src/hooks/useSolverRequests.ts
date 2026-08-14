@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { resolveStrategyLayout, type StrategyDef } from '../data/strategies'
-import type { SolverResult } from '../logic/solver'
+import { hasOptimalityGuarantee, type SolverResult } from '../logic/solver'
 import { createSolverStateKey } from '../logic/solverRequestKeys'
 import { isWorkerRequestCancelled, SolverWorkerClient } from '../logic/solverWorkerClient'
 import type { AppState } from '../logic/storage'
@@ -170,7 +170,7 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
           )
         else if (response.length && !response[0].valid)
           notes.push(
-            response[0].searchComplete
+            hasOptimalityGuarantee(response[0])
               ? 'No fully reachable layout exists for these charts - best partial shown.'
               : 'The bounded solver did not find a fully reachable layout - best partial shown. Try again to explore another search path.',
           )
@@ -239,7 +239,7 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
           key: requestKey,
           text: response[0]?.valid
             ? 'Filler voyage: lowest-value fully reachable board from your spare charts (your best, strategy-protected & locked charts untouched).'
-            : response[0]?.searchComplete
+            : response[0] && hasOptimalityGuarantee(response[0])
               ? 'No fully reachable filler layout exists for your spare charts.'
               : 'The bounded solver did not find a fully reachable filler layout. Try again to explore another search path.',
         })
