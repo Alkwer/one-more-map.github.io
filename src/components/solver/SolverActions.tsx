@@ -56,10 +56,14 @@ export function SolverActions(props: Props) {
       {props.solveNote && <div className="muted small-note">{props.solveNote}</div>}
       {props.eligibleChartCount > 9 || props.allowRotation ? (
         <div className="muted small-note">
-          Large pool / rotation → heuristic search (near-optimal)
+          Large pool / rotation → bounded heuristic search (results are best found; no global
+          optimality guarantee)
         </div>
       ) : (
-        <div className="muted small-note">Pool ≤ 9 charts → exhaustive search (optimal)</div>
+        <div className="muted small-note">
+          Pool ≤ 9 charts, rotation off → exhaustive search (#1 is optimal within the supported
+          search space)
+        </div>
       )}
     </>
   )

@@ -17,7 +17,7 @@ import {
 import { borderRewardKey } from './rewards'
 import { selectSolverEligibleCharts } from './chartShapes'
 import { scoreBoard, type ScoreOptions } from './scoring'
-import { solve } from './solver'
+import { solve, type SolverResult } from './solver'
 import { selectStrategySolvePool } from './solverPoolSelection'
 import { strategyReadiness, type StrategyReadiness } from './strategyReadiness'
 
@@ -87,6 +87,10 @@ export interface StrategyInventorySuggestion {
   potentialLaunchable: boolean
   /** whether every chart on the best-found board can be reached from the start */
   potentialFullyReachable: boolean
+  /** Search algorithm used for this potential, or null when evaluation was skipped. */
+  searchMethod: SolverResult['searchMethod'] | null
+  /** Whether the search proved its ordering over the supported search space. */
+  searchComplete: boolean
   /** found validity, bounded-search uncertainty, or exhaustive impossibility */
   layoutStatus: StrategyLayoutStatus
   /** Library-only potential, normalized against the strongest evaluated strategy. */
@@ -389,7 +393,9 @@ export function evaluateStrategyInventory(
       !libraryReadiness.ready
         ? `A layout search was not run because the library is missing declared strategy requirements.`
         : potential?.valid
-          ? `The ${potential.searchMethod} solver found a fully reachable layout from ${eligiblePool.length} eligible imported charts.`
+          ? potential.searchComplete
+            ? `The exhaustive solver proved an optimal fully reachable layout within the supported search space for ${eligiblePool.length} eligible imported charts.`
+            : `The heuristic solver's best-found result is a fully reachable layout from ${eligiblePool.length} eligible imported charts; global optimality is not proven.`
           : potential?.searchComplete
             ? `The exhaustive solver proved that these ${eligiblePool.length} eligible imported charts have no fully reachable layout.`
             : `The bounded solver did not find a fully reachable layout from ${eligiblePool.length} eligible imported charts; this is not proof that none exists.`,
@@ -464,6 +470,8 @@ export function evaluateStrategyInventory(
       potentialScore: libraryScore,
       potentialLaunchable: potential?.launchable ?? false,
       potentialFullyReachable: potential?.fullyReachable ?? false,
+      searchMethod: potential?.searchMethod ?? null,
+      searchComplete: potential?.searchComplete ?? false,
       layoutStatus: runnable.layoutStatus,
       libraryFit: 0,
       borderFit: 0,

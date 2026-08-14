@@ -223,7 +223,13 @@ describe('strategy suggestion regressions', () => {
     const speedrun = result.evaluations.find((entry) => entry.strategy.id === 'milky-speedrun')!
     const markup = renderToStaticMarkup(
       createElement(StrategySuggestions, {
-        result: { ...result, suggestions: [alc, speedrun] },
+        result: {
+          ...result,
+          suggestions: [
+            { ...alc, searchMethod: 'exhaustive', searchComplete: true },
+            { ...speedrun, searchMethod: 'heuristic', searchComplete: false },
+          ],
+        },
         activeId: 'alc-and-go',
         onSelect: () => undefined,
       }),
@@ -233,6 +239,8 @@ describe('strategy suggestion regressions', () => {
     assert.match(markup, /Best ready specialized alternative/)
     assert.match(markup, /Runnable alternative — select it to build this specialized layout/)
     assert.match(markup, /Combined fit/)
+    assert.match(markup, /Exhaustive · optimal proven/)
+    assert.match(markup, /Heuristic · best found \(no global guarantee\)/)
     assert.doesNotMatch(markup, /Best charts \+ border strategy/)
   })
 

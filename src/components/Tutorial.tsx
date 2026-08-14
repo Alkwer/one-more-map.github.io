@@ -23,7 +23,7 @@ const STEPS: Step[] = [
     target: 'main',
     body: [
       'The Voyage board takes 9 charts. Where each chart sits decides what its modifiers touch - adjacent bonuses shoot into neighbouring squares, border rolls only pay out on the tiles they touch, and connectors have to line up or the voyage will not run.',
-      'This site keeps your chart collection, knows the real placement rules, and finds the best runnable board for you - either with your own priorities or with a curated community strategy.',
+      'This site keeps your chart collection, knows the real placement rules, and finds a high-value runnable board for you - either with your own priorities or with a curated community strategy.',
     ],
   },
   {
@@ -77,6 +77,7 @@ const STEPS: Step[] = [
     target: '.solver-actions',
     body: [
       'Press Solve. Ranked results appear below when the worker finishes; click the result you want to load onto the board. Nothing is applied automatically.',
+      'Each result names its search method and guarantee: exhaustive search proves #1 optimal within the supported search space, while bounded heuristic search reports the best layout found without a global optimality guarantee.',
       'Every suggestion obeys the real rules: connectors match, all 9 squares filled, everything reachable from the ⚓ start.',
       'Connector rules, reward weights, protections and the filler-voyage builder are in the same Solver panel.',
     ],

@@ -193,7 +193,7 @@ function boardKey(board: Board): string {
 /**
  * Find high-scoring arrangements. Exact permutation search when the pool is
  * exactly 9 charts with rotation off; otherwise hill-climbing with random
- * restarts (fast and near-optimal at this tiny problem size).
+ * restarts (fast, but without a global optimality guarantee).
  */
 export function solve(
   pool: ChartData[],

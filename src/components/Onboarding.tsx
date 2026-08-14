@@ -28,7 +28,7 @@ const STEPS: { title: string; body: string }[] = [
   },
   {
     title: '5 · Solve',
-    body: 'Solve finds the highest-value arrangement that keeps all nine charts reachable from the bottom-left ⚓ start. Click a result to load it, tweak by hand if you like, then Copy in-game search to highlight exactly those charts in your stash.',
+    body: 'Solve ranks high-value arrangements that keep all nine charts reachable from the bottom-left ⚓ start. With up to nine eligible charts and rotation off, exhaustive search proves result #1 optimal within the supported search space. Larger or rotational searches report the best layout found without claiming a global optimum. Click a result to load it, tweak by hand if you like, then Copy in-game search to highlight exactly those charts in your stash.',
   },
 ]
 
@@ -58,7 +58,7 @@ export function Onboarding({ onClose, onDemo, remainingChartCapacity }: Props) {
           Plan your Voyage
         </h2>
         <p className="onboard-intro">
-          Build the most valuable 3×3 Voyage from your charted Charts, solved automatically around
+          Build a high-value 3×3 Voyage from your charted Charts, solved automatically around
           connector shapes, adjacency, and border rolls.
         </p>
         {STEPS.map((s) => (
