@@ -1,14 +1,17 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ALL_GOOD_MODS_REGEX, RARE_IMPLICITS } from '../data/strategies'
 import { BorderRollResearch, type ProtectedBorderRoll } from './BorderRollResearch'
 import { generateDemoCharts } from '../logic/demo'
-import { applyBorderOcrStateSnapshot, parseBorderOcrPayload } from '../logic/borderOcr'
-import { isChartClipboardText, parseChartText } from '../logic/parser'
+import { applyBorderOcrStateSnapshot } from '../logic/borderOcr'
+import {
+  ImportWorkerClient,
+  ImportWorkerError,
+  isImportWorkerRequestCancelled,
+} from '../logic/importWorkerClient'
+import { isChartClipboardText } from '../logic/parser'
 import { chartAdditionResult, type ChartAdditionResult } from '../logic/chartCapacity'
 import {
-  assertImportWithinBudget,
   importSizeLimitMessage,
-  isImportBudgetError,
   MAX_IMPORT_REJECTIONS,
   MAX_IMPORT_SIGNATURE_PREFIX_LENGTH,
   MAX_IMPORT_TEXT_LENGTH,
@@ -32,18 +35,6 @@ interface Props {
   onLoadState: (state: AppState) => void
 }
 
-function parseImportSource(source: string, maxCharts: number) {
-  assertImportWithinBudget(source)
-  const borderOcr = parseBorderOcrPayload(source)
-  return {
-    borderOcr,
-    ...parseChartText(borderOcr.chartText, {
-      maxCharts,
-      maxRejections: MAX_IMPORT_REJECTIONS,
-    }),
-  }
-}
-
 export function ImportPanel({
   onImport,
   state,
@@ -54,23 +45,68 @@ export function ImportPanel({
   const [text, setText] = useState('')
   const [msg, setMsg] = useState('')
   const [rareAlert, setRareAlert] = useState('')
+  const [parsing, setParsing] = useState(false)
+  const stateRef = useRef(state)
+  const importClientRef = useRef<ImportWorkerClient | null>(null)
+  const parseSequenceRef = useRef(0)
+  stateRef.current = state
+
+  const cancelPendingImport = useCallback(() => {
+    parseSequenceRef.current += 1
+    importClientRef.current?.cancel()
+  }, [])
+
+  useEffect(
+    () => () => {
+      cancelPendingImport()
+    },
+    [cancelPendingImport],
+  )
 
   const doParse = useCallback(
-    (raw?: string) => {
+    async (raw?: string) => {
       const source = raw ?? text
-      let parsed: ReturnType<typeof parseImportSource>
-      try {
-        parsed = parseImportSource(source, MAX_POOL_CHARTS - state.pool.length)
-      } catch (error) {
-        if (!isImportBudgetError(error)) throw error
+      const requestSequence = parseSequenceRef.current + 1
+      parseSequenceRef.current = requestSequence
+      importClientRef.current?.cancel()
+
+      if (source.length > MAX_IMPORT_TEXT_LENGTH) {
+        setParsing(false)
         setText('')
-        setMsg(error.message)
+        setMsg(importSizeLimitMessage())
         return
       }
+
+      setParsing(true)
+      setMsg('Parsing import…')
+      const client = importClientRef.current ?? new ImportWorkerClient()
+      importClientRef.current = client
+
+      let parsed
+      try {
+        parsed = await client.parse(source, MAX_POOL_CHARTS - stateRef.current.pool.length)
+      } catch (error) {
+        if (requestSequence !== parseSequenceRef.current) return
+        setParsing(false)
+        if (isImportWorkerRequestCancelled(error)) return
+        if (error instanceof ImportWorkerError && error.code === 'budget') {
+          setText('')
+          setMsg(error.message)
+          return
+        }
+        setMsg(
+          `Import could not be parsed: ${error instanceof Error ? error.message : 'worker failed'}`,
+        )
+        return
+      }
+
+      if (requestSequence !== parseSequenceRef.current) return
+      setParsing(false)
+      const currentState = stateRef.current
       const { borderOcr, charts, rejected, unresolved, stoppedEarly } = parsed
       const borderApplication = applyBorderOcrStateSnapshot(
-        state.borders,
-        state.borderRerollsUsed,
+        currentState.borders,
+        currentState.borderRerollsUsed,
         borderOcr,
       )
       const notCharted = rejected.filter((r) => r.reason.startsWith('not charted'))
@@ -92,16 +128,17 @@ export function ImportPanel({
         setMsg('No items recognised. Is this Ctrl+C item text?')
         return
       }
-      let addition = chartAdditionResult(state.pool.length, charts.length)
+      let addition = chartAdditionResult(currentState.pool.length, charts.length)
       let acceptedCharts = charts.slice(0, addition.added)
 
       const nextState: AppState = {
-        ...state,
-        pool: acceptedCharts.length > 0 ? [...state.pool, ...acceptedCharts] : state.pool,
-        borders: hasOcrPayload ? borderApplication.borders : state.borders,
+        ...currentState,
+        pool:
+          acceptedCharts.length > 0 ? [...currentState.pool, ...acceptedCharts] : currentState.pool,
+        borders: hasOcrPayload ? borderApplication.borders : currentState.borders,
         borderRerollsUsed: hasOcrPayload
           ? borderApplication.borderRerollsUsed
-          : state.borderRerollsUsed,
+          : currentState.borderRerollsUsed,
       }
       const persistence = validateStateForPersistence(nextState)
       if (!persistence.ok) {
@@ -232,7 +269,7 @@ export function ImportPanel({
       }
       setMsg(parts.join('; ') || 'Nothing imported')
     },
-    [borderResearch, onImport, onLoadState, state, text],
+    [borderResearch, onImport, onLoadState, text],
   )
 
   // Ctrl+V anywhere on the page: if the clipboard holds chart or border text, import
@@ -248,7 +285,7 @@ export function ImportPanel({
       )
         return
       e.preventDefault()
-      doParse(clip)
+      void doParse(clip)
     }
     document.addEventListener('paste', onPaste)
     return () => document.removeEventListener('paste', onPaste)
@@ -270,6 +307,8 @@ export function ImportPanel({
   }
 
   const importJson = async (file: File) => {
+    cancelPendingImport()
+    setParsing(false)
     try {
       const decoded = await decodeStateFile(file)
       if (!decoded.ok) {
@@ -290,7 +329,11 @@ export function ImportPanel({
   }
 
   const clearAll = () => {
-    if (window.confirm('Clear all charts, board and borders?')) onLoadState(defaultState())
+    if (window.confirm('Clear all charts, board and borders?')) {
+      cancelPendingImport()
+      setParsing(false)
+      onLoadState(defaultState())
+    }
   }
 
   return (
@@ -309,6 +352,8 @@ export function ImportPanel({
         }
         value={text}
         onChange={(e) => {
+          cancelPendingImport()
+          setParsing(false)
           const nextText = e.target.value
           if (nextText.length > MAX_IMPORT_TEXT_LENGTH) {
             setText('')
@@ -319,12 +364,14 @@ export function ImportPanel({
         }}
       />
       <div className="import-actions">
-        <button onClick={() => doParse()} disabled={!text.trim()}>
-          Parse & Add
+        <button onClick={() => void doParse()} disabled={!text.trim()}>
+          {parsing ? 'Parsing…' : 'Parse & Add'}
         </button>
         <button
           title="Generate random charts to try out the tool"
           onClick={() => {
+            cancelPendingImport()
+            setParsing(false)
             const result = onImport(generateDemoCharts(25))
             const parts = [
               `Added ${result.added} random demo chart${result.added === 1 ? '' : 's'}`,

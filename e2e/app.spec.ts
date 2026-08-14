@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer'
 import AxeBuilder from '@axe-core/playwright'
 import type { Locator } from '@playwright/test'
+import { makeMaximumChartImportSource } from '../benchmarks/import-performance-fixture'
 import { VOYAGE_MODS } from '../src/data/mods'
 import { MAX_IMPORT_TEXT_LENGTH } from '../src/logic/importBudget'
 import { defaultState, serializeState } from '../src/logic/storage'
@@ -650,7 +651,7 @@ test('globally imports English, Korean, and border clipboard payloads', async ({
     appPage.getByRole('button', { name: 'Select 해병 고역 산호 암초 해도 for placement' }),
   ).toBeVisible()
 
-  await pasteText(appPage, 'ordinary prose that must not be intercepted')
+  await pasteText(appPage, 'ordinary prose that must not be intercepted', { waitForImport: false })
   await expect(libraryHeading(appPage)).toContainText('(2)')
 
   await pasteText(appPage, DIVINE_BORDER_PAYLOAD)
@@ -895,6 +896,79 @@ test('rejects an oversized chart paste before it can monopolize the main thread'
   await expect(libraryHeading(appPage)).toContainText('(0)')
 })
 
+test('dispatches the maximum import to a worker without a 50 ms main-thread task', async ({
+  appPage,
+}) => {
+  const workerUrls: string[] = []
+  appPage.on('worker', (worker) => workerUrls.push(worker.url()))
+  await openApp(appPage)
+  const maximumImport = makeMaximumChartImportSource()
+  expect(maximumImport).toHaveLength(MAX_IMPORT_TEXT_LENGTH)
+
+  // Measure only the browser task that submits clipboard text. Waiting for the
+  // result would incorrectly include worker time and the later 250-chart render.
+  const dispatchMilliseconds = await appPage.evaluate((clipboardText) => {
+    const data = new DataTransfer()
+    data.setData('text/plain', clipboardText)
+    const started = performance.now()
+    document.dispatchEvent(
+      new ClipboardEvent('paste', {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: data,
+      }),
+    )
+    return performance.now() - started
+  }, maximumImport)
+
+  expect(dispatchMilliseconds).toBeLessThan(50)
+  await expect
+    .poll(() => workerUrls.some((url) => /\/assets\/import\.worker-[^/]+\.js$/.test(url)))
+    .toBe(true)
+  await expect(libraryHeading(appPage)).toContainText('(250)')
+  await expect(appPage.locator('.import-panel').getByRole('status')).toContainText(
+    'Imported 250 charts; stopped before 50 additional items because the 250-chart library limit was reached',
+  )
+})
+
+test('cancels a stale bulk import when a newer paste arrives', async ({ appPage }) => {
+  const workerUrls: string[] = []
+  appPage.on('worker', (worker) => workerUrls.push(worker.url()))
+  await openApp(appPage)
+  const staleImport = makeMaximumChartImportSource()
+  const currentName = 'Current Import Wins'
+  const currentImport = ENGLISH_CHART.replace('Armoured Coral Reef Chart of Ice', currentName)
+
+  await appPage.evaluate(
+    ([first, second]) => {
+      for (const clipboardText of [first, second]) {
+        const data = new DataTransfer()
+        data.setData('text/plain', clipboardText)
+        document.dispatchEvent(
+          new ClipboardEvent('paste', {
+            bubbles: true,
+            cancelable: true,
+            clipboardData: data,
+          }),
+        )
+      }
+    },
+    [staleImport, currentImport] as const,
+  )
+
+  await expect(appPage.locator('.import-panel').getByRole('status')).toContainText(
+    'Imported 1 chart',
+  )
+  await expect(libraryHeading(appPage)).toContainText('(1)')
+  await expect(
+    appPage.getByRole('button', { name: `Select ${currentName} for placement` }),
+  ).toBeVisible()
+  await expect(appPage.getByText('Maximum Import Chart 001', { exact: true })).toHaveCount(0)
+  await expect
+    .poll(() => workerUrls.some((url) => /\/assets\/import\.worker-[^/]+\.js$/.test(url)))
+    .toBe(true)
+})
+
 test('clears stale chart and board-cell selections after removals', async ({ appPage }) => {
   await openApp(appPage)
   const firstName = 'Selection Crossing One'
@@ -1052,8 +1126,11 @@ test('plans the complete corner Divine composition with two feeders and six Rare
     ),
   ]
   await pasteText(appPage, charts.join('\n'))
-  await pasteText(appPage, DIVINE_BORDER_PAYLOAD)
   await expect(libraryHeading(appPage)).toContainText('(9)')
+  await pasteText(appPage, DIVINE_BORDER_PAYLOAD)
+  await expect(
+    appPage.getByRole('button', { name: /Border segment 1: .*Divine Orb/ }),
+  ).toBeVisible()
 
   await appPage.getByRole('button', { name: '📋 Plan' }).click()
   const planner = appPage.locator('.session-plan')
@@ -1900,6 +1977,7 @@ test('requires confirmation before consuming charts and leaves state unchanged o
 }) => {
   await openApp(appPage)
   await pasteText(appPage, ENGLISH_CHART)
+  await expect(libraryHeading(appPage)).toContainText('(1)')
   await pasteText(appPage, KOREAN_CHART)
   await appPage
     .getByRole('button', { name: 'Select Armoured Coral Reef Chart of Ice for placement' })

@@ -80,6 +80,10 @@ normal validation before opening a pull request.
 - `src/logic/parser.ts`, `regex.ts`, and `chartShapes.ts` convert clipboard text
   into canonical chart data. Real client samples belong in
   `src/logic/__fixtures__/`.
+- `src/logic/importParser.ts`, `importWorkerClient.ts`, `importWorkerProtocol.ts`,
+  and `src/workers/import.worker.ts` keep bounded clipboard parsing off the UI
+  thread. A new request must terminate stale parsing, and component teardown
+  must cancel pending worker work.
 - `src/logic/scoring.ts`, `connectivity.ts`, and `solver.ts` evaluate boards and
   search for layouts. The exhaustive and approximate search paths must obey the
   same connector and reachability rules.
@@ -92,7 +96,7 @@ normal validation before opening a pull request.
 - `src/logic/storage.ts` owns browser persistence and migrations.
 - `public/voyage-import.ahk` is the optional Windows chart-copy and border-OCR
   helper. Its user instructions live in [docs/windows-ocr.md](docs/windows-ocr.md).
-- `benchmarks/` contains the solver performance fixture and benchmark.
+- `benchmarks/` contains solver and maximum-size import performance fixtures.
 - `.github/workflows/deploy.yml` is the pull-request quality gate and GitHub Pages
   deployment. `process-border-roll-data.yml` validates and resolves data issues;
   `build-border-roll-dataset.yml` opens reviewable batch-update PRs. Their pure

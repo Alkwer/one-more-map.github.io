@@ -28,6 +28,18 @@ Importing a complete JSON state still uses the reducer's explicit replacement ac
 `components/VoyageRewards.tsx` render the extracted summary and workflow surfaces without changing
 their DOM order, accessible names, or live regions.
 
+## Clipboard import
+
+`components/ImportPanel.tsx` owns clipboard detection, import progress, applying accepted results,
+and user-facing diagnostics. `logic/importWorkerClient.ts` owns request ids, worker lifecycle, stale
+request cancellation, and final chart ids. `workers/import.worker.ts` runs the complete resource
+budget scan, border OCR parsing, and chart parsing through `logic/importParser.ts`; those expensive
+steps must not move back into the paste event or another UI-thread callback.
+
+Each parse uses the remaining 250-chart capacity captured when it starts. A newer paste terminates
+the older worker, and unmount cleanup cancels pending work. Worker results retain source order and
+are applied against the latest app state so asynchronous parsing cannot overwrite newer state.
+
 ## Board UI
 
 `components/Board.tsx` owns the 3×3 grid and the placement of its 12 border controls.

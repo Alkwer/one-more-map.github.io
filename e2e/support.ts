@@ -116,16 +116,54 @@ export async function openApp(page: Page) {
   await expect(page.getByRole('heading', { name: /Allflame Voyage Solver/ })).toBeVisible()
 }
 
-export async function pasteText(page: Page, text: string) {
-  await page.evaluate((clipboardText) => {
-    const data = new DataTransfer()
-    data.setData('text/plain', clipboardText)
-    document.dispatchEvent(
-      new ClipboardEvent('paste', {
-        bubbles: true,
-        cancelable: true,
-        clipboardData: data,
-      }),
-    )
-  }, text)
+interface PasteTextOptions {
+  waitForImport?: boolean
+}
+
+export async function pasteText(page: Page, text: string, options: PasteTextOptions = {}) {
+  await page.evaluate(
+    async ({ clipboardText, waitForImport }) => {
+      const importPanel = document.querySelector<HTMLElement>('.import-panel')
+      const importSettled = waitForImport
+        ? new Promise<void>((resolve, reject) => {
+            if (!importPanel) {
+              reject(new Error('Import panel was not mounted before paste'))
+              return
+            }
+
+            let sawParsing = false
+            const observer = new MutationObserver(() => {
+              const status = importPanel.querySelector<HTMLElement>('[role="status"]')
+              const statusText = status?.textContent ?? ''
+              if (statusText.includes('Parsing import')) {
+                sawParsing = true
+                return
+              }
+              if (!sawParsing) return
+
+              observer.disconnect()
+              window.clearTimeout(timeout)
+              resolve()
+            })
+            const timeout = window.setTimeout(() => {
+              observer.disconnect()
+              reject(new Error('Import did not settle after paste'))
+            }, 10_000)
+            observer.observe(importPanel, { childList: true, subtree: true, characterData: true })
+          })
+        : Promise.resolve()
+
+      const data = new DataTransfer()
+      data.setData('text/plain', clipboardText)
+      document.dispatchEvent(
+        new ClipboardEvent('paste', {
+          bubbles: true,
+          cancelable: true,
+          clipboardData: data,
+        }),
+      )
+      await importSettled
+    },
+    { clipboardText: text, waitForImport: options.waitForImport ?? true },
+  )
 }
