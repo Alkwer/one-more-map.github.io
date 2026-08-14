@@ -240,6 +240,12 @@ assert.doesNotMatch(ahkImporter, /seen\.Has\(clip\)/)
 assert.match(ahkImporter, /copied >= 5 && allIdentical/)
 assert.match(ahkImporter, /Every grid cell copied the SAME chart/)
 
+// zero-copy diagnostics: "no charts" must explain itself (admin mismatch,
+// controller mode, fullscreen, wrong panel) instead of looking like a
+// two-row mini sweep once the blank-row skip kicks in on dead cells
+assert.match(ahkImporter, /Nothing was ever copied - Ctrl\+C isn't reaching the game/)
+assert.match(ahkImporter, /aren't Charts - the grid corners/)
+
 // 8.3 short-path guard (issue #27): %TEMP% like C:\Users\HARDPC~1 breaks
 // PowerShell's path normalizer - the helper paths must be built from the
 // expanded long path.

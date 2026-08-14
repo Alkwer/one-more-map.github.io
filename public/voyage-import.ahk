@@ -1660,7 +1660,7 @@ RunSweep(*) {
     }
 
     Running := true
-    copied := 0, skipped := 0, blob := "", borderBlob := ""
+    copied := 0, skipped := 0, nonChart := 0, blob := "", borderBlob := ""
     firstChart := "", allIdentical := true
 
     ; ---- Phase 1: copy every chart while staying in PoE ----
@@ -1711,6 +1711,7 @@ RunSweep(*) {
                 clip := Trim(A_Clipboard, " `t`r`n")
                 if !IsChartText(clip) {
                     skipped++             ; not a Chart item
+                    nonChart++
                     emptyStreak := 0
                     continue
                 }
@@ -1744,6 +1745,21 @@ RunSweep(*) {
         calibWarn := "Every grid cell copied the SAME chart, so none were sent"
             . " - your grid calibration looks wrong (or PoE's window moved)."
             . " Re-run the tray Setup wizard and click the grid corners again."
+    }
+    ; Zero-copy diagnostics: a sweep that copies NOTHING almost always means
+    ; the game never received Ctrl+C or the grid is aimed at the wrong panel -
+    ; without this, the blank-row skip makes it look like a 2-row "mini sweep".
+    if (Running && calibWarn = "" && copied = 0) {
+        if (nonChart > 0)
+            calibWarn := "Copied " nonChart " item(s) that aren't Charts - the grid corners"
+                . " are probably calibrated over the wrong panel. Open the Voyage chart"
+                . " panel and re-run the tray Setup wizard."
+        else
+            calibWarn := "Nothing was ever copied - Ctrl+C isn't reaching the game."
+                . " Usual causes: PoE runs as administrator (run this script as admin too),"
+                . " controller input mode (switch to mouse+keyboard), exclusive Fullscreen"
+                . " (use Windowed), or the chart panel isn't open."
+                . " (If the panel is genuinely empty, ignore this.)"
     }
 
     ; ---- Phase 2: OCR the 12 board-border modifier tooltips ----
