@@ -379,14 +379,14 @@ export default function App() {
           </div>
         </div>
       )}
-      {chrome.showOnboarding && (
+      {!recovery && chrome.showOnboarding && (
         <Onboarding
           onClose={chrome.closeOnboarding}
           onDemo={() => addCharts(generateDemoCharts(25))}
           remainingChartCapacity={Math.max(0, MAX_POOL_CHARTS - state.pool.length)}
         />
       )}
-      {chrome.showMods && (
+      {!recovery && chrome.showMods && (
         <ModBrowser
           disabled={analysis.disabledSet}
           onToggle={(id, disabled) => dispatch({ type: 'mods/set-disabled', ids: [id], disabled })}
@@ -394,9 +394,9 @@ export default function App() {
           onClose={chrome.closeMods}
         />
       )}
-      {showUpdates && <UpdatesLog onClose={() => setShowUpdates(false)} />}
-      {showTutorial && <Tutorial onClose={() => setShowTutorial(false)} />}
-      {workflows.preserveConfirmation && (
+      {!recovery && showUpdates && <UpdatesLog onClose={() => setShowUpdates(false)} />}
+      {!recovery && showTutorial && <Tutorial onClose={() => setShowTutorial(false)} />}
+      {!recovery && workflows.preserveConfirmation && (
         <ModalDialog
           labelledBy="preserve-confirmation-title"
           onClose={workflows.cancelPreserveConfirmation}
@@ -409,7 +409,7 @@ export default function App() {
           />
         </ModalDialog>
       )}
-      {showAhkNotice && !chrome.showOnboarding && (
+      {!recovery && showAhkNotice && !chrome.showOnboarding && (
         <ModalDialog
           labelledBy="ahk-notice-title"
           onClose={dismissAhkNotice}
@@ -454,7 +454,7 @@ export default function App() {
           </div>
         </ModalDialog>
       )}
-      {showSaveWizard && (
+      {!recovery && showSaveWizard && (
         <SaveWizard
           pool={state.pool}
           keeps={state.pieceKeeps}
@@ -463,7 +463,7 @@ export default function App() {
           onClose={() => setShowSaveWizard(false)}
         />
       )}
-      {showPlanner && (
+      {!recovery && showPlanner && (
         <SessionPlanner
           pool={state.pool}
           mode={state.mode}
