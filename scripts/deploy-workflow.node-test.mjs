@@ -107,7 +107,9 @@ test('dataset and generated research-summary updates keep required checks while 
   assert.match(qualityBlock, /^ {8}if: needs\.scope\.outputs\.data_only != 'true'$/m)
   assert.match(qualityBlock, /^ {8}run: npm run validate$/m)
   assert.doesNotMatch(windowsBlock, /BORDER_ROLL_INTAKE_URL/)
+  assert.doesNotMatch(windowsBlock, /BORDER_ROLL_DEPLOYMENT_MODE/)
   assert.equal((qualityBlock.match(/BORDER_ROLL_INTAKE_URL/g) ?? []).length, 1)
+  assert.equal((qualityBlock.match(/BORDER_ROLL_DEPLOYMENT_MODE/g) ?? []).length, 1)
   assert.match(qualityBlock, /^ {6}- name: Stage root-site artifact and project-site E2E wrapper$/m)
   assert.match(qualityBlock, /^ {8}if: needs\.scope\.outputs\.data_only != 'true'$/m)
   assert.match(qualityBlock, /^ {8}run: npm run build:pages:e2e$/m)
@@ -119,7 +121,7 @@ test('dataset and generated research-summary updates keep required checks while 
   )
   assert.match(
     qualityBlock,
-    /^ {8}env:\n {10}BORDER_ROLL_INTAKE_URL: https:\/\//m,
+    /^ {8}env:\n {10}BORDER_ROLL_DEPLOYMENT_MODE: production\n {10}BORDER_ROLL_INTAKE_URL: https:\/\//m,
     'the production intake endpoint must be scoped to the final Pages build',
   )
   assert.match(qualityBlock, /^ {8}run: npm run build:pages$/m)
