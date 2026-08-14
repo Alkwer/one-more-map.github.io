@@ -5,6 +5,7 @@ import {
   addBorderRollSample,
   archiveBorderRollSequence,
   createBorderRollSample,
+  getActiveBorderRollGamePatch,
   getBorderRollSequence,
   isCompleteBorderRollSequence,
   loadBorderResearch,
@@ -71,9 +72,7 @@ export function useBorderRollResearch(currentBorders: Borders): BorderRollResear
   const [store, setStore] = useState<BorderResearchStore>(loadBorderResearch)
   const [submissionStore, setSubmissionStore] =
     useState<BorderSubmissionStore>(loadBorderSubmissionStore)
-  const [gamePatch, setGamePatch] = useState(
-    () => store.samples[store.samples.length - 1]?.gamePatch ?? '3.29.2',
-  )
+  const [gamePatch, setGamePatch] = useState(() => getActiveBorderRollGamePatch(store))
   const [message, setMessage] = useState('')
   const storeRef = useRef(store)
   const submissionRef = useRef(submissionStore)
@@ -82,6 +81,13 @@ export function useBorderRollResearch(currentBorders: Borders): BorderRollResear
     sequenceId: string
     controller: AbortController
   } | null>(null)
+  const gamePatchSequenceRef = useRef(store.activeSequenceId)
+
+  useEffect(() => {
+    if (gamePatchSequenceRef.current === store.activeSequenceId) return
+    gamePatchSequenceRef.current = store.activeSequenceId
+    setGamePatch(getActiveBorderRollGamePatch(store))
+  }, [store])
 
   const activeSamples = useMemo(
     () => getBorderRollSequence(store.samples, store.activeSequenceId),

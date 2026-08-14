@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { CURRENT_GAME_PATCH } from '../data/gameVersion'
 import { BORDER_MODS } from '../data/mods'
 import type { Borders } from '../types'
 import {
@@ -12,6 +13,7 @@ import {
   createBorderRollDataset,
   createBorderResearchStore,
   createBorderRollSample,
+  getActiveBorderRollGamePatch,
   getBorderRollSequence,
   isCompleteBorderRollSequence,
   loadBorderResearch,
@@ -51,6 +53,20 @@ function withoutVesperUpgradeCount(value: ReturnType<typeof sample>) {
 }
 
 describe('border roll research samples', () => {
+  it('uses the current patch for fresh sequences and preserves active sequence continuity', () => {
+    const fresh = createBorderResearchStore()
+    expect(getActiveBorderRollGamePatch(fresh)).toBe(CURRENT_GAME_PATCH)
+
+    const historicalPatch = sample({
+      sequenceId: fresh.activeSequenceId,
+      gamePatch: '3.29.2',
+    })
+    const active = { ...fresh, samples: [historicalPatch] }
+    expect(getActiveBorderRollGamePatch(active)).toBe('3.29.2')
+
+    expect(getActiveBorderRollGamePatch(startBorderRollSequence(active))).toBe(CURRENT_GAME_PATCH)
+  })
+
   it('records a complete ordered natural roll', () => {
     const result = sample()
 
@@ -124,6 +140,7 @@ describe('border roll research samples', () => {
       expect(migrated.samples[0]).not.toHaveProperty('voyageLevel')
       expect(migrated.samples[0].vesperUpgradeCount).toBeNull()
       expect(migrated.samples[0].schema).toBe(BORDER_ROLL_SAMPLE_SCHEMA)
+      expect(getActiveBorderRollGamePatch(migrated)).toBe('3.29.0')
       expect(JSON.parse(setItem.mock.calls[0][1]).samples[0]).not.toHaveProperty('voyageLevel')
     } finally {
       vi.unstubAllGlobals()

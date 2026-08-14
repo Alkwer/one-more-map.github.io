@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { CURRENT_GAME_PATCH } from '../data/gameVersion'
 import {
   buildBorderRollSequenceSubmissionUrl,
   getBorderRollSequence,
@@ -176,7 +177,7 @@ export function BorderRollResearch({ borders, controller, protectedRoll }: Props
           <input
             value={controller.gamePatch}
             maxLength={32}
-            placeholder="3.29.2"
+            placeholder={CURRENT_GAME_PATCH}
             disabled={researchBlocked}
             onChange={(event) => controller.setGamePatch(event.target.value)}
           />
