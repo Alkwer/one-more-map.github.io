@@ -2215,6 +2215,40 @@ test('pauses autosave and preserves a newer saved state until explicit reset', a
   expect(reset.backups).toContain(raw)
 })
 
+test('gives saved-state recovery priority over first-run onboarding', async ({ appPage }) => {
+  const raw = JSON.stringify({ v: 999, pool: [{ valuable: 'future chart data' }] })
+  await appPage.addInitScript((payload) => {
+    localStorage.removeItem('onboarding-seen')
+    localStorage.setItem('allflame-voyage-solver', payload)
+  }, raw)
+  await openApp(appPage)
+
+  const recovery = appPage.getByRole('alertdialog', { name: 'Saved state needs recovery' })
+  await expect(recovery).toBeVisible()
+  await expect(appPage.getByRole('dialog', { name: 'Plan your Voyage' })).toHaveCount(0)
+  await expect(recovery.getByRole('button', { name: 'Export original JSON' })).toBeEnabled()
+  await expect(recovery.getByRole('button', { name: 'Retry decode' })).toBeEnabled()
+  await expect(recovery.getByRole('button', { name: 'Reset saved state…' })).toBeEnabled()
+})
+
+test.describe('saved-state recovery with an importer notice pending', () => {
+  test.use({ ahkNoticeSeen: false })
+
+  test('mounts only the recovery dialog', async ({ appPage }) => {
+    const raw = JSON.stringify({ v: 999, pool: [{ valuable: 'future chart data' }] })
+    await appPage.addInitScript((payload) => {
+      localStorage.setItem('allflame-voyage-solver', payload)
+    }, raw)
+    await openApp(appPage)
+
+    const recovery = appPage.getByRole('alertdialog', { name: 'Saved state needs recovery' })
+    await expect(recovery).toBeVisible()
+    await expect(appPage.getByRole('dialog', { name: /Importer updated/ })).toHaveCount(0)
+    await expect(recovery.locator('[data-dialog-initial-focus]')).toBeFocused()
+    await expect(recovery.getByRole('button', { name: 'Export original JSON' })).toBeEnabled()
+  })
+})
+
 test('keeps recovery active when a migrated state cannot be persisted', async ({ appPage }) => {
   const raw = JSON.stringify({ v: 2 })
   await appPage.addInitScript((payload) => {
