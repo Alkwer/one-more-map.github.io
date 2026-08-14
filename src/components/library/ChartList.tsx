@@ -8,6 +8,9 @@ import { ChartEditor } from './ChartEditor'
 
 interface Props {
   charts: ChartData[]
+  pageStartIndex: number
+  totalCount: number
+  pageStatusId: string
   onBoard: ReadonlySet<string>
   selected: string | null
   editing: string | null
@@ -20,8 +23,13 @@ interface Props {
 
 export function ChartList(props: Props) {
   return (
-    <div className="chart-list" role="group" aria-label="Charts">
-      {props.charts.map((chart) => {
+    <div
+      className="chart-list"
+      role="list"
+      aria-label="Charts"
+      aria-describedby={props.pageStatusId}
+    >
+      {props.charts.map((chart, index) => {
         const unresolvedShape = !isChartShapeResolved(chart)
         const modifiers = chart.modIds.map((id) => voyageModById.get(id)).filter(Boolean)
         const modifier =
@@ -60,6 +68,10 @@ export function ChartList(props: Props) {
         return (
           <div
             key={chart.uid}
+            role="listitem"
+            aria-posinset={props.pageStartIndex + index + 1}
+            aria-setsize={props.totalCount}
+            data-library-chart-uid={chart.uid}
             className={`chart-card ${unresolvedShape ? 'unresolved-shape' : ''} ${props.selected === chart.uid ? 'selected' : ''} ${props.onBoard.has(chart.uid) ? 'on-board' : ''}`}
           >
             <button

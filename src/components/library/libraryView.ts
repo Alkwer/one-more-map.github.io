@@ -5,6 +5,42 @@ import type { ChartData, Weights } from '../../types'
 export type LibrarySortMode = 'value' | 'level' | 'name'
 export type LibraryViewMode = 'grid' | 'list'
 
+export const LIBRARY_PAGE_SIZE = 40
+
+export interface LibraryPage<T> {
+  items: T[]
+  page: number
+  pageCount: number
+  startIndex: number
+  endIndex: number
+  totalCount: number
+}
+
+export function paginateLibrary<T>(
+  items: readonly T[],
+  requestedPage: number,
+  pageSize = LIBRARY_PAGE_SIZE,
+): LibraryPage<T> {
+  if (!Number.isInteger(pageSize) || pageSize < 1) {
+    throw new RangeError('Library page size must be a positive integer')
+  }
+
+  const totalCount = items.length
+  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize))
+  const page = Math.min(Math.max(Math.trunc(requestedPage) || 0, 0), pageCount - 1)
+  const startIndex = page * pageSize
+  const endIndex = Math.min(startIndex + pageSize, totalCount)
+
+  return {
+    items: items.slice(startIndex, endIndex),
+    page,
+    pageCount,
+    startIndex,
+    endIndex,
+    totalCount,
+  }
+}
+
 export function loadLibraryViewMode(): LibraryViewMode {
   try {
     const stored = globalThis.localStorage.getItem('library-view')
