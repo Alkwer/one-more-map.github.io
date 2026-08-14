@@ -1898,7 +1898,12 @@ if (-not $Session) {
 # Server mode: the expensive parts (C# compile above, OCR engine here) happen
 # ONCE, then each border is a quick file-signalled capture + recognition.
 $engine = New-OcrEngine -PreferredLanguage $PreferredLanguage
-Write-Atomic $OutputPath 'READY'
+# the ready handshake carries the engine language so the activity log can
+# show WHICH recognizer is reading the tooltips (a wrong-language engine
+# returns empty text on perfect captures and is invisible otherwise)
+$engineTag = ''
+try { $engineTag = $engine.RecognizerLanguage.LanguageTag } catch { }
+Write-Atomic $OutputPath ('READY|' + $engineTag)
 $cmdFile = "$Session.cmd"
 while ($true) {
     # transient file contention (the AutoHotkey side moving/reading files at
@@ -1913,7 +1918,13 @@ while ($true) {
         if ($line -eq 'quit') { break }
         $parts = $line.Split('|')
         if ($parts[0] -eq 'scanall' -and $parts.Count -ge 7) {
-            $block = Get-AllBorderBlocks -Left ([int]$parts[2]) -Top ([int]$parts[3]) -Width ([int]$parts[4]) -Height ([int]$parts[5]) -PointSpec $parts[6] -Engine $engine -ShotMarker "$Session-shot-all.txt"
+            # any failure must surface INSTANTLY as a parseable error result -
+            # a swallowed exception here once cost a silent 90-second timeout
+            try {
+                $block = Get-AllBorderBlocks -Left ([int]$parts[2]) -Top ([int]$parts[3]) -Width ([int]$parts[4]) -Height ([int]$parts[5]) -PointSpec $parts[6] -Engine $engine -ShotMarker "$Session-shot-all.txt"
+            } catch {
+                $block = '=== VOYAGE SCANALL ERROR ===' + [Environment]::NewLine + $_.Exception.Message
+            }
             Write-Atomic "$Session-res-all.txt" $block
             continue
         }
@@ -1996,12 +2007,23 @@ StartOcrServer() {
 
 WaitOcrReady(timeoutMs) {
     global OcrSession, OcrPid, Running
+    started := A_TickCount
     deadline := A_TickCount + timeoutMs
     while (A_TickCount < deadline) {
         if !Running
             return ""
-        if FileExist(OcrSession ".ready")
-            return Trim(FileRead(OcrSession ".ready", "UTF-8"), " `t`r`n")
+        if FileExist(OcrSession ".ready") {
+            content := Trim(FileRead(OcrSession ".ready", "UTF-8"), " `t`r`n")
+            ; READY|<languageTag>: log which recognizer will read the tooltips -
+            ; a wrong-language engine "works" but returns empty or garbage text
+            if (SubStr(content, 1, 5) = "READY") {
+                lang := SubStr(content, 7)
+                Log("OCR ready in " (A_TickCount - started) "ms | engine language "
+                    . (lang = "" ? "unknown" : lang))
+                return "READY"
+            }
+            return content
+        }
         if !ProcessExist(OcrPid)
             return "OCR HELPER ERROR: the helper exited before becoming ready."
         Sleep 50
@@ -2109,6 +2131,7 @@ ScanBordersAlt() {
     try FileDelete shotFile
     OcrSendCommand("scanall|all|" winX "|" winY "|" winW "|" winH "|" points)
     block := ""
+    scanStart := A_TickCount
     deadline := A_TickCount + OcrTimeout * 1000
     while (A_TickCount < deadline) {
         if !Running
@@ -2133,6 +2156,19 @@ ScanBordersAlt() {
     ToolTip()
     if !Running
         return "ABORT"
+    ; say WHY the overview came back empty - a silent "" here once cost a
+    ; field user a mystery 90-second stall with nothing in the log
+    if (block = "") {
+        elapsed := A_TickCount - scanStart
+        if !ProcessExist(OcrPid)
+            Log("alt scan | helper died after " elapsed "ms | " SubStr(OcrHelperLastWords(), 1, 300))
+        else
+            Log("alt scan | no result after " elapsed "ms - timed out")
+    } else if InStr(block, "=== VOYAGE SCANALL ERROR ===") {
+        Log("alt scan | helper error after " (A_TickCount - scanStart) "ms | "
+            . SubStr(RegExReplace(block, "\R", " / "), 1, 300))
+        block := ""
+    }
     return block
 }
 
@@ -2225,6 +2261,7 @@ ScanBordersHover(only := 0) {
         if (only && !ArrayHas(only, index))
             continue
         block := ""
+        borderStart := A_TickCount
         Loop BorderOcrAttempts {
             if !Running
                 break
@@ -2249,6 +2286,14 @@ ScanBordersHover(only := 0) {
             if !InStr(block, "Windows OCR returned no text")
                 break
         }
+        ; per-border health: errors and pathological slowness both go to the
+        ; log, so a bundle shows exactly where a scan spent its time
+        borderMs := A_TickCount - borderStart
+        if InStr(block, "OCR ERROR")
+            Log("hover border " index " | " borderMs "ms | "
+                . SubStr(RegExReplace(block, "\R", " / "), 1, 250))
+        else if (borderMs > 8000)
+            Log("hover border " index " | slow: " borderMs "ms")
         if (block != "")
             result .= (result = "" ? "" : "`n") block
     }

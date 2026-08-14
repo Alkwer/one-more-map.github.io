@@ -285,6 +285,16 @@ assert.strictEqual(
   'all captures except the Save-ScreenRegion fallback must route through the dispatcher',
 )
 
+// scan observability (from the first field diagnostic bundle, 2026-08-14):
+// the ready handshake must carry the OCR engine language, scanall failures
+// must surface instantly as parseable errors instead of silent 90s
+// timeouts, and both scan paths must log why/where time went
+assert.match(ahkImporter, /'READY\|' \+ \$engineTag/)
+assert.match(ahkImporter, /=== VOYAGE SCANALL ERROR ===/)
+assert.match(ahkImporter, /engine language/)
+assert.match(ahkImporter, /alt scan \| helper died after/)
+assert.match(ahkImporter, /hover border /)
+
 // 8.3 short-path guard (issue #27): %TEMP% like C:\Users\HARDPC~1 breaks
 // PowerShell's path normalizer - the helper paths must be built from the
 // expanded long path.
