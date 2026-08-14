@@ -68,6 +68,12 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Verify private vulnerability reporting remains enabled
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          reporting_enabled="$(gh api "repos/$GITHUB_REPOSITORY/private-vulnerability-reporting" --jq '.enabled')"
+          test "$reporting_enabled" = "true"
       - name: Enforce npm audit policy
         if: needs.scope.outputs.data_only != 'true'
         run: npm run audit:ci

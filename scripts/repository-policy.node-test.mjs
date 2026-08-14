@@ -31,3 +31,14 @@ test('dataset automation remains pull-request based', async () => {
   assert.match(reconciler, /pulls/)
   assert.doesNotMatch(workflow, /git push origin main/)
 })
+
+test('security reporting points to the enabled canonical private channel', async () => {
+  const securityPolicy = await readFile('SECURITY.md', 'utf8')
+  const workflow = await readFile('.github/workflows/deploy.yml', 'utf8')
+  assert.match(
+    securityPolicy,
+    /https:\/\/github\.com\/Alkwer\/one-more-map\.github\.io\/security\/advisories\/new/,
+  )
+  assert.match(workflow, /repos\/\$GITHUB_REPOSITORY\/private-vulnerability-reporting/)
+  assert.match(workflow, /--jq ['"]?\.enabled['"]?/)
+})
