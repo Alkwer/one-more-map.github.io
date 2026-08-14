@@ -216,7 +216,7 @@ assert.match(ahkImporter, /AvailableRecognizerLanguages/)
 assert.match(ahkImporter, /Invoke-OcrFile \$Path \$engine/)
 assert.match(
   ahkImporter,
-  /Windows OCR returned no text after filtered and unfiltered scans/,
+  /Windows OCR returned no text after filtered, unfiltered and contrast-stretched scans/,
 )
 assert.match(ahkImporter, /BorderOcrAttempts := 2/)
 assert.match(ahkImporter, /Retrying empty OCR scan/)
@@ -245,6 +245,13 @@ assert.match(ahkImporter, /Every grid cell copied the SAME chart/)
 // two-row mini sweep once the blank-row skip kicks in on dead cells
 assert.match(ahkImporter, /Nothing was ever copied - Ctrl\+C isn't reaching the game/)
 assert.match(ahkImporter, /aren't Charts - the grid corners/)
+
+// HDR washout rescue (issue #33): a contrast-stretched pass must exist as
+// the last OCR attempt in both the per-border and Alt-overview paths, and
+// the give-up messages must mention the Win+Alt+B workaround
+assert.match(ahkImporter, /VoyageOcrImage\]::Normalize/)
+assert.match(ahkImporter, /contrast-stretched scans/)
+assert.match(ahkImporter, /Win\+Alt\+B/)
 
 // 8.3 short-path guard (issue #27): %TEMP% like C:\Users\HARDPC~1 breaks
 // PowerShell's path normalizer - the helper paths must be built from the
