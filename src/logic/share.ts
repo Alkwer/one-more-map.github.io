@@ -268,6 +268,7 @@ export function mergeSharedLayout(saved: AppState, shared: AppState): ShareMerge
       allowRotation: saved.allowRotation,
       strategyReservations: saved.strategyReservations,
       pieceKeeps: saved.pieceKeeps,
+      layoutChoice: saved.layoutChoice,
     },
   }
 }
