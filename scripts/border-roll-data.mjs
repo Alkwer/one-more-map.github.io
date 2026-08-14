@@ -32,7 +32,9 @@ export function extractJsonPayload(body) {
   try {
     return JSON.parse(blocks[0][1])
   } catch (error) {
-    throw new Error(`JSON payload is invalid: ${error instanceof Error ? error.message : error}`)
+    throw new Error(`JSON payload is invalid: ${error instanceof Error ? error.message : error}`, {
+      cause: error,
+    })
   }
 }
 
