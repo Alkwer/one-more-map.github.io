@@ -67,6 +67,8 @@ test('dataset and generated research-summary updates keep required checks while 
   assert.match(windowsBlock, /^ {4}if: needs\.scope\.outputs\.data_only != 'true'$/m)
 
   assert.match(qualityBlock, /^ {4}needs: scope$/m)
+  assert.match(qualityBlock, /^ {6}PAGES_CANONICAL_ORIGIN: https:\/\/alkwer\.github\.io$/m)
+  assert.match(qualityBlock, /^ {6}PAGES_PRODUCTION_SITE_PREFIX: \/one-more-map\.github\.io\/$/m)
   assert.match(qualityBlock, /^ {6}- name: Validate dataset update$/m)
   assert.match(qualityBlock, /^ {8}if: needs\.scope\.outputs\.data_only == 'true'$/m)
   assert.match(qualityBlock, /fetch-accepted-border-roll-issues\.mjs/)

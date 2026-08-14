@@ -186,7 +186,12 @@ corpus-statistics block in `RESEARCH.md` use focused dataset, model, and
 production-build validation; they skip the Windows teardown job and browser
 matrix. A successful `main` build is staged under
 `/allflame-voyage-solver/`, with a redirect at the Pages root, and then deployed
-to GitHub Pages. The workflow is defined in
+to the maintained production URL
+[`https://alkwer.github.io/one-more-map.github.io/allflame-voyage-solver/`](https://alkwer.github.io/one-more-map.github.io/allflame-voyage-solver/).
+Both the redirect and application document emit that canonical URL. The staging
+script derives canonical metadata from the configured origin and deployment
+prefix so root-site and project-site artifacts cannot point at a divergent
+deployment. The workflow is defined in
 [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).
 
 That workflow owns the public border-intake endpoint setting. Vite injects it,
