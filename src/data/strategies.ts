@@ -69,7 +69,7 @@ export interface StrategyDef {
   layoutPenalty?: number
   /** selectable layout shapes (first = default); shown as a picker on the
    *  strategy card, the choice persists per strategy */
-  layouts?: { id: string; label: string; layout: Edges[] }[]
+  layouts?: { id: string; label: string; hint: string; layout: Edges[] }[]
   /** Optional keeper groups excluded while this strategy is active. Users can
    *  enable each group independently in the solver controls. */
   reservationGroups?: StrategyReservationGroup[]
@@ -260,8 +260,18 @@ export const STRATEGIES: StrategyDef[] = [
     rules: [],
     layout: ALC_GO_LAYOUT,
     layouts: [
-      { id: 'highway', label: 'Three-lane highway (burns ends & corners evenly)', layout: ALC_GO_LAYOUT },
-      { id: 'snake', label: 'S-snake (one path, fastest to run)', layout: ALC_GO_SNAKE },
+      {
+        id: 'highway',
+        label: 'Three-lane highway',
+        hint: 'burns end & corner pieces evenly',
+        layout: ALC_GO_LAYOUT,
+      },
+      {
+        id: 'snake',
+        label: 'S-snake',
+        hint: 'one continuous path - fastest to run',
+        layout: ALC_GO_SNAKE,
+      },
     ],
     layoutPenalty: 15, // a preference, not a law - "whatever works"
     reservationGroups: [divineReservation(true), MEATFISH_RESERVATION, ETHEREAL_RESERVATION],

@@ -158,21 +158,30 @@ export function StrategiesPanel({ activeId, pool, borders, onSelect, layoutChoic
                 ))}
               </div>
             )}
-            {(isActive || isOpen) && s.layouts && (
-              <div className="strat-layouts">
-                <span className="strat-layouts-label">Layout</span>
-                <select
-                  value={layoutChoice?.[s.id] ?? s.layouts[0].id}
-                  onChange={(e) => onLayoutChoice?.(s.id, e.target.value)}
-                >
-                  {s.layouts.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+            {(isActive || isOpen) &&
+              s.layouts &&
+              (() => {
+                const chosen =
+                  s.layouts.find((v) => v.id === layoutChoice?.[s.id]) ?? s.layouts[0]
+                return (
+                  <div className="strat-layouts">
+                    <div className="strat-layouts-row">
+                      <span className="strat-layouts-label">Layout</span>
+                      <select
+                        value={chosen.id}
+                        onChange={(e) => onLayoutChoice?.(s.id, e.target.value)}
+                      >
+                        {s.layouts.map((v) => (
+                          <option key={v.id} value={v.id}>
+                            {v.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="strat-layouts-hint muted">{chosen.hint}</div>
+                  </div>
+                )
+              })()}
             {(isActive || isOpen) && s.searchRegex && <RegexRow regex={s.searchRegex} />}
             {(isActive || isOpen) && <Readiness strategy={s} pool={pool} borders={borders} />}
             <button
