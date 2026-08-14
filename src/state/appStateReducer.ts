@@ -1,5 +1,5 @@
 import type { ChartData, Board } from '../types'
-import { emptyBoard } from '../types'
+import { emptyBoard, emptyBorders } from '../types'
 import type { AppState } from '../logic/storage'
 import { validateStateForPersistence } from '../logic/storage'
 import { chartAdditionResult } from '../logic/chartCapacity'
@@ -153,6 +153,7 @@ export function appStateReducer(state: AppState, action: AppStateAction): AppSta
         ...state,
         pool,
         board: emptyBoard(),
+        borders: emptyBorders(),
         borderRerollsUsed: 0,
       }
     }
