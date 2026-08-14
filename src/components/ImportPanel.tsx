@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { ALL_GOOD_MODS_REGEX, RARE_IMPLICITS } from '../data/strategies'
 import { BorderRollResearch, type ProtectedBorderRoll } from './BorderRollResearch'
 import { generateDemoCharts } from '../logic/demo'
-import { applyBorderOcrSnapshot, parseBorderOcrPayload } from '../logic/borderOcr'
+import { applyBorderOcrStateSnapshot, parseBorderOcrPayload } from '../logic/borderOcr'
 import { isChartClipboardText, parseChartText } from '../logic/parser'
 import { chartAdditionResult, type ChartAdditionResult } from '../logic/chartCapacity'
 import {
@@ -68,7 +68,11 @@ export function ImportPanel({
         return
       }
       const { borderOcr, charts, rejected, unresolved, stoppedEarly } = parsed
-      const borderApplication = applyBorderOcrSnapshot(state.borders, borderOcr)
+      const borderApplication = applyBorderOcrStateSnapshot(
+        state.borders,
+        state.borderRerollsUsed,
+        borderOcr,
+      )
       const notCharted = rejected.filter((r) => r.reason.startsWith('not charted'))
       const hasOcrPayload =
         borderOcr.blockCount > 0 ||
@@ -95,10 +99,9 @@ export function ImportPanel({
         ...state,
         pool: acceptedCharts.length > 0 ? [...state.pool, ...acceptedCharts] : state.pool,
         borders: hasOcrPayload ? borderApplication.borders : state.borders,
-        borderRerollsUsed:
-          hasOcrPayload && borderOcr.rerollCost
-            ? borderOcr.rerollCost.rerollsUsed
-            : state.borderRerollsUsed,
+        borderRerollsUsed: hasOcrPayload
+          ? borderApplication.borderRerollsUsed
+          : state.borderRerollsUsed,
       }
       const persistence = validateStateForPersistence(nextState)
       if (!persistence.ok) {
@@ -109,7 +112,7 @@ export function ImportPanel({
       if (hasOcrPayload) {
         const borders = borderApplication.borders
         onLoadState(nextState)
-        if (borderApplication.status === 'complete') {
+        if (borderApplication.status === 'complete' && !borderApplication.invalidated) {
           const captureMessage = borderResearch.captureImportedRoll(borders, borderOcr.rerollCost)
           if (captureMessage) parts.push(captureMessage)
         }
@@ -187,7 +190,11 @@ export function ImportPanel({
           }`,
         )
       }
-      if (borderApplication.status === 'incomplete') {
+      if (borderApplication.invalidated) {
+        parts.push(
+          'cleared the stale border snapshot and reroll count; recommendations are paused until a complete scan',
+        )
+      } else if (borderApplication.status === 'incomplete') {
         parts.push(
           `border scan incomplete (${borderOcr.uniqueBlockCount}/12 positions); kept existing borders`,
         )

@@ -894,7 +894,9 @@ test('plans the complete corner Divine composition with two feeders and six Rare
   ).toContainText('committed to Divine Border Rares')
 })
 
-test('keeps existing borders after an interrupted Windows OCR sweep', async ({ appPage }) => {
+test('invalidates stale borders and rerolls after an interrupted Windows OCR sweep', async ({
+  appPage,
+}) => {
   await openApp(appPage)
 
   await pasteText(appPage, DIVINE_BORDER_PAYLOAD)
@@ -902,15 +904,20 @@ test('keeps existing borders after an interrupted Windows OCR sweep', async ({ a
     name: /Border segment 1: .*Divine Orb/,
   })
   await expect(firstBorder).toBeVisible()
+  await appPage.getByRole('button', { name: 'Increase rerolls used' }).click()
+  await appPage.getByRole('button', { name: 'Increase rerolls used' }).click()
+  await expect(appPage.locator('.voyage-reroll-used strong')).toHaveText('2/5')
 
-  await pasteText(appPage, INCOMPLETE_BORDER_SCAN_PAYLOAD)
+  await pasteText(appPage, `${INCOMPLETE_BORDER_SCAN_PAYLOAD}\n${REROLL_COST_PAYLOAD}`)
 
-  await expect(firstBorder).toBeVisible()
+  await expect(firstBorder).toHaveCount(0)
   const importStatus = appPage.getByRole('region', { name: 'Import' }).getByRole('status')
   await expect(importStatus).toContainText('matched 11/12 border modifiers')
   await expect(importStatus).toContainText(
-    'border scan incomplete (11/12 positions); kept existing borders',
+    'cleared the stale border snapshot and reroll count; recommendations are paused until a complete scan',
   )
+  await expect(appPage.getByText('No border modifiers entered yet.')).toBeVisible()
+  await expect(appPage.locator('.voyage-reroll-used strong')).toHaveText('0/5')
   await expect(importStatus).toContainText('OCR language en-US')
 })
 
