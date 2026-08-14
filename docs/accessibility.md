@@ -12,6 +12,8 @@ The primary Voyage workflow is designed to work without a mouse.
 - Selecting a border modifier also closes the picker and returns focus to its border slot.
 - Onboarding, modifier browser, updates, tutorial, keeper wizard, and session planner open as named
   modal dialogs. Focus moves to the dialog heading so its structure can be read before its controls.
+- Individual chart deletion opens a named confirmation dialog from both library views. Its warning
+  identifies any affected board cell, and focus moves to `Cancel` as the safe default action.
 - `Tab` and `Shift+Tab` stay inside the active dialog. The rest of the application is inert until the
   dialog closes.
 - `Escape`, the visible close action, and a backdrop click close these dialogs and return focus to
@@ -37,9 +39,9 @@ npm run test:e2e
 
 The suite runs axe against the primary screen, the open border dialog, and every modal workflow. It
 checks initial focus, forward and reverse focus trapping, Escape dismissal, backdrop and visible
-close actions, background inertness, and trigger-focus restoration. It also exercises placement,
-preservation, rotation, removal, swapping, picker dismissal, and picker focus restoration with the
-keyboard.
+close actions, background inertness, and trigger-focus restoration. It also exercises confirmed and
+canceled chart deletion from the library, placement, preservation, rotation, board-only removal,
+swapping, picker dismissal, and picker focus restoration with the keyboard and touch controls.
 
 ## Manual screen-reader check
 
