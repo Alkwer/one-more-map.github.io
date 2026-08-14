@@ -200,6 +200,25 @@ describe('layout sharing', () => {
     expect(result.state.pieceKeeps).toEqual({ 'saved-preference': 2 })
   })
 
+  it('preserves a saved non-default strategy layout choice when merging a layout-v1 share', () => {
+    const saved = defaultState()
+    saved.layoutChoice = { 'alc-and-go': 'snake' }
+
+    const sharedSource = defaultState()
+    sharedSource.pool = [chart('shared-0')]
+    sharedSource.board[0] = { chartUid: 'shared-0', rotation: 0 }
+    const shared = decodedState(encodeShare(sharedSource))
+
+    expect(shared.layoutChoice).toEqual({})
+
+    const result = mergeSharedLayout(saved, shared)
+
+    expect(result).toMatchObject({
+      ok: true,
+      state: { layoutChoice: { 'alc-and-go': 'snake' } },
+    })
+  })
+
   it('refuses a merge that would overflow the saved library', () => {
     const saved = defaultState()
     saved.pool = Array.from({ length: MAX_POOL_CHARTS }, (_, index) =>
