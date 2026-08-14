@@ -29,8 +29,11 @@ const isNotable = (text: string) => !/^\d+% (increased|more|reduced) /i.test(tex
 
 /** bump the key to show a fresh announcement banner */
 const ANNOUNCE_KEY = 'announce-ocr-borders'
-/** one-time popup: the AHK importer gained two-page scanning */
-const AHK_PAGES_KEY = 'announce-ahk-page2'
+/** one-time popup: the AHK importer's one-scan borders update (supersedes the
+ *  page-2 popup - this one covers both changes for anyone who missed it) */
+const AHK_ALTSCAN_KEY = 'announce-ahk-altscan'
+/** issues live here - linked from the header and the update popup */
+const ISSUES_URL = 'https://github.com/one-more-map/one-more-map.github.io/issues'
 
 function initialState(): AppState {
   const hash = window.location.hash.replace(/^#/, '')
@@ -63,9 +66,9 @@ export default function App() {
   // download the current script anyway, so mark it seen for them)
   const [showAhkNotice, setShowAhkNotice] = useState<boolean>(() => {
     try {
-      if (localStorage.getItem(AHK_PAGES_KEY)) return false
+      if (localStorage.getItem(AHK_ALTSCAN_KEY)) return false
       if (!localStorage.getItem('onboarding-seen')) {
-        localStorage.setItem(AHK_PAGES_KEY, '1')
+        localStorage.setItem(AHK_ALTSCAN_KEY, '1')
         return false
       }
       return true
@@ -76,7 +79,7 @@ export default function App() {
   const dismissAhkNotice = () => {
     setShowAhkNotice(false)
     try {
-      localStorage.setItem(AHK_PAGES_KEY, '1')
+      localStorage.setItem(AHK_ALTSCAN_KEY, '1')
     } catch {
       /* ignore */
     }
@@ -446,23 +449,29 @@ export default function App() {
         <div className="onboard-backdrop" onClick={dismissAhkNotice}>
           <div className="onboard ahk-notice" onClick={(e) => e.stopPropagation()}>
             <div className="panel-title">
-              📥 Importer updated - second chart page
+              📥 Importer updated - borders in one scan
               <span className="spacer" />
               <button onClick={dismissAhkNotice}>✕</button>
             </div>
             <p className="tut-body">
-              The game's chart panel now has <strong>two pages</strong>, and the Windows bulk
-              importer scans both - it clicks between the page tabs for you. Sweeps are faster
-              too: empty rows are skipped instead of waited on.
+              The game now reveals every border tooltip while <strong>Alt</strong> is held, so
+              the importer reads all 12 borders from a <strong>single screenshot</strong> - a
+              couple of seconds instead of 15-30. No new calibration needed.
             </p>
             <p className="tut-body">
-              Your downloaded script doesn't update itself, so to get this:
+              Also new: the blank-row skip is configurable (wizard → <em>Sweep speed</em>; set
+              0 if you park charts at the bottom of a page), and the sweep covers both chart
+              pages once the wizard knows your page tabs.
             </p>
             <ol className="ahk-notice-steps">
               <li>Re-download the script (button below) and replace your old copy.</li>
               <li>
-                Rerun the setup wizard (tray icon → <em>Setup wizard…</em>) - two new steps
-                teach it where your page tabs sit. Existing calibration is kept.
+                <strong>Exit the running script</strong> (tray icon → Exit) and start the new
+                one - it doesn't reload itself.
+              </li>
+              <li>
+                Haven't set the page tabs yet? Rerun the wizard once (tray →{' '}
+                <em>Setup wizard…</em>). Existing calibration is kept.
               </li>
             </ol>
             <div className="sw-actions">
@@ -471,6 +480,13 @@ export default function App() {
               </a>
               <span className="spacer" />
               <button onClick={dismissAhkNotice}>Got it</button>
+            </div>
+            <div className="muted small-note">
+              Something misbehaving?{' '}
+              <a href={ISSUES_URL} target="_blank" rel="noopener noreferrer">
+                Report it on GitHub
+              </a>{' '}
+              - actively monitored.
             </div>
           </div>
         </div>
@@ -528,6 +544,15 @@ export default function App() {
           >
             Updates
           </button>
+          <a
+            className="feedback-link"
+            href={ISSUES_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Bug reports and feature requests on GitHub - actively monitored"
+          >
+            🐛 Feedback
+          </a>
           <button title="Browse all modifiers and switch off ones you don't want" onClick={() => setShowMods(true)}>
             Mods{state.disabledMods.length > 0 ? ` (${state.disabledMods.length} off)` : ''}
           </button>

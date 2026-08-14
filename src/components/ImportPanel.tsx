@@ -258,6 +258,17 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
           If PoE runs as administrator, run the script as administrator too, or its keypresses
           won't reach the game. Don't touch the mouse or keyboard while it's running.
         </p>
+        <p className="muted small">
+          Problems or ideas?{' '}
+          <a
+            href="https://github.com/one-more-map/one-more-map.github.io/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Open a GitHub issue
+          </a>{' '}
+          - actively monitored, and pull requests are welcome.
+        </p>
       </details>
     </div>
   )

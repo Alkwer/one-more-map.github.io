@@ -13,6 +13,13 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    date: '2026-08-14',
+    tag: 'new',
+    title: 'Feedback link',
+    detail:
+      '🐛 Feedback in the header goes straight to the GitHub issue tracker - it is actively monitored, bug reports and ideas both welcome (several of this week\'s features came from there and Reddit).',
+  },
+  {
     date: '2026-08-11',
     tag: 'reworked',
     title: 'One-scan border OCR (hold-Alt)',

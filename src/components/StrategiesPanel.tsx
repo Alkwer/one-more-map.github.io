@@ -160,18 +160,17 @@ export function StrategiesPanel({ activeId, pool, borders, onSelect, layoutChoic
             )}
             {(isActive || isOpen) && s.layouts && (
               <div className="strat-layouts">
-                <span className="strat-layouts-label">Layout:</span>
-                {s.layouts.map((v) => (
-                  <label key={v.id} className="strat-layout-option">
-                    <input
-                      type="radio"
-                      name={`layout-${s.id}`}
-                      checked={(layoutChoice?.[s.id] ?? s.layouts![0].id) === v.id}
-                      onChange={() => onLayoutChoice?.(s.id, v.id)}
-                    />
-                    {v.label}
-                  </label>
-                ))}
+                <span className="strat-layouts-label">Layout</span>
+                <select
+                  value={layoutChoice?.[s.id] ?? s.layouts[0].id}
+                  onChange={(e) => onLayoutChoice?.(s.id, e.target.value)}
+                >
+                  {s.layouts.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
             {(isActive || isOpen) && s.searchRegex && <RegexRow regex={s.searchRegex} />}
