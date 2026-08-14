@@ -84,8 +84,11 @@ assert.ok(
 )
 
 const performanceFiles = listedFiles('vitest.performance.config.ts')
-assert.deepEqual(performanceFiles, ['tests/performance/solver-performance-budget.test.ts'])
+assert.deepEqual(performanceFiles, [
+  'tests/performance/import-worker-boundary.test.ts',
+  'tests/performance/solver-performance-budget.test.ts',
+])
 
 console.log(
-  `Validation scope is stable: ${defaultFiles.length} tracked default test files and 1 performance file.`,
+  `Validation scope is stable: ${defaultFiles.length} tracked default test files and ${performanceFiles.length} performance files.`,
 )
