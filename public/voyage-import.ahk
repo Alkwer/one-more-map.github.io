@@ -12,9 +12,12 @@ CoordMode "ToolTip", "Screen"
 ;              every cell and Ctrl+C's it, appending up to 120 chart slots
 ;              with the default 6x10 grids (no window switching).
 ;    Phase 2 - hovers the 12 board-border modifiers and the optional reroll
-;              button. An in-memory PowerShell helper captures the PoE window
-;              and reads each tooltip with the Windows OCR engine. No script is
-;              executed from TEMP, and screenshots never leave the PC.
+;              button. PowerShell source is inherited and executed in memory;
+;              no .ps1 file is created. Each OCR attempt briefly writes a raw
+;              full-window PNG and UTF-8 result under TEMP. Border OCR also
+;              writes a filtered PNG and, only if needed, a normalized fallback.
+;              Cleanup runs after attempts, aborts/timeouts and normal exit;
+;              none of these local artifacts is uploaded.
 ;    Phase 3 - opens the fixed solver URL through the Windows shell, activates
 ;              the resulting supported-browser window, and pastes the payload.
 ;              If that fails, the payload stays on the clipboard for Ctrl+V.
@@ -143,7 +146,7 @@ ExactBorderNext := 0
 ScriptPid := ProcessExist()
 ; %TEMP% can arrive as an 8.3 short path (C:\Users\HARDPC~1\...) and
 ; PowerShell's path normalizer chokes on the "~" component (issue #27) -
-; expand to the real long path before any helper paths are built.
+; expand to the real long path before any OCR artifact paths are built.
 LongPath(path) {
     buf := Buffer(1040, 0)
     len := DllCall("GetLongPathNameW", "Str", path, "Ptr", buf.Ptr, "UInt", 520, "UInt")
@@ -488,6 +491,8 @@ PowerShellTrust := ResolveTrustedPowerShell()
 PowerShellExe := PowerShellTrust.LaunchPath
 ExpectedPowerShellImage := PowerShellTrust.ExpectedPath
 TempDir := LongPath(A_Temp)
+; The PowerShell source never touches disk. This short-lived UTF-8 result and
+; the PNGs cleaned below are the only files created by normal OCR attempts.
 OcrOutput := TempDir "\voyage-border-ocr-" ScriptPid ".txt"
 OcrPid := 0
 LastBorderScanBlocks := 0

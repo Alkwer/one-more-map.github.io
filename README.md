@@ -216,8 +216,12 @@ unpadded Base64URL over bounded UTF-8 JSON; compression is intentionally omitted
 to keep decoding portable and avoid a separate decompression resource budget.
 
 The GitHub credential remains only in the intake service and is never sent to
-the browser. The Windows helper performs OCR on the local machine; temporary
-screenshots, the generated bridge, and OCR output are removed after each
-attempt, abort, or exit.
+the browser. The Windows helper performs OCR on the local machine. During a
+normal OCR attempt, a full-window PoE screenshot and UTF-8 OCR result briefly
+touch `%TEMP%`; border scans also create a filtered screenshot and may create a
+contrast-normalized fallback image. Best-effort cleanup runs after each attempt,
+abort, timeout, and normal script exit. The PowerShell helper source is inherited
+through an environment value and executed from memory; it is never written to a
+`.ps1` file. None of these screenshots or OCR results is uploaded.
 
 Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md).
