@@ -922,9 +922,61 @@ function Get-OcrLineRects {
     }
 }
 
+# Match tooltip blocks to border points as a GLOBAL assignment, not greedy
+# nearest: tooltips render offset outward and stack along a side, so a
+# tooltip's individually-nearest point is often its neighbour's. Start from
+# the greedy solution, then 2-opt swap pairs until total distance is locally
+# minimal - for 12 points this converges instantly and fixes the cascades.
+function Resolve-BorderAssignment {
+    param($Points, $Blocks)
+    $count = $Points.Count
+    $dist = New-Object 'double[,]' $count, $Blocks.Count
+    for ($p = 0; $p -lt $count; $p++) {
+        for ($b = 0; $b -lt $Blocks.Count; $b++) {
+            $cx = ($Blocks[$b].X + $Blocks[$b].R) / 2.0
+            $cy = ($Blocks[$b].Y + $Blocks[$b].B) / 2.0
+            $dx = $cx - $Points[$p].X
+            $dy = $cy - $Points[$p].Y
+            $dist[$p, $b] = $dx * $dx + $dy * $dy
+        }
+    }
+    $assigned = @($null) * $count
+    $used = @{}
+    $order = @()
+    for ($p = 0; $p -lt $count; $p++) {
+        for ($b = 0; $b -lt $Blocks.Count; $b++) {
+            $order += [pscustomobject]@{ P = $p; B = $b; D = $dist[$p, $b] }
+        }
+    }
+    foreach ($pair in ($order | Sort-Object D)) {
+        if ($null -ne $assigned[$pair.P] -or $used.ContainsKey($pair.B)) { continue }
+        $assigned[$pair.P] = $pair.B
+        $used[$pair.B] = $true
+    }
+    $improved = $true
+    $rounds = 0
+    while ($improved -and $rounds -lt 50) {
+        $improved = $false
+        $rounds++
+        for ($i = 0; $i -lt $count; $i++) {
+            for ($j = $i + 1; $j -lt $count; $j++) {
+                $bi = $assigned[$i]
+                $bj = $assigned[$j]
+                if ($null -eq $bi -or $null -eq $bj) { continue }
+                if (($dist[$i, $bj] + $dist[$j, $bi]) -lt ($dist[$i, $bi] + $dist[$j, $bj])) {
+                    $assigned[$i] = $bj
+                    $assigned[$j] = $bi
+                    $improved = $true
+                }
+            }
+        }
+    }
+    return $assigned
+}
+
 # One held-Alt screenshot shows every border tooltip at once. OCR it with
 # per-line geometry, cluster lines into tooltip blocks, then assign each
-# block to its nearest border point.
+# block to a border point via the global matcher above.
 function Get-AllBorderBlocks {
     param([int]$Left, [int]$Top, [int]$Width, [int]$Height, [string]$PointSpec, $Engine)
     $builder = [System.Text.StringBuilder]::new()
@@ -974,26 +1026,9 @@ function Get-AllBorderBlocks {
             $xy = $pair.Split(',')
             $points += [pscustomobject]@{ X = [double]$xy[0]; Y = [double]$xy[1] }
         }
-        # greedy nearest matching, one block per border point
-        $pairs = @()
+        $assigned = Resolve-BorderAssignment $points $blocks
         for ($p = 0; $p -lt $points.Count; $p++) {
-            for ($b = 0; $b -lt $blocks.Count; $b++) {
-                $cx = ($blocks[$b].X + $blocks[$b].R) / 2.0
-                $cy = ($blocks[$b].Y + $blocks[$b].B) / 2.0
-                $dx = $cx - $points[$p].X
-                $dy = $cy - $points[$p].Y
-                $pairs += [pscustomobject]@{ P = $p; B = $b; D = ($dx * $dx + $dy * $dy) }
-            }
-        }
-        $assigned = @{}
-        $usedBlocks = @{}
-        foreach ($pair in ($pairs | Sort-Object D)) {
-            if ($assigned.ContainsKey($pair.P) -or $usedBlocks.ContainsKey($pair.B)) { continue }
-            $assigned[$pair.P] = $pair.B
-            $usedBlocks[$pair.B] = $true
-        }
-        for ($p = 0; $p -lt $points.Count; $p++) {
-            if ($assigned.ContainsKey($p)) {
+            if ($null -ne $assigned[$p]) {
                 Add-Block $builder $p $blocks[$assigned[$p]].Text
             } else {
                 Add-Block $builder $p 'OCR ERROR: no tooltip found near this border.'
