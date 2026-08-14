@@ -20,7 +20,11 @@ import {
   BORDER_ROLL_COMMENT_MARKER,
   upsertBorderRollComment,
 } from './upsert-border-roll-comment.mjs'
-import { reconcileBorderRollDatasetPullRequest } from './reconcile-border-roll-dataset-pr.mjs'
+import {
+  DATASET_PATH,
+  RESEARCH_PATH,
+  reconcileBorderRollDatasetPullRequest,
+} from './reconcile-border-roll-dataset-pr.mjs'
 import { replaceBorderRollLabels } from './replace-border-roll-labels.mjs'
 import { validationDigestFromComments } from './fetch-accepted-border-roll-issues.mjs'
 import { verifyCanonicalDataset } from './validate-canonical-border-roll-dataset.mjs'
@@ -476,10 +480,14 @@ test('dataset workflow finds and updates a managed PR after more than 100 extern
       }
     }
     if (command === 'gh' && args[0] === 'api') {
-      return { stdout: 'data/border-rolls-v2.json\n', stderr: '', exitCode: 0 }
+      return { stdout: 'data/border-rolls-v2.json\nRESEARCH.md\n', stderr: '', exitCode: 0 }
     }
     if (command === 'git' && args[0] === 'status') {
-      return { stdout: ' M data/border-rolls-v2.json\n', stderr: '', exitCode: 0 }
+      return {
+        stdout: ' M data/border-rolls-v2.json\n M RESEARCH.md\n',
+        stderr: '',
+        exitCode: 0,
+      }
     }
     if (command === 'git' && args[0] === 'rev-parse' && args[1].endsWith('^{tree}')) {
       return { stdout: 'old-tree\n', stderr: '', exitCode: 0 }
@@ -496,9 +504,9 @@ test('dataset workflow finds and updates a managed PR after more than 100 extern
     return { stdout: '', stderr: '', exitCode: 0 }
   }
   const io = {
-    readFile: async () => '{"sampleCount":2}\n',
-    writeFile: async (_path, contents) => {
-      writtenDataset = contents
+    readFile: async (path) => (path === DATASET_PATH ? '{"sampleCount":2}\n' : 'research\n'),
+    writeFile: async (path, contents) => {
+      if (path === DATASET_PATH) writtenDataset = contents
     },
     appendFile: async (_path, contents) => {
       summary += contents
@@ -517,6 +525,15 @@ test('dataset workflow finds and updates a managed PR after more than 100 extern
 
   assert.equal(result.status, 'updated')
   assert.equal(writtenDataset, '{"sampleCount":2}\n')
+  assert.ok(
+    calls.some(
+      ({ command, args }) =>
+        command === 'git' &&
+        args[0] === 'add' &&
+        args.includes(DATASET_PATH) &&
+        args.includes(RESEARCH_PATH),
+    ),
+  )
   assert.match(summary, /Status: \*\*updated\*\*/)
   assert.match(summary, /Ignored 101 external or unmanaged lookalike PR/)
   assert.ok(
@@ -651,7 +668,11 @@ test('dataset workflow still blocks a managed bot PR that changes unexpected fil
       return { stdout: JSON.stringify([[managed]]), stderr: '', exitCode: 0 }
     }
     if (command === 'gh' && args[0] === 'api') {
-      return { stdout: 'data/border-rolls-v2.json\nREADME.md\n', stderr: '', exitCode: 0 }
+      return {
+        stdout: 'data/border-rolls-v2.json\nRESEARCH.md\nREADME.md\n',
+        stderr: '',
+        exitCode: 0,
+      }
     }
     return { stdout: '', stderr: '', exitCode: 0 }
   }

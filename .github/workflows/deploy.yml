@@ -35,12 +35,21 @@ jobs:
           data_only=false
           if [[ "$EVENT_NAME" != "workflow_dispatch" && -n "$BASE_SHA" && ! "$BASE_SHA" =~ ^0+$ ]]; then
             mapfile -t changed_files < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
-            if (( ${#changed_files[@]} == 1 )) && [[ "${changed_files[0]}" == "data/border-rolls-v2.json" ]]; then
+            has_dataset=false
+            supported_files=true
+            for changed_file in "${changed_files[@]}"; do
+              if [[ "$changed_file" == "data/border-rolls-v2.json" ]]; then
+                has_dataset=true
+              elif [[ "$changed_file" != "RESEARCH.md" ]]; then
+                supported_files=false
+              fi
+            done
+            if [[ "$has_dataset" == "true" && "$supported_files" == "true" ]] && (( ${#changed_files[@]} <= 2 )); then
               data_only=true
             fi
           fi
           echo "data_only=$data_only" >> "$GITHUB_OUTPUT"
-          echo "Dataset-only update: $data_only" >> "$GITHUB_STEP_SUMMARY"
+          echo "Dataset plus generated research-summary update: $data_only" >> "$GITHUB_STEP_SUMMARY"
 
   windows-playwright-exit:
     needs: scope

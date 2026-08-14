@@ -30,7 +30,13 @@ test('dataset automation remains pull-request based', async () => {
   const workflow = await readFile('.github/workflows/build-border-roll-dataset.yml', 'utf8')
   const reconciler = await readFile('scripts/reconcile-border-roll-dataset-pr.mjs', 'utf8')
   assert.match(workflow, /Reconcile dataset update pull request/)
+  assert.match(workflow, /research-corpus-stats\.mjs --write/)
+  assert.ok(
+    workflow.indexOf('research-corpus-stats.mjs --write') <
+      workflow.indexOf('Reconcile dataset update pull request'),
+  )
   assert.match(reconciler, /pulls/)
+  assert.match(reconciler, /RESEARCH\.md/)
   assert.doesNotMatch(workflow, /git push origin main/)
 })
 

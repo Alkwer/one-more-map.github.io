@@ -31,7 +31,7 @@ test('Pages deploy waits for every required validation job', async () => {
   )
 })
 
-test('dataset-only updates keep required checks while skipping browser jobs', async () => {
+test('dataset and generated research-summary updates keep required checks while skipping browser jobs', async () => {
   const [workflow, packageJson] = await Promise.all([
     readFile(workflowUrl, 'utf8'),
     readFile(packageUrl, 'utf8').then(JSON.parse),
@@ -56,8 +56,11 @@ test('dataset-only updates keep required checks while skipping browser jobs', as
     scopeBlock,
     /mapfile -t changed_files < <\(git diff --name-only "\$BASE_SHA" "\$HEAD_SHA"\)/,
   )
-  assert.match(scopeBlock, /\$\{#changed_files\[@\]\} == 1/)
+  assert.match(scopeBlock, /\$\{#changed_files\[@\]\} <= 2/)
   assert.match(scopeBlock, /"data\/border-rolls-v2\.json"/)
+  assert.match(scopeBlock, /"RESEARCH\.md"/)
+  assert.match(scopeBlock, /has_dataset=true/)
+  assert.match(scopeBlock, /supported_files=false/)
   assert.match(scopeBlock, /echo "data_only=\$data_only" >> "\$GITHUB_OUTPUT"/)
 
   assert.match(windowsBlock, /^ {4}needs: scope$/m)
@@ -78,7 +81,7 @@ test('dataset-only updates keep required checks while skipping browser jobs', as
   )
   assert.equal(
     packageJson.scripts['validate:data-update'],
-    'node scripts/validate-canonical-border-roll-dataset.mjs && npm run test:data && vitest run --config vitest.config.ts tests/border-roll-model.test.ts && npm run build',
+    'node scripts/validate-canonical-border-roll-dataset.mjs && npm run check:research-stats && npm run test:data && vitest run --config vitest.config.ts tests/border-roll-model.test.ts && npm run check:eol && npm run format:check && npm run build',
   )
 })
 

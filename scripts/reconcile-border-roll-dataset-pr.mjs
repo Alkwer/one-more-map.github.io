@@ -5,6 +5,8 @@ import { promisify } from 'node:util'
 
 export const AUTOMATION_BRANCH_PREFIX = 'automation/border-roll-dataset-'
 export const DATASET_PATH = 'data/border-rolls-v2.json'
+export const RESEARCH_PATH = 'RESEARCH.md'
+export const MANAGED_PATHS = [DATASET_PATH, RESEARCH_PATH]
 
 const execFileAsync = promisify(execFile)
 
@@ -106,11 +108,15 @@ const configureGitAuthor = async (run) => {
   ])
 }
 
-const createPull = async ({ run, io, repository, runId, desiredDataset }) => {
+const writeManagedFiles = async (io, desiredFiles) => {
+  await Promise.all(MANAGED_PATHS.map((path) => io.writeFile(path, desiredFiles.get(path))))
+}
+
+const createPull = async ({ run, io, repository, runId, desiredFiles }) => {
   const branch = `${AUTOMATION_BRANCH_PREFIX}${runId}`
   await run('git', ['switch', '--discard-changes', '-c', branch, 'origin/main'])
-  await io.writeFile(DATASET_PATH, desiredDataset)
-  await run('git', ['add', DATASET_PATH])
+  await writeManagedFiles(io, desiredFiles)
+  await run('git', ['add', ...MANAGED_PATHS])
   await configureGitAuthor(run)
   await run('git', ['commit', '-m', 'Update border-roll research dataset'])
   await run('git', ['push', '--set-upstream', 'origin', branch])
@@ -126,7 +132,7 @@ const createPull = async ({ run, io, repository, runId, desiredDataset }) => {
     '--title',
     'Update border-roll research dataset',
     '--body',
-    '<!-- border-roll-dataset-automation -->\nAutomated, deterministic rebuild from closed issues labelled `border-roll:accepted`. The source samples were schema-validated and deduplicated before this PR was created.',
+    '<!-- border-roll-dataset-automation -->\nAutomated, deterministic rebuild from closed issues labelled `border-roll:accepted`. The source samples were schema-validated and deduplicated, and the generated RESEARCH.md corpus summary was synchronized before this PR was created.',
   ])
   return { branch, url: created.stdout.trim() }
 }
@@ -143,9 +149,11 @@ export const reconcileBorderRollDatasetPullRequest = async ({
   }
 
   const repositoryOwner = repository.split('/')[0]
-  const desiredDataset = await io.readFile(DATASET_PATH, 'utf8')
-  const status = await run('git', ['status', '--porcelain', '--', DATASET_PATH])
-  const datasetChanged = status.stdout.trim().length > 0
+  const desiredFiles = new Map(
+    await Promise.all(MANAGED_PATHS.map(async (path) => [path, await io.readFile(path, 'utf8')])),
+  )
+  const status = await run('git', ['status', '--porcelain', '--', ...MANAGED_PATHS])
+  const managedFilesChanged = status.stdout.trim().length > 0
   const prefixedPulls = (await listOpenPulls(run, repository)).filter((pull) =>
     pull.headRefName?.startsWith(AUTOMATION_BRANCH_PREFIX),
   )
@@ -165,7 +173,7 @@ export const reconcileBorderRollDatasetPullRequest = async ({
 
   for (const pull of managedPulls) {
     const changedFiles = await listChangedFiles(run, repository, pull.number)
-    const unexpectedFiles = changedFiles.filter((file) => file !== DATASET_PATH)
+    const unexpectedFiles = changedFiles.filter((file) => !MANAGED_PATHS.includes(file))
     if (unexpectedFiles.length > 0) {
       const detail = `Refused to overwrite ${pull.url}; it also changes: ${unexpectedFiles.join(', ')}.`
       const summary = await appendSummary(io, env.GITHUB_STEP_SUMMARY, 'blocked', detail)
@@ -173,7 +181,7 @@ export const reconcileBorderRollDatasetPullRequest = async ({
     }
   }
 
-  if (!datasetChanged) {
+  if (!managedFilesChanged) {
     for (const pull of managedPulls) {
       await closePull(
         run,
@@ -185,8 +193,8 @@ export const reconcileBorderRollDatasetPullRequest = async ({
     const statusName = managedPulls.length > 0 ? 'superseded' : 'unchanged'
     const detail =
       managedPulls.length > 0
-        ? `Closed ${managedPulls.length} obsolete automation PR(s); the accepted dataset is already on main.`
-        : 'The accepted dataset already matches main; no pull request is needed.'
+        ? `Closed ${managedPulls.length} obsolete automation PR(s); the accepted dataset and research summary are already on main.`
+        : 'The accepted dataset and research summary already match main; no pull request is needed.'
     const summary = await appendSummary(io, env.GITHUB_STEP_SUMMARY, statusName, detail)
     return { status: statusName, summary, exitCode: 0 }
   }
@@ -214,7 +222,7 @@ export const reconcileBorderRollDatasetPullRequest = async ({
   }
 
   if (!primary) {
-    const created = await createPull({ run, io, repository, runId, desiredDataset })
+    const created = await createPull({ run, io, repository, runId, desiredFiles })
     for (const pull of extras) {
       await closePull(run, repository, pull, `Superseded by ${created.url}.`)
     }
@@ -232,8 +240,8 @@ export const reconcileBorderRollDatasetPullRequest = async ({
   const remoteCommit = (await run('git', ['rev-parse', remoteRef])).stdout.trim()
   const remoteTree = (await run('git', ['rev-parse', `${remoteRef}^{tree}`])).stdout.trim()
   await run('git', ['switch', '--discard-changes', '-C', branch, 'origin/main'])
-  await io.writeFile(DATASET_PATH, desiredDataset)
-  await run('git', ['add', DATASET_PATH])
+  await writeManagedFiles(io, desiredFiles)
+  await run('git', ['add', ...MANAGED_PATHS])
   const desiredTree = (await run('git', ['write-tree'])).stdout.trim()
 
   if (desiredTree === remoteTree) {
@@ -244,7 +252,7 @@ export const reconcileBorderRollDatasetPullRequest = async ({
       io,
       env.GITHUB_STEP_SUMMARY,
       'unchanged',
-      `${primary.url} already contains the complete accepted dataset on the current main tree.`,
+      `${primary.url} already contains the complete accepted dataset and research summary on the current main tree.`,
     )
     return { status: 'unchanged', summary, exitCode: 0, url: primary.url }
   }
@@ -264,7 +272,7 @@ export const reconcileBorderRollDatasetPullRequest = async ({
       io,
       env.GITHUB_STEP_SUMMARY,
       'superseded',
-      'Closed obsolete automation PRs; the accepted dataset is already on main.',
+      'Closed obsolete automation PRs; the accepted dataset and research summary are already on main.',
     )
     return { status: 'superseded', summary, exitCode: 0 }
   }
