@@ -39,6 +39,8 @@ export interface AppState {
   strategyReservations: StrategyReservationPreferences
   /** per-piece-type counts kept in reserve for curated strategies */
   pieceKeeps: Record<string, number>
+  /** chosen layout variant per strategy id (missing = the strategy default) */
+  layoutChoice: Record<string, string>
   /** paid border rerolls recorded for the current Voyage board (0–5 assumed cap) */
   borderRerollsUsed: number
 }
@@ -56,6 +58,7 @@ export const defaultState = (): AppState => ({
   strategyId: null,
   strategyReservations: defaultStrategyReservations(),
   pieceKeeps: {},
+  layoutChoice: {},
   borderRerollsUsed: 0,
 })
 
@@ -80,6 +83,8 @@ export const MAX_REWARD_PERCENT = 10_000
 export const MAX_DISABLED_MODS = 256
 export const MAX_PIECE_KEEPS = 256
 export const MAX_PIECE_KEEP_KEY_LENGTH = 512
+export const MAX_LAYOUT_CHOICES = 64
+export const MAX_LAYOUT_CHOICE_LENGTH = 128
 const MAX_ID_LENGTH = 128
 const MAX_WEIGHT_KEYS = 128
 
@@ -569,6 +574,36 @@ function decodePieceKeeps(value: unknown, warnings: string[]): Record<string, nu
   return decoded
 }
 
+function decodeLayoutChoice(value: unknown, warnings: string[]): Record<string, string> {
+  if (value === undefined) return {}
+  if (!isRecord(value)) fail('layoutChoice must be an object')
+  if (Object.keys(value).length > MAX_LAYOUT_CHOICES) {
+    fail(`layoutChoice must contain at most ${MAX_LAYOUT_CHOICES} entries`)
+  }
+
+  const decoded: Record<string, string> = {}
+  for (const [strategyId, layoutIdValue] of Object.entries(value)) {
+    boundedString(strategyId, 'layoutChoice key', MAX_LAYOUT_CHOICE_LENGTH, false)
+    if (typeof layoutIdValue !== 'string') {
+      warnings.push(`layoutChoice.${strategyId} was ignored because it is not a string`)
+      continue
+    }
+    const layoutId = boundedString(
+      layoutIdValue,
+      `layoutChoice.${strategyId}`,
+      MAX_LAYOUT_CHOICE_LENGTH,
+      false,
+    )
+    const strategy = strategyById.get(strategyId)
+    if (!strategy?.layouts?.some((layout) => layout.id === layoutId)) {
+      warnings.push(`layoutChoice.${strategyId} was ignored because the layout is unknown`)
+      continue
+    }
+    decoded[strategyId] = layoutId
+  }
+  return decoded
+}
+
 function storageWriteFailure(error: unknown): Extract<LocalSaveResult, { ok: false }> {
   const name =
     typeof error === 'object' && error !== null && 'name' in error
@@ -808,6 +843,7 @@ export function decodeState(value: unknown): StateDecodeResult {
         strategyId: decodeStrategyId(value.strategyId, warnings),
         strategyReservations: decodeStrategyReservations(value.strategyReservations),
         pieceKeeps: decodePieceKeeps(value.pieceKeeps, warnings),
+        layoutChoice: decodeLayoutChoice(value.layoutChoice, warnings),
         borderRerollsUsed: decodeRerolls(value.borderRerollsUsed, warnings),
       },
     }

@@ -26,6 +26,9 @@ const normalizedDisabledMods = (disabledMods: Iterable<string>) => [...new Set(d
 const normalizedWeights = (weights: Weights) =>
   Object.entries(weights).sort(([a], [b]) => a.localeCompare(b))
 
+const normalizedLayoutChoice = (layoutChoice: Record<string, string> = {}) =>
+  Object.entries(layoutChoice).sort(([a], [b]) => a.localeCompare(b))
+
 export function createStrategyInventoryKey(
   pool: ChartData[],
   borders: Borders,
@@ -57,7 +60,7 @@ type SolverStateKeyInput = Pick<
   | 'disabledMods'
   | 'strategyReservations'
 > &
-  Partial<Pick<AppState, 'board' | 'pieceKeeps'>>
+  Partial<Pick<AppState, 'board' | 'pieceKeeps' | 'layoutChoice'>>
 
 export function createSolverStateKey(
   state: SolverStateKeyInput,
@@ -76,6 +79,7 @@ export function createSolverStateKey(
     disabledMods: normalizedDisabledMods(state.disabledMods),
     strategyReservations: state.strategyReservations,
     pieceKeeps: state.pieceKeeps ?? {},
+    layoutChoice: normalizedLayoutChoice(state.layoutChoice),
     activeStrategyId,
   })
 }

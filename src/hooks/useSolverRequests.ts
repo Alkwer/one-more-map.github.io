@@ -58,6 +58,10 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
     () => new Set(locked.filter(Boolean).map((placement) => placement!.chartUid)),
     [locked],
   )
+  const layoutVariant =
+    activeStrategy?.layouts?.find(
+      (layout) => layout.id === state.layoutChoice[activeStrategy.id],
+    ) ?? activeStrategy?.layouts?.[0]
 
   const solveKey = useMemo(
     () =>
@@ -73,6 +77,7 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
           disabledMods: state.disabledMods,
           strategyReservations: state.strategyReservations,
           pieceKeeps: state.pieceKeeps,
+          layoutChoice: state.layoutChoice,
         },
         weights,
         activeStrategy?.id ?? null,
@@ -88,6 +93,7 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
       state.disabledMods,
       state.strategyReservations,
       state.pieceKeeps,
+      state.layoutChoice,
       weights,
       activeStrategy?.id,
     ],
@@ -134,7 +140,7 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
           topK: 5,
           strategyRules: activeStrategy?.rules,
           strategyRequirements: activeStrategy?.requirements,
-          strategyLayout: activeStrategy?.layout,
+          strategyLayout: layoutVariant?.layout ?? activeStrategy?.layout,
           strategyLayoutPenalty: activeStrategy?.layoutPenalty,
           locked,
         },

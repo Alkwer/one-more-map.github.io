@@ -11,6 +11,8 @@ interface Props {
   onShare: () => void
 }
 
+const ISSUES_URL = 'https://github.com/Alkwer/one-more-map.github.io/issues'
+
 export function AppHeader(props: Props) {
   return (
     <header>
@@ -37,6 +39,15 @@ export function AppHeader(props: Props) {
         >
           Updates
         </button>
+        <a
+          className="feedback-link"
+          href={ISSUES_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Bug reports and feature requests on GitHub"
+        >
+          🐛 Feedback
+        </a>
         <button
           title="Browse all modifiers and switch off ones you don't want"
           onClick={props.onOpenMods}

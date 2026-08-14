@@ -432,6 +432,31 @@ describe('state decoding', () => {
     expect(decoded(JSON.parse(serializeState(state))).state.pieceKeeps).toEqual(state.pieceKeeps)
   })
 
+  it('round-trips known layout choices and ignores unknown choices safely', () => {
+    const state = defaultState()
+    state.layoutChoice = { 'alc-and-go': 'snake' }
+
+    expect(decoded(JSON.parse(serializeState(state))).state.layoutChoice).toEqual(
+      state.layoutChoice,
+    )
+
+    const result = decoded(
+      persisted({
+        layoutChoice: {
+          'alc-and-go': 'missing-layout',
+          'unknown-strategy': 'snake',
+          'milky-speedrun': 3,
+        },
+      }),
+    )
+    expect(result.state.layoutChoice).toEqual({})
+    expect(result.warnings).toEqual([
+      'layoutChoice.alc-and-go was ignored because the layout is unknown',
+      'layoutChoice.unknown-strategy was ignored because the layout is unknown',
+      'layoutChoice.milky-speedrun was ignored because it is not a string',
+    ])
+  })
+
   it('round-trips a normal export state', () => {
     const state: AppState = {
       ...defaultState(),

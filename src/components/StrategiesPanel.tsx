@@ -9,6 +9,8 @@ interface Props {
   pool: ChartData[]
   borders: Borders
   onSelect: (id: string | null) => void
+  layoutChoice?: Record<string, string>
+  onLayoutChoice?: (strategyId: string, layoutId: string) => void
 }
 
 function Readiness({
@@ -102,7 +104,14 @@ function RegexRow({
   )
 }
 
-export function StrategiesPanel({ activeId, pool, borders, onSelect }: Props) {
+export function StrategiesPanel({
+  activeId,
+  pool,
+  borders,
+  onSelect,
+  layoutChoice,
+  onLayoutChoice,
+}: Props) {
   const [expanded, setExpanded] = useState<string | null>(activeId)
 
   return (
@@ -121,7 +130,9 @@ export function StrategiesPanel({ activeId, pool, borders, onSelect }: Props) {
         onClick={() => onSelect(null)}
       >
         <span className="strat-name">None (manual)</span>
-        <span className="strat-tagline">Use your own reward weights below.</span>
+        <span className="strat-tagline">
+          Use your own reward weights in Solver Settings, next to Solve.
+        </span>
       </button>
 
       {STRATEGIES.map((s) => {
@@ -172,6 +183,33 @@ export function StrategiesPanel({ activeId, pool, borders, onSelect }: Props) {
                 ))}
               </div>
             )}
+            {(isActive || isOpen) &&
+              s.layouts &&
+              (() => {
+                const chosen =
+                  s.layouts.find((layout) => layout.id === layoutChoice?.[s.id]) ?? s.layouts[0]
+                return (
+                  <div className="strat-layouts">
+                    <div className="strat-layouts-row">
+                      <label className="strat-layouts-label" htmlFor={`strategy-layout-${s.id}`}>
+                        Layout
+                      </label>
+                      <select
+                        id={`strategy-layout-${s.id}`}
+                        value={chosen.id}
+                        onChange={(event) => onLayoutChoice?.(s.id, event.target.value)}
+                      >
+                        {s.layouts.map((layout) => (
+                          <option key={layout.id} value={layout.id}>
+                            {layout.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="strat-layouts-hint muted">{chosen.hint}</div>
+                  </div>
+                )
+              })()}
             {(isActive || isOpen) && s.searchRegex && (
               <RegexRow regex={s.searchRegex} strategyId={s.id} strategyName={s.name} />
             )}

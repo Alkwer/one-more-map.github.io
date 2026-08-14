@@ -49,12 +49,16 @@ CoordMode "ToolTip", "Screen"
 ;   synchronized on every F9 / Ctrl+F9 scan.
 ;
 ;  CALIBRATE THE CHART GRID (once; saved to voyage-import.ini)
-;   - Hover the CENTRE of the TOP-LEFT chart, press  F7.
+;   - Use the small chart INVENTORY squares on the right side of the Voyage
+;     screen, not the large 3x3 Voyage board in the middle.
+;   - Hover the CENTRE of the TOP-LEFT chart, press F7.
 ;   - Hover the CENTRE of the BOTTOM-RIGHT cell of the 6-wide grid
 ;     (the far corner cell, even if it's empty), press  F8.
 ;   - Hover the CENTRE of chart-stash tab 1, press Shift+F7.
 ;   - Hover the CENTRE of chart-stash tab 2, press Shift+F8.
 ;   - Set GridCols / GridRows below to match your panel.
+;   - Tray menu -> Configure blank-row skip changes how many fully empty rows
+;     end a tab sweep; choose 0 if you keep Charts below large gaps.
 ;
 ;  RUN
 ;   F9      = copy charts + board borders and import them into the solver
@@ -90,13 +94,15 @@ BrowserPasteDelay := 180 ; ms after activating the solver page
 BorderOcrAttempts := 2  ; retry once when both filtered and unfiltered OCR are empty
 BorderPreviewDelay := 900 ; ms per point during the Ctrl+F4 visual preview
 ClipTimeout   := 0.2   ; seconds to wait for Ctrl+C (only empty cells wait the full time)
-EmptySkip     := 8     ; consecutive empty cells = the rest of the tab is empty, skip it
 OcrTimeout    := 90    ; seconds before a stuck Windows OCR scan is stopped
 ; If it ever MISSES a chart, raise HoverDelay ~10ms at a time (the cursor
 ; isn't settling before Ctrl+C).
 ; ----------------------------------------
 
 IniFile := A_ScriptDir "\voyage-import.ini"
+; Stop a tab sweep after this many completely blank rows in a row. Set 0 to
+; scan every cell (useful when Charts are parked below a large gap).
+EmptySkipRows := IniRead(IniFile, "sweep", "EmptySkipRows", "2") + 0
 CalibrationSpaceVersion := "poe-client-ratio-v1"
 CalibrationSpace := IniRead(IniFile, "meta", "CoordinateSpace", "legacy-screen")
 TLx := IniRead(IniFile, "grid", "TLx", "0") + 0
@@ -486,6 +492,7 @@ OcrOutput := TempDir "\voyage-border-ocr-" ScriptPid ".txt"
 OcrPid := 0
 LastBorderScanBlocks := 0
 Running := false
+A_TrayMenu.Add "Configure blank-row skip...", PromptEmptySkip
 
 StopOcrProcess() {
     global OcrPid
@@ -502,6 +509,7 @@ CleanupOcrArtifacts() {
     try FileDelete OcrOutput
     try FileDelete A_Temp "\voyage-border-" ScriptPid "-*.png"
     try FileDelete A_Temp "\voyage-ocr-filtered-" ScriptPid "-*.png"
+    try FileDelete A_Temp "\voyage-ocr-normalized-" ScriptPid "-*.png"
 }
 
 CleanupOcr(*) {
@@ -749,6 +757,103 @@ public static class VoyageOcrImage
             }
         }
     }
+
+    // HDR desktops can make GDI captures washed-out and low-contrast. Stretch
+    // the 2nd..98th percentile luminance range to full contrast as a final OCR
+    // pass. Keep Prepare's scale and padding across display resolutions.
+    public static void Normalize(string sourcePath, string outputPath)
+    {
+        using (var original = new Bitmap(sourcePath))
+        using (var source = new Bitmap(original.Width, original.Height, PixelFormat.Format32bppArgb))
+        {
+            using (var graphics = Graphics.FromImage(source))
+            {
+                graphics.DrawImageUnscaled(original, 0, 0);
+            }
+
+            var rect = new Rectangle(0, 0, source.Width, source.Height);
+            var sourceData = source.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            var sourceStride = Math.Abs(sourceData.Stride);
+            var sourceBytes = new byte[sourceStride * source.Height];
+            Marshal.Copy(sourceData.Scan0, sourceBytes, 0, sourceBytes.Length);
+            source.UnlockBits(sourceData);
+
+            var histogram = new int[256];
+            var luminance = new byte[source.Width * source.Height];
+            var index = 0;
+            for (var y = 0; y < source.Height; y++)
+            {
+                for (var x = 0; x < source.Width; x++)
+                {
+                    var offset = y * sourceStride + x * 4;
+                    var value = (byte)((sourceBytes[offset] * 114 +
+                        sourceBytes[offset + 1] * 587 +
+                        sourceBytes[offset + 2] * 299) / 1000);
+                    luminance[index++] = value;
+                    histogram[value]++;
+                }
+            }
+
+            var total = source.Width * source.Height;
+            var lowTarget = total / 50;
+            var highTarget = total - total / 50;
+            var low = 0;
+            var high = 255;
+            var cumulative = 0;
+            for (var i = 0; i < 256; i++)
+            {
+                cumulative += histogram[i];
+                if (cumulative <= lowTarget) { low = i; }
+                if (cumulative < highTarget) { high = i; }
+            }
+            if (high <= low) { high = low + 1; }
+
+            using (var normalized = new Bitmap(source.Width, source.Height, PixelFormat.Format24bppRgb))
+            {
+                var normalizedData = normalized.LockBits(rect, ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
+                var normalizedStride = Math.Abs(normalizedData.Stride);
+                var normalizedBytes = new byte[normalizedStride * normalized.Height];
+                index = 0;
+                for (var y = 0; y < source.Height; y++)
+                {
+                    for (var x = 0; x < source.Width; x++)
+                    {
+                        var stretched = (luminance[index++] - low) * 255 / (high - low);
+                        if (stretched < 0) { stretched = 0; }
+                        if (stretched > 255) { stretched = 255; }
+                        var value = (byte)stretched;
+                        var offset = y * normalizedStride + x * 3;
+                        normalizedBytes[offset] = value;
+                        normalizedBytes[offset + 1] = value;
+                        normalizedBytes[offset + 2] = value;
+                    }
+                }
+                Marshal.Copy(normalizedBytes, 0, normalizedData.Scan0, normalizedBytes.Length);
+                normalized.UnlockBits(normalizedData);
+
+                var scale = Math.Min(2.0, 6000.0 / Math.Max(normalized.Width, normalized.Height));
+                var scaledWidth = (int)Math.Round(normalized.Width * scale);
+                var scaledHeight = (int)Math.Round(normalized.Height * scale);
+                const int padding = 64;
+                using (var prepared = new Bitmap(
+                    scaledWidth + 2 * padding,
+                    scaledHeight + 2 * padding,
+                    PixelFormat.Format24bppRgb))
+                {
+                    using (var graphics = Graphics.FromImage(prepared))
+                    {
+                        graphics.Clear(Color.White);
+                        graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
+                        graphics.PixelOffsetMode = PixelOffsetMode.Half;
+                        graphics.DrawImage(
+                            normalized,
+                            new Rectangle(padding, padding, scaledWidth, scaledHeight));
+                    }
+                    prepared.Save(outputPath, ImageFormat.Png);
+                }
+            }
+        }
+    }
 }
 '@
 
@@ -897,7 +1002,16 @@ function Read-OcrLines {
             $text = Invoke-OcrFile $Path $engine
         }
         if ([string]::IsNullOrWhiteSpace($text)) {
-            throw 'Windows OCR returned no text after filtered and unfiltered scans.'
+            $normalizedPath = Join-Path $env:TEMP "voyage-ocr-normalized-$RunId-$PID-$([Guid]::NewGuid().ToString('N')).png"
+            [VoyageOcrImage]::Normalize($Path, $normalizedPath)
+            try {
+                $text = Invoke-OcrFile $normalizedPath $engine
+            } finally {
+                Remove-Item -LiteralPath $normalizedPath -Force -ErrorAction SilentlyContinue
+            }
+        }
+        if ([string]::IsNullOrWhiteSpace($text)) {
+            throw 'Windows OCR returned no text after filtered, unfiltered and contrast-stretched scans. If Windows HDR is on, turn it off for the scan (Win+Alt+B).'
         }
         return $text
     } finally {
@@ -1427,12 +1541,34 @@ F8:: {
     Flash "Chart-stash tab 2 saved relative to the PoE window."
 }
 
+PromptEmptySkip(*) {
+    global EmptySkipRows, IniFile
+    result := InputBox("Skip the rest of a chart tab after how many fully blank rows in a row?"
+        . "`n0 = never skip; scan every cell.", "Blank-row skip", "w420 h150", EmptySkipRows)
+    if (result.Result != "OK")
+        return
+    if !RegExMatch(Trim(result.Value), "^\d+$") {
+        Flash "Enter a whole number (0 or more).", 2500
+        return
+    }
+    EmptySkipRows := Trim(result.Value) + 0
+    IniWrite EmptySkipRows, IniFile, "sweep", "EmptySkipRows"
+    Flash "Blank-row skip: " (EmptySkipRows = 0
+        ? "disabled"
+        : "after " EmptySkipRows " blank row" (EmptySkipRows = 1 ? "" : "s")), 3000
+}
+
+ReleaseModifiers() {
+    Send "{Ctrl up}{Alt up}{Shift up}"
+}
+
 ; ---- F10: abort ----
 F10:: {
     global Running, ExactBorderNext
     Running := false
     ExactBorderNext := 0
     CleanupOcr()
+    ReleaseModifiers()
     Flash "Aborting..."
 }
 
@@ -1471,6 +1607,7 @@ F10:: {
         return
     if (borderBlob = "" && rerollCostBlob = "") {
         Running := false
+        ReleaseModifiers()
         Flash "Border and reroll-cost OCR returned no data. Try Ctrl+F9 again.", 4000
         return
     }
@@ -1482,10 +1619,12 @@ F10:: {
     delivery := DeliverPayloadToSolver(payload)
     if (delivery = "failed") {
         Running := false
+        ReleaseModifiers()
         return
     }
 
     Running := false
+    ReleaseModifiers()
     costNote := RerollCostCalibrated()
         ? (rerollCostBlob != "" ? " + reroll cost" : " (reroll-cost OCR failed)")
         : " (reroll cost skipped: calibrate Ctrl+F7)"
@@ -1508,7 +1647,7 @@ F9:: {
     }
 
     Running := true
-    copied := 0, skipped := 0, scannedCharts := 0
+    copied := 0, skipped := 0, nonChart := 0, scannedCharts := 0
     blob := "", borderBlob := "", rerollCostBlob := ""
     delivery := "none"
     firstChart := "", allIdentical := true, firstTabSignature := "", tabsIdentical := false
@@ -1536,6 +1675,7 @@ F9:: {
         }
         tabSignature := ""
         emptyStreak := 0
+        emptySkipCells := EmptySkipRows * GridCols
 
         Loop GridRows {
             if !Running || !RequireBoundPoeForeground() {
@@ -1567,8 +1707,10 @@ F9:: {
                     tabSignature .= "|0:"
                     skipped++                 ; empty slot - nothing copied
                     emptyStreak++
-                    if (emptyStreak >= EmptySkip) {
-                        ToolTip "Tab " tabIndex ": rest looks empty - skipping ahead..."
+                    if (emptySkipCells > 0 && emptyStreak >= emptySkipCells) {
+                        ToolTip "Tab " tabIndex ": " EmptySkipRows
+                            . " blank row" (EmptySkipRows = 1 ? "" : "s")
+                            . " - skipping the rest..."
                         break 2
                     }
                     continue
@@ -1577,6 +1719,7 @@ F9:: {
                 tabSignature .= "|" StrLen(clip) ":" clip
                 if !IsChartText(clip) {
                     skipped++                 ; not a Chart item
+                    nonChart++
                     emptyStreak := 0
                     continue
                 }
@@ -1625,8 +1768,20 @@ F9:: {
     } else if Running && scannedCharts >= 5 && allIdentical {
         blob := "", copied := 0
         calibWarn := "Every occupied grid cell copied the SAME chart, so none were sent"
-            . " - your grid calibration looks wrong (or PoE's window moved)."
-            . " Recalibrate with F7/F8 and try again."
+            . " - your chart-inventory grid calibration looks wrong (or PoE's window moved)."
+            . " Recalibrate the small chart squares with F7/F8 and try again."
+    }
+    if (Running && calibWarn = "" && copied = 0) {
+        if (nonChart > 0)
+            calibWarn := "Copied " nonChart " item(s) that aren't Charts - the F7/F8 grid"
+                . " is probably over the wrong panel. Calibrate the small chart INVENTORY"
+                . " squares on the right, not the large 3x3 Voyage board."
+        else
+            calibWarn := "Nothing was ever copied - Ctrl+C isn't reaching the game,"
+                . " or the grid isn't over your Charts. Check that F7/F8 target the small"
+                . " chart INVENTORY squares on the right; then check administrator mode,"
+                . " mouse-and-keyboard input, Windowed mode, and that the chart panel is open."
+                . " (If the chart inventory is genuinely empty, ignore this.)"
     }
 
     ; ---- Phase 2: OCR the 12 borders and the optional reroll-cost tooltip ----
@@ -1654,11 +1809,13 @@ F9:: {
         delivery := DeliverPayloadToSolver(payload)
         if (delivery = "failed") {
             Running := false
+            ReleaseModifiers()
             return
         }
     }
 
     Running := false
+    ReleaseModifiers()
     borderNote := BoardCalibrated()
         ? " + " LastBorderScanBlocks "/12 border OCR results"
         : " (borders skipped: calibrate F5/F6)"

@@ -97,3 +97,22 @@ describe('keeper search accessibility', () => {
     expect(html).toContain('aria-label="Copy Speedrun Strongboxes keeper search"')
   })
 })
+
+describe('selectable strategy layouts', () => {
+  it('shows and labels the persisted Alc & Go layout choice', () => {
+    const html = renderToStaticMarkup(
+      <StrategiesPanel
+        activeId="alc-and-go"
+        pool={[]}
+        borders={emptyBorders()}
+        onSelect={() => undefined}
+        layoutChoice={{ 'alc-and-go': 'snake' }}
+        onLayoutChoice={() => undefined}
+      />,
+    )
+
+    expect(html).toContain('<label class="strat-layouts-label" for="strategy-layout-alc-and-go">')
+    expect(html).toContain('<option value="snake" selected="">S-snake</option>')
+    expect(html).toContain('One continuous path — fastest to run.')
+  })
+})
