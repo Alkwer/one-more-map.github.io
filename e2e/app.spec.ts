@@ -569,9 +569,9 @@ test('globally imports English, Korean, and border clipboard payloads', async ({
 
   await pasteText(appPage, REROLL_COST_PAYLOAD)
   await expect(
-    appPage.getByLabel('Voyage Recommendation').getByText('3/5', { exact: true }),
+    appPage.getByLabel('Voyage Recommendation').getByText('0/5', { exact: true }),
   ).toBeVisible()
-  await expect(appPage.getByRole('button', { name: 'Decrease rerolls used' })).toBeEnabled()
+  await expect(appPage.getByRole('button', { name: 'Decrease rerolls used' })).toBeDisabled()
   await expect
     .poll(() => workerUrls.some((url) => /\/assets\/solver\.worker-[^/]+\.js$/.test(url)))
     .toBe(true)
@@ -916,7 +916,9 @@ test('invalidates stale borders and rerolls after an interrupted Windows OCR swe
   await expect(importStatus).toContainText(
     'cleared the stale border snapshot and reroll count; recommendations are paused until a complete scan',
   )
-  await expect(appPage.getByText('No border modifiers entered yet.')).toBeVisible()
+  await expect(appPage.getByRole('button', { name: /Border segment \d+: No border/ })).toHaveCount(
+    12,
+  )
   await expect(appPage.locator('.voyage-reroll-used strong')).toHaveText('0/5')
   await expect(importStatus).toContainText('OCR language en-US')
 })
