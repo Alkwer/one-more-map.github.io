@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { STRATEGIES, type StrategyDef } from '../data/strategies'
-import { strategyReadiness } from '../logic/strategySuggestions'
+import { strategyReadiness } from '../logic/strategyReadiness'
 import { writeClipboardText } from '../logic/clipboard'
 import type { Borders, ChartData } from '../types'
 

@@ -27,6 +27,7 @@ interface UseModalDialogOptions {
   initialFocusRef?: RefObject<HTMLElement>
   closeOnEscape?: boolean
   role?: 'dialog' | 'alertdialog'
+  restoreFocus?: 'deferred' | 'immediate' | 'none'
 }
 
 export function useModalDialog({
@@ -35,6 +36,7 @@ export function useModalDialog({
   initialFocusRef,
   closeOnEscape = true,
   role = 'dialog',
+  restoreFocus = 'deferred',
 }: UseModalDialogOptions) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const restoreTargetRef = useRef<HTMLElement | null | undefined>(undefined)
@@ -75,7 +77,7 @@ export function useModalDialog({
       for (const [element, wasInert] of inertStates) element.inert = wasInert
 
       const capturedTarget = restoreTargetRef.current
-      restoreFrameRef.current = window.requestAnimationFrame(() => {
+      const restore = () => {
         const active = document.activeElement
         const currentTarget =
           active instanceof HTMLElement && active !== document.body && active.isConnected
@@ -86,9 +88,13 @@ export function useModalDialog({
         )
         const target = capturedTarget?.isConnected ? capturedTarget : (currentTarget ?? fallback)
         target?.focus()
-      })
+      }
+      if (restoreFocus === 'immediate') restore()
+      else if (restoreFocus === 'deferred') {
+        restoreFrameRef.current = window.requestAnimationFrame(restore)
+      }
     }
-  }, [initialFocusRef])
+  }, [initialFocusRef, restoreFocus])
 
   const onDialogKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape') {

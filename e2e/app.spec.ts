@@ -265,6 +265,46 @@ test('exposes the primary screen structure and visible focus in both themes', as
   await expect(themeButton).toHaveCSS('box-shadow', /rgb\(255, 255, 255\)/)
 })
 
+test('keeps a lazy modal accessible while its screen chunk is loading', async ({ appPage }) => {
+  let releaseChunk!: () => void
+  const chunkHeld = new Promise<void>((resolve) => {
+    releaseChunk = resolve
+  })
+  await appPage.route('**/*', async (route) => {
+    if (!/\/assets\/ModBrowser-[^/]+\.js(?:\?.*)?$/.test(route.request().url())) {
+      await route.fallback()
+      return
+    }
+    await chunkHeld
+    await route.continue()
+  })
+  await openApp(appPage)
+
+  const trigger = appPage.getByRole('button', { name: 'Mods' })
+  await trigger.focus()
+  await trigger.evaluate((element: HTMLButtonElement) => element.click())
+
+  const loadingDialog = appPage.getByRole('dialog', { name: 'Chart Modifiers' })
+  const safetyRelease = setTimeout(releaseChunk, 10_000)
+  try {
+    await expect(loadingDialog.getByRole('status')).toHaveText('Loading this screen…')
+    await expect(loadingDialog.locator('[data-dialog-initial-focus]')).toBeFocused()
+    await expect(appPage.locator('main')).toHaveJSProperty('inert', true)
+    await expectNoAccessibilityViolations(appPage)
+  } finally {
+    clearTimeout(safetyRelease)
+    releaseChunk()
+  }
+  await appPage.unrouteAll({ behavior: 'wait' })
+  await expect(loadingDialog.getByRole('textbox', { name: 'Filter chart modifiers' })).toBeVisible()
+  await expect(loadingDialog.locator('[data-dialog-initial-focus]')).toBeFocused()
+
+  await appPage.keyboard.press('Escape')
+  await expect(loadingDialog).toHaveCount(0)
+  await expect(trigger).toBeFocused()
+  await expect(appPage.locator('main')).toHaveJSProperty('inert', false)
+})
+
 test('keeps every modal workflow labelled, contained, dismissible, and focus-safe', async ({
   appPage,
 }) => {

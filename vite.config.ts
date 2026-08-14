@@ -24,6 +24,10 @@ export function createAppViteConfig(mode: string): UserConfig {
         },
       },
     ],
+    build: {
+      // The manifest drives the bundle-budget check without depending on hashed filenames.
+      manifest: true,
+    },
   }
 }
 

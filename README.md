@@ -85,6 +85,7 @@ The development server is available at `http://localhost:5173`.
 | `npm run check:scope`          | Verify test discovery stays inside the tracked project scope   |
 | `npm run check:research-stats` | Check documented corpus statistics against canonical JSON      |
 | `npm run sync:research-stats`  | Regenerate documented corpus statistics from canonical JSON    |
+| `npm run check:bundle`         | Enforce initial application gzip budgets from Vite's manifest  |
 | `npm run typecheck`            | Strict-check app, E2E, tests, benchmarks, and TS configs       |
 | `npm run lint`                 | Run ESLint with zero warnings allowed                          |
 | `npm run check:eol`            | Require LF endings in every tracked text file                  |
@@ -103,6 +104,9 @@ The development server is available at `http://localhost:5173`.
 
 Run `npm run validate` before opening a pull request. Git attributes, Prettier,
 and the EOL check keep tracked text on LF even when Git uses `core.autocrlf=true`.
+The production build also keeps the entry surfaces at or below 100 KiB gzip and
+their complete eager dependency graph at or below 120 KiB gzip; lazy screens are
+excluded until requested.
 The deterministic solver
 fixture, quality floor, reference environment, and current before/after timings
 are documented in [docs/solver-performance.md](docs/solver-performance.md).
