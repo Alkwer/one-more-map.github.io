@@ -250,6 +250,7 @@ test('exposes the primary screen structure and visible focus in both themes', as
   await expect(appPage.getByRole('heading', { level: 2, name: 'Import' })).toBeVisible()
   await expect(appPage.getByRole('heading', { level: 2, name: 'Voyage Board' })).toBeVisible()
   await expect(appPage.getByRole('heading', { level: 2, name: 'Diagnostics' })).toBeVisible()
+  await expect(appPage.locator('body')).toHaveCSS('background-image', /bg\.webp/)
   await expectNoAccessibilityViolations(appPage)
 
   const themeButton = appPage.locator('.theme-link')
@@ -259,6 +260,7 @@ test('exposes the primary screen structure and visible focus in both themes', as
 
   await themeButton.click()
   await expect(appPage.locator('body')).toHaveClass(/theme-harvest/)
+  await expect(appPage.locator('body')).not.toHaveCSS('background-image', /bg(?:-mobile)?\.webp/)
   await themeButton.focus()
   await expect(themeButton).toHaveCSS('outline-color', 'rgb(0, 0, 0)')
   await expect(themeButton).toHaveCSS('outline-width', '3px')

@@ -85,9 +85,15 @@ a:hover {
 
 body {
   margin: 0;
-  background: #030506 url('/bg.webp') center top / cover no-repeat fixed;
+  background: #030506 url('/bg-mobile.webp') center top / cover no-repeat fixed;
   color: var(--text);
   font: 15px/1.45 var(--serif);
+}
+
+@media (min-width: 761px) {
+  body {
+    background-image: url('/bg.webp');
+  }
 }
 
 .frame-blocked {
