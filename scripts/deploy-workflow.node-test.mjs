@@ -74,11 +74,17 @@ test('dataset and generated research-summary updates keep required checks while 
   assert.match(qualityBlock, /^ {6}- name: Run full validation$/m)
   assert.match(qualityBlock, /^ {8}if: needs\.scope\.outputs\.data_only != 'true'$/m)
   assert.match(qualityBlock, /^ {8}run: npm run validate$/m)
+  assert.match(qualityBlock, /^ {6}BORDER_ROLL_INTAKE_URL: https:\/\//m)
+  assert.match(qualityBlock, /^ {6}- name: Stage root-site artifact and project-site E2E wrapper$/m)
+  assert.match(qualityBlock, /^ {8}if: needs\.scope\.outputs\.data_only != 'true'$/m)
+  assert.match(qualityBlock, /^ {8}run: npm run build:pages:e2e$/m)
+  assert.match(qualityBlock, /^ {6}- name: Prepare the deployment-scoped Pages artifact$/m)
   assert.match(
     qualityBlock,
-    /^ {8}if: needs\.scope\.outputs\.data_only != 'true' \|\| \(github\.event_name != 'pull_request' && github\.ref == 'refs\/heads\/main'\)$/m,
-    'dataset-only main pushes must still stage the Pages artifact',
+    /^ {8}if: github\.event_name != 'pull_request' && github\.ref == 'refs\/heads\/main'$/m,
+    'only a main non-PR run may prepare an artifact for Pages upload',
   )
+  assert.match(qualityBlock, /^ {8}run: npm run build:pages$/m)
   assert.equal(
     packageJson.scripts['validate:data-update'],
     'node scripts/validate-canonical-border-roll-dataset.mjs && npm run check:research-stats && npm run test:data && vitest run --config vitest.config.ts tests/border-roll-model.test.ts && npm run check:eol && npm run format:check && npm run build',

@@ -1,5 +1,9 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import {
+  borderIntakeContentSecurityPolicy,
+  resolveBorderIntakeDeployment,
+} from '../scripts/border-intake-deployment.ts'
 
 describe('page script trust boundary', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
@@ -16,10 +20,14 @@ describe('page script trust boundary', () => {
   })
 
   it('restricts scripts to the application origin', () => {
+    const policy = borderIntakeContentSecurityPolicy(resolveBorderIntakeDeployment({}))
+
     expect(html).toContain('http-equiv="Content-Security-Policy"')
-    expect(html).toContain("script-src 'self'")
-    expect(html).toContain("object-src 'none'")
-    expect(html).toContain("base-uri 'self'")
+    expect(html).toContain('content="__BORDER_ROLL_CONTENT_SECURITY_POLICY__"')
+    expect(policy).toContain("script-src 'self'")
+    expect(policy).toContain("connect-src 'self'")
+    expect(policy).toContain("object-src 'none'")
+    expect(policy).toContain("base-uri 'self'")
   })
 
   it('checks the top-level browsing context before loading stateful application modules', () => {

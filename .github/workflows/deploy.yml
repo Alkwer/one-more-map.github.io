@@ -70,6 +70,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PLAYWRIGHT_PROJECT_SITE_PREFIX: /one-more-map.github.io/
+      BORDER_ROLL_INTAKE_URL: https://allflame-border-roll-intake.green-loom-6865.chatgpt.site/api/border-rolls
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -106,8 +107,8 @@ jobs:
         if: needs.scope.outputs.data_only != 'true'
         run: npx playwright install --with-deps chromium webkit
       - name: Stage root-site artifact and project-site E2E wrapper
-        if: needs.scope.outputs.data_only != 'true' || (github.event_name != 'pull_request' && github.ref == 'refs/heads/main')
-        run: npm run stage:pages
+        if: needs.scope.outputs.data_only != 'true'
+        run: npm run build:pages:e2e
       - name: Run bounded browser matrix
         if: needs.scope.outputs.data_only != 'true'
         run: npx playwright test
@@ -117,6 +118,9 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 14
+      - name: Prepare the deployment-scoped Pages artifact
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: npm run build:pages
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         with:

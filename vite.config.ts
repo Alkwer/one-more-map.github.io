@@ -1,8 +1,30 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv, type UserConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import {
+  borderIntakeContentSecurityPolicy,
+  resolveBorderIntakeDeployment,
+} from './scripts/border-intake-deployment.ts'
 
 // base './' so the built site works on GitHub Pages or any subpath
-export default defineConfig({
-  base: './',
-  plugins: [react()],
-})
+export function createAppViteConfig(mode: string): UserConfig {
+  const deployment = resolveBorderIntakeDeployment(loadEnv(mode, process.cwd(), ''), mode)
+  const contentSecurityPolicy = borderIntakeContentSecurityPolicy(deployment)
+
+  return {
+    base: './',
+    define: {
+      __BORDER_ROLL_INTAKE_URL__: JSON.stringify(deployment.endpoint),
+    },
+    plugins: [
+      react(),
+      {
+        name: 'border-intake-deployment-config',
+        transformIndexHtml(html) {
+          return html.replace('__BORDER_ROLL_CONTENT_SECURITY_POLICY__', contentSecurityPolicy)
+        },
+      },
+    ],
+  }
+}
+
+export default defineConfig(({ mode }) => createAppViteConfig(mode))

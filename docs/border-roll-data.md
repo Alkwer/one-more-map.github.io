@@ -141,6 +141,41 @@ embedded in the application. The endpoint:
 The intake database stores only the digest, sequence ID, processing status, and
 resulting issue number/URL. It does not retain the submitted JSON or OCR output.
 
+### Intake deployment operations
+
+The maintainers of `Alkwer/one-more-map.github.io` own the browser-side
+deployment binding in `.github/workflows/deploy.yml`; the operators of the
+separate Codex Sites intake deployment own its runtime, limited GitHub
+credential, private submission key, and CORS policy. The endpoint URL is public
+deployment configuration, not a secret. Credentials must remain in the intake
+service and must never be placed in the workflow, Vite environment, repository
+variables, logs, or built assets.
+
+The workflow passes `BORDER_ROLL_INTAKE_URL` at build time. Vite accepts that
+value only when GitHub identifies a `push` or manual workflow run for `main` in
+the canonical `Alkwer/one-more-map.github.io` repository. It injects the full
+endpoint into application code and only the parsed HTTPS origin into CSP
+`connect-src`. Local builds, pull-request builds, and copied workflows in other
+forks ignore the setting and produce an unconfigured application. The explicit
+`e2e` build mode is test-only and its staged artifact is replaced by a normal,
+deployment-scoped build before Pages upload.
+
+The intake CORS allowlist contains exactly the canonical Pages origin
+`https://alkwer.github.io`; the project path is not part of an HTTP origin. Do
+not add localhost, preview URLs, pull-request hosts, or unrelated forks to the
+production allowlist. A separately operated deployment needs its own endpoint,
+key, and exact-origin allowlist rather than access to this service.
+
+To rotate or move the endpoint, operators should deploy and validate the
+replacement service first, update its exact canonical-origin allowlist, then
+change `BORDER_ROLL_INTAKE_URL` in the deploy workflow and deploy `main`. Inspect
+the built CSP and perform an unauthenticated OPTIONS preflight from the
+canonical origin before distributing a replacement private submission key.
+After cutover, revoke the old key and service credential, remove the old origin
+or endpoint, and retire the old deployment. A missing or invalid endpoint fails
+the canonical build instead of silently producing a partially configured
+deployment.
+
 ### Key rotation
 
 The current browser outbox automatically rewrites valid legacy data on load,

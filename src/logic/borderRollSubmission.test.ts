@@ -52,10 +52,8 @@ describe('border roll automatic submission queue', () => {
     })
   })
 
-  it('uses the deployed production intake endpoint by default', () => {
-    expect(BORDER_ROLL_INTAKE_URL).toBe(
-      'https://allflame-border-roll-intake.green-loom-6865.chatgpt.site/api/border-rolls',
-    )
+  it('defaults automatic intake to unconfigured outside a deployment build', () => {
+    expect(BORDER_ROLL_INTAKE_URL).toBe('')
   })
 
   it('queues one complete sequence once without persisting the private key', () => {

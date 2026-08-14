@@ -189,6 +189,14 @@ matrix. A successful `main` build is staged under
 to GitHub Pages. The workflow is defined in
 [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).
 
+That workflow owns the public border-intake endpoint setting. Vite injects it,
+and the matching `connect-src` origin, only for a non-PR `main` build of
+`Alkwer/one-more-map.github.io`. Ordinary local builds, pull-request builds, and
+unrelated forks ship with automatic intake unconfigured and show that state in
+the contribution panel. See
+[docs/border-roll-data.md](docs/border-roll-data.md#intake-deployment-operations)
+for the deployment, allowlist, and rotation runbook.
+
 ## Local data and privacy
 
 Saved charts, research samples, and pending submissions stay in browser
