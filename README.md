@@ -83,6 +83,8 @@ The development server is available at `http://localhost:5173`.
 | `npm run validate:data-update` | Validate a dataset-only update and build the application       |
 | `npm run audit:ci`             | Enforce the production and high-severity dependency policy     |
 | `npm run check:scope`          | Verify test discovery stays inside the tracked project scope   |
+| `npm run check:research-stats` | Check documented corpus statistics against canonical JSON      |
+| `npm run sync:research-stats`  | Regenerate documented corpus statistics from canonical JSON    |
 | `npm run typecheck`            | Strict-check app, E2E, tests, benchmarks, and TS configs       |
 | `npm run lint`                 | Run ESLint with zero warnings allowed                          |
 | `npm run check:eol`            | Require LF endings in every tracked text file                  |
@@ -179,9 +181,10 @@ module map and contributor workflow.
 ## Deployment
 
 GitHub Actions runs `npm ci` and `npm run validate` for pull requests and pushes
-to `main`. Changes limited to `data/border-rolls-v2.json` use focused dataset,
-model, and production-build validation; they skip the Windows teardown job and
-browser matrix. A successful `main` build is staged under
+to `main`. Changes limited to `data/border-rolls-v2.json` and its generated
+corpus-statistics block in `RESEARCH.md` use focused dataset, model, and
+production-build validation; they skip the Windows teardown job and browser
+matrix. A successful `main` build is staged under
 `/allflame-voyage-solver/`, with a redirect at the Pages root, and then deployed
 to GitHub Pages. The workflow is defined in
 [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).

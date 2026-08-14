@@ -22,13 +22,17 @@ Confidence labels:
 ### Result
 
 Research is sufficient to model the **Sulphur cost curve** and an experimental
-slot-aware roll distribution, but not a defensible reroll EV. The canonical
-2026-08-10 export contains 50 boards from 29 Voyages: 29 natural boards and 21
-paid rerolls from 12 paid sequences. It strongly supports physical slot
-families and confirms duplicates, but does not establish within-board
-independence or rare-mod probabilities. Border modifiers are present before any
-charts are placed, so the levels of subsequently placed charts cannot determine
-border-mod eligibility.
+slot-aware roll distribution, but not a defensible reroll EV.
+<!-- border-roll-corpus-stats:start -->
+
+The canonical 2026-08-13 export contains 55 boards from 32 Voyages: 32 natural
+boards and 23 paid rerolls from 13 paid sequences.
+<!-- border-roll-corpus-stats:end -->
+
+It strongly supports physical slot families and confirms duplicates, but does
+not establish within-board independence or rare-mod probabilities. Border
+modifiers are present before any charts are placed, so the levels of subsequently
+placed charts cannot determine border-mod eligibility.
 
 ### Reroll mechanics and cost
 
@@ -110,8 +114,9 @@ Current evidence and remaining unknowns:
 3. Exact duplicates are confirmed, including three copies of one modifier on a
    board; any higher duplicate limit remains unknown.
 4. A matched natural-versus-paid comparison detects no difference (`p = 0.41`),
-   but only 12 Voyages contain a paid reroll and player-selected rerolls can bias
-   the sample. This is non-detection, not evidence of equivalence.
+   but only the paid-sequence subset summarized above contains a paid reroll, and
+   player-selected rerolls can bias the sample. This is non-detection, not
+   evidence of equivalence.
 5. Whether the third reroll constant really enforces a five-reroll cap.
 6. Precisely when the doubling counter resets.
 
@@ -121,8 +126,8 @@ Current evidence and remaining unknowns:
   borders against the user's planned charts and preferences.
 - Experimental **"reroll or keep" guidance** is available from version 3 of the
   observed-roll model. Natural boards enter the sparse slot estimates at half
-  weight, but only paid sequences raise confidence. The current 12 paid
-  sequences remain `low`.
+  weight, but only paid sequences raise confidence. The current paid-sequence
+  count summarized above remains `low`.
 - Model output reports prior sensitivity and compares rolls on a border-blind
   reference layout. It does not price Sulphur or claim optimal stopping; the
   3,000/6,000 guardrail remains in force.

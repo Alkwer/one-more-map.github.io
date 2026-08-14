@@ -44,6 +44,7 @@ jobs:
           node scripts/build-border-roll-dataset.mjs \
             --input "$RUNNER_TEMP/accepted-border-roll-issues.json" \
             --output data/border-rolls-v2.json
+          node scripts/research-corpus-stats.mjs --write
 
       - name: Reconcile dataset update pull request
         env:
