@@ -2,6 +2,8 @@
 // data corrections stay out. Newest first; the top entry's date drives the
 // "unseen updates" dot on the header button.
 
+import { LATEST_UPDATE_DATE } from './latestUpdate'
+
 export interface UpdateEntry {
   /** ISO date the feature shipped */
   date: string
@@ -13,7 +15,7 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
-    date: '2026-08-14',
+    date: LATEST_UPDATE_DATE,
     tag: 'reworked',
     title: 'Selectable Alc & Go layouts and sturdier imports',
     detail:
@@ -217,5 +219,4 @@ export const UPDATES: UpdateEntry[] = [
   },
 ]
 
-/** the newest entry's date - drives the unseen-updates dot */
-export const LATEST_UPDATE_DATE = UPDATES[0].date
+export { LATEST_UPDATE_DATE }

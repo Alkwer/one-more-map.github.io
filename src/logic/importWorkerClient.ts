@@ -1,4 +1,5 @@
-import { assignImportChartUids, type ImportParseResult } from './importParser'
+import type { ImportParseResult } from './importParser'
+import { assignImportChartUids } from './importUidAssignment'
 import type { ImportWorkerRequest, ImportWorkerResponse } from './importWorkerProtocol'
 
 export interface ImportWorkerLike {

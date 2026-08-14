@@ -1,12 +1,10 @@
-import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { StrategyReservationPreferences } from '../data/strategies'
 import { selectPieceBank, type PieceType } from '../logic/pieceKeeps'
-import { newUid } from '../logic/parser'
+import { newUid } from '../logic/chartUid'
 import { MAX_POOL_CHARTS } from '../logic/storage'
 import type { ChartAdditionResult } from '../logic/chartCapacity'
 import type { Board, ChartData, Weights } from '../types'
-import { ChartGrid } from './library/ChartGrid'
-import { ChartList } from './library/ChartList'
 import {
   loadLibraryViewMode,
   LIBRARY_PAGE_SIZE,
@@ -15,6 +13,13 @@ import {
   type LibrarySortMode,
   type LibraryViewMode,
 } from './library/libraryView'
+
+const ChartGrid = lazy(() =>
+  import('./library/ChartGrid').then(({ ChartGrid }) => ({ default: ChartGrid })),
+)
+const ChartList = lazy(() =>
+  import('./library/ChartList').then(({ ChartList }) => ({ default: ChartList })),
+)
 
 interface Props {
   pool: ChartData[]
@@ -94,28 +99,40 @@ export function Library(props: Props) {
   const paged = paginateLibrary(visible, editingPage ?? page)
 
   useLayoutEffect(() => {
-    const request = pendingFocus.current
-    if (!request) return
+    const focusPendingTarget = () => {
+      const request = pendingFocus.current
+      if (!request) return true
 
-    if (request.target === 'add') {
-      addButtonRef.current?.focus()
+      if (request.target === 'add') {
+        addButtonRef.current?.focus()
+        pendingFocus.current = null
+        return true
+      }
+
+      const card = Array.from(
+        libraryRef.current?.querySelectorAll<HTMLElement>('[data-library-chart-uid]') ?? [],
+      ).find((element) => element.dataset.libraryChartUid === request.uid)
+      const target =
+        request.target === 'shape'
+          ? card?.querySelector<HTMLSelectElement>('.shape-confirmation select')
+          : request.target === 'editor'
+            ? card?.querySelector<HTMLInputElement>('.chart-editor input')
+            : card?.querySelector<HTMLButtonElement>('.chart-sq-main, .chart-card-main')
+      if (!target) return false
+
+      target.focus()
       pendingFocus.current = null
-      return
+      return true
     }
 
-    const card = Array.from(
-      libraryRef.current?.querySelectorAll<HTMLElement>('[data-library-chart-uid]') ?? [],
-    ).find((element) => element.dataset.libraryChartUid === request.uid)
-    const target =
-      request.target === 'shape'
-        ? card?.querySelector<HTMLSelectElement>('.shape-confirmation select')
-        : request.target === 'editor'
-          ? card?.querySelector<HTMLInputElement>('.chart-editor input')
-          : card?.querySelector<HTMLButtonElement>('.chart-sq-main, .chart-card-main')
-    if (!target) return
-
-    target.focus()
-    pendingFocus.current = null
+    if (focusPendingTarget()) return
+    const root = libraryRef.current
+    if (!root) return
+    const observer = new MutationObserver(() => {
+      if (focusPendingTarget()) observer.disconnect()
+    })
+    observer.observe(root, { childList: true, subtree: true })
+    return () => observer.disconnect()
   }, [editing, paged.page, paged.totalCount, view])
 
   const changePage = (nextPage: number) => {
@@ -249,88 +266,97 @@ export function Library(props: Props) {
         <div className="muted pad">No charts yet. Add manually or paste from the game below.</div>
       )}
       {props.pool.length > 0 && (
-        <nav className="library-pagination" aria-label="Chart library pages">
-          <p
-            id={pageStatusId}
-            className="library-page-status"
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
-          >
-            {pageStatus}
-          </p>
-          {paged.pageCount > 1 && (
-            <div className="library-page-controls">
-              <button
-                type="button"
-                aria-label="Previous chart page"
-                disabled={paged.page === 0}
-                onClick={() => changePage(paged.page - 1)}
-              >
-                ← Previous
-              </button>
-              <label>
-                Page{' '}
-                <select
-                  aria-label="Chart library page"
-                  value={paged.page + 1}
-                  onChange={(event) => changePage(Number(event.target.value) - 1)}
+        <>
+          <nav className="library-pagination" aria-label="Chart library pages">
+            <p
+              id={pageStatusId}
+              className="library-page-status"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              {pageStatus}
+            </p>
+            {paged.pageCount > 1 && (
+              <div className="library-page-controls">
+                <button
+                  type="button"
+                  aria-label="Previous chart page"
+                  disabled={paged.page === 0}
+                  onClick={() => changePage(paged.page - 1)}
                 >
-                  {Array.from({ length: paged.pageCount }, (_, index) => (
-                    <option key={index} value={index + 1}>
-                      {index + 1}
-                    </option>
-                  ))}
-                </select>{' '}
-                of {paged.pageCount}
-              </label>
-              <button
-                type="button"
-                aria-label="Next chart page"
-                disabled={paged.page === paged.pageCount - 1}
-                onClick={() => changePage(paged.page + 1)}
-              >
-                Next →
-              </button>
-            </div>
-          )}
-        </nav>
-      )}
-      {view === 'grid' && (
-        <ChartGrid
-          charts={paged.items}
-          pageStartIndex={paged.startIndex}
-          totalCount={paged.totalCount}
-          pageStatusId={pageStatusId}
-          onBoard={onBoard}
-          weights={props.weights}
-          disabledMods={props.disabledMods}
-          bank={bank}
-          selected={props.selected}
-          onSelect={props.onSelect}
-          onConfirmShape={(uid) => {
-            pendingFocus.current = { uid, target: 'shape' }
-            setViewPersist('list')
-            setEditing(uid)
-          }}
-          onRemove={removeChart}
-        />
-      )}
-      {view === 'list' && (
-        <ChartList
-          charts={paged.items}
-          pageStartIndex={paged.startIndex}
-          totalCount={paged.totalCount}
-          pageStatusId={pageStatusId}
-          onBoard={onBoard}
-          selected={props.selected}
-          editing={editing}
-          bank={bank}
-          onSelect={props.onSelect}
-          onEdit={setEditing}
-          onRemove={removeChart}
-          onUpdate={updateChart}
-        />
+                  ← Previous
+                </button>
+                <label>
+                  Page{' '}
+                  <select
+                    aria-label="Chart library page"
+                    value={paged.page + 1}
+                    onChange={(event) => changePage(Number(event.target.value) - 1)}
+                  >
+                    {Array.from({ length: paged.pageCount }, (_, index) => (
+                      <option key={index} value={index + 1}>
+                        {index + 1}
+                      </option>
+                    ))}
+                  </select>{' '}
+                  of {paged.pageCount}
+                </label>
+                <button
+                  type="button"
+                  aria-label="Next chart page"
+                  disabled={paged.page === paged.pageCount - 1}
+                  onClick={() => changePage(paged.page + 1)}
+                >
+                  Next →
+                </button>
+              </div>
+            )}
+          </nav>
+          <Suspense
+            fallback={
+              <div className="muted pad" role="status" aria-live="polite">
+                Loading chart library…
+              </div>
+            }
+          >
+            {view === 'grid' ? (
+              <ChartGrid
+                charts={paged.items}
+                pageStartIndex={paged.startIndex}
+                totalCount={paged.totalCount}
+                pageStatusId={pageStatusId}
+                onBoard={onBoard}
+                weights={props.weights}
+                disabledMods={props.disabledMods}
+                bank={bank}
+                selected={props.selected}
+                onSelect={props.onSelect}
+                onConfirmShape={(uid) => {
+                  pendingFocus.current = { uid, target: 'shape' }
+                  setViewPersist('list')
+                  setEditing(uid)
+                }}
+                onRemove={removeChart}
+              />
+            ) : (
+              <ChartList
+                charts={paged.items}
+                pageStartIndex={paged.startIndex}
+                totalCount={paged.totalCount}
+                pageStatusId={pageStatusId}
+                onBoard={onBoard}
+                selected={props.selected}
+                editing={editing}
+                bank={bank}
+                onSelect={props.onSelect}
+                onEdit={setEditing}
+                onRemove={removeChart}
+                onUpdate={updateChart}
+              />
+            )}
+          </Suspense>
+        </>
       )}
     </section>
   )

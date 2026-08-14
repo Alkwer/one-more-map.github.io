@@ -14,6 +14,7 @@ interface Props {
   borders: Borders
   controller: BorderRollResearchController
   protectedRoll: ProtectedBorderRoll | null
+  defaultOpen?: boolean
 }
 
 export interface ProtectedBorderRoll {
@@ -23,8 +24,9 @@ export interface ProtectedBorderRoll {
 
 const VESPER_UPGRADE_OPTIONS = [0, 1, 2, 3, 4, 5] as const
 
-export function BorderRollResearch({ borders, controller, protectedRoll }: Props) {
+export function BorderRollResearch({ borders, controller, protectedRoll, defaultOpen }: Props) {
   const { store } = controller
+  const [isOpen, setIsOpen] = useState(defaultOpen ?? false)
   const researchBlocked = !!store.recovery
   const submissionBlocked = !!controller.submissionStore.recovery
   const failedSubmissionCount = controller.submissionStore.queue.filter(
@@ -91,7 +93,11 @@ export function BorderRollResearch({ borders, controller, protectedRoll }: Props
   }
 
   return (
-    <details className="ahk-help roll-research">
+    <details
+      className="ahk-help roll-research"
+      open={isOpen}
+      onToggle={(event) => setIsOpen(event.currentTarget.open)}
+    >
       <summary>
         📊 Contribute border-roll data ({sequenceView.activeSampleCount} active
         {sequenceView.archivedSampleCount > 0

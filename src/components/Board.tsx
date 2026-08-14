@@ -1,6 +1,6 @@
+import { useState } from 'react'
 import type { Board, Borders, ChartData } from '../types'
 import { START_CELL } from '../types'
-import { BORDER_ROLL_MODEL, sampleBorderRoll } from '../logic/borderRollModel'
 import { BoardCell } from './board/BoardCell'
 import { BorderPicker } from './board/BorderPicker'
 import { edgeStatusForCell } from './board/boardEdges'
@@ -29,6 +29,8 @@ interface Props {
 
 export function BoardView(props: Props) {
   const { board, borders, charts } = props
+  const [randomizing, setRandomizing] = useState(false)
+  const [randomizeError, setRandomizeError] = useState('')
 
   const tile = (cell: number) => {
     const placement = board[cell]
@@ -61,8 +63,19 @@ export function BoardView(props: Props) {
     />
   )
 
-  const randomize = () => {
-    sampleBorderRoll(BORDER_ROLL_MODEL).forEach((id, segment) => props.onBorderChange(segment, id))
+  const randomize = async () => {
+    setRandomizing(true)
+    setRandomizeError('')
+    try {
+      const { BORDER_ROLL_MODEL, sampleBorderRoll } = await import('../logic/borderRollModel')
+      sampleBorderRoll(BORDER_ROLL_MODEL).forEach((id, segment) =>
+        props.onBorderChange(segment, id),
+      )
+    } catch {
+      setRandomizeError('The experimental roll model could not be loaded. Try again.')
+    } finally {
+      setRandomizing(false)
+    }
   }
   const clearBorders = () => {
     for (let segment = 0; segment < 12; segment++) props.onBorderChange(segment, null)
@@ -76,12 +89,14 @@ export function BoardView(props: Props) {
         </h2>
         <span className="spacer" />
         <button
-          onClick={randomize}
+          onClick={() => void randomize()}
+          disabled={randomizing}
           title="Draw an experimental slot-aware board from the current model"
         >
-          🎲 Experimental roll
+          {randomizing ? 'Loading roll model…' : '🎲 Experimental roll'}
         </button>
         <button onClick={clearBorders}>Clear borders</button>
+        {randomizeError && <span role="alert">{randomizeError}</span>}
       </div>
       <div className="board-scroll">
         <div

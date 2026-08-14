@@ -15,17 +15,11 @@ import {
   MAX_RAW_TEXT_LENGTH,
   MAX_SHAPE_INPUT_LENGTH,
 } from './storage'
-import {
-  assertImportWithinBudget,
-  MAX_IMPORT_REJECTIONS,
-  MAX_IMPORT_TEXT_LENGTH,
-} from './importBudget'
+import { assertImportWithinBudget, MAX_IMPORT_REJECTIONS } from './importBudget'
+import { newUid } from './chartUid'
 
-let uidCounter = 0
-export function newUid(): string {
-  uidCounter += 1
-  return `c${Date.now().toString(36)}-${uidCounter}`
-}
+export { isChartClipboardText } from './chartClipboard'
+export { newUid } from './chartUid'
 
 interface HeaderStat {
   re: RegExp
@@ -134,13 +128,6 @@ function normalizeAliasText(text: string): string {
 
 function dialectForItem(item: string): ClipboardDialect | undefined {
   return DIALECTS.find((dialect) => dialect.itemClass.test(item))
-}
-
-/** True when clipboard text contains an English or Korean Chart class header. */
-export function isChartClipboardText(text: string): boolean {
-  if (text.length > MAX_IMPORT_TEXT_LENGTH) return false
-  const normalized = normalizeClipboardText(text)
-  return DIALECTS.some((dialect) => dialect.chartClass.test(normalized))
 }
 
 // Common filler words dropped when matching, so wording/pluralisation/number

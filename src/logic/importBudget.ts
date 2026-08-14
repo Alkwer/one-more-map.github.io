@@ -1,9 +1,10 @@
+import { importSizeLimitMessage, MAX_IMPORT_TEXT_LENGTH } from './importLimits'
+
 /**
  * Resource limits for user-assisted chart and Windows OCR clipboard imports.
  * These bounds are intentionally independent of the persisted chart limit:
  * they protect the synchronous parsing work performed on the browser thread.
  */
-export const MAX_IMPORT_TEXT_LENGTH = 512 * 1024
 export const MAX_IMPORT_CHART_HEADERS = 300
 export const MAX_IMPORT_BORDER_BLOCKS = 12
 export const MAX_IMPORT_REROLL_BLOCKS = 1
@@ -13,8 +14,13 @@ export const MAX_IMPORT_LINES_PER_OCR_BLOCK = 512
 export const MAX_IMPORT_OCR_BLOCK_LENGTH = 16 * 1024
 export const MAX_IMPORT_LINES_PER_CHART = 128
 export const MAX_IMPORT_CHART_LENGTH = 64 * 1024
-export const MAX_IMPORT_REJECTIONS = 20
-export const MAX_IMPORT_SIGNATURE_PREFIX_LENGTH = 4 * 1024
+
+export {
+  importSizeLimitMessage,
+  MAX_IMPORT_REJECTIONS,
+  MAX_IMPORT_SIGNATURE_PREFIX_LENGTH,
+  MAX_IMPORT_TEXT_LENGTH,
+} from './importLimits'
 
 export class ImportBudgetError extends Error {
   constructor(message: string) {
@@ -41,11 +47,6 @@ const SCAN_META_END = /^===\s*END VOYAGE BORDER SCAN META\s*===$/i
 
 function limitError(detail: string): ImportBudgetError {
   return new ImportBudgetError(`Import rejected: ${detail}. The pasted text was not retained.`)
-}
-
-export function importSizeLimitMessage(): string {
-  return limitError(`maximum size is ${MAX_IMPORT_TEXT_LENGTH.toLocaleString('en-US')} characters`)
-    .message
 }
 
 function blockEndMatches(kind: OcrBlockKind, line: string): boolean {

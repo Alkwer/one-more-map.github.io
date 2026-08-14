@@ -1,21 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ALL_GOOD_MODS_REGEX, RARE_IMPLICITS } from '../data/strategies'
-import { BorderRollResearch, type ProtectedBorderRoll } from './BorderRollResearch'
+import type { ProtectedBorderRoll } from './BorderRollResearch'
+import { DeferredBorderRollResearch } from './DeferredBorderRollResearch'
 import { generateDemoCharts } from '../logic/demo'
-import { applyBorderOcrStateSnapshot } from '../logic/borderOcr'
 import {
   ImportWorkerClient,
   ImportWorkerError,
   isImportWorkerRequestCancelled,
 } from '../logic/importWorkerClient'
-import { isChartClipboardText } from '../logic/parser'
+import { isChartClipboardText } from '../logic/chartClipboard'
 import { chartAdditionResult, type ChartAdditionResult } from '../logic/chartCapacity'
 import {
   importSizeLimitMessage,
   MAX_IMPORT_REJECTIONS,
   MAX_IMPORT_SIGNATURE_PREFIX_LENGTH,
   MAX_IMPORT_TEXT_LENGTH,
-} from '../logic/importBudget'
+} from '../logic/importLimits'
 import type { AppState } from '../logic/storage'
 import {
   decodeStateFile,
@@ -82,9 +82,13 @@ export function ImportPanel({
       const client = importClientRef.current ?? new ImportWorkerClient()
       importClientRef.current = client
 
-      let parsed
+      const importRequest = Promise.all([
+        client.parse(source, MAX_POOL_CHARTS - stateRef.current.pool.length),
+        import('../logic/borderOcr'),
+      ] as const)
+      let parsedWithHelpers: Awaited<typeof importRequest>
       try {
-        parsed = await client.parse(source, MAX_POOL_CHARTS - stateRef.current.pool.length)
+        parsedWithHelpers = await importRequest
       } catch (error) {
         if (requestSequence !== parseSequenceRef.current) return
         setParsing(false)
@@ -102,6 +106,7 @@ export function ImportPanel({
 
       if (requestSequence !== parseSequenceRef.current) return
       setParsing(false)
+      const [parsed, { applyBorderOcrStateSnapshot }] = parsedWithHelpers
       const currentState = stateRef.current
       const { borderOcr, charts, rejected, unresolved, stoppedEarly } = parsed
       const borderApplication = applyBorderOcrStateSnapshot(
@@ -148,6 +153,7 @@ export function ImportPanel({
 
       if (hasOcrPayload) {
         const borders = borderApplication.borders
+        stateRef.current = nextState
         onLoadState(nextState)
         if (borderApplication.status === 'complete' && !borderApplication.invalidated) {
           const captureMessage = borderResearch.captureImportedRoll(borders, borderOcr.rerollCost)
@@ -156,6 +162,12 @@ export function ImportPanel({
       } else if (charts.length > 0) {
         addition = onImport(charts)
         acceptedCharts = charts.slice(0, addition.added)
+        if (acceptedCharts.length > 0) {
+          stateRef.current = {
+            ...currentState,
+            pool: [...currentState.pool, ...acceptedCharts],
+          }
+        }
       }
       if (addition.added > 0 || hasOcrPayload) {
         setText('')
@@ -539,7 +551,7 @@ export function ImportPanel({
         </p>
       </details>
 
-      <BorderRollResearch
+      <DeferredBorderRollResearch
         borders={state.borders}
         controller={borderResearch}
         protectedRoll={protectedRoll}

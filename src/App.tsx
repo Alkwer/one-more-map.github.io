@@ -1,20 +1,15 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { AutosaveFailureWarning } from './components/AutosaveFailureWarning'
 import { BoardView } from './components/Board'
 import { BorderAppraiser } from './components/BorderAppraiser'
 import { ImportPanel } from './components/ImportPanel'
 import { Library } from './components/Library'
-import { ModBrowser } from './components/ModBrowser'
+import { LazyModalFallback } from './components/LazyModalFallback'
 import { ModalDialog } from './components/ModalDialogSurface'
-import { Onboarding } from './components/Onboarding'
 import { SolverPanel } from './components/SolverPanel'
-import { SaveWizard } from './components/SaveWizard'
 import { SavedStateRecovery } from './components/SavedStateRecovery'
-import { SessionPlanner } from './components/SessionPlanner'
-import { Tutorial } from './components/Tutorial'
-import { UpdatesLog } from './components/UpdatesLog'
 import { StrategiesPanel } from './components/StrategiesPanel'
-import { StrategySuggestions } from './components/StrategySuggestions'
+import { DeferredStrategySuggestions } from './components/DeferredStrategySuggestions'
 import { TooltipLayer } from './components/Tooltip'
 import { VoyageAdvisor } from './components/VoyageAdvisor'
 import { AppHeader } from './components/app/AppHeader'
@@ -33,7 +28,7 @@ import { useVoyageAnalysis } from './hooks/useVoyageAnalysis'
 import { useVoyageWorkflows } from './hooks/useVoyageWorkflows'
 import { generateDemoCharts } from './logic/demo'
 import { chartAdditionResult, type ChartAdditionResult } from './logic/chartCapacity'
-import { LATEST_UPDATE_DATE } from './data/updates'
+import { LATEST_UPDATE_DATE } from './data/latestUpdate'
 import { clampRerollsUsed } from './logic/rerollAdvice'
 import { decodeShare, mergeSharedLayout, type ShareDecodeResult } from './logic/share'
 import {
@@ -70,6 +65,25 @@ interface ChartDeletionConfirmation {
 
 /** One-time notice for the two-page Windows importer update. */
 const AHK_PAGES_KEY = 'announce-ahk-page2'
+
+const ModBrowser = lazy(() =>
+  import('./components/ModBrowser').then(({ ModBrowser }) => ({ default: ModBrowser })),
+)
+const Onboarding = lazy(() =>
+  import('./components/Onboarding').then(({ Onboarding }) => ({ default: Onboarding })),
+)
+const SaveWizard = lazy(() =>
+  import('./components/SaveWizard').then(({ SaveWizard }) => ({ default: SaveWizard })),
+)
+const SessionPlanner = lazy(() =>
+  import('./components/SessionPlanner').then(({ SessionPlanner }) => ({ default: SessionPlanner })),
+)
+const Tutorial = lazy(() =>
+  import('./components/Tutorial').then(({ Tutorial }) => ({ default: Tutorial })),
+)
+const UpdatesLog = lazy(() =>
+  import('./components/UpdatesLog').then(({ UpdatesLog }) => ({ default: UpdatesLog })),
+)
 
 function readLocationState(): InitialStateResult {
   const saved = loadLocalState()
@@ -406,19 +420,45 @@ export default function App() {
         </div>
       )}
       {!recovery && chrome.showOnboarding && (
-        <Onboarding
-          onClose={chrome.closeOnboarding}
-          onDemo={() => addCharts(generateDemoCharts(25))}
-          remainingChartCapacity={Math.max(0, MAX_POOL_CHARTS - state.pool.length)}
-        />
+        <Suspense
+          fallback={<LazyModalFallback title="Plan your Voyage" onClose={chrome.closeOnboarding} />}
+        >
+          <Onboarding
+            onClose={chrome.closeOnboarding}
+            onDemo={() => addCharts(generateDemoCharts(25))}
+            remainingChartCapacity={Math.max(0, MAX_POOL_CHARTS - state.pool.length)}
+          />
+        </Suspense>
       )}
       {!recovery && chrome.showMods && (
-        <ModBrowser
-          disabled={analysis.disabledSet}
-          onToggle={(id, disabled) => dispatch({ type: 'mods/set-disabled', ids: [id], disabled })}
-          onBulk={(ids, disabled) => dispatch({ type: 'mods/set-disabled', ids, disabled })}
-          onClose={chrome.closeMods}
-        />
+        <Suspense
+          fallback={<LazyModalFallback title="Chart Modifiers" onClose={chrome.closeMods} />}
+        >
+          <ModBrowser
+            disabled={analysis.disabledSet}
+            onToggle={(id, disabled) =>
+              dispatch({ type: 'mods/set-disabled', ids: [id], disabled })
+            }
+            onBulk={(ids, disabled) => dispatch({ type: 'mods/set-disabled', ids, disabled })}
+            onClose={chrome.closeMods}
+          />
+        </Suspense>
+      )}
+      {!recovery && showUpdates && (
+        <Suspense
+          fallback={<LazyModalFallback title="Updates" onClose={() => setShowUpdates(false)} />}
+        >
+          <UpdatesLog onClose={() => setShowUpdates(false)} />
+        </Suspense>
+      )}
+      {!recovery && showTutorial && (
+        <Suspense
+          fallback={
+            <LazyModalFallback title="What this site does" onClose={() => setShowTutorial(false)} />
+          }
+        >
+          <Tutorial onClose={() => setShowTutorial(false)} />
+        </Suspense>
       )}
       {!recovery && chartDeletionConfirmation && (
         <ModalDialog
@@ -434,8 +474,6 @@ export default function App() {
           />
         </ModalDialog>
       )}
-      {!recovery && showUpdates && <UpdatesLog onClose={() => setShowUpdates(false)} />}
-      {!recovery && showTutorial && <Tutorial onClose={() => setShowTutorial(false)} />}
       {!recovery && workflows.finishConfirmation && (
         <ModalDialog
           labelledBy="finish-voyage-confirmation-title"
@@ -508,24 +546,39 @@ export default function App() {
         </ModalDialog>
       )}
       {!recovery && showSaveWizard && (
-        <SaveWizard
-          pool={state.pool}
-          keeps={state.pieceKeeps}
-          reservations={state.strategyReservations}
-          onApply={(pieceKeeps) => patch({ pieceKeeps })}
-          onClose={() => setShowSaveWizard(false)}
-        />
+        <Suspense
+          fallback={
+            <LazyModalFallback
+              title="Keep charts for strategies"
+              onClose={() => setShowSaveWizard(false)}
+            />
+          }
+        >
+          <SaveWizard
+            pool={state.pool}
+            keeps={state.pieceKeeps}
+            reservations={state.strategyReservations}
+            onApply={(pieceKeeps) => patch({ pieceKeeps })}
+            onClose={() => setShowSaveWizard(false)}
+          />
+        </Suspense>
       )}
       {!recovery && showPlanner && (
-        <SessionPlanner
-          pool={state.pool}
-          mode={state.mode}
-          borders={state.borders}
-          reservations={state.strategyReservations}
-          pieceKeeps={state.pieceKeeps}
-          onUseStrategy={(strategyId) => patch({ strategyId })}
-          onClose={() => setShowPlanner(false)}
-        />
+        <Suspense
+          fallback={
+            <LazyModalFallback title="Session Plan" onClose={() => setShowPlanner(false)} />
+          }
+        >
+          <SessionPlanner
+            pool={state.pool}
+            mode={state.mode}
+            borders={state.borders}
+            reservations={state.strategyReservations}
+            pieceKeeps={state.pieceKeeps}
+            onUseStrategy={(strategyId) => patch({ strategyId })}
+            onClose={() => setShowPlanner(false)}
+          />
+        </Suspense>
       )}
       <AppHeader
         disabledModCount={state.disabledMods.length}
@@ -656,7 +709,7 @@ export default function App() {
               current-board fit explain the recommendation above; they do not replace it.
             </div>
           </div>
-          <StrategySuggestions
+          <DeferredStrategySuggestions
             result={analysis.strategySuggestions}
             loading={analysis.strategyInventoryLoading}
             error={analysis.strategyInventoryError}

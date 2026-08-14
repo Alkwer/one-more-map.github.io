@@ -3,7 +3,7 @@
 
 import { VOYAGE_MODS } from '../data/mods'
 import type { ChartData, Edges } from '../types'
-import { newUid } from './parser'
+import { newUid } from './chartUid'
 
 const PREFIXES = [
   'Sunken',
