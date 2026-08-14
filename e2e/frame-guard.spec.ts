@@ -2,8 +2,18 @@ import { createServer } from 'node:http'
 import { expect, test } from '@playwright/test'
 import { APP_URL } from './support'
 
-test('blocks stateful app execution inside an external-origin iframe', async ({ page }) => {
-  await page.goto(`${APP_URL}voyage-import.ahk`)
+test('HTTP headers refuse an external-origin iframe before the app executes', async ({
+  page,
+  request,
+}) => {
+  const appResponse = await request.get(APP_URL)
+  expect(appResponse.ok()).toBe(true)
+  expect(appResponse.headers()['x-frame-options']).toBe('DENY')
+  expect(appResponse.headers()['content-security-policy']).toMatch(
+    /(?:^|;)\s*frame-ancestors 'none'\s*(?:;|$)/,
+  )
+
+  await page.goto(APP_URL)
   await page.evaluate(() => {
     localStorage.clear()
     localStorage.setItem('frame-guard-sentinel', 'preserved')
@@ -24,16 +34,19 @@ test('blocks stateful app execution inside an external-origin iframe', async ({ 
     if (!address || typeof address === 'string') throw new Error('Attacker test server has no port')
     await page.goto(`http://127.0.0.1:${address.port}/`)
 
-    await expect.poll(() => page.frames().map((frame) => frame.url())).toContain(APP_URL)
+    await expect(page.locator('iframe[title="embedded solver"]')).toBeVisible()
+    await expect.poll(() => page.frames().length).toBe(2)
     const framedApp = page.frameLocator('iframe[title="embedded solver"]')
-    await expect(framedApp.getByRole('alert')).toHaveText(
-      'For your security, Allflame Voyage Solver cannot run inside another page.',
-    )
+    // A runtime frame buster would render this alert. Its absence, combined
+    // with the authoritative response headers above, proves browser refusal.
+    await expect(framedApp.getByRole('alert')).toHaveCount(0)
     await expect(framedApp.getByRole('heading', { name: /Allflame Voyage Solver/ })).toHaveCount(0)
     await expect(framedApp.locator('.app')).toHaveCount(0)
 
-    const storage = await framedApp.locator('html').evaluate(() => ({ ...localStorage }))
-    expect(storage).toEqual({ 'frame-guard-sentinel': 'preserved' })
+    await page.goto(APP_URL)
+    await expect
+      .poll(() => page.evaluate(() => localStorage.getItem('frame-guard-sentinel')))
+      .toBe('preserved')
   } finally {
     await new Promise<void>((resolve) => attacker.close(() => resolve()))
   }
