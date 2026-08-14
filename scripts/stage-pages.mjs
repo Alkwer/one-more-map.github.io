@@ -27,6 +27,9 @@ async function stageDeployment(target, sitePrefix) {
   await mkdir(appDirectory, { recursive: true })
   await cp(dist, appDirectory, { recursive: true })
   await cp(join(root, 'redirect.html'), join(target, 'index.html'))
+  // Header-capable static hosts read this file only from each deployment root.
+  // GitHub Pages ignores it, so production still requires the migration runbook.
+  await cp(join(dist, '_headers'), join(target, '_headers'))
 
   for (const path of [join(target, 'index.html'), join(appDirectory, 'index.html')]) {
     const html = await readFile(path, 'utf8')

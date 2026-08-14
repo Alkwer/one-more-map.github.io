@@ -12,9 +12,9 @@ function blockFramedApplication() {
   root.textContent = 'For your security, Allflame Voyage Solver cannot run inside another page.'
 }
 
-// This executes before the App component, React DOM, or browser storage are touched.
-// GitHub Pages cannot emit frame-ancestors/X-Frame-Options, so fail closed at runtime
-// as defense in depth until the site can move behind an HTTP-header-capable host.
+// This executes before application modules or browser storage are touched. Keep
+// the runtime guard as defense in depth even when the deployment enforces the
+// authoritative frame-ancestors/X-Frame-Options response headers.
 if (window.top !== window.self) blockFramedApplication()
 else void mountApplication()
 

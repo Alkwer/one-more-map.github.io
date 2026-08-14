@@ -3,6 +3,10 @@ import { readFile } from 'node:fs/promises'
 import { test } from 'node:test'
 
 const workflowUrl = new URL('../.github/workflows/deploy.yml', import.meta.url)
+const productionHeadersWorkflowUrl = new URL(
+  '../.github/workflows/production-security-headers.yml',
+  import.meta.url,
+)
 const securityAuditUrl = new URL('../.github/workflows/security-audit.yml', import.meta.url)
 const dependabotUrl = new URL('../.github/dependabot.yml', import.meta.url)
 const packageUrl = new URL('../package.json', import.meta.url)
@@ -165,6 +169,25 @@ test('workflow validation includes the Windows OCR privacy invariant', async () 
   const packageJson = JSON.parse(await readFile(packageUrl, 'utf8'))
 
   assert.match(packageJson.scripts['test:workflow'], /scripts\/windows-ocr-privacy\.node-test\.mjs/)
+})
+
+test('anti-framing header verification is reusable as a pre-promotion gate', async () => {
+  const [workflow, packageJson] = await Promise.all([
+    readFile(productionHeadersWorkflowUrl, 'utf8'),
+    readFile(packageUrl, 'utf8').then(JSON.parse),
+  ])
+
+  assert.match(workflow, /^name: Production anti-framing header gate$/m)
+  assert.match(workflow, /^ {2}workflow_call:$/m)
+  assert.match(workflow, /^ {2}workflow_dispatch:$/m)
+  assert.equal((workflow.match(/^ {6}production_url:$/gm) ?? []).length, 2)
+  assert.equal((workflow.match(/^ {8}required: true$/gm) ?? []).length, 2)
+  assert.match(workflow, /^ {10}PRODUCTION_URL: \$\{\{ inputs\.production_url \}\}$/m)
+  assert.match(workflow, /^ {8}run: npm run check:production-headers -- "\$PRODUCTION_URL"$/m)
+  assert.equal(
+    packageJson.scripts['check:production-headers'],
+    'node scripts/check-production-security-headers.mjs',
+  )
 })
 
 test('dependency audit runs on an independent weekly schedule', async () => {
