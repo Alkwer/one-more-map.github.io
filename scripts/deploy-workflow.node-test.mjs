@@ -6,6 +6,8 @@ const workflowUrl = new URL('../.github/workflows/deploy.yml', import.meta.url)
 const securityAuditUrl = new URL('../.github/workflows/security-audit.yml', import.meta.url)
 const dependabotUrl = new URL('../.github/dependabot.yml', import.meta.url)
 const packageUrl = new URL('../package.json', import.meta.url)
+const stagePagesUrl = new URL('./stage-pages.mjs', import.meta.url)
+const smokeTestUrl = new URL('./smoke-test-pages.mjs', import.meta.url)
 
 test('Pages deploy waits for every required validation job', async () => {
   const workflow = await readFile(workflowUrl, 'utf8')
@@ -29,6 +31,34 @@ test('Pages deploy waits for every required validation job', async () => {
     /^ {8}\(needs\.windows-playwright-exit\.result == 'success' \|\| needs\.windows-playwright-exit\.result == 'skipped'\)$/m,
     'dataset-only main pushes must deploy after the intentionally skipped Windows job',
   )
+})
+
+test('Pages deploy smoke-tests the final public artifact and commit marker', async () => {
+  const [workflow, stagePages, smokeTest] = await Promise.all([
+    readFile(workflowUrl, 'utf8'),
+    readFile(stagePagesUrl, 'utf8'),
+    readFile(smokeTestUrl, 'utf8'),
+  ])
+  const deployStart = workflow.indexOf('\n  deploy:\n')
+  const deployBlock = workflow.slice(deployStart)
+  const deploymentStep = deployBlock.indexOf('      - id: deployment\n')
+  const smokeStep = deployBlock.indexOf(
+    '      - name: Smoke-test the published GitHub Pages artifact\n',
+  )
+
+  assert.notEqual(deploymentStep, -1, 'deploy-pages step is missing')
+  assert.ok(smokeStep > deploymentStep, 'public smoke test must run after deploy-pages')
+  assert.match(deployBlock, /^ {6}contents: read$/m)
+  assert.match(deployBlock, /^ {10}PAGE_URL: \$\{\{ steps\.deployment\.outputs\.page_url \}\}$/m)
+  assert.match(deployBlock, /^ {10}SOLVER_SUBPATH: allflame-voyage-solver\/$/m)
+  assert.match(deployBlock, /^ {10}EXPECTED_COMMIT_SHA: \$\{\{ github\.sha \}\}$/m)
+  assert.match(deployBlock, /^ {10}MAX_ATTEMPTS: 12$/m)
+  assert.match(deployBlock, /^ {8}timeout-minutes: 6$/m)
+  assert.match(deployBlock, /^ {8}run: node scripts\/smoke-test-pages\.mjs$/m)
+  assert.match(stagePages, /process\.env\.GITHUB_SHA/)
+  assert.match(stagePages, /join\(appDirectory, 'deployment\.json'\)/)
+  assert.match(smokeTest, /::error title=Published Pages smoke test failed::/)
+  assert.match(smokeTest, /process\.env\.GITHUB_STEP_SUMMARY/)
 })
 
 test('dataset and generated research-summary updates keep required checks while skipping browser jobs', async () => {
@@ -76,7 +106,8 @@ test('dataset and generated research-summary updates keep required checks while 
   assert.match(qualityBlock, /^ {6}- name: Run full validation$/m)
   assert.match(qualityBlock, /^ {8}if: needs\.scope\.outputs\.data_only != 'true'$/m)
   assert.match(qualityBlock, /^ {8}run: npm run validate$/m)
-  assert.match(qualityBlock, /^ {6}BORDER_ROLL_INTAKE_URL: https:\/\//m)
+  assert.doesNotMatch(windowsBlock, /BORDER_ROLL_INTAKE_URL/)
+  assert.equal((qualityBlock.match(/BORDER_ROLL_INTAKE_URL/g) ?? []).length, 1)
   assert.match(qualityBlock, /^ {6}- name: Stage root-site artifact and project-site E2E wrapper$/m)
   assert.match(qualityBlock, /^ {8}if: needs\.scope\.outputs\.data_only != 'true'$/m)
   assert.match(qualityBlock, /^ {8}run: npm run build:pages:e2e$/m)
@@ -85,6 +116,11 @@ test('dataset and generated research-summary updates keep required checks while 
     qualityBlock,
     /^ {8}if: github\.event_name != 'pull_request' && github\.ref == 'refs\/heads\/main'$/m,
     'only a main non-PR run may prepare an artifact for Pages upload',
+  )
+  assert.match(
+    qualityBlock,
+    /^ {8}env:\n {10}BORDER_ROLL_INTAKE_URL: https:\/\//m,
+    'the production intake endpoint must be scoped to the final Pages build',
   )
   assert.match(qualityBlock, /^ {8}run: npm run build:pages$/m)
   assert.equal(
