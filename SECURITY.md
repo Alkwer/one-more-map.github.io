@@ -6,7 +6,7 @@ Security fixes are made on `main` and released through the latest GitHub Pages d
 
 ## Reporting a Vulnerability
 
-Report vulnerabilities privately through the repository's GitHub Security Advisories. Use a public issue only when the report contains no sensitive details or practical exploit information.
+[Report a vulnerability privately](https://github.com/Alkwer/one-more-map.github.io/security/advisories/new) through the maintained repository's GitHub Security Advisories. Private vulnerability reporting is enabled for external reporters. Use a public issue only when the report contains no sensitive details or practical exploit information.
 
 Include the affected surface, reproduction conditions, expected impact, and the revision or deployment you tested. Do not include account data, private submission keys, or Path of Exile screenshots containing personal information.
 
