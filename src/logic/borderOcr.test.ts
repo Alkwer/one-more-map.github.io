@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { emptyBorders } from '../types'
-import { applyBorderOcrSnapshot, parseBorderOcrPayload } from './borderOcr'
+import {
+  applyBorderOcrSnapshot,
+  applyBorderOcrStateSnapshot,
+  parseBorderOcrPayload,
+} from './borderOcr'
 
 const payload = (text: string) => `=== VOYAGE REROLL COST ===
 ${text}
@@ -75,6 +79,54 @@ Unrelated screen text 24 000`),
 })
 
 describe('transactional border OCR snapshots', () => {
+  it('applies borders and the recognized reroll counter as one fresh snapshot', () => {
+    const parsed = parseBorderOcrPayload(
+      `${scanPayload(Array.from({ length: 12 }, (_, index) => borderBlock(index)))}\n${payload(
+        'Border Modifiers Reroll Cost: 24,000',
+      )}`,
+    )
+
+    expect(applyBorderOcrStateSnapshot(existingBorders(), 1, parsed)).toMatchObject({
+      borders: Array(12).fill('b-divine'),
+      borderRerollsUsed: 3,
+      status: 'complete',
+      applied: true,
+      invalidated: false,
+    })
+  })
+
+  it('invalidates borders and rerolls when a recognized cost accompanies an incomplete scan', () => {
+    const parsed = parseBorderOcrPayload(
+      `${scanPayload(Array.from({ length: 11 }, (_, index) => borderBlock(index)))}\n${payload(
+        'Border Modifiers Reroll Cost: 24,000',
+      )}`,
+    )
+
+    expect(applyBorderOcrStateSnapshot(existingBorders(), 1, parsed)).toMatchObject({
+      borders: Array(12).fill(null),
+      borderRerollsUsed: 0,
+      status: 'incomplete',
+      applied: true,
+      invalidated: true,
+    })
+  })
+
+  it('invalidates borders and rerolls when a recognized cost accompanies a failed scan', () => {
+    const parsed = parseBorderOcrPayload(
+      `${scanPayload(
+        Array.from({ length: 12 }, (_, index) => borderBlock(index, 'unreadable tooltip noise')),
+      )}\n${payload('Border Modifiers Reroll Cost: 24,000')}`,
+    )
+
+    expect(applyBorderOcrStateSnapshot(existingBorders(), 1, parsed)).toMatchObject({
+      borders: Array(12).fill(null),
+      borderRerollsUsed: 0,
+      status: 'failed',
+      applied: true,
+      invalidated: true,
+    })
+  })
+
   it('applies a complete 12-position importer sweep and records its OCR language', () => {
     const parsed = parseBorderOcrPayload(
       scanPayload(

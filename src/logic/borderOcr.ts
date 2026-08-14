@@ -290,6 +290,12 @@ export interface BorderOcrApplication {
   applied: boolean
 }
 
+export interface BorderOcrStateApplication extends BorderOcrApplication {
+  borderRerollsUsed: number
+  /** A transactional importer scan was rejected and the previous snapshot was invalidated. */
+  invalidated: boolean
+}
+
 function stripOcrLanguage(raw: string, languages: Set<string>): string {
   for (const match of raw.matchAll(OCR_LANGUAGE_LINE)) languages.add(match[1])
   return raw.replace(OCR_LANGUAGE_LINE, '').trim()
@@ -411,4 +417,34 @@ export function applyBorderOcrSnapshot(
   const borders = [...currentBorders]
   for (const match of result.matches) borders[match.index] = match.id
   return { borders, status: 'legacy-patch', applied: true }
+}
+
+export function applyBorderOcrStateSnapshot(
+  currentBorders: Borders,
+  currentRerollsUsed: number,
+  result: BorderOcrParseResult,
+): BorderOcrStateApplication {
+  const borderApplication = applyBorderOcrSnapshot(currentBorders, result)
+  const freshBorderSnapshot =
+    borderApplication.status === 'complete' || borderApplication.status === 'partial'
+
+  // Scan metadata identifies a current importer sweep. Its borders and reroll
+  // counter form one snapshot: if either half is unavailable, invalidate the
+  // old snapshot so stale recommendations cannot survive the failed scan.
+  if (result.scanMeta && (!freshBorderSnapshot || !result.rerollCost)) {
+    return {
+      borders: emptyBorders(),
+      borderRerollsUsed: 0,
+      status: borderApplication.status,
+      applied: true,
+      invalidated: true,
+    }
+  }
+
+  return {
+    ...borderApplication,
+    borderRerollsUsed:
+      freshBorderSnapshot && result.rerollCost ? result.rerollCost.rerollsUsed : currentRerollsUsed,
+    invalidated: false,
+  }
 }
