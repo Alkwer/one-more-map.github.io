@@ -183,6 +183,7 @@ describe('appStateReducer', () => {
       ],
       borderRerollsUsed: 4,
     }
+    state.borders.fill('b-divine')
     const kept = new Set(['b'])
     const boardUids = state.board.map((placement) => placement?.chartUid ?? null)
 
@@ -196,6 +197,7 @@ describe('appStateReducer', () => {
     expect(finished.pool.map(({ uid }) => uid)).toEqual(['b', 'c'])
     expect(finished.pool[0].preserved).toBe(false)
     expect(finished.board).toEqual(Array(9).fill(null))
+    expect(finished.borders).toEqual(Array(12).fill(null))
     expect(finished.borderRerollsUsed).toBe(0)
   })
 

@@ -979,6 +979,41 @@ test('records only complete border rolls and keeps Voyage sequences distinct', a
   expect(stored.samples[1].sequenceId).not.toBe(stored.samples[2].sequenceId)
 })
 
+test('clears the completed Voyage borders before the next research sequence', async ({
+  appPage,
+}) => {
+  await openApp(appPage)
+  await pasteText(appPage, ENGLISH_CHART)
+  await appPage
+    .getByRole('button', { name: 'Select Armoured Coral Reef Chart of Ice for placement' })
+    .click()
+  await appPage.getByRole('button', { name: 'Board cell 7, row 3, column 1, start: empty' }).click()
+
+  const research = appPage.locator('details.roll-research')
+  await research.getByText(/Contribute border-roll data/).click()
+  await research.getByRole('combobox', { name: /Vesper upgrades/ }).selectOption('4')
+  await pasteText(appPage, COMPLETE_DIVINE_BORDER_PAYLOAD)
+  await expect(research.getByText(/Auto-saved natural board/)).toBeVisible()
+  const previousSequenceId = await appPage.evaluate(
+    (key) => JSON.parse(localStorage.getItem(key)!).activeSequenceId,
+    BORDER_RESEARCH_STORAGE_KEY,
+  )
+
+  await appPage.getByRole('button', { name: /Finish Voyage/ }).click()
+
+  await expect(appPage.getByText(/Voyage finished: consumed 1 chart/)).toBeVisible()
+  await expect(appPage.getByRole('button', { name: 'Border segment 1: No border' })).toBeVisible()
+  await expect(research.getByRole('button', { name: 'Save current roll' })).toBeDisabled()
+  await expect
+    .poll(() =>
+      appPage.evaluate(
+        (key) => JSON.parse(localStorage.getItem(key)!).activeSequenceId,
+        BORDER_RESEARCH_STORAGE_KEY,
+      ),
+    )
+    .not.toBe(previousSequenceId)
+})
+
 test('does not report research actions as saved when their storage write fails', async ({
   appPage,
 }) => {
@@ -1141,6 +1176,9 @@ test('does not queue or advance a finished border sequence after a required writ
   await openApp(appPage)
   const research = await openResearch()
   await prepareVoyage()
+  await pasteText(appPage, DIVINE_BORDER_PAYLOAD)
+  const currentBorder = appPage.getByRole('button', { name: /Border segment 1: .*Divine Orb/ })
+  await expect(currentBorder).toBeVisible()
   await failAuxiliaryWrites(appPage, BORDER_SUBMISSION_STORAGE_KEY)
   await appPage.getByRole('button', { name: /Finish Voyage/ }).click()
   await expect(research.locator('[role="status"].muted.pad')).toContainText(
@@ -1151,6 +1189,7 @@ test('does not queue or advance a finished border sequence after a required writ
       /Finish Voyage canceled: submission queue storage needs recovery\. No charts were consumed and the border sequence was not advanced/,
     ),
   ).toBeVisible()
+  await expect(currentBorder).toBeVisible()
   await expect(libraryHeading(appPage)).toContainText('(1)')
   await expect(
     appPage.getByRole('button', {
