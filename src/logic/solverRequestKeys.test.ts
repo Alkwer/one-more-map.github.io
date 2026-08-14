@@ -155,6 +155,28 @@ describe('solver request keys', () => {
     expect(preserved).not.toBe(original)
   })
 
+  it('invalidates interactive results when the selected strategy layout changes', () => {
+    const state = {
+      pool: [chart()],
+      borders: Array(12).fill(null),
+      mode: 'strict' as const,
+      allowRotation: true,
+      adjacencyMode: 'physical' as const,
+      adjacentAffectsSelf: false,
+      disabledMods: [],
+      strategyReservations: defaultStrategyReservations(),
+      layoutChoice: { 'alc-and-go': 'highway' },
+    }
+    const highway = createSolverStateKey(state, {}, 'alc-and-go')
+    const snake = createSolverStateKey(
+      { ...state, layoutChoice: { 'alc-and-go': 'snake' } },
+      {},
+      'alc-and-go',
+    )
+
+    expect(snake).not.toBe(highway)
+  })
+
   it('invalidates inventory and interactive results when strategy protections change', () => {
     const borders = Array(12).fill(null)
     const inventory = createStrategyInventoryKey([chart()], borders, inventoryOptions)

@@ -4,6 +4,19 @@ import { DEFAULT_WEIGHTS, GROUP_LABEL, GROUP_ORDER, REWARD_TYPES } from '../../l
 import { RewardWeights } from './RewardWeights'
 
 describe('reward weight accessibility', () => {
+  it('opens manual weights and keeps overridden strategy weights collapsed', () => {
+    const manual = renderToStaticMarkup(
+      <RewardWeights weights={DEFAULT_WEIGHTS} overridden={false} onChange={() => undefined} />,
+    )
+    const overridden = renderToStaticMarkup(
+      <RewardWeights weights={DEFAULT_WEIGHTS} overridden onChange={() => undefined} />,
+    )
+
+    expect(manual).toContain('<details class="weights-panel" open="">')
+    expect(overridden).toContain('<details class="weights-panel">')
+    expect(overridden).not.toContain('<details class="weights-panel" open="">')
+  })
+
   it('associates every unique slider name with its scoring scope', () => {
     const html = renderToStaticMarkup(
       <RewardWeights weights={DEFAULT_WEIGHTS} overridden={false} onChange={() => undefined} />,

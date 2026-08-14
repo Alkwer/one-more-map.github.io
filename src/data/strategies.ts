@@ -109,6 +109,9 @@ export interface StrategyDef {
    *  a small value makes the lines a soft preference that yields to the
    *  position rules (piece locations matter more than exact lines) */
   layoutPenalty?: number
+  /** selectable layout shapes (first = default); shown as a picker on the
+   *  strategy card, with the choice persisted per strategy */
+  layouts?: { id: string; label: string; hint: string; layout: Edges[] }[]
   /** Optional chart-type keeper groups excluded while this strategy is active.
    *  Users can enable each group independently in the solver controls. */
   reservationGroups?: StrategyReservationGroup[]
@@ -330,6 +333,20 @@ const ALC_GO_LAYOUT: Edges[] = [
   [T, F, F, T], // 8 corner
 ]
 
+// Alc & Go "S-snake": one continuous serpentine from the anchor start.
+// Path: 6 -> 7 -> 8 -> 5 -> 4 -> 3 -> 0 -> 1 -> 2. 8 connections.
+const ALC_GO_SNAKE: Edges[] = [
+  [F, T, T, F], // 0 corner (S to 3, E to 1)
+  [F, T, F, T], // 1 straight
+  [F, F, F, T], // 2 end (tail)
+  [T, T, F, F], // 3 corner (N to 0, E to 4)
+  [F, T, F, T], // 4 straight
+  [F, F, T, T], // 5 corner (S to 8, W to 4)
+  [F, T, F, F], // 6 end (start; E to 7)
+  [F, T, F, T], // 7 straight
+  [T, F, F, T], // 8 corner (N to 5, W to 7)
+]
+
 export const STRATEGIES: StrategyDef[] = [
   {
     id: 'alc-and-go',
@@ -351,6 +368,20 @@ export const STRATEGIES: StrategyDef[] = [
     },
     rules: [],
     layout: ALC_GO_LAYOUT,
+    layouts: [
+      {
+        id: 'highway',
+        label: 'Three-lane highway',
+        hint: 'Burns end and corner pieces evenly.',
+        layout: ALC_GO_LAYOUT,
+      },
+      {
+        id: 'snake',
+        label: 'S-snake',
+        hint: 'One continuous path — fastest to run.',
+        layout: ALC_GO_SNAKE,
+      },
+    ],
     layoutPenalty: 15, // a preference, not a law - "whatever works"
     reservationGroups: [...SPEEDRUN_RESERVATIONS, ...DIVINE_RESERVATIONS, MEATFISH_RESERVATION],
   },

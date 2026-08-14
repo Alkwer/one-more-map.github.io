@@ -9,7 +9,11 @@ interface Props {
 
 export function RewardWeights({ weights, overridden, onChange }: Props) {
   return (
-    <details className="weights-panel">
+    <details
+      key={overridden ? 'overridden' : 'manual'}
+      className="weights-panel"
+      open={!overridden}
+    >
       <summary className="panel-title small weights-summary">
         Reward weights{overridden ? ' (overridden)' : ''}
       </summary>

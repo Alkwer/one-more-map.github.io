@@ -618,6 +618,10 @@ export default function App() {
             pool={analysis.solverEligiblePool}
             borders={state.borders}
             onSelect={(id) => patch({ strategyId: id })}
+            layoutChoice={state.layoutChoice}
+            onLayoutChoice={(strategyId, layoutId) =>
+              patch({ layoutChoice: { ...state.layoutChoice, [strategyId]: layoutId } })
+            }
           />
           <SolverPanel
             state={state}

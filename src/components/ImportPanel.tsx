@@ -464,12 +464,24 @@ export function ImportPanel({
             the solver in the default browser, activate its window without a saved mouse click, and
             paste automatically. If opening or activation fails, the payload stays on the clipboard
             for a manual <kbd>Ctrl+V</kbd>. <kbd>F10</kbd> aborts. Border OCR can take around 15–30
-            seconds on a 4K screen.
+            seconds on a 4K screen. The script's tray menu lets you configure how many fully empty
+            chart rows end a tab sweep; use 0 if you keep Charts below large gaps.
           </li>
         </ol>
         <p className="muted small">
           If PoE runs as administrator, run the script as administrator too, or its keypresses won't
           reach the game. Don't touch the mouse or keyboard while it's running.
+        </p>
+        <p className="muted small">
+          Problems or ideas?{' '}
+          <a
+            href="https://github.com/Alkwer/one-more-map.github.io/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Open a GitHub issue
+          </a>
+          .
         </p>
       </details>
 

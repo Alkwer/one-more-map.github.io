@@ -13,6 +13,13 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    date: '2026-08-14',
+    tag: 'reworked',
+    title: 'Selectable Alc & Go layouts and sturdier imports',
+    detail:
+      'Alc & Go can now build either the classic three-lane highway or a fast continuous S-snake. The Windows importer adds configurable blank-row skipping, clearer zero-copy diagnostics, stuck-key cleanup, and a contrast-stretched fallback for washed-out HDR captures.',
+  },
+  {
     date: '2026-08-13',
     tag: 'reworked',
     title: 'PoE 3.29.3 border-OCR safety',
