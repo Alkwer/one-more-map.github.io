@@ -295,7 +295,9 @@ WizardSteps() {
             . "This window stays on top - drag it anywhere out of the way."),
         Map("id", "grid-tl", "wait", "GridTL", "title", "Chart grid - corner 1 of 2",
             "body", "In PoE, hover your mouse over the CENTRE of the TOP-LEFT chart"
-            . " in the chart panel.`n`nThen press " KeyLabel(Keys["WizardSet"]) " (keep the mouse still)."),
+            . " in the chart INVENTORY (the small chart squares on the right side"
+            . " of the Voyage screen - NOT the big 3x3 board in the middle)."
+            . "`n`nThen press " KeyLabel(Keys["WizardSet"]) " (keep the mouse still)."),
         Map("id", "grid-br", "wait", "GridBR", "title", "Chart grid - corner 2 of 2",
             "body", "Now hover the CENTRE of the BOTTOM-RIGHT cell of the chart grid"
             . " - the far corner of the 6-wide grid, even if that slot is empty.`n`n"
@@ -1755,11 +1757,14 @@ RunSweep(*) {
                 . " are probably calibrated over the wrong panel. Open the Voyage chart"
                 . " panel and re-run the tray Setup wizard."
         else
-            calibWarn := "Nothing was ever copied - Ctrl+C isn't reaching the game."
-                . " Usual causes: PoE runs as administrator (run this script as admin too),"
-                . " controller input mode (switch to mouse+keyboard), exclusive Fullscreen"
-                . " (use Windowed), or the chart panel isn't open."
-                . " (If the panel is genuinely empty, ignore this.)"
+            calibWarn := "Nothing was ever copied - Ctrl+C isn't reaching the game,"
+                . " or the grid isn't over your charts."
+                . " Usual causes: the grid corners were set on the big 3x3 Voyage board"
+                . " instead of the chart INVENTORY squares on the right (re-run the wizard),"
+                . " PoE runs as administrator (run this script as admin too),"
+                . " controller input mode (switch to mouse+keyboard), or exclusive"
+                . " Fullscreen (use Windowed)."
+                . " (If the chart inventory is genuinely empty, ignore this.)"
     }
 
     ; ---- Phase 2: OCR the 12 board-border modifier tooltips ----
