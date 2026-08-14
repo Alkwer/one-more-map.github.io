@@ -927,6 +927,9 @@ function Get-OcrLineRects {
 # tooltip's individually-nearest point is often its neighbour's. Start from
 # the greedy solution, then 2-opt swap pairs until total distance is locally
 # minimal - for 12 points this converges instantly and fixes the cascades.
+# CONFIRMED against a player-annotated board (2026-08-14): this global
+# matching placed all 12 correctly; plain cheapest-first greedy swapped the
+# three corner pairs (top-left/left-top and friends). Keep the 2-opt.
 function Resolve-BorderAssignment {
     param($Points, $Blocks)
     $count = $Points.Count
