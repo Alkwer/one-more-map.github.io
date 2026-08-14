@@ -9,10 +9,19 @@ test('serves the Pages redirect and production assets from the subpath', async (
     if (response.url().startsWith(ORIGIN)) loadedUrls.push(response.url())
   })
 
+  const redirectResponse = await request.get(new URL('/', ORIGIN).toString())
+  expect(redirectResponse.status()).toBe(200)
+  expect(await redirectResponse.text()).toContain(
+    '<link rel="canonical" href="https://alkwer.github.io/allflame-voyage-solver/" />',
+  )
   const rootResponse = await appPage.goto('/')
   expect(rootResponse?.status()).toBe(200)
   await appPage.waitForURL(APP_URL)
   await expect(appPage.getByRole('heading', { name: /Allflame Voyage Solver/ })).toBeVisible()
+  await expect(appPage.locator('link[rel="canonical"]')).toHaveAttribute(
+    'href',
+    'https://alkwer.github.io/allflame-voyage-solver/',
+  )
   await appPage.evaluate(async () => {
     await document.fonts.ready
   })

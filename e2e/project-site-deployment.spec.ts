@@ -35,10 +35,15 @@ test('covers the focused deployment flow below a project-site prefix', async ({
     })
   })
 
+  const canonicalUrl = `https://alkwer.github.io${appPath}`
+  const redirectResponse = await request.get(projectRootUrl.toString())
+  expect(redirectResponse.status()).toBe(200)
+  expect(await redirectResponse.text()).toContain(`<link rel="canonical" href="${canonicalUrl}" />`)
   const rootResponse = await appPage.goto(projectRootUrl.toString())
   expect(rootResponse?.status()).toBe(200)
   await appPage.waitForURL(appUrl.toString())
   await expect(appPage.getByRole('heading', { name: /Allflame Voyage Solver/ })).toBeVisible()
+  await expect(appPage.locator('link[rel="canonical"]')).toHaveAttribute('href', canonicalUrl)
   await appPage.evaluate(async () => {
     await document.fonts.ready
   })

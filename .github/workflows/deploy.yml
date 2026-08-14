@@ -69,6 +69,8 @@ jobs:
     needs: scope
     runs-on: ubuntu-latest
     env:
+      PAGES_CANONICAL_ORIGIN: https://alkwer.github.io
+      PAGES_PRODUCTION_SITE_PREFIX: /one-more-map.github.io/
       PLAYWRIGHT_PROJECT_SITE_PREFIX: /one-more-map.github.io/
       BORDER_ROLL_INTAKE_URL: https://allflame-border-roll-intake.green-loom-6865.chatgpt.site/api/border-rolls
     steps:
