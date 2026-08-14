@@ -19,6 +19,7 @@ const productionSitePrefix =
   process.env.PAGES_PRODUCTION_SITE_PREFIX ?? DEFAULT_PRODUCTION_SITE_PREFIX
 const canonicalOrigin = process.env.PAGES_CANONICAL_ORIGIN ?? DEFAULT_CANONICAL_ORIGIN
 const prefixSegments = sitePrefixSegments(rawProjectSitePrefix)
+const deploymentCommit = process.env.GITHUB_SHA?.trim() || 'local'
 
 async function stageDeployment(target, sitePrefix) {
   const appDirectory = join(target, APP_DIRECTORY)
@@ -31,6 +32,10 @@ async function stageDeployment(target, sitePrefix) {
     const html = await readFile(path, 'utf8')
     await writeFile(path, setCanonicalLink(html, canonicalUrl, path))
   }
+  await writeFile(
+    join(appDirectory, 'deployment.json'),
+    `${JSON.stringify({ commit: deploymentCommit })}\n`,
+  )
 }
 
 await rm(staging, { recursive: true, force: true })
