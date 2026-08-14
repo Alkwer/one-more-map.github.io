@@ -3,6 +3,7 @@ import { defaultStrategyReservations, strategyById } from '../data/strategies'
 import type { Borders, ChartAreaType, ChartData } from '../types'
 import { emptyBorders } from '../types'
 import { decideVoyage } from './voyageDecision'
+import { rotateEdges } from './connectivity'
 import {
   evaluateStrategyInventory,
   resolveRunnableReadiness,
@@ -64,6 +65,59 @@ describe('strategy ranking model policy', () => {
       })
     },
   )
+})
+
+describe('global strategy layout choice', () => {
+  it('uses the selected Alc & Go layout for potential, appraisal, and recommendation ranking', () => {
+    const strategy = strategyById.get('alc-and-go')!
+    const highway = strategy.layouts!.find((layout) => layout.id === 'highway')!
+    const snake = strategy.layouts!.find((layout) => layout.id === 'snake')!
+    const pool = [
+      ...highway.layout.map((edges, index) => ({
+        uid: `highway-${index}`,
+        name: `Highway ${index}`,
+        level: 83,
+        edges,
+        shapeResolved: true,
+        modIds: [],
+        rewards: [{ stat: 'quantity' as const, percent: 110 }],
+        ...(index === 0 ? { areaType: 'anchorfield' as const } : {}),
+      })),
+      ...snake.layout.map((edges, index) => ({
+        uid: `snake-${index}`,
+        name: `Snake ${index}`,
+        level: 83,
+        edges,
+        shapeResolved: true,
+        modIds: ['voy-sulph-3'],
+        rewards: [{ stat: 'quantity' as const, percent: 110 }],
+      })),
+    ] satisfies ChartData[]
+    const charts = new Map(pool.map((chart) => [chart.uid, chart]))
+    const borders = emptyBorders()
+    const evaluate = (layoutId: string) =>
+      evaluateStrategyInventory(borders, charts, pool, {
+        ...options,
+        allowRotation: false,
+        layoutChoice: { 'alc-and-go': layoutId },
+      }).evaluations.find((entry) => entry.strategy.id === 'alc-and-go')!
+    const effectiveLayout = (evaluation: ReturnType<typeof evaluate>) =>
+      evaluation.potentialBoard.map((placement) => {
+        const chart = placement ? charts.get(placement.chartUid) : undefined
+        return chart && placement ? rotateEdges(chart.edges, placement.rotation) : null
+      })
+
+    const highwayEvaluation = evaluate('highway')
+    const snakeEvaluation = evaluate('snake')
+
+    expect(effectiveLayout(highwayEvaluation)).toEqual(highway.layout)
+    expect(effectiveLayout(snakeEvaluation)).toEqual(snake.layout)
+    expect(snakeEvaluation.potentialBoard).not.toEqual(highwayEvaluation.potentialBoard)
+    expect(highwayEvaluation.potentialAppraisal.segments[0].chartName).toBe('Highway 0')
+    expect(snakeEvaluation.potentialAppraisal.segments[0].chartName).toBe('Snake 0')
+    expect(snakeEvaluation.potentialScore).toBeGreaterThan(highwayEvaluation.potentialScore)
+    expect(snakeEvaluation.rankScore).not.toBe(highwayEvaluation.rankScore)
+  })
 })
 
 describe('border-aware strategy readiness', () => {

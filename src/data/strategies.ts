@@ -801,3 +801,15 @@ export const STRATEGIES: StrategyDef[] = [
 ]
 
 export const strategyById = new Map(STRATEGIES.map((s) => [s.id, s]))
+
+/** Resolve the persisted global layout choice, falling back to the strategy default. */
+export function resolveStrategyLayout(
+  strategy: StrategyDef,
+  layoutChoice: Readonly<Record<string, string>> = {},
+): Edges[] | undefined {
+  return (
+    strategy.layouts?.find((layout) => layout.id === layoutChoice[strategy.id])?.layout ??
+    strategy.layouts?.[0]?.layout ??
+    strategy.layout
+  )
+}

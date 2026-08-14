@@ -2,6 +2,7 @@ import { borderModById } from '../data/mods'
 import {
   MIN_FALLBACK_RECOMMENDATION_PERCENTILE,
   rollAwareStrategyRecommendationPriority,
+  resolveStrategyLayout,
   STRATEGIES,
   type StrategyDef,
   type StrategyReservationPreferences,
@@ -63,6 +64,8 @@ export interface StrategyEvaluationOptions extends ScoreOptions {
   allowRotation: boolean
   strategyReservations?: StrategyReservationPreferences
   pieceKeeps?: Record<string, number>
+  /** Persisted global layout variant selected for each strategy. */
+  layoutChoice?: Readonly<Record<string, string>>
 }
 
 export type { StrategyReadiness, StrategyRequirementReadiness } from './strategyReadiness'
@@ -270,6 +273,7 @@ export function evaluateStrategyInventory(
   const hasDivineBorder = effectiveBorders.includes('b-divine')
 
   const rawEvaluations = STRATEGIES.map((strategy) => {
+    const strategyLayout = resolveStrategyLayout(strategy, opts.layoutChoice)
     const eligiblePool = selectStrategySolvePool(
       solverEligiblePool,
       strategy,
@@ -289,7 +293,7 @@ export function evaluateStrategyInventory(
           topK: 1,
           strategyRules: strategy.rules,
           strategyRequirements: strategy.requirements,
-          strategyLayout: strategy.layout,
+          strategyLayout,
           strategyLayoutPenalty: strategy.layoutPenalty,
           forceHeuristic: true,
           searchRestarts: POTENTIAL_SEARCH_RESTARTS,
@@ -305,7 +309,7 @@ export function evaluateStrategyInventory(
           topK: 1,
           strategyRules: strategy.rules,
           strategyRequirements: strategy.requirements,
-          strategyLayout: strategy.layout,
+          strategyLayout,
           strategyLayoutPenalty: strategy.layoutPenalty,
           forceHeuristic: true,
           searchRestarts: POTENTIAL_SEARCH_RESTARTS,

@@ -26,7 +26,7 @@ const normalizedDisabledMods = (disabledMods: Iterable<string>) => [...new Set(d
 const normalizedWeights = (weights: Weights) =>
   Object.entries(weights).sort(([a], [b]) => a.localeCompare(b))
 
-const normalizedLayoutChoice = (layoutChoice: Record<string, string> = {}) =>
+const normalizedLayoutChoice = (layoutChoice: Readonly<Record<string, string>> = {}) =>
   Object.entries(layoutChoice).sort(([a], [b]) => a.localeCompare(b))
 
 export function createStrategyInventoryKey(
@@ -45,6 +45,7 @@ export function createStrategyInventoryKey(
     disabledMods: normalizedDisabledMods(options.disabledMods ?? []),
     strategyReservations: options.strategyReservations ?? defaultStrategyReservations(),
     pieceKeeps: options.pieceKeeps ?? {},
+    layoutChoice: normalizedLayoutChoice(options.layoutChoice),
     limit,
   })
 }
