@@ -72,3 +72,17 @@ test('tracked automation scripts receive the repository lint policy', async () =
   assert.equal(representativeConfig.rules['no-undef'][0], 2)
   assert.equal(representativeConfig.rules['no-unused-vars'][0], 2)
 })
+
+test('research architecture documents the optional external border-roll intake', async () => {
+  const research = await readFile('RESEARCH.md', 'utf8')
+
+  assert.match(
+    research,
+    /\[canonical border-roll intake (?:operations|documentation)\]\(docs\/border-roll-data\.md#optional-automatic-delivery\)/,
+  )
+  assert.match(research, /external intake service/)
+  assert.match(research, /CORS policy/)
+  assert.match(research, /durable browser outbox/)
+  assert.doesNotMatch(research, /static app has no collection backend/i)
+  assert.doesNotMatch(research, /deployed to GitHub Pages with no backend/i)
+})
