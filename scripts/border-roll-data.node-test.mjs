@@ -26,7 +26,10 @@ import {
   reconcileBorderRollDatasetPullRequest,
 } from './reconcile-border-roll-dataset-pr.mjs'
 import { replaceBorderRollLabels } from './replace-border-roll-labels.mjs'
-import { validationDigestFromComments } from './fetch-accepted-border-roll-issues.mjs'
+import {
+  validationDigestFromComments,
+  validationRecordFromComments,
+} from './fetch-accepted-border-roll-issues.mjs'
 import { verifyCanonicalDataset } from './validate-canonical-border-roll-dataset.mjs'
 import { coalesceQueuedIssues, remainingQueuedIssues } from './reconcile-border-roll-queue.mjs'
 
@@ -64,6 +67,12 @@ const withoutSampleFields = (payload, fields) => ({
   samples: payload.samples.map((entry) =>
     Object.fromEntries(Object.entries(entry).filter(([field]) => !fields.has(field))),
   ),
+})
+const trustedValidationComment = (id, body) => ({
+  id,
+  body,
+  user: { id: 41_898_282, login: 'github-actions[bot]', type: 'Bot' },
+  performed_via_github_app: { id: 15_368, slug: 'github-actions' },
 })
 
 test('loads the canonical border modifier IDs from the application source', () => {
@@ -328,18 +337,89 @@ test('quarantines renamed accepted issues after their normalized body changes', 
   ])
 })
 
-test('reads the latest canonical digest only from managed validation comments', () => {
+test('binds the canonical digest to one trusted workflow comment despite later lookalikes', () => {
+  const trusted = trustedValidationComment(
+    77,
+    `${BORDER_ROLL_COMMENT_MARKER}\n✅ Accepted\nCanonical SHA-256: \`${'b'.repeat(64)}\``,
+  )
+  const comments = [
+    { id: 70, body: `Canonical SHA-256: \`${'a'.repeat(64)}\`` },
+    trusted,
+    {
+      id: 78,
+      body: `${BORDER_ROLL_COMMENT_MARKER}\nCanonical SHA-256: \`${'a'.repeat(64)}\``,
+      user: { id: 1, login: 'attacker', type: 'User' },
+    },
+    {
+      id: 79,
+      body: `${BORDER_ROLL_COMMENT_MARKER}\nCanonical SHA-256: \`${'c'.repeat(64)}\``,
+      user: { id: 2, login: 'unrelated[bot]', type: 'Bot' },
+      performed_via_github_app: { id: 99, slug: 'unrelated' },
+    },
+    { id: 80, body: 'A later unrelated comment', user: { type: 'User' } },
+  ]
+
+  assert.deepEqual(validationRecordFromComments(comments), {
+    commentId: 77,
+    digest: 'b'.repeat(64),
+  })
+  assert.equal(validationDigestFromComments(comments), 'b'.repeat(64))
+})
+
+test('ignores matching validation records from users and unrelated bots', () => {
+  const body = `${BORDER_ROLL_COMMENT_MARKER}\nCanonical SHA-256: \`${'c'.repeat(64)}\``
+  const comments = [
+    { id: 80, body, user: { id: 1, login: 'attacker', type: 'User' } },
+    {
+      id: 81,
+      body,
+      user: { id: 2, login: 'unrelated[bot]', type: 'Bot' },
+      performed_via_github_app: { id: 99, slug: 'unrelated' },
+    },
+    {
+      id: 82,
+      body,
+      user: { id: 41_898_282, login: 'github-actions[bot]', type: 'Bot' },
+      performed_via_github_app: { id: 99, slug: 'unrelated' },
+    },
+    {
+      id: 83,
+      body,
+      user: { id: 2, login: 'unrelated[bot]', type: 'Bot' },
+      performed_via_github_app: { id: 15_368, slug: 'github-actions' },
+    },
+  ]
+
+  assert.equal(validationRecordFromComments(comments), null)
+  assert.equal(validationDigestFromComments(comments), null)
+})
+
+test('fails closed for ambiguous or inconsistent trusted validation comments', () => {
+  const body = `${BORDER_ROLL_COMMENT_MARKER}\nCanonical SHA-256: \`${'d'.repeat(64)}\``
   assert.equal(
-    validationDigestFromComments([
-      { body: 'Canonical SHA-256: `' + 'a'.repeat(64) + '`' },
-      {
-        body:
-          '<!-- border-roll-validation -->\n✅ Accepted\nCanonical SHA-256: `' +
-          'b'.repeat(64) +
-          '`',
-      },
+    validationRecordFromComments([
+      trustedValidationComment(90, body),
+      trustedValidationComment(91, body),
     ]),
-    'b'.repeat(64),
+    null,
+  )
+  assert.equal(
+    validationRecordFromComments([
+      trustedValidationComment(92, `${body}\nCanonical SHA-256: \`${'e'.repeat(64)}\``),
+    ]),
+    null,
+  )
+  assert.equal(
+    validationRecordFromComments([
+      trustedValidationComment(93, `${BORDER_ROLL_COMMENT_MARKER}\nNo digest`),
+    ]),
+    null,
+  )
+  assert.equal(
+    validationRecordFromComments([
+      trustedValidationComment(94, `${BORDER_ROLL_COMMENT_MARKER}\n${body}`),
+    ]),
+    null,
   )
 })
 
@@ -848,10 +928,12 @@ test('updates the bot validation comment while leaving user marker comments alon
           user: { type: 'User' },
         },
         {
-          id: 77,
-          body: `${BORDER_ROLL_COMMENT_MARKER}\nPrevious result`,
-          user: { type: 'Bot' },
+          id: 75,
+          body: `${BORDER_ROLL_COMMENT_MARKER}\nUnrelated bot text`,
+          user: { id: 2, login: 'unrelated[bot]', type: 'Bot' },
+          performed_via_github_app: { id: 99, slug: 'unrelated' },
         },
+        trustedValidationComment(77, `${BORDER_ROLL_COMMENT_MARKER}\nPrevious result`),
       ])
     }
     return Response.json({ id: 77 })
@@ -872,4 +954,57 @@ test('updates the bot validation comment while leaving user marker comments alon
   assert.deepEqual(JSON.parse(requests[1].options.body), {
     body: `${BORDER_ROLL_COMMENT_MARKER}\nUpdated result`,
   })
+})
+
+test('creates a trusted validation comment instead of updating an unrelated bot lookalike', async () => {
+  const requests = []
+  const fetchImpl = async (url, options = {}) => {
+    requests.push({ url, options })
+    if (!options.method) {
+      return Response.json([
+        {
+          id: 88,
+          body: `${BORDER_ROLL_COMMENT_MARKER}\nUnrelated result`,
+          user: { id: 2, login: 'unrelated[bot]', type: 'Bot' },
+          performed_via_github_app: { id: 99, slug: 'unrelated' },
+        },
+      ])
+    }
+    return Response.json({ id: 101 }, { status: 201 })
+  }
+
+  const result = await upsertBorderRollComment({
+    repository: 'example/voyage-solver',
+    issueNumber: 56,
+    token: 'test-token',
+    body: `${BORDER_ROLL_COMMENT_MARKER}\nCurrent result`,
+    fetchImpl,
+  })
+
+  assert.deepEqual(result, { action: 'created', commentId: 101 })
+  assert.equal(requests[1].options.method, 'POST')
+  assert.match(requests[1].url, /issues\/56\/comments$/)
+})
+
+test('refuses to update when more than one trusted validation comment exists', async () => {
+  const requests = []
+  const fetchImpl = async (url, options = {}) => {
+    requests.push({ url, options })
+    return Response.json([
+      trustedValidationComment(110, `${BORDER_ROLL_COMMENT_MARKER}\nFirst result`),
+      trustedValidationComment(111, `${BORDER_ROLL_COMMENT_MARKER}\nSecond result`),
+    ])
+  }
+
+  await assert.rejects(
+    upsertBorderRollComment({
+      repository: 'example/voyage-solver',
+      issueNumber: 56,
+      token: 'test-token',
+      body: `${BORDER_ROLL_COMMENT_MARKER}\nCurrent result`,
+      fetchImpl,
+    }),
+    /ambiguous trusted validation comments/,
+  )
+  assert.equal(requests.length, 1)
 })

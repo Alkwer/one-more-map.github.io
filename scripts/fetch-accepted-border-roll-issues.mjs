@@ -2,17 +2,32 @@ import { execFile } from 'node:child_process'
 import { writeFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
+import {
+  BORDER_ROLL_COMMENT_MARKER,
+  isTrustedBorderRollValidationComment,
+} from './border-roll-validation-comment.mjs'
 
-const MARKER = '<!-- border-roll-validation -->'
 const DIGEST = /Canonical SHA-256:\s*`([a-f0-9]{64})`/i
 
-export function validationDigestFromComments(comments) {
-  for (const comment of [...comments].reverse()) {
-    if (typeof comment?.body !== 'string' || !comment.body.includes(MARKER)) continue
-    return comment.body.match(DIGEST)?.[1]?.toLowerCase() ?? null
+export function validationRecordFromComments(comments) {
+  if (!Array.isArray(comments)) return null
+
+  const trusted = comments.filter(isTrustedBorderRollValidationComment)
+  if (trusted.length !== 1) return null
+
+  const comment = trusted[0]
+  const markerCount = comment.body.split(BORDER_ROLL_COMMENT_MARKER).length - 1
+  const digestMatches = [...comment.body.matchAll(new RegExp(DIGEST.source, 'gi'))]
+  if (markerCount !== 1 || digestMatches.length !== 1) return null
+
+  return {
+    commentId: comment.id,
+    digest: digestMatches[0][1].toLowerCase(),
   }
-  return null
 }
+
+export const validationDigestFromComments = (comments) =>
+  validationRecordFromComments(comments)?.digest ?? null
 
 const argument = (name) => {
   const index = process.argv.indexOf(name)
@@ -51,11 +66,13 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       '--slurp',
       `repos/${repository}/issues/${issue.number}/comments?per_page=100`,
     ])
+    const validationRecord = validationRecordFromComments(commentPages.flat())
     accepted.push({
       number: issue.number,
       body: issue.body,
       labels: issue.labels,
-      acceptedHash: validationDigestFromComments(commentPages.flat()),
+      acceptedHash: validationRecord?.digest ?? null,
+      validationCommentId: validationRecord?.commentId ?? null,
     })
   }
   accepted.sort((left, right) => left.number - right.number)

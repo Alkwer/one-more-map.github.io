@@ -1,7 +1,11 @@
 import { readFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
+import {
+  BORDER_ROLL_COMMENT_MARKER,
+  isTrustedBorderRollValidationComment,
+} from './border-roll-validation-comment.mjs'
 
-export const BORDER_ROLL_COMMENT_MARKER = '<!-- border-roll-validation -->'
+export { BORDER_ROLL_COMMENT_MARKER }
 
 const requestJson = async (fetchImpl, url, token, options = {}) => {
   const response = await fetchImpl(url, {
@@ -24,12 +28,6 @@ const requestJson = async (fetchImpl, url, token, options = {}) => {
   return response.status === 204 ? null : response.json()
 }
 
-const isValidationBotComment = (comment) =>
-  Number.isInteger(comment?.id) &&
-  comment?.user?.type === 'Bot' &&
-  typeof comment.body === 'string' &&
-  comment.body.includes(BORDER_ROLL_COMMENT_MARKER)
-
 export const upsertBorderRollComment = async ({
   apiUrl = 'https://api.github.com',
   repository,
@@ -47,9 +45,9 @@ export const upsertBorderRollComment = async ({
 
   const encodedRepository = repository.split('/').map(encodeURIComponent).join('/')
   const issueCommentsUrl = `${apiUrl}/repos/${encodedRepository}/issues/${issueNumber}/comments`
-  let validationComment = null
+  const validationComments = []
 
-  for (let page = 1; !validationComment; page += 1) {
+  for (let page = 1; ; page += 1) {
     const comments = await requestJson(
       fetchImpl,
       `${issueCommentsUrl}?per_page=100&page=${page}`,
@@ -57,9 +55,14 @@ export const upsertBorderRollComment = async ({
     )
     if (!Array.isArray(comments)) throw new Error('GitHub returned a non-array comments response')
 
-    validationComment = comments.find(isValidationBotComment) ?? null
-    if (validationComment || comments.length < 100) break
+    validationComments.push(...comments.filter(isTrustedBorderRollValidationComment))
+    if (comments.length < 100) break
   }
+
+  if (validationComments.length > 1) {
+    throw new Error('Refusing to update ambiguous trusted validation comments')
+  }
+  const validationComment = validationComments[0] ?? null
 
   if (validationComment) {
     await requestJson(
