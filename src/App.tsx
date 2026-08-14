@@ -21,6 +21,7 @@ import { AppHeader } from './components/app/AppHeader'
 import { VoyageBoardStatus } from './components/app/VoyageBoardStatus'
 import {
   CopySequencePrompt,
+  FinishVoyageConfirmationPrompt,
   PreserveConfirmationPrompt,
 } from './components/app/VoyageWorkflowPrompts'
 import { VoyageRewards } from './components/VoyageRewards'
@@ -396,6 +397,19 @@ export default function App() {
       )}
       {!recovery && showUpdates && <UpdatesLog onClose={() => setShowUpdates(false)} />}
       {!recovery && showTutorial && <Tutorial onClose={() => setShowTutorial(false)} />}
+      {!recovery && workflows.finishConfirmation && (
+        <ModalDialog
+          labelledBy="finish-voyage-confirmation-title"
+          onClose={workflows.cancelPreserveConfirmation}
+          className="preserve-confirmation-modal"
+        >
+          <FinishVoyageConfirmationPrompt
+            confirmation={workflows.finishConfirmation}
+            onConfirm={workflows.confirmFinishVoyage}
+            onCancel={workflows.cancelPreserveConfirmation}
+          />
+        </ModalDialog>
+      )}
       {!recovery && workflows.preserveConfirmation && (
         <ModalDialog
           labelledBy="preserve-confirmation-title"
