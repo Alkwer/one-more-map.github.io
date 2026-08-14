@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { StrategyDef } from '../data/strategies'
+import { resolveStrategyLayout, type StrategyDef } from '../data/strategies'
 import type { SolverResult } from '../logic/solver'
 import { createSolverStateKey } from '../logic/solverRequestKeys'
 import { isWorkerRequestCancelled, SolverWorkerClient } from '../logic/solverWorkerClient'
@@ -58,10 +58,9 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
     () => new Set(locked.filter(Boolean).map((placement) => placement!.chartUid)),
     [locked],
   )
-  const layoutVariant =
-    activeStrategy?.layouts?.find(
-      (layout) => layout.id === state.layoutChoice[activeStrategy.id],
-    ) ?? activeStrategy?.layouts?.[0]
+  const strategyLayout = activeStrategy
+    ? resolveStrategyLayout(activeStrategy, state.layoutChoice)
+    : undefined
 
   const solveKey = useMemo(
     () =>
@@ -140,7 +139,7 @@ export function useSolverRequests({ state, activeStrategy, weights, eligiblePool
           topK: 5,
           strategyRules: activeStrategy?.rules,
           strategyRequirements: activeStrategy?.requirements,
-          strategyLayout: layoutVariant?.layout ?? activeStrategy?.layout,
+          strategyLayout,
           strategyLayoutPenalty: activeStrategy?.layoutPenalty,
           locked,
         },

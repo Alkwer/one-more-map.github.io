@@ -155,7 +155,7 @@ describe('solver request keys', () => {
     expect(preserved).not.toBe(original)
   })
 
-  it('invalidates interactive results when the selected strategy layout changes', () => {
+  it('invalidates inventory and interactive results when the selected strategy layout changes', () => {
     const state = {
       pool: [chart()],
       borders: Array(12).fill(null),
@@ -173,8 +173,17 @@ describe('solver request keys', () => {
       {},
       'alc-and-go',
     )
+    const highwayInventory = createStrategyInventoryKey([chart()], state.borders, {
+      ...inventoryOptions,
+      layoutChoice: state.layoutChoice,
+    })
+    const snakeInventory = createStrategyInventoryKey([chart()], state.borders, {
+      ...inventoryOptions,
+      layoutChoice: { 'alc-and-go': 'snake' },
+    })
 
     expect(snake).not.toBe(highway)
+    expect(snakeInventory).not.toBe(highwayInventory)
   })
 
   it('invalidates inventory and interactive results when strategy protections change', () => {

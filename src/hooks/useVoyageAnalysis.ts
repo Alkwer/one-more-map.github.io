@@ -45,8 +45,16 @@ export function useVoyageAnalysis(state: AppState) {
       allowRotation: state.allowRotation,
       strategyReservations: state.strategyReservations,
       pieceKeeps: state.pieceKeeps,
+      layoutChoice: state.layoutChoice,
     }),
-    [scoreOptions, state.mode, state.allowRotation, state.strategyReservations, state.pieceKeeps],
+    [
+      scoreOptions,
+      state.mode,
+      state.allowRotation,
+      state.strategyReservations,
+      state.pieceKeeps,
+      state.layoutChoice,
+    ],
   )
   const {
     inventory: strategyInventory,
