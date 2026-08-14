@@ -253,6 +253,12 @@ assert.match(ahkImporter, /VoyageOcrImage\]::Normalize/)
 assert.match(ahkImporter, /contrast-stretched scans/)
 assert.match(ahkImporter, /Win\+Alt\+B/)
 
+// the status tooltip is topmost, so it gets baked into the Alt-scan
+// screenshot and can cover a border tooltip: it must be hidden before the
+// capture and only re-shown after the helper's shot-taken marker appears
+assert.match(ahkImporter, /-shot-all\.txt/)
+assert.match(ahkImporter, /ShotMarker/)
+
 // 8.3 short-path guard (issue #27): %TEMP% like C:\Users\HARDPC~1 breaks
 // PowerShell's path normalizer - the helper paths must be built from the
 // expanded long path.

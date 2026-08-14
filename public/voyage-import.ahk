@@ -133,6 +133,8 @@ CleanupOcr(*) {
     try FileDelete OcrSession ".cmd"
     try FileDelete OcrSession ".cmd.tmp"
     try FileDelete OcrSession ".ready"
+    try FileDelete OcrSession "-res-all.txt"
+    try FileDelete OcrSession "-shot-all.txt"
     Loop 12
         try FileDelete OcrSession "-res-" (A_Index - 1) ".txt"
 }
@@ -1095,7 +1097,7 @@ function Resolve-BorderAssignment {
 # per-line geometry, cluster lines into tooltip blocks, then assign each
 # block to a border point via the global matcher above.
 function Get-AllBorderBlocks {
-    param([int]$Left, [int]$Top, [int]$Width, [int]$Height, [string]$PointSpec, $Engine)
+    param([int]$Left, [int]$Top, [int]$Width, [int]$Height, [string]$PointSpec, $Engine, [string]$ShotMarker = '')
     $builder = [System.Text.StringBuilder]::new()
     $png = Join-Path $env:TEMP "voyage-border-$PID-all.png"
     $prepared = Join-Path $env:TEMP "voyage-border-$PID-all-prep.png"
@@ -1111,6 +1113,11 @@ function Get-AllBorderBlocks {
         } finally {
             $graphics.Dispose()
             $image.Dispose()
+        }
+        # the screenshot is on disk - tell the script it can put its status
+        # tooltip back up without photobombing the capture
+        if ($ShotMarker -ne '') {
+            [System.IO.File]::WriteAllText($ShotMarker, 'SHOT')
         }
         # mirror the transform inside VoyageOcrImage::Prepare so rects map back
         $scale = [Math]::Min(2.0, 6000.0 / [Math]::Max($Width, $Height))
@@ -1198,7 +1205,7 @@ while ($true) {
         if ($line -eq 'quit') { break }
         $parts = $line.Split('|')
         if ($parts[0] -eq 'scanall' -and $parts.Count -ge 7) {
-            $block = Get-AllBorderBlocks -Left ([int]$parts[2]) -Top ([int]$parts[3]) -Width ([int]$parts[4]) -Height ([int]$parts[5]) -PointSpec $parts[6] -Engine $engine
+            $block = Get-AllBorderBlocks -Left ([int]$parts[2]) -Top ([int]$parts[3]) -Width ([int]$parts[4]) -Height ([int]$parts[5]) -PointSpec $parts[6] -Engine $engine -ShotMarker "$Session-shot-all.txt"
             Write-Atomic "$Session-res-all.txt" $block
             continue
         }
@@ -1381,14 +1388,28 @@ ScanBordersAlt() {
     MouseMove winX + winW // 2, winY + winH // 2, 0
     Send "{Alt down}"
     Sleep AltRevealDelay
+    ; hide our status tooltip before the capture - it's a topmost window, so
+    ; it gets baked into the screenshot and can sit right on top of a border
+    ; tooltip the OCR needs to read
+    ToolTip()
+    Sleep 30
     resFile := OcrSession "-res-all.txt"
+    shotFile := OcrSession "-shot-all.txt"
     try FileDelete resFile
+    try FileDelete shotFile
     OcrSendCommand("scanall|all|" winX "|" winY "|" winW "|" winH "|" points)
     block := ""
     deadline := A_TickCount + OcrTimeout * 1000
     while (A_TickCount < deadline) {
         if !Running
             break
+        ; once the helper signals the screenshot is on disk, the status text
+        ; can come back for the OCR wait without photobombing anything
+        if (shotFile != "" && FileExist(shotFile)) {
+            try FileDelete shotFile
+            shotFile := ""
+            ToolTip "Reading all 12 borders in one Alt scan..."
+        }
         if FileExist(resFile) {
             block := FileRead(resFile, "UTF-8")
             try FileDelete resFile
