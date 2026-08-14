@@ -1,0 +1,11 @@
+{
+  "assets": {
+    "public/bg.webp": {
+      "maxBytes": 409600
+    },
+    "public/bg-mobile.webp": {
+      "maxBytes": 102400,
+      "mustBeSmallerThan": "public/bg.webp"
+    }
+  }
+}
