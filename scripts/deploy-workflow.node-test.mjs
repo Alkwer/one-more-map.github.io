@@ -16,17 +16,17 @@ test('Pages deploy waits for every required validation job', async () => {
 
   assert.match(
     deployBlock,
-    /^    needs: \[scope, quality, windows-playwright-exit\]$/m,
+    /^ {4}needs: \[scope, quality, windows-playwright-exit\]$/m,
     'deploy must wait for change detection and both validation jobs',
   )
-  assert.match(deployBlock, /^        always\(\) &&$/m)
-  assert.match(deployBlock, /^        github\.event_name != 'pull_request' &&$/m)
-  assert.match(deployBlock, /^        github\.ref == 'refs\/heads\/main' &&$/m)
-  assert.match(deployBlock, /^        needs\.scope\.result == 'success' &&$/m)
-  assert.match(deployBlock, /^        needs\.quality\.result == 'success' &&$/m)
+  assert.match(deployBlock, /^ {8}always\(\) &&$/m)
+  assert.match(deployBlock, /^ {8}github\.event_name != 'pull_request' &&$/m)
+  assert.match(deployBlock, /^ {8}github\.ref == 'refs\/heads\/main' &&$/m)
+  assert.match(deployBlock, /^ {8}needs\.scope\.result == 'success' &&$/m)
+  assert.match(deployBlock, /^ {8}needs\.quality\.result == 'success' &&$/m)
   assert.match(
     deployBlock,
-    /^        \(needs\.windows-playwright-exit\.result == 'success' \|\| needs\.windows-playwright-exit\.result == 'skipped'\)$/m,
+    /^ {8}\(needs\.windows-playwright-exit\.result == 'success' \|\| needs\.windows-playwright-exit\.result == 'skipped'\)$/m,
     'dataset-only main pushes must deploy after the intentionally skipped Windows job',
   )
 })
@@ -50,8 +50,8 @@ test('dataset-only updates keep required checks while skipping browser jobs', as
   const windowsBlock = workflow.slice(windowsStart, qualityStart)
   const qualityBlock = workflow.slice(qualityStart, deployStart)
 
-  assert.match(scopeBlock, /^    runs-on: ubuntu-slim$/m)
-  assert.match(scopeBlock, /^          fetch-depth: 0$/m)
+  assert.match(scopeBlock, /^ {4}runs-on: ubuntu-slim$/m)
+  assert.match(scopeBlock, /^ {10}fetch-depth: 0$/m)
   assert.match(
     scopeBlock,
     /mapfile -t changed_files < <\(git diff --name-only "\$BASE_SHA" "\$HEAD_SHA"\)/,
@@ -60,20 +60,20 @@ test('dataset-only updates keep required checks while skipping browser jobs', as
   assert.match(scopeBlock, /"data\/border-rolls-v2\.json"/)
   assert.match(scopeBlock, /echo "data_only=\$data_only" >> "\$GITHUB_OUTPUT"/)
 
-  assert.match(windowsBlock, /^    needs: scope$/m)
-  assert.match(windowsBlock, /^    if: needs\.scope\.outputs\.data_only != 'true'$/m)
+  assert.match(windowsBlock, /^ {4}needs: scope$/m)
+  assert.match(windowsBlock, /^ {4}if: needs\.scope\.outputs\.data_only != 'true'$/m)
 
-  assert.match(qualityBlock, /^    needs: scope$/m)
-  assert.match(qualityBlock, /^      - name: Validate dataset update$/m)
-  assert.match(qualityBlock, /^        if: needs\.scope\.outputs\.data_only == 'true'$/m)
+  assert.match(qualityBlock, /^ {4}needs: scope$/m)
+  assert.match(qualityBlock, /^ {6}- name: Validate dataset update$/m)
+  assert.match(qualityBlock, /^ {8}if: needs\.scope\.outputs\.data_only == 'true'$/m)
   assert.match(qualityBlock, /fetch-accepted-border-roll-issues\.mjs/)
-  assert.match(qualityBlock, /^          npm run validate:data-update$/m)
-  assert.match(qualityBlock, /^      - name: Run full validation$/m)
-  assert.match(qualityBlock, /^        if: needs\.scope\.outputs\.data_only != 'true'$/m)
-  assert.match(qualityBlock, /^        run: npm run validate$/m)
+  assert.match(qualityBlock, /^ {10}npm run validate:data-update$/m)
+  assert.match(qualityBlock, /^ {6}- name: Run full validation$/m)
+  assert.match(qualityBlock, /^ {8}if: needs\.scope\.outputs\.data_only != 'true'$/m)
+  assert.match(qualityBlock, /^ {8}run: npm run validate$/m)
   assert.match(
     qualityBlock,
-    /^        if: needs\.scope\.outputs\.data_only != 'true' \|\| \(github\.event_name != 'pull_request' && github\.ref == 'refs\/heads\/main'\)$/m,
+    /^ {8}if: needs\.scope\.outputs\.data_only != 'true' \|\| \(github\.event_name != 'pull_request' && github\.ref == 'refs\/heads\/main'\)$/m,
     'dataset-only main pushes must still stage the Pages artifact',
   )
   assert.equal(
@@ -95,16 +95,16 @@ test('dependency maintenance and audit policy stay enforced', async () => {
   const npmBlock = dependabot.slice(npmStart)
 
   assert.notEqual(qualityStart, -1, 'quality job is missing')
-  assert.match(qualityBlock, /^      - name: Enforce npm audit policy$/m)
-  assert.match(qualityBlock, /^        if: needs\.scope\.outputs\.data_only != 'true'$/m)
-  assert.match(qualityBlock, /^        run: npm run audit:ci$/m)
+  assert.match(qualityBlock, /^ {6}- name: Enforce npm audit policy$/m)
+  assert.match(qualityBlock, /^ {8}if: needs\.scope\.outputs\.data_only != 'true'$/m)
+  assert.match(qualityBlock, /^ {8}run: npm run audit:ci$/m)
 
   assert.notEqual(npmStart, -1, 'npm Dependabot updates are missing')
-  assert.match(npmBlock, /^    open-pull-requests-limit: 3$/m)
-  assert.match(npmBlock, /^      development-tooling:$/m)
-  assert.match(npmBlock, /^        dependency-type: development$/m)
-  assert.match(npmBlock, /^          - minor$/m)
-  assert.match(npmBlock, /^          - patch$/m)
+  assert.match(npmBlock, /^ {4}open-pull-requests-limit: 3$/m)
+  assert.match(npmBlock, /^ {6}development-tooling:$/m)
+  assert.match(npmBlock, /^ {8}dependency-type: development$/m)
+  assert.match(npmBlock, /^ {10}- minor$/m)
+  assert.match(npmBlock, /^ {10}- patch$/m)
 
   assert.equal(packageJson.scripts['audit:production'], 'npm audit --omit=dev')
   assert.equal(packageJson.scripts['audit:high'], 'npm audit --audit-level=high')
@@ -115,10 +115,10 @@ test('dependency audit runs on an independent weekly schedule', async () => {
   const workflow = await readFile(securityAuditUrl, 'utf8')
 
   assert.match(workflow, /^name: Dependency security audit$/m)
-  assert.match(workflow, /^  schedule:$/m)
-  assert.match(workflow, /^    - cron: '17 3 \* \* 1'$/m)
-  assert.match(workflow, /^  workflow_dispatch:$/m)
-  assert.match(workflow, /^permissions:\n  contents: read$/m)
-  assert.match(workflow, /^      - run: npm ci$/m)
-  assert.match(workflow, /^        run: npm run audit:ci$/m)
+  assert.match(workflow, /^ {2}schedule:$/m)
+  assert.match(workflow, /^ {4}- cron: '17 3 \* \* 1'$/m)
+  assert.match(workflow, /^ {2}workflow_dispatch:$/m)
+  assert.match(workflow, /^permissions:\n {2}contents: read$/m)
+  assert.match(workflow, /^ {6}- run: npm ci$/m)
+  assert.match(workflow, /^ {8}run: npm run audit:ci$/m)
 })

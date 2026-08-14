@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 import { test } from 'node:test'
+import { ESLint } from 'eslint'
 
 const policy = JSON.parse(await readFile('.github/rulesets/main.json', 'utf8'))
 
@@ -41,4 +43,26 @@ test('security reporting points to the enabled canonical private channel', async
   )
   assert.match(workflow, /repos\/\$GITHUB_REPOSITORY\/private-vulnerability-reporting/)
   assert.match(workflow, /--jq ['"]?\.enabled['"]?/)
+})
+
+test('tracked automation scripts receive the repository lint policy', async () => {
+  const trackedScripts = execFileSync('git', ['ls-files', '-z', '--', 'scripts'], {
+    encoding: 'utf8',
+  })
+    .split('\0')
+    .filter((file) => /\.(?:[cm]?js)$/.test(file))
+  assert.ok(trackedScripts.length > 0, 'No tracked automation scripts were found')
+
+  const eslint = new ESLint()
+  for (const file of trackedScripts) {
+    const config = await eslint.calculateConfigForFile(file)
+    assert.ok(
+      config?.rules && Object.keys(config.rules).length > 0,
+      `Tracked automation script receives no lint rules: ${file}`,
+    )
+  }
+
+  const representativeConfig = await eslint.calculateConfigForFile('scripts/stage-pages.mjs')
+  assert.equal(representativeConfig.rules['no-undef'][0], 2)
+  assert.equal(representativeConfig.rules['no-unused-vars'][0], 2)
 })
