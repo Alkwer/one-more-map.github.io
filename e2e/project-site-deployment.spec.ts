@@ -48,13 +48,7 @@ test('covers the focused deployment flow below a project-site prefix', async ({
     await document.fonts.ready
   })
 
-  const requiredAssets = [
-    /\/assets\/index-[^/]+\.js$/,
-    /\/assets\/index-[^/]+\.css$/,
-    /\/font\/fontin-regular-webfont\.woff$/,
-    /\/bg\.webp$/,
-    /\/panel-frame\.webp$/,
-  ]
+  const requiredAssets = [/\/assets\/index-[^/]+\.js$/, /\/assets\/index-[^/]+\.css$/]
   for (const asset of requiredAssets) {
     await expect
       .poll(() =>

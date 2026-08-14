@@ -250,7 +250,8 @@ test('exposes the primary screen structure and visible focus in both themes', as
   await expect(appPage.getByRole('heading', { level: 2, name: 'Import' })).toBeVisible()
   await expect(appPage.getByRole('heading', { level: 2, name: 'Voyage Board' })).toBeVisible()
   await expect(appPage.getByRole('heading', { level: 2, name: 'Diagnostics' })).toBeVisible()
-  await expect(appPage.locator('body')).toHaveCSS('background-image', /bg\.webp/)
+  await expect(appPage.locator('body')).toHaveCSS('background-image', /radial-gradient/)
+  await expect(appPage.locator('body')).not.toHaveCSS('background-image', /url\(/)
   await expectNoAccessibilityViolations(appPage)
 
   const themeButton = appPage.locator('.theme-link')
@@ -1070,8 +1071,11 @@ test('confirms grid and list deletion while cancel preserves chart, board, and a
   })
   await libraryChart.click()
   await appPage.getByRole('button', { name: 'Board cell 7, row 3, column 1, start: empty' }).click()
+  await libraryChart.scrollIntoViewIfNeeded()
   await libraryChart.hover()
-  await appPage.getByRole('button', { name: `Delete ${chartName}` }).click()
+  const gridDeleteButton = appPage.getByRole('button', { name: `Delete ${chartName}` })
+  await expect(gridDeleteButton).toBeVisible()
+  await gridDeleteButton.click()
 
   const confirmation = appPage.getByRole('dialog', { name: `Delete ${chartName}?` })
   await expect(confirmation).toContainText('row 3, column 1')

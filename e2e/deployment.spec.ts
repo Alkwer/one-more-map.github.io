@@ -26,13 +26,7 @@ test('serves the Pages redirect and production assets from the subpath', async (
     await document.fonts.ready
   })
 
-  const requiredAssets = [
-    /\/assets\/index-[^/]+\.js$/,
-    /\/assets\/index-[^/]+\.css$/,
-    /\/font\/fontin-regular-webfont\.woff$/,
-    /\/bg\.webp$/,
-    /\/panel-frame\.webp$/,
-  ]
+  const requiredAssets = [/\/assets\/index-[^/]+\.js$/, /\/assets\/index-[^/]+\.css$/]
   for (const asset of requiredAssets) {
     await expect
       .poll(() =>

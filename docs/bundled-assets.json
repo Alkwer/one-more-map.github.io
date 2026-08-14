@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1,
+  "description": "Binary assets intentionally bundled with the application. Every entry must have verified redistribution permission.",
+  "assets": []
+}

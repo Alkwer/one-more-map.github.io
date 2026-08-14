@@ -244,4 +244,16 @@ abort, timeout, and normal script exit. The PowerShell helper source is inherite
 through an environment value and executed from memory; it is never written to a
 `.ps1` file. None of these screenshots or OCR results is uploaded.
 
+## Licensing, assets, and affiliation
+
+Project-authored code and documentation are available under the MIT License,
+subject to the scope notice in [LICENSE](LICENSE). The deployed application does
+not bundle third-party raster artwork or font binaries. The current machine-readable
+inventory, the provenance review of removed assets, and source links are in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+Path of Exile and related names and marks belong to Grinding Gear Games. This is
+an independent community project and is not affiliated with, endorsed by,
+sponsored by, or approved by Grinding Gear Games.
+
 Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md).

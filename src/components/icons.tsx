@@ -110,17 +110,6 @@ const PATHS: Record<Stat, JSX.Element> = {
   exp: <path d="M8 13.6V3.2M4.4 6.8 8 3.2l3.6 3.6" />,
 }
 
-// currency + scarabs are game inventory art; the rest are AI-generated in PoE style
-const IMAGE_ICONS: Partial<Record<Stat, string>> = {
-  currency: './icon-currency.png',
-  scarabs: './icon-scarabs.png',
-  rares: './icon-rares.png',
-  sulphur: './icon-sulphur.png',
-  packsize: './icon-packsize.png',
-  quantity: './icon-quantity.png',
-  preserve: './icon-preserve.png',
-}
-
 /** Mini connector-shape glyph, like the line marks on in-game chart items. */
 export function EdgeGlyph({
   edges,
@@ -141,10 +130,6 @@ export function EdgeGlyph({
 }
 
 export function StatIcon({ stat, size = 13 }: { stat: Stat; size?: number }) {
-  const img = IMAGE_ICONS[stat]
-  if (img) {
-    return <img className="stat-icon-img" src={img} width={size} height={size} alt="" aria-hidden />
-  }
   return (
     <svg
       viewBox="0 0 16 16"
