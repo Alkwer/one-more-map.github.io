@@ -76,10 +76,15 @@ export function useModalDialog({
 
       const capturedTarget = restoreTargetRef.current
       restoreFrameRef.current = window.requestAnimationFrame(() => {
+        const active = document.activeElement
+        const currentTarget =
+          active instanceof HTMLElement && active !== document.body && active.isConnected
+            ? active
+            : null
         const fallback = document.querySelector<HTMLElement>(
           '[data-dialog-fallback-focus], header button, main button, main a[href]',
         )
-        const target = capturedTarget?.isConnected ? capturedTarget : fallback
+        const target = capturedTarget?.isConnected ? capturedTarget : (currentTarget ?? fallback)
         target?.focus()
       })
     }

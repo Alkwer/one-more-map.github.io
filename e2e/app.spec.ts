@@ -89,6 +89,12 @@ async function finishAndConfirm(page: AppPage) {
   await confirmation.getByRole('button', { name: /Finish and consume/ }).click()
 }
 
+async function confirmChartDeletion(page: AppPage, chartName: string) {
+  const confirmation = page.getByRole('dialog', { name: `Delete ${chartName}?` })
+  await expect(confirmation).toBeVisible()
+  await confirmation.getByRole('button', { name: 'Delete chart' }).click()
+}
+
 const chartPayload = (name: string, area: string, implicit: string) =>
   ENGLISH_CHART.replace('Armoured Coral Reef Chart of Ice', name)
     .replace('Undersea Groves', area)
@@ -297,6 +303,14 @@ test('keeps every modal workflow labelled, contained, dismissible, and focus-saf
     appPage.getByRole('button', { name: '📋 Plan' }),
     'Session Plan',
   )
+  await appPage
+    .getByRole('button', { name: 'Select Armoured Coral Reef Chart of Ice for placement' })
+    .hover()
+  await expectAccessibleModal(
+    appPage,
+    appPage.getByRole('button', { name: 'Delete Armoured Coral Reef Chart of Ice' }),
+    'Delete Armoured Coral Reef Chart of Ice?',
+  )
 
   const updatesTrigger = appPage.getByRole('button', { name: 'Updates', exact: true })
   await updatesTrigger.click()
@@ -482,6 +496,7 @@ test('paginates all 250 charts with bounded grid and list DOM while preserving l
 
   await library.getByRole('button', { name: 'Close editor for A Full Chart 250' }).click()
   await library.getByRole('button', { name: 'Delete A Full Chart 250' }).click()
+  await confirmChartDeletion(appPage, 'A Full Chart 250')
   await expect(libraryHeading(appPage)).toContainText('(249)')
   await expect(
     library.getByRole('button', { name: 'Select Full Chart 001 for placement' }),
@@ -838,6 +853,17 @@ test('provides touch-only detail controls without placing or deleting charts', a
   await inspectBoard.tap({ position: { x: 8, y: 8 } })
   await expect(page.locator('.poe-tooltip')).toContainText('Weighted value:')
   await expect(boardChart).toBeVisible()
+
+  await deleteLibrary.tap()
+  const confirmation = page.getByRole('dialog', { name: `Delete ${chartName}?` })
+  await expect(confirmation).toBeVisible()
+  await expect(confirmation.locator('[data-dialog-initial-focus]')).toBeFocused()
+  await expect(page.locator('main')).toHaveJSProperty('inert', true)
+  await expectNoAccessibilityViolations(page)
+  await confirmation.getByRole('button', { name: 'Cancel' }).tap()
+  await expect(confirmation).toHaveCount(0)
+  await expect(boardChart).toBeVisible()
+  await expect(libraryHeading(page)).toContainText('(1)')
 })
 
 test('rejects an oversized chart paste before it can monopolize the main thread', async ({
@@ -889,6 +915,7 @@ test('clears stale chart and board-cell selections after removals', async ({ app
 
   await firstCard.click()
   await appPage.getByRole('button', { name: `Delete ${firstName}` }).click()
+  await confirmChartDeletion(appPage, firstName)
   await firstCell.click()
   await expect(
     appPage.getByRole('alert').filter({ hasText: 'Your latest change was kept out' }),
@@ -912,6 +939,56 @@ test('clears stale chart and board-cell selections after removals', async ({ app
 
   await expect(firstCell).not.toHaveAttribute('data-chart-name')
   await expect(secondCell).toHaveAttribute('data-chart-name', secondName)
+})
+
+test('confirms grid and list deletion while cancel preserves chart, board, and autosave', async ({
+  appPage,
+}) => {
+  await openApp(appPage)
+  const chartName = 'Armoured Coral Reef Chart of Ice'
+  await pasteText(appPage, ENGLISH_CHART)
+  await pasteText(appPage, KOREAN_CHART)
+
+  const libraryChart = appPage.getByRole('button', {
+    name: `Select ${chartName} for placement`,
+  })
+  await libraryChart.click()
+  await appPage.getByRole('button', { name: 'Board cell 7, row 3, column 1, start: empty' }).click()
+  await libraryChart.hover()
+  await appPage.getByRole('button', { name: `Delete ${chartName}` }).click()
+
+  const confirmation = appPage.getByRole('dialog', { name: `Delete ${chartName}?` })
+  await expect(confirmation).toContainText('row 3, column 1')
+  await expect(confirmation.getByRole('button', { name: 'Cancel' })).toBeFocused()
+  await expect(libraryHeading(appPage)).toContainText('(2)')
+  await expect(
+    appPage.getByRole('button', { name: new RegExp(`Board cell 7,.*${chartName}`) }),
+  ).toBeVisible()
+  await confirmation.getByRole('button', { name: 'Cancel' }).click()
+
+  await appPage.reload()
+  await expect(libraryHeading(appPage)).toContainText('(2)')
+  await expect(
+    appPage.getByRole('button', { name: new RegExp(`Board cell 7,.*${chartName}`) }),
+  ).toBeVisible()
+
+  await appPage.getByRole('button', { name: 'Switch to list view' }).click()
+  const actions = appPage.getByRole('group', { name: `Actions for ${chartName}` })
+  await actions.getByRole('button', { name: `Delete ${chartName}` }).click()
+  await confirmChartDeletion(appPage, chartName)
+
+  await expect(libraryHeading(appPage)).toContainText('(1)')
+  await expect(
+    appPage.getByRole('button', { name: 'Board cell 7, row 3, column 1, start: empty' }),
+  ).toBeVisible()
+  await appPage.reload()
+  await expect(libraryHeading(appPage)).toContainText('(1)')
+  await expect(
+    appPage.getByRole('button', { name: `Select ${chartName} for placement` }),
+  ).toHaveCount(0)
+  await expect(
+    appPage.getByRole('button', { name: 'Board cell 7, row 3, column 1, start: empty' }),
+  ).toBeVisible()
 })
 
 test('blocks overlong single-chart copies without advancing the placement sequence', async ({
@@ -2029,6 +2106,7 @@ test('keeps a copy snapshot safe across swaps, board clears, and chart removal',
     .getByRole('button', { name: 'Select Armoured Coral Reef Chart of Ice for placement' })
     .hover()
   await appPage.getByRole('button', { name: 'Delete Armoured Coral Reef Chart of Ice' }).click()
+  await confirmChartDeletion(appPage, 'Armoured Coral Reef Chart of Ice')
 
   await expect(copyPrompt).toHaveCount(0)
   await expect(

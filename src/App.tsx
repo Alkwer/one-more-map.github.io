@@ -20,6 +20,7 @@ import { VoyageAdvisor } from './components/VoyageAdvisor'
 import { AppHeader } from './components/app/AppHeader'
 import { VoyageBoardStatus } from './components/app/VoyageBoardStatus'
 import {
+  ChartDeletionConfirmationPrompt,
   CopySequencePrompt,
   FinishVoyageConfirmationPrompt,
   PreserveConfirmationPrompt,
@@ -59,6 +60,12 @@ interface InitialStateResult {
   state: AppState
   shareSession: ShareSession | null
   recovery: LocalStateRecovery | null
+}
+
+interface ChartDeletionConfirmation {
+  uid: string
+  name: string
+  boardCells: number[]
 }
 
 /** One-time notice for the two-page Windows importer update. */
@@ -104,6 +111,8 @@ export default function App() {
     LocalSaveResult,
     { ok: false }
   > | null>(null)
+  const [chartDeletionConfirmation, setChartDeletionConfirmation] =
+    useState<ChartDeletionConfirmation | null>(null)
   const chrome = useAppChrome(state)
   const analysis = useVoyageAnalysis(state)
   const selection = useBoardSelection(state.board, state.pool, dispatch)
@@ -173,6 +182,7 @@ export default function App() {
   const replaceState = useCallback(
     (nextState: AppState) => {
       clearSelection()
+      setChartDeletionConfirmation(null)
       dispatch({ type: 'replace', state: nextState })
     },
     [clearSelection],
@@ -313,6 +323,21 @@ export default function App() {
     dispatch({ type: 'charts/clear' })
     clearSelection()
   }
+  const requestChartDeletion = (uid: string) => {
+    const chart = state.pool.find((candidate) => candidate.uid === uid)
+    if (!chart) return
+    const boardCells = state.board.flatMap((placement, cell) =>
+      placement?.chartUid === uid ? [cell] : [],
+    )
+    setChartDeletionConfirmation({ uid, name: chart.name, boardCells })
+  }
+  const cancelChartDeletion = () => setChartDeletionConfirmation(null)
+  const confirmChartDeletion = () => {
+    if (!chartDeletionConfirmation) return
+    clearSelection()
+    dispatch({ type: 'charts/remove', uid: chartDeletionConfirmation.uid })
+    setChartDeletionConfirmation(null)
+  }
   const selectedBoardChart =
     selection.selectedChart &&
     state.board.some((placement) => placement?.chartUid === selection.selectedChart)
@@ -394,6 +419,20 @@ export default function App() {
           onBulk={(ids, disabled) => dispatch({ type: 'mods/set-disabled', ids, disabled })}
           onClose={chrome.closeMods}
         />
+      )}
+      {!recovery && chartDeletionConfirmation && (
+        <ModalDialog
+          labelledBy="chart-deletion-confirmation-title"
+          onClose={cancelChartDeletion}
+          className="preserve-confirmation-modal"
+        >
+          <ChartDeletionConfirmationPrompt
+            chartName={chartDeletionConfirmation.name}
+            boardCells={chartDeletionConfirmation.boardCells}
+            onConfirm={confirmChartDeletion}
+            onCancel={cancelChartDeletion}
+          />
+        </ModalDialog>
       )}
       {!recovery && showUpdates && <UpdatesLog onClose={() => setShowUpdates(false)} />}
       {!recovery && showTutorial && <Tutorial onClose={() => setShowTutorial(false)} />}
@@ -521,10 +560,7 @@ export default function App() {
             selected={selection.selectedChart}
             onSelect={selection.selectChart}
             onAdd={addCharts}
-            onRemove={(uid) => {
-              clearSelection()
-              dispatch({ type: 'charts/remove', uid })
-            }}
+            onRemove={requestChartDeletion}
             onUpdate={(chart) => dispatch({ type: 'charts/update', chart })}
             onClearCharts={clearCharts}
             onOpenSaveWizard={() => setShowSaveWizard(true)}

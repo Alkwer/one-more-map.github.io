@@ -8,6 +8,9 @@ import type { Board, ChartData } from '../../types'
 import type { PreserveConfirmation } from '../../hooks/useVoyageWorkflows'
 import type { FinishVoyageConfirmation } from '../../hooks/useVoyageWorkflows'
 
+const boardCellLabel = (cell: number): string =>
+  `row ${Math.floor(cell / 3) + 1}, column ${(cell % 3) + 1}`
+
 const chartImplicit = (chart: ChartData): string =>
   chart.implicitText ??
   chart.modIds.map((id) => voyageModById.get(id)).find((modifier) => modifier?.scope !== 'self')
@@ -134,6 +137,46 @@ export function FinishVoyageConfirmationPrompt({
         </button>
         <button className="pc-kept" onClick={onCancel}>
           Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
+
+interface ChartDeletionConfirmationPromptProps {
+  chartName: string
+  boardCells: number[]
+  onConfirm: () => void
+  onCancel: () => void
+}
+
+export function ChartDeletionConfirmationPrompt({
+  chartName,
+  boardCells,
+  onConfirm,
+  onCancel,
+}: ChartDeletionConfirmationPromptProps) {
+  const placementNotice =
+    boardCells.length === 0
+      ? 'It is not currently placed on the board.'
+      : boardCells.length === 1
+        ? `It is currently placed at ${boardCellLabel(boardCells[0])}; that board cell will also be cleared.`
+        : `It is currently placed at ${boardCells.map(boardCellLabel).join(', ')}; those board cells will also be cleared.`
+
+  return (
+    <div className="preserve-confirm">
+      <div className="pc-head" id="chart-deletion-confirmation-title">
+        Delete {chartName}?
+      </div>
+      <div className="pc-sub">
+        This permanently removes the chart from your saved library. {placementNotice}
+      </div>
+      <div className="pc-actions">
+        <button className="pc-kept" data-dialog-initial-focus onClick={onCancel}>
+          Cancel
+        </button>
+        <button className="pc-lost" onClick={onConfirm}>
+          Delete chart
         </button>
       </div>
     </div>

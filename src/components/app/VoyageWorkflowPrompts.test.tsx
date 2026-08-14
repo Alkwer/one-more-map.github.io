@@ -1,7 +1,11 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { Board, ChartData } from '../../types'
-import { CopySequencePrompt, FinishVoyageConfirmationPrompt } from './VoyageWorkflowPrompts'
+import {
+  ChartDeletionConfirmationPrompt,
+  CopySequencePrompt,
+  FinishVoyageConfirmationPrompt,
+} from './VoyageWorkflowPrompts'
 
 const chart: ChartData = {
   uid: 'chart-6',
@@ -57,6 +61,26 @@ describe('FinishVoyageConfirmationPrompt', () => {
 
     expect(html).toContain('Finish Voyage and consume 9 charts?')
     expect(html).toContain('Finish and consume 9')
+    expect(html).toContain('Cancel')
+  })
+})
+
+describe('ChartDeletionConfirmationPrompt', () => {
+  it('names the chart and warns that its board placement will be cleared', () => {
+    const html = renderToStaticMarkup(
+      <ChartDeletionConfirmationPrompt
+        chartName="Test Chart"
+        boardCells={[6]}
+        onConfirm={() => {}}
+        onCancel={() => {}}
+      />,
+    )
+
+    expect(html).toContain('Delete Test Chart?')
+    expect(html).toContain('permanently removes the chart from your saved library')
+    expect(html).toContain('row 3, column 1')
+    expect(html).toContain('Delete chart')
+    expect(html).toContain('data-dialog-initial-focus="true"')
     expect(html).toContain('Cancel')
   })
 })
