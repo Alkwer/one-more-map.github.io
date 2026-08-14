@@ -714,6 +714,25 @@ using System.Runtime.InteropServices;
 
 public static class VoyageOcrImage
 {
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    private static extern uint GetLongPathNameW(string shortPath, System.Text.StringBuilder buffer, uint bufferLength);
+
+    // %TEMP% can arrive as an 8.3 short path (C:\Users\HARDPC~1\...). Win32
+    // tolerates those, but WinRT StorageFile - which Windows OCR uses to open
+    // images - can refuse them ('An object at the specified path does not
+    // exist'), failing the scan on every image it just wrote (issues #27/#35).
+    public static string LongPath(string path)
+    {
+        try
+        {
+            System.Text.StringBuilder buffer = new System.Text.StringBuilder(1024);
+            uint length = GetLongPathNameW(path, buffer, 1024);
+            if (length > 0 && length < 1024) { return buffer.ToString(); }
+        }
+        catch { }
+        return path;
+    }
+
     public static void Prepare(string sourcePath, string outputPath)
     {
         using (var original = new Bitmap(sourcePath))
@@ -1491,6 +1510,10 @@ public static class VoyageWgc
 }
 '@
 
+# expand a short-path %TEMP% once - every Join-Path $env:TEMP below inherits
+# the fix and WinRT never sees a '~' path (issues #27/#35)
+$env:TEMP = [VoyageOcrImage]::LongPath($env:TEMP)
+
 [void][Windows.Storage.StorageFile, Windows.Storage, ContentType = WindowsRuntime]
 [void][Windows.Storage.FileAccessMode, Windows.Storage, ContentType = WindowsRuntime]
 [void][Windows.Storage.Streams.IRandomAccessStream, Windows.Storage.Streams, ContentType = WindowsRuntime]
@@ -1934,7 +1957,13 @@ while ($true) {
         }
         if ($parts[0] -ne 'capture' -or $parts.Count -lt 6) { continue }
         $idx = [int]$parts[1]
-        $block = Get-BorderBlock -Index $idx -Left ([int]$parts[2]) -Top ([int]$parts[3]) -Width ([int]$parts[4]) -Height ([int]$parts[5]) -Engine $engine
+        # same instant-error contract as scanall: whatever goes wrong, the
+        # script gets a parseable answer now, not a 90-second timeout
+        try {
+            $block = Get-BorderBlock -Index $idx -Left ([int]$parts[2]) -Top ([int]$parts[3]) -Width ([int]$parts[4]) -Height ([int]$parts[5]) -Engine $engine
+        } catch {
+            $block = '=== VOYAGE BORDER ' + $idx + ' ===' + [Environment]::NewLine + 'OCR ERROR: ' + $_.Exception.Message + [Environment]::NewLine + '=== END VOYAGE BORDER ==='
+        }
         Write-Atomic "$Session-res-$idx.txt" $block
     } catch {
         Start-Sleep -Milliseconds 60

@@ -295,6 +295,12 @@ assert.match(ahkImporter, /engine language/)
 assert.match(ahkImporter, /alt scan \| helper died after/)
 assert.match(ahkImporter, /hover border /)
 
+// stale 8.3 short paths in %TEMP% break WinRT StorageFile on some machines
+// (issues #27/#35, confirmed by field bundle): the helper must expand TEMP
+// at startup, and the per-border dispatch must return errors instantly
+assert.match(ahkImporter, /VoyageOcrImage\]::LongPath\(\$env:TEMP\)/)
+assert.match(ahkImporter, /public static string LongPath/)
+
 // 8.3 short-path guard (issue #27): %TEMP% like C:\Users\HARDPC~1 breaks
 // PowerShell's path normalizer - the helper paths must be built from the
 // expanded long path.
