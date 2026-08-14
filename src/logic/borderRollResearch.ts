@@ -1,4 +1,5 @@
 import { borderModById } from '../data/mods'
+import { CURRENT_GAME_PATCH } from '../data/gameVersion'
 import type { Borders } from '../types'
 import {
   incompatibleAuxiliaryStore,
@@ -220,7 +221,10 @@ function completeBorders(borders: Borders): OrderedBorderIds | null {
 export function createBorderRollSample(input: CreateSampleInput): CreateSampleResult {
   const gamePatch = input.gamePatch.trim()
   if (!gamePatch || gamePatch.length > 32) {
-    return { ok: false, message: 'Enter the current game patch (for example 3.29.2).' }
+    return {
+      ok: false,
+      message: `Enter the current game patch (for example ${CURRENT_GAME_PATCH}).`,
+    }
   }
   if (!Number.isInteger(input.rerollIndex) || input.rerollIndex < 0 || input.rerollIndex > 20) {
     return { ok: false, message: 'Reroll number must be a whole number from 0 to 20.' }
@@ -310,6 +314,13 @@ export function getBorderRollSequence(
   return samples
     .filter((sample) => sample.sequenceId === sequenceId)
     .sort((left, right) => left.rerollIndex - right.rerollIndex)
+}
+
+export function getActiveBorderRollGamePatch(store: BorderResearchStore): string {
+  return (
+    store.samples.find((sample) => sample.sequenceId === store.activeSequenceId)?.gamePatch ??
+    CURRENT_GAME_PATCH
+  )
 }
 
 export function nextBorderRollIndex(samples: BorderRollSample[]): number {

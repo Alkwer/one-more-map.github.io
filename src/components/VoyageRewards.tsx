@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { CURRENT_GAME_PATCH } from '../data/gameVersion'
 import { buildChartSearch } from '../logic/regex'
 import { writeClipboardText } from '../logic/clipboard'
 import type { ScoreBreakdown } from '../logic/scoring'
@@ -68,7 +69,7 @@ export function VoyageRewards({ score, board, pool, chartMap, notables }: Props)
         Not exact loot value. See the actual contents below.
       </div>
       <div className="ducat-scope-note" role="note">
-        <strong>Cursed Ducats (PoE 3.29.3)</strong>
+        <strong>Cursed Ducats (PoE {CURRENT_GAME_PATCH})</strong>
         <span>
           Their Voyage-wide monster Toughness, Item Quantity/Rarity, and build-specific downsides
           are not included in this layout score. Because they affect the whole Voyage, they do not
