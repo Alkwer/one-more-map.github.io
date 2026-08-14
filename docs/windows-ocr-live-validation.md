@@ -5,6 +5,11 @@ Voyage Board. It supplements automated tests; it is not evidence that a row was
 executed. Leave every result as `Not run` until a tester completes the row on
 the recorded hardware and game build.
 
+Reconciliation of the two unresolved raw border records needs additional
+gameplay evidence, not just a successful OCR matrix row. Follow
+[`deepwater-border-record-reconciliation.md`](deepwater-border-record-reconciliation.md)
+when collecting evidence for those records.
+
 The web solver and manual border entry must remain usable when the helper or OCR
 is unavailable.
 

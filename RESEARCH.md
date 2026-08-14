@@ -70,8 +70,9 @@ One community comment gives `75k` for five rerolls, but its written sequence is
 
 ### Border pool and probabilities
 
-- The current RePoE 3.29.0.4.2 export contains **66** modifier records whose IDs
-  start with `DeepwaterBorder`.
+- Rechecked on 2026-08-14: the RePoE **3.29.3.1.2** export at commit
+  `af4ccc5e3e011da671553a40d851b1140902ef19` still contains **66** modifier
+  records whose IDs start with `DeepwaterBorder`.
 - All 66 use domain `deepwater_border`, generation type `unique`, required level
   `1`, and an empty `spawn_weights` array. Therefore the normal `Mods.dat`
   fields do not reveal their actual roll weights or level gates.
@@ -83,13 +84,23 @@ One community comment gives `75k` for five rerolls, but its written sequence is
 - The app intentionally contains **64 canonical, OCR-visible definitions** rather
   than mirroring every raw record. Two raw records are tracked separately in
   `src/data/borderSourceRecords.ts` pending live verification:
-  - `DeepwaterBorderMagicMonsterMods2` has a value of 2 in the datamined stat,
-    but its public translation is blank and no live tooltip is confirmed.
+  - `DeepwaterBorderMagicMonsterMods2` has a value of 2 in the datamined stat.
+    The current public translation table only defines value 1 for that stat, so
+    value 2 has no matching translation rule. This does not establish that the
+    client displays a blank tooltip or that the record cannot roll.
   - `DeepwaterBorderTreasureAnchorsHardMode` has the same public translation as
     `b-anchor-1` ("Adjacent Areas contain 2 additional Treasure Anchors"). It is
     not added as a duplicate OCR definition because text-only matching could not
     distinguish the two IDs, and equivalent gameplay semantics are not yet
     confirmed.
+- Official 3.29.3 notes add an Alt / Left Trigger view of all 12 Border
+  Modifiers and six Cursed Ducats, but do not identify either unresolved raw
+  record or define its gameplay/scoring semantics. The new overview makes a
+  privacy-safe live capture easier; it is not resolution evidence by itself.
+- The focused capture protocol is
+  [`docs/deepwater-border-record-reconciliation.md`](docs/deepwater-border-record-reconciliation.md).
+  Until it produces a current-patch occurrence tied to observable behavior, no
+  raw ID is mapped to a canonical OCR/scoring definition.
 - The **66 raw versus 64 canonical** difference is therefore an explicit source
   gap, not evidence that the UI is missing two independently observable
   modifiers. The matcher now has a regression invariant requiring normalized
@@ -214,6 +225,13 @@ of assumed.
   https://www.pathofexile.com/forum/view-thread/3989412/page/1
 - Current RePoE PoE1 export index and `mods.min.json`:
   https://repoe-fork.github.io/poe1.html
+- RePoE 3.29.3.1.2 export revision inspected for the two unresolved records:
+  https://github.com/repoe-fork/repoe-fork.github.io/commit/af4ccc5e3e011da671553a40d851b1140902ef19
+- RePoE Deepwater implicit translation table:
+  https://repoe-fork.github.io/stat_translations/deepwater_implicit.min.json
+- Official 3.29.3 notes (all-border overview and Cursed Ducats; no resolution of
+  the two raw records):
+  https://www.pathofexile.com/forum/view-thread/3996516
 - PoE Dat Viewer used to inspect `DeepwaterConstants.datc64` and the available
   `Deepwater*.datc64` tables:
   https://snosme.github.io/poe-dat-viewer/
