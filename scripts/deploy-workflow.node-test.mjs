@@ -111,6 +111,12 @@ test('dependency maintenance and audit policy stay enforced', async () => {
   assert.equal(packageJson.scripts['audit:ci'], 'npm run audit:production && npm run audit:high')
 })
 
+test('workflow validation includes the Windows OCR privacy invariant', async () => {
+  const packageJson = JSON.parse(await readFile(packageUrl, 'utf8'))
+
+  assert.match(packageJson.scripts['test:workflow'], /scripts\/windows-ocr-privacy\.node-test\.mjs/)
+})
+
 test('dependency audit runs on an independent weekly schedule', async () => {
   const workflow = await readFile(securityAuditUrl, 'utf8')
 

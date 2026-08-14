@@ -198,11 +198,33 @@ game's normal `Ctrl+C` item text; OCR is used only for border tooltips.
 
 ## Privacy and temporary files
 
-OCR runs locally through the Windows Runtime API. The helper writes screenshots,
-the generated PowerShell bridge, and OCR output under `%TEMP%`. Files belonging
-to the current helper run are removed after every successful or failed attempt,
-after `F10` or a timeout, and again when the script exits. The helper does not
-upload screenshots or OCR text.
+OCR runs locally through the Windows Runtime API. The PowerShell source described
+in the trust model stays in the child process's inherited environment and is
+created as a `ScriptBlock`; it does not touch disk and no `.ps1` bridge is
+generated.
+
+For normal `F9` and `Ctrl+F9` scans, these are the only OCR artifacts that touch
+disk under `%TEMP%`:
+
+- `voyage-border-<run>-<child>-<index>.png` is the raw, full-window PoE
+  screenshot for one OCR attempt. A reroll-cost attempt reads this image
+  directly.
+- `voyage-ocr-filtered-<run>-<child>-<random>.png` is a prepared, lavender-text
+  mask created for each border-tooltip attempt. Reroll-cost OCR does not create
+  it.
+- `voyage-ocr-normalized-<run>-<child>-<random>.png` is a contrast-normalized
+  fallback created only when both the filtered and raw border images return no
+  text.
+- `voyage-border-ocr-<helper>.txt` is the UTF-8 result for the current attempt:
+  recognized text with its OCR language and block markers, or a helper error.
+  AutoHotkey reads it into the combined clipboard payload before deleting it.
+
+The PowerShell child removes each PNG in a `finally` block. AutoHotkey also stops
+the child and performs best-effort deletion of the result and any matching PNGs
+after every successful or failed attempt, after `F10` or a timeout, and during a
+normal script exit. The helper does not upload screenshots or OCR text. The
+developer-only `--ocr-file` smoke-test mode reads the image path supplied by the
+developer and does not delete that source image.
 
 The solver stores imported data in browser `localStorage` unless you explicitly
 export it or create a share URL.
