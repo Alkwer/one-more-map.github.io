@@ -1674,8 +1674,7 @@ F9:: {
             break
         }
         tabSignature := ""
-        emptyStreak := 0
-        emptySkipCells := EmptySkipRows * GridCols
+        emptyRowStreak := 0
 
         Loop GridRows {
             if !Running || !RequireBoundPoeForeground() {
@@ -1683,6 +1682,7 @@ F9:: {
                 break
             }
             r := A_Index - 1
+            rowEmpty := true
             Loop GridCols {
                 if !Running || !RequireBoundPoeForeground() {
                     Running := false
@@ -1706,24 +1706,16 @@ F9:: {
                 if !copiedToClipboard {
                     tabSignature .= "|0:"
                     skipped++                 ; empty slot - nothing copied
-                    emptyStreak++
-                    if (emptySkipCells > 0 && emptyStreak >= emptySkipCells) {
-                        ToolTip "Tab " tabIndex ": " EmptySkipRows
-                            . " blank row" (EmptySkipRows = 1 ? "" : "s")
-                            . " - skipping the rest..."
-                        break 2
-                    }
                     continue
                 }
+                rowEmpty := false
                 clip := Trim(A_Clipboard, " `t`r`n")
                 tabSignature .= "|" StrLen(clip) ":" clip
                 if !IsChartText(clip) {
                     skipped++                 ; not a Chart item
                     nonChart++
-                    emptyStreak := 0
                     continue
                 }
-                emptyStreak := 0
                 scannedCharts++
                 if (firstChart = "")
                     firstChart := clip
@@ -1737,6 +1729,19 @@ F9:: {
                     . "... row " (r+1) " col " (c+1)
                     . "`ncharts " copied "   skipped " skipped
                     . "`n(F10 to abort)"
+            }
+            if !Running
+                break
+            if rowEmpty {
+                emptyRowStreak++
+                if (EmptySkipRows > 0 && emptyRowStreak >= EmptySkipRows) {
+                    ToolTip "Tab " tabIndex ": " EmptySkipRows
+                        . " blank row" (EmptySkipRows = 1 ? "" : "s")
+                        . " - skipping the rest..."
+                    break
+                }
+            } else {
+                emptyRowStreak := 0
             }
         }
 

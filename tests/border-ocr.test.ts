@@ -249,8 +249,17 @@ describe('border OCR regressions', () => {
     assert.match(fullImportHotkey, /MouseMove tabPoint\[1\], tabPoint\[2\], 0\s+Click/)
     assert.match(ahkImporter, /EmptySkipRows := IniRead/)
     assert.match(ahkImporter, /PromptEmptySkip/)
-    assert.match(fullImportHotkey, /emptySkipCells := EmptySkipRows \* GridCols/)
-    assert.match(fullImportHotkey, /emptyStreak >= emptySkipCells/)
+    assert.match(fullImportHotkey, /emptyRowStreak := 0/)
+    assert.match(fullImportHotkey, /Loop GridRows \{[\s\S]*?rowEmpty := true/)
+    assert.match(
+      fullImportHotkey,
+      /if !copiedToClipboard \{[\s\S]*?continue\s+\}\s+rowEmpty := false/,
+    )
+    assert.match(
+      fullImportHotkey,
+      /if rowEmpty \{\s+emptyRowStreak\+\+[\s\S]*?emptyRowStreak >= EmptySkipRows/,
+    )
+    assert.doesNotMatch(fullImportHotkey, /EmptySkipRows \* GridCols|emptySkipCells|emptyStreak/)
     assert.match(fullImportHotkey, /Nothing was ever copied - Ctrl\+C isn't reaching the game/)
     assert.match(fullImportHotkey, /chart INVENTORY squares on the right/)
     assert.match(ahkImporter, /ReleaseModifiers\(\)/)
