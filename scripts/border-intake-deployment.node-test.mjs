@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
+  BORDER_INTAKE_DEPLOYMENT_MODE_ENV,
   BORDER_INTAKE_ENDPOINT_ENV,
   borderIntakeContentSecurityPolicy,
   resolveBorderIntakeDeployment,
@@ -13,6 +14,7 @@ test('canonical main deployment injects the endpoint and only its CSP origin', (
     GITHUB_REPOSITORY: 'Alkwer/one-more-map.github.io',
     GITHUB_REF: 'refs/heads/main',
     GITHUB_EVENT_NAME: 'push',
+    [BORDER_INTAKE_DEPLOYMENT_MODE_ENV]: 'production',
     [BORDER_INTAKE_ENDPOINT_ENV]: endpoint,
   })
 
@@ -25,6 +27,22 @@ test('canonical main deployment injects the endpoint and only its CSP origin', (
   const policy = borderIntakeContentSecurityPolicy(deployment)
   assert.match(policy, /connect-src 'self' https:\/\/intake\.example(?:;|$)/)
   assert.doesNotMatch(policy, /api\/border-rolls/)
+})
+
+test('ambient canonical main validation stays unconfigured without an explicit deployment opt-in', () => {
+  const deployment = resolveBorderIntakeDeployment({
+    GITHUB_REPOSITORY: 'Alkwer/one-more-map.github.io',
+    GITHUB_REF: 'refs/heads/main',
+    GITHUB_EVENT_NAME: 'push',
+    [BORDER_INTAKE_ENDPOINT_ENV]: endpoint,
+  })
+
+  assert.deepEqual(deployment, {
+    endpoint: '',
+    connectOrigin: null,
+    configured: false,
+    target: 'unconfigured',
+  })
 })
 
 test('local builds default to an unconfigured endpoint and self-only CSP', () => {
@@ -63,11 +81,26 @@ test('canonical pull-request builds remain unconfigured because they are not dep
   assert.equal(deployment.configured, false)
 })
 
+test('production opt-in fails closed outside the canonical main deployment', () => {
+  assert.throws(
+    () =>
+      resolveBorderIntakeDeployment({
+        GITHUB_REPOSITORY: 'someone-else/one-more-map.github.io',
+        GITHUB_REF: 'refs/heads/main',
+        GITHUB_EVENT_NAME: 'push',
+        [BORDER_INTAKE_DEPLOYMENT_MODE_ENV]: 'production',
+        [BORDER_INTAKE_ENDPOINT_ENV]: endpoint,
+      }),
+    /only valid for the canonical main deployment/,
+  )
+})
+
 test('configured builds reject unsafe endpoint forms', () => {
   const environment = {
     GITHUB_REPOSITORY: 'Alkwer/one-more-map.github.io',
     GITHUB_REF: 'refs/heads/main',
     GITHUB_EVENT_NAME: 'workflow_dispatch',
+    [BORDER_INTAKE_DEPLOYMENT_MODE_ENV]: 'production',
   }
 
   assert.throws(
@@ -77,5 +110,10 @@ test('configured builds reject unsafe endpoint forms', () => {
         [BORDER_INTAKE_ENDPOINT_ENV]: 'http://intake.example/api?token=visible',
       }),
     /absolute HTTPS URL without credentials, query, or fragment/,
+  )
+
+  assert.throws(
+    () => resolveBorderIntakeDeployment(environment),
+    /BORDER_ROLL_INTAKE_URL is required for this configured build/,
   )
 })

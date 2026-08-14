@@ -151,14 +151,17 @@ deployment configuration, not a secret. Credentials must remain in the intake
 service and must never be placed in the workflow, Vite environment, repository
 variables, logs, or built assets.
 
-The workflow passes `BORDER_ROLL_INTAKE_URL` at build time. Vite accepts that
-value only when GitHub identifies a `push` or manual workflow run for `main` in
-the canonical `Alkwer/one-more-map.github.io` repository. It injects the full
-endpoint into application code and only the parsed HTTPS origin into CSP
-`connect-src`. Local builds, pull-request builds, and copied workflows in other
-forks ignore the setting and produce an unconfigured application. The explicit
-`e2e` build mode is test-only and its staged artifact is replaced by a normal,
-deployment-scoped build before Pages upload.
+The workflow passes `BORDER_ROLL_DEPLOYMENT_MODE=production` together with
+`BORDER_ROLL_INTAKE_URL` only to the final Pages build step. Vite accepts the
+endpoint only when that explicit opt-in is present and GitHub identifies a
+`push` or manual workflow run for `main` in the canonical
+`Alkwer/one-more-map.github.io` repository. It injects the full endpoint into
+application code and only the parsed HTTPS origin into CSP `connect-src`.
+Ambient `main` validation, local builds, pull-request builds, and copied
+workflows without the opt-in produce an unconfigured application; an opt-in in
+a non-canonical context fails closed. The explicit `e2e` build mode is test-only
+and its staged artifact is replaced by the normal deployment-scoped build
+before Pages upload.
 
 The intake CORS allowlist contains exactly the canonical Pages origin
 `https://alkwer.github.io`; the project path is not part of an HTTP origin. Do

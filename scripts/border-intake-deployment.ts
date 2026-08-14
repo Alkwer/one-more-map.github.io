@@ -1,6 +1,7 @@
 export const CANONICAL_REPOSITORY = 'Alkwer/one-more-map.github.io'
 export const CANONICAL_REF = 'refs/heads/main'
 export const BORDER_INTAKE_ENDPOINT_ENV = 'BORDER_ROLL_INTAKE_URL'
+export const BORDER_INTAKE_DEPLOYMENT_MODE_ENV = 'BORDER_ROLL_DEPLOYMENT_MODE'
 
 const BASE_CSP_DIRECTIVES = [
   "default-src 'self'",
@@ -24,14 +25,24 @@ function configuredTarget(
   mode: string,
 ): BorderIntakeDeployment['target'] {
   if (mode === 'e2e') return 'e2e'
+  const deploymentMode = environment[BORDER_INTAKE_DEPLOYMENT_MODE_ENV]?.trim()
+  if (!deploymentMode) return 'unconfigured'
+  if (deploymentMode !== 'production') {
+    throw new Error(`${BORDER_INTAKE_DEPLOYMENT_MODE_ENV} must be production when set.`)
+  }
   const canonicalEvent =
     environment.GITHUB_EVENT_NAME === 'push' ||
     environment.GITHUB_EVENT_NAME === 'workflow_dispatch'
-  return environment.GITHUB_REPOSITORY === CANONICAL_REPOSITORY &&
+  const canonicalDeployment =
+    environment.GITHUB_REPOSITORY === CANONICAL_REPOSITORY &&
     environment.GITHUB_REF === CANONICAL_REF &&
     canonicalEvent
-    ? 'canonical'
-    : 'unconfigured'
+  if (!canonicalDeployment) {
+    throw new Error(
+      `${BORDER_INTAKE_DEPLOYMENT_MODE_ENV}=production is only valid for the canonical main deployment.`,
+    )
+  }
+  return 'canonical'
 }
 
 function validatedEndpoint(rawEndpoint: string | undefined): URL {
