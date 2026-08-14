@@ -90,6 +90,9 @@ PagesCalibrated() {
 ; page. 0 = never skip (for players who park charts past big gaps). Set in
 ; the wizard's "Sweep speed" step.
 EmptySkipRows := IniRead(IniFile, "sweep", "EmptySkipRows", "2") + 0
+; support escape hatch: set AltScan=0 under [sweep] in the ini to skip the
+; one-screenshot Alt border scan entirely and always hover each border
+AltScanBorders := IniRead(IniFile, "sweep", "AltScan", "1") + 0
 BorderTLx := IniRead(IniFile, "board", "TopLeftX", "0") + 0
 BorderTLy := IniRead(IniFile, "board", "TopY", "0") + 0
 BorderBRx := IniRead(IniFile, "board", "BottomRightX", "0") + 0
@@ -1283,31 +1286,77 @@ ScanBordersAlt() {
     ToolTip()
     if !Running
         return "ABORT"
-    ; quality gate: too many unreadable segments means the Alt overview didn't
-    ; work here (old client, overlapping tooltips) - use the hover scan
-    errors := 0
-    pos := 1
-    while (pos := InStr(block, "OCR ERROR", , pos)) {
-        errors++
-        pos++
-    }
-    if (block = "" || errors > 4)
-        return ""
-    StopOcrServer()
     return block
 }
 
-ScanBorders() {
-    result := ScanBordersAlt()
-    if (result = "ABORT")
-        return ""
-    if (result != "")
-        return result
-    ToolTip "Alt overview didn't work here - falling back to the per-border scan..."
-    return ScanBordersHover()
+; split a payload of "=== VOYAGE BORDER n ===" blocks into index -> inner text
+ParseBorderBlocks(blob) {
+    blocks := Map()
+    pos := 1
+    while (pos := RegExMatch(blob, "=== VOYAGE BORDER (\d+) ===\R([\s\S]*?)\R=== END VOYAGE BORDER ===", &m, pos)) {
+        blocks[m[1] + 0] := m[2]
+        pos += StrLen(m[0])
+    }
+    return blocks
 }
 
-ScanBordersHover() {
+ArrayHas(arr, value) {
+    for , item in arr
+        if (item = value)
+            return true
+    return false
+}
+
+; Hybrid border scan: the one-screenshot Alt overview covers most segments in
+; seconds; any SUSPECT segment (missing, errored, or a suspiciously tall block
+; that smells like two tooltips merged at a cramped resolution) gets the slow
+; per-border hover treatment individually. Worst case on an odd setup is a
+; slightly slower scan, never silently wrong borders.
+ScanBorders() {
+    global AltScanBorders
+    if (AltScanBorders != 0) {
+        result := ScanBordersAlt()
+        if (result = "ABORT") {
+            StopOcrServer()
+            return ""
+        }
+        if (result != "") {
+            blocks := ParseBorderBlocks(result)
+            suspects := []
+            Loop 12 {
+                idx := A_Index - 1
+                if (!blocks.Has(idx) || InStr(blocks[idx], "OCR ERROR")
+                    || StrSplit(blocks[idx], "`n").Length >= 4)
+                    suspects.Push(A_Index) ; 1-based for BorderPoints()
+            }
+            if (suspects.Length <= 4) {
+                if (suspects.Length > 0) {
+                    ToolTip "Alt scan read " (12 - suspects.Length) "/12 - hovering the other " suspects.Length "..."
+                    rescans := ParseBorderBlocks(ScanBordersHover(suspects))
+                    for , i in suspects
+                        if rescans.Has(i - 1)
+                            blocks[i - 1] := rescans[i - 1]
+                }
+                finalBlob := ""
+                Loop 12 {
+                    idx := A_Index - 1
+                    if blocks.Has(idx)
+                        finalBlob .= (finalBlob = "" ? "" : "`n")
+                            . "=== VOYAGE BORDER " idx " ===`n" blocks[idx] "`n=== END VOYAGE BORDER ==="
+                }
+                StopOcrServer()
+                return finalBlob
+            }
+            ; 5+ suspects: the overview is unreliable here - hover everything
+        }
+        ToolTip "Alt overview didn't work here - falling back to the per-border scan..."
+    }
+    result := ScanBordersHover()
+    StopOcrServer()
+    return result
+}
+
+ScanBordersHover(only := 0) {
     global PoeWinTitle, BorderHoverDelay, BorderOcrAttempts, Running
     WinGetPos &winX, &winY, &winW, &winH, PoeWinTitle
     ; one persistent helper per sweep: PowerShell boots and compiles while we
@@ -1318,6 +1367,8 @@ ScanBordersHover() {
     for index, point in BorderPoints() {
         if !Running
             break
+        if (only && !ArrayHas(only, index))
+            continue
         block := ""
         Loop BorderOcrAttempts {
             if !Running
@@ -1346,7 +1397,6 @@ ScanBordersHover() {
         if (block != "")
             result .= (result = "" ? "" : "`n") block
     }
-    StopOcrServer()
     return result
 }
 

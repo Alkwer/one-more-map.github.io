@@ -267,6 +267,14 @@ assert.match(ahkImporter, /Get-AllBorderBlocks/)
 // assignment must be the global 2-opt matcher, not greedy nearest (greedy
 // mis-placed half the borders on a real board - stacked same-side tooltips)
 assert.match(ahkImporter, /Resolve-BorderAssignment/)
+
+// resolution safety: suspect segments from the Alt overview (missing, error,
+// or merged-looking blocks on cramped resolutions) get individually hover
+// rescanned, and [sweep] AltScan=0 forces the old path entirely.
+assert.match(ahkImporter, /"sweep", "AltScan"/)
+assert.match(ahkImporter, /ParseBorderBlocks/)
+assert.match(ahkImporter, /suspects\.Length <= 4/)
+assert.match(ahkImporter, /ScanBordersHover\(suspects\)/)
 assert.match(ahkImporter, /\{Alt down\}/)
 assert.match(ahkImporter, /\{Alt up\}/)
 assert.match(ahkImporter, /ReleaseModifiers\(\)/)
