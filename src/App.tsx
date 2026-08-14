@@ -16,7 +16,7 @@ import { SaveWizard } from './components/SaveWizard'
 import { Tutorial } from './components/Tutorial'
 import { borderModById, voyageModById } from './data/mods'
 import { strategyById } from './data/strategies'
-import { StrategiesPanel } from './components/StrategiesPanel'
+import { StrategiesPanel, pieceStatus } from './components/StrategiesPanel'
 import { scoreBoard } from './logic/scoring'
 import { checkConnectivity } from './logic/connectivity'
 import type { SolverResult } from './logic/solver'
@@ -176,19 +176,34 @@ export default function App() {
   )
 
   // jackpot detection (Milky: the mechanic's only two real jackpots) - flag
-  // them loudly and offer the matching strategy in one click
+  // them loudly and offer the matching strategy in one click. Each banner
+  // runs the SAME requirements check as the strategy card, so it can never
+  // say "switch!" while the card says "wait" (issue #38)
   const jackpots = useMemo(() => {
-    const out: { label: string; strategyId: string }[] = []
+    const out: { piece: string; action: string; strategyId: string; missing: string[] }[] = []
     if (state.pool.some((c) => c.modIds.includes('voy-noequip')))
       out.push({
-        label: '"Monsters cannot drop Equipment" chart in your library - build the rares board around it',
+        piece: '"Monsters cannot drop Equipment" chart in your library',
+        action: 'build the Meatfish board around it',
         strategyId: 'milky-meatfish',
+        missing: [],
       })
     if (state.borders.includes('b-divine'))
       out.push({
-        label: '"+1 Divine Orb per Rare" border rolled - park a Sea-Pillar on it and feed it Strongboxes',
+        piece: '"+1 Divine Orb per Rare" border rolled',
+        action: 'park a Sea-Pillar on it and feed it Strongboxes',
         strategyId: 'divine-border-rares',
+        missing: [],
       })
+    for (const j of out) {
+      const strat = strategyById.get(j.strategyId)
+      if (!strat) continue
+      j.missing = pieceStatus(strat, state.pool)
+        .filter((r) => r.missing > 0)
+        .map((r) => `${r.missing}× ${r.label}`)
+      if (strat.requiresBorderId && !state.borders.includes(strat.requiresBorderId.id))
+        j.missing.push(strat.requiresBorderId.label)
+    }
     return out.filter((j) => j.strategyId !== state.strategyId)
   }, [state.pool, state.borders, state.strategyId])
 
@@ -819,8 +834,19 @@ export default function App() {
         <section className="col solver-col">
           {jackpots.map((j) => (
             <div key={j.strategyId} className="jackpot-banner">
-              <span className="jackpot-label">🎰 JACKPOT: {j.label}.</span>
-              <button onClick={() => patch({ strategyId: j.strategyId })}>Switch strategy</button>
+              <span className="jackpot-label">
+                {j.missing.length === 0 ? (
+                  <>🎰 JACKPOT: {j.piece} - {j.action}.</>
+                ) : (
+                  <>
+                    🎰 JACKPOT piece: {j.piece}. It's banked 🔒 and safe - but you're still
+                    missing {j.missing.join(', ')}. Collect those before running it.
+                  </>
+                )}
+              </span>
+              <button onClick={() => patch({ strategyId: j.strategyId })}>
+                {j.missing.length === 0 ? 'Switch strategy' : 'Switch anyway'}
+              </button>
             </div>
           ))}
           <StrategiesPanel

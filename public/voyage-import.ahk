@@ -49,6 +49,10 @@ CoordMode "ToolTip", "Screen"
 ;  If PoE is running as administrator, run this script as admin too,
 ;  or its keypresses won't reach the game. Don't touch the mouse or
 ;  keyboard while it's sweeping.
+;  If you've bound Inventory (or anything else) to the C key, move that
+;  bind before importing: PoE hardcodes item-copy to Ctrl+C, and on
+;  empty cells the game lets the C fall through to your bind, flapping
+;  panels mid-sweep (issue #37).
 ; =====================================================================
 
 ; ---------------- CONFIG ----------------

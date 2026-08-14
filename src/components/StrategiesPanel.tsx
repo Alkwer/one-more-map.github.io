@@ -12,8 +12,9 @@ interface Props {
   onLayoutChoice?: (strategyId: string, layoutId: string) => void
 }
 
-/** per-requirement tally of what the library can supply */
-function pieceStatus(s: StrategyDef, pool: ChartData[]) {
+/** per-requirement tally of what the library can supply (shared with the
+ *  jackpot banners so they can never contradict the strategy card) */
+export function pieceStatus(s: StrategyDef, pool: ChartData[]) {
   return (s.requirements ?? []).map((req) => {
     const have = pool.filter(
       (c) =>
