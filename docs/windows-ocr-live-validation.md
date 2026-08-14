@@ -18,17 +18,39 @@ is unavailable.
 - Use only a test account and non-sensitive charts. Never record an account
   name, character name, private league, chat, private key, full desktop, or
   unrelated window.
-- Do not attach raw screenshots. Record the observed modifier text and values in
-  the result table. If an OCR regression needs a fixture, crop to the tooltip,
-  remove all identifying UI, and have a second person confirm the crop before it
-  is committed.
+- Do not attach or commit screenshots or image crops. Record the observed
+  modifier text and values in the result table. If an OCR regression needs a
+  fixture, transcribe only the minimum tooltip text, remove identifying data,
+  delete the source image, and have a second person review the sanitized text.
 - Do not attach `voyage-import.ini`, clipboard dumps, `%TEMP%` contents, crash
   dumps, or absolute user paths. Redact usernames from logs.
 - Record only the Windows OCR language reported by the import status, not the
   user's full language profile.
-- A fixture derived from a live capture must contain the minimum pixels or text
-  needed to reproduce the bug, use a descriptive synthetic filename, and state
-  its source game build and sanitization review in the pull request.
+- A fixture derived from a live capture must be plain text, contain only the
+  minimum text needed to reproduce the bug, use a descriptive synthetic
+  filename, and state its source game build and sanitization review in the pull
+  request. Prefer a fully synthetic fixture whenever it reproduces the failure.
+
+## Privacy-safe preflight
+
+Run PowerShell at the same privilege level intended for the helper:
+
+```powershell
+npm run windows-ocr:preflight -- -IniFile .\public\voyage-import.ini -ExpectedOcrLanguage en-*
+```
+
+Omit `-IniFile` before first calibration. For the negative UIPI row add
+`-PrivilegeCase elevated-game-standard-helper`. The command invokes a read-only
+AutoHotkey probe and emits JSON containing only the Windows family/build,
+AutoHotkey version, aggregate game-window geometry, DPI, mode, privilege flags,
+requested OCR-language availability, calibration coverage, blocker messages,
+and temporary-artifact counts. It emits no paths, screenshots, OCR or clipboard
+text, account or character data, or full installed-language profile.
+
+A non-zero exit and `"status": "Blocked"` mean the live run is not ready. The
+preflight never proves a matrix row passed, never chooses the OCR language that
+the real import will use, and never replaces direct hotkey observations. Record
+the language displayed by the solver after a completed scan.
 
 ## Minimum matrix
 
@@ -58,7 +80,8 @@ ultrawide displays, or languages are useful but do not replace a minimum row.
 
 ## Run sheet
 
-Create one sanitized result record per row:
+Copy the [sanitized evidence template](windows-ocr-live-validation-record.md)
+for each row and privilege combination. Its environment summary contains:
 
 ```text
 Matrix ID:
@@ -87,13 +110,14 @@ from the record.
 
 ## Preparation
 
-1. Check out the exact helper commit recorded in the run sheet. Run
+1. Check out the exact helper commit recorded in the run sheet. Run the
+   privacy-safe preflight and keep its JSON local. Record only its status and
+   blocker count in reviewed evidence. Run
    `npm run validate` and record only whether it passed; do not paste local paths
    or environment output into the evidence.
 2. Confirm AutoHotkey v2 and the intended Windows OCR language capability are
-   installed. Start with no `voyage-border-<PID>-*.png`,
-   `voyage-border-ocr-<PID>.txt`, or `voyage-border-ocr-<PID>.ps1` artifacts for
-   the helper process under `%TEMP%`.
+   installed. Start with no current or legacy run-owned artifacts reported by
+   the preflight under `%TEMP%`.
 3. Start the game and helper at the privilege levels named by the matrix row.
    Use Windowed or Windowed Fullscreen mode; exclusive fullscreen is outside the
    supported matrix.
@@ -162,10 +186,12 @@ search. Verify cleanup after:
 - `F10` abort;
 - normal helper exit and exit during a sweep.
 
-No matching `voyage-border-<PID>-*.png` or
-`voyage-border-ocr-<PID>.txt` may remain. No
-`voyage-border-ocr-<PID>.ps1` should be created at any point because the OCR
-bridge is executed in memory. A file held open by an unrelated process is an
+No matching `voyage-border-<run>-<child>-<index>.png`,
+`voyage-ocr-filtered-<run>-<child>-<random>.png`,
+`voyage-ocr-normalized-<run>-<child>-<random>.png`, or
+`voyage-border-ocr-<helper>.txt` may remain. The in-memory OCR helper does not
+create a `.ps1` bridge; any matching legacy bridge is a preflight blocker, not
+an expected artifact. A file held open by an unrelated process is an
 environmental limitation only if the tester records how it was introduced;
 otherwise leftover helper-owned data is a failure.
 
@@ -173,6 +199,15 @@ otherwise leftover helper-owned data is a failure.
 
 Keep the aggregate table in the validation pull request or linked issue. Do not
 replace `Not run` with `Pass` without a completed run sheet.
+
+The [2026-08-07 partial live
+observations](https://github.com/Alkwer/one-more-map.github.io/issues/48#issuecomment-5220917601)
+cover a blocked Windows 11 4K failure/abort path, not a completed matrix row. On
+2026-08-14 the new preflight itself ran on Windows 11 build 26200.9168 with
+AutoHotkey 2.0.26, an available matching English OCR capability, and zero stale
+OCR artifacts. It correctly returned `Blocked` because no Path of Exile window
+was running. No calibration, hotkey, capture, clipboard, game, or solver live
+case was executed, and no row below is promoted by that preflight.
 
 | Matrix ID  | Status  | Run-sheet link | Follow-up issue | Notes/limitations |
 | ---------- | ------- | -------------- | --------------- | ----------------- |
