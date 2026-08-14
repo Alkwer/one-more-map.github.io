@@ -13,13 +13,7 @@ import {
 export const BORDER_SUBMISSION_STORAGE_KEY = 'allflame-border-roll-submission'
 const STORE_VERSION = 3
 
-const PRODUCTION_INTAKE_URL =
-  'https://allflame-border-roll-intake.green-loom-6865.chatgpt.site/api/border-rolls'
-
-// A Vite environment override remains useful for local and staging deployments.
-export const BORDER_ROLL_INTAKE_URL =
-  (import.meta.env.VITE_BORDER_ROLL_INTAKE_URL as string | undefined)?.trim() ||
-  PRODUCTION_INTAKE_URL
+export const BORDER_ROLL_INTAKE_URL = __BORDER_ROLL_INTAKE_URL__
 
 export interface BorderSubmissionSettings {
   enabled: boolean

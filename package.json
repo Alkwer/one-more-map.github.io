@@ -12,7 +12,7 @@
     "check:research-stats": "node scripts/research-corpus-stats.mjs",
     "sync:research-stats": "node scripts/research-corpus-stats.mjs --write",
     "validate:data-update": "node scripts/validate-canonical-border-roll-dataset.mjs && npm run check:research-stats && npm run test:data && vitest run --config vitest.config.ts tests/border-roll-model.test.ts && npm run check:eol && npm run format:check && npm run build",
-    "test:workflow": "node --test scripts/deploy-workflow.node-test.mjs scripts/repository-policy.node-test.mjs scripts/windows-ocr-privacy.node-test.mjs",
+    "test:workflow": "node --test scripts/border-intake-deployment.node-test.mjs scripts/deploy-workflow.node-test.mjs scripts/repository-policy.node-test.mjs scripts/windows-ocr-privacy.node-test.mjs",
     "test:performance": "vitest run --config vitest.performance.config.ts",
     "audit:production": "npm audit --omit=dev",
     "audit:high": "npm audit --audit-level=high",
@@ -28,10 +28,11 @@
     "preview": "vite preview",
     "stage:pages": "node scripts/stage-pages.mjs",
     "build:pages": "npm run build && npm run stage:pages",
+    "build:pages:e2e": "vite build --mode e2e && npm run stage:pages",
     "preview:pages": "vite preview --outDir staging-playwright",
-    "test:e2e": "npm run build:pages && playwright test",
-    "test:e2e:exit": "npm run build:pages && node scripts/check-playwright-exit.mjs",
-    "test:e2e:ui": "npm run build:pages && playwright test --ui"
+    "test:e2e": "npm run build:pages:e2e && playwright test",
+    "test:e2e:exit": "npm run build:pages:e2e && node scripts/check-playwright-exit.mjs",
+    "test:e2e:ui": "npm run build:pages:e2e && playwright test --ui"
   },
   "dependencies": {
     "react": "^18.3.1",

@@ -89,6 +89,20 @@ function researchController({
 }
 
 describe('BorderRollResearch jackpot protection', () => {
+  it('shows an explicit disabled state when automatic intake is not configured', () => {
+    const markup = renderToStaticMarkup(
+      <BorderRollResearch
+        borders={borders}
+        controller={researchController({ samplingReason: 'gameplay' })}
+        protectedRoll={null}
+      />,
+    )
+
+    assert.match(markup, /Automatic submission service is not configured in this build/)
+    assert.match(markup, /type="checkbox" disabled=""/)
+    assert.match(markup, /type="password" autoComplete="off" disabled=""/)
+  })
+
   it('waives an assigned research reroll when the saved natural board must be preserved', () => {
     const markup = renderToStaticMarkup(
       <BorderRollResearch
