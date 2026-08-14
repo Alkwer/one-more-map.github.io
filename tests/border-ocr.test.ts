@@ -114,6 +114,12 @@ describe('border OCR regressions', () => {
     }
 
     assert.equal(BORDER_MODS.length, BORDER_SOURCE_SNAPSHOT.canonicalTooltipCount)
+    assert.equal(BORDER_SOURCE_SNAPSHOT.clientPatch, '3.29.3.1.2')
+    assert.equal(
+      BORDER_SOURCE_SNAPSHOT.repoeExportCommit,
+      'af4ccc5e3e011da671553a40d851b1140902ef19',
+    )
+    assert.equal(BORDER_SOURCE_SNAPSHOT.reviewedAt, '2026-08-14')
     assert.equal(
       BORDER_SOURCE_SNAPSHOT.rawRecordCount,
       BORDER_SOURCE_SNAPSHOT.canonicalTooltipCount +
@@ -124,6 +130,7 @@ describe('border OCR regressions', () => {
     for (const record of BORDER_SOURCE_SNAPSHOT.unresolvedRecords) {
       assert.ok(!rawIds.has(record.rawId), `duplicate unresolved raw ID: ${record.rawId}`)
       rawIds.add(record.rawId)
+      assert.equal(record.liveStatus, 'unverified')
 
       if (record.duplicateCanonicalId) {
         const canonical = borderModById.get(record.duplicateCanonicalId)
@@ -136,6 +143,17 @@ describe('border OCR regressions', () => {
         )
       }
     }
+
+    assert.deepEqual(
+      BORDER_SOURCE_SNAPSHOT.unresolvedRecords.map((record) => [
+        record.rawId,
+        record.translationStatus,
+      ]),
+      [
+        ['DeepwaterBorderMagicMonsterMods2', 'missing-for-stat-value'],
+        ['DeepwaterBorderTreasureAnchorsHardMode', 'canonical-tooltip-collision'],
+      ],
+    )
   })
 
   it('matches every current canonical tooltip', () => {
