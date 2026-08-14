@@ -1,6 +1,6 @@
 # Allflame Voyage Solver - Mechanics and Modeling Notes
 
-Last reviewed: **2026-08-11**.
+Last reviewed: **2026-08-14**.
 
 This document separates live observations from model assumptions and unresolved
 questions. Historical preview notes are retained only where they explain the
@@ -145,16 +145,43 @@ Current evidence and remaining unknowns:
 The app now includes an opt-in local capture log for this protocol. It accepts
 only complete 12-border samples, assigns roll indexes automatically, groups a
 natural board and its paid rerolls by Voyage sequence, and exports the versioned
-format described in `docs/border-roll-data.md`. Submission remains explicit
-because the static app has no collection backend. A GitHub issue workflow
-validates and closes submitted sequences, and a separate batch workflow creates
-reviewable dataset-update pull requests; issue input is never written directly
-to `main`. A voluntary randomized mode pre-assigns 20% of new Voyages before the
-natural board is visible and asks for exactly one affordable paid reroll. A
-jackpot/preserve recommendation, including a Divine border, overrides that
-request so research never asks the player to destroy an exceptional natural
-board. The sampling reason is retained so this subset can test natural/paid
-equivalence without conditioning only on the player's ordinary keep decision.
+format described in the
+[canonical border-roll intake operations](docs/border-roll-data.md#optional-automatic-delivery).
+The GitHub Pages frontend remains static, but it can optionally call a separate
+external intake service. Submission is always an explicit user choice: the
+manual path opens a pre-filled GitHub issue, while automatic delivery is off by
+default and requires both an authorised contributor to enable it and a private,
+revocable submission key. A voluntary randomized mode pre-assigns 20% of new
+Voyages before the natural board is visible and asks for exactly one affordable
+paid reroll. A jackpot/preserve recommendation, including a Divine border,
+overrides that request so research never asks the player to destroy an
+exceptional natural board. The sampling reason is retained so this subset can
+test natural/paid equivalence without conditioning only on the player's ordinary
+keep decision.
+
+Automatic-intake data flow and failure boundaries:
+
+1. Samples and pending deliveries begin in browser `localStorage`. The
+   submission key stays only in React memory and is sent as a Bearer credential;
+   it is never persisted with the outbox. The GitHub credential stays only in
+   the intake service and is never exposed to the browser.
+2. With automatic delivery enabled and a key present, `Finish Voyage` queues
+   exactly one complete anonymous v2 Voyage dataset, advances local capture to
+   the next sequence, and posts the queued dataset to the external intake
+   endpoint. The service's CORS policy accepts the configured GitHub Pages origin
+   rather than arbitrary browser origins.
+3. The service validates and deduplicates the payload, records only processing
+   metadata and a digest in D1, and creates a GitHub issue. The repository issue
+   workflow independently validates, labels, comments on, and closes accepted
+   sequences. A separate scheduled workflow turns accepted issues into a
+   reviewable dataset-update pull request; intake never writes submitted data
+   directly to `main`.
+4. Finishing a Voyage is not blocked by a network or service failure. The entry
+   remains in the durable browser outbox with a failed status for explicit retry,
+   is not archived, and does not prevent later pending Voyages from being sent.
+   Only a `created` or idempotent `duplicate` response removes it from the outbox
+   and archives the local sequence. Storage-recovery errors pause writes instead
+   of silently dropping the sequence.
 
 Capture natural boards and paid rerolls without discarding bad outcomes. For
 each observation store:
@@ -439,7 +466,8 @@ the current borders, chart modifiers, connectors, and selected weights.
 
 ## Current implementation
 
-A static React + TypeScript SPA deployed to GitHub Pages with no backend:
+A static React + TypeScript SPA deployed to GitHub Pages, with an optional
+external intake service for explicitly authorised border-roll submissions:
 
 1. **Data layer:** canonical chart, voyage-modifier, border-modifier, and strategy
    definitions with stable persisted IDs.
@@ -450,7 +478,11 @@ A static React + TypeScript SPA deployed to GitHub Pages with no backend:
 4. **Solver:** exact search for the bounded non-rotational case and seeded
    approximate search otherwise, both running behind a Web Worker boundary.
 5. **Share/save:** URL state, browser persistence, and JSON import/export.
-6. **Quality/deployment:** tests, typecheck, ESLint, Prettier, production build,
+6. **Research intake:** opt-in local capture and manual GitHub issue submission,
+   plus keyed automatic delivery through the origin-restricted external service
+   and a durable browser outbox. Operational details live in the
+   [canonical border-roll intake documentation](docs/border-roll-data.md#optional-automatic-delivery).
+7. **Quality/deployment:** tests, typecheck, ESLint, Prettier, production build,
    performance benchmark, and GitHub Pages deployment.
 
 ## Remaining research checklist
