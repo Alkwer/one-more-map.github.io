@@ -15,6 +15,13 @@ export const UPDATES: UpdateEntry[] = [
   {
     date: '2026-08-14',
     tag: 'new',
+    title: 'Importer diagnostic bundle',
+    detail:
+      'Importer acting up? Right-click the tray icon and choose "Save diagnostic bundle..." - it zips your calibration, an activity log and the last scan results onto your desktop, ready to drag into a GitHub issue. Screenshots of your game window are only included if you explicitly say yes. Re-download the script to get it.',
+  },
+  {
+    date: '2026-08-14',
+    tag: 'new',
     title: 'Feedback link',
     detail:
       '🐛 Feedback in the header goes straight to the GitHub issue tracker - it is actively monitored, bug reports and ideas both welcome (several of this week\'s features came from there and Reddit).',

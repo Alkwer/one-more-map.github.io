@@ -72,6 +72,9 @@ OcrTimeout    := 90    ; seconds before a stuck Windows OCR scan is stopped
 ; isn't settling before Ctrl+C). If the final paste drops some, raise PasteDelay.
 ; ----------------------------------------
 
+; version stamp - shown in diagnostic bundles so reports say what they ran
+ScriptVersion := "2026-08-14"
+
 IniFile := A_ScriptDir "\voyage-import.ini"
 TLx := IniRead(IniFile, "grid", "TLx", "0") + 0
 TLy := IniRead(IniFile, "grid", "TLy", "0") + 0
@@ -123,6 +126,35 @@ OcrOutput := TempDir "\voyage-border-ocr-" ScriptPid ".txt"
 OcrSession := TempDir "\voyage-border-ocr-" ScriptPid
 OcrPid := 0
 Running := false
+
+; ---------------- ACTIVITY LOG ----------------
+; Small rolling log beside the script. The diagnostic bundle ships it, so
+; "it didn't work" reports arrive with what actually happened. Capped at
+; ~256 KB - the oldest half is dropped when it grows past that.
+LogFile := A_ScriptDir "\voyage-import.log"
+Log(msg) {
+    global LogFile
+    try {
+        size := 0
+        try size := FileGetSize(LogFile)
+        if (size > 262144) {
+            keep := SubStr(FileRead(LogFile, "UTF-8"), -131072)
+            FileDelete LogFile
+            FileAppend keep, LogFile, "UTF-8"
+        }
+        FileAppend FormatTime(, "yyyy-MM-dd HH:mm:ss") " | " msg "`n", LogFile, "UTF-8"
+    }
+}
+Log("started v" ScriptVersion " | AHK " A_AhkVersion " | Windows " A_OSVersion
+    . " | screen " A_ScreenWidth "x" A_ScreenHeight " @ " A_ScreenDPI " DPI | monitors " MonitorGetCount())
+
+; keep the last OCR / chart text around for the diagnostic bundle
+SaveDiagText(name, text) {
+    global TempDir
+    path := TempDir "\voyage-diag-" name ".txt"
+    try FileDelete path
+    try FileAppend text, path, "UTF-8"
+}
 
 CleanupOcr(*) {
     global OcrHelper, OcrOutput, OcrPid, OcrSession
@@ -498,7 +530,64 @@ WizardFinish(completed) {
         Flash "Setup complete. " KeyLabel(Keys["RunSweep"]) " runs the import!", 4000
 }
 
+; ---------------- DIAGNOSTIC BUNDLE ----------------
+; One click -> a zip on the desktop the player can drag straight into a
+; GitHub issue: version + system info, the calibration ini, the activity
+; log, the last OCR / chart text, and - only after an explicit yes - the
+; last scan screenshots (they show the PoE window, so they're opt-in).
+SaveDiagnostics(*) {
+    global ScriptVersion, IniFile, LogFile, TempDir, PoeWinTitle
+    ts := FormatTime(, "yyyyMMdd-HHmmss")
+    dir := TempDir "\voyage-diag-bundle-" ts
+    try DirCreate dir
+    info := "Allflame Voyage importer - diagnostic bundle`n"
+        . "generated: " FormatTime(, "yyyy-MM-dd HH:mm:ss") "`n"
+        . "script version: " ScriptVersion "`n"
+        . "AutoHotkey: " A_AhkVersion "`n"
+        . "Windows: " A_OSVersion (A_Is64bitOS ? " 64-bit" : "") "`n"
+        . "primary screen: " A_ScreenWidth "x" A_ScreenHeight " @ " A_ScreenDPI " DPI`n"
+        . "monitors: " MonitorGetCount() "`n"
+        . "running as admin: " (A_IsAdmin ? "yes" : "no") "`n"
+    if WinExist(PoeWinTitle) {
+        WinGetPos &px, &py, &pw, &ph, PoeWinTitle
+        info .= "PoE window: " pw "x" ph " at " px "," py "`n"
+    } else {
+        info .= "PoE window: not found`n"
+    }
+    info .= "grid calibrated: " (Calibrated() ? "yes" : "no") "`n"
+        . "board calibrated: " (BoardCalibrated() ? "yes" : "no") "`n"
+        . "page tabs calibrated: " (PagesCalibrated() ? "yes" : "no") "`n"
+    try FileAppend info, dir "\info.txt", "UTF-8"
+    try FileCopy IniFile, dir "\voyage-import.ini"
+    try FileCopy LogFile, dir "\voyage-import.log"
+    try FileCopy TempDir "\voyage-diag-borders.txt", dir "\last-border-ocr.txt"
+    try FileCopy TempDir "\voyage-diag-charts.txt", dir "\last-chart-sweep.txt"
+    shots := MsgBox("Include the last scan screenshots?`n`nThey're the most useful part for OCR"
+        . " problems, but they show your Path of Exile window (character name and so on)."
+        . " Choose No to leave them out.", "Diagnostic bundle", "YesNo")
+    if (shots = "Yes") {
+        try FileCopy TempDir "\voyage-diag-alt.png", dir "\last-alt-capture.png"
+        try FileCopy TempDir "\voyage-diag-alt-prep.png", dir "\last-alt-prepared.png"
+        Loop 12
+            try FileCopy TempDir "\voyage-diag-border-" (A_Index - 1) ".png", dir "\last-border-" (A_Index - 1) ".png"
+    }
+    zip := A_Desktop "\voyage-import-diagnostics-" ts ".zip"
+    try FileDelete zip
+    psCmd := "Compress-Archive -Path '" dir "\*' -DestinationPath '" zip "' -Force"
+    RunWait 'powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "' psCmd '"', , "Hide"
+    if FileExist(zip) {
+        try DirDelete dir, 1
+        Log("diagnostic bundle saved " (shots = "Yes" ? "(with screenshots)" : "(no screenshots)"))
+        MsgBox "Saved to your desktop:`n`n" zip "`n`nDrag the zip file into your GitHub issue:`n"
+            . "https://github.com/one-more-map/one-more-map.github.io/issues", "Diagnostic bundle"
+        Run 'explorer.exe /select,"' zip '"'
+    } else {
+        MsgBox "Couldn't create the zip - the gathered files are in:`n`n" dir, "Diagnostic bundle"
+    }
+}
+
 A_TrayMenu.Insert("2&", "Setup wizard...", StartWizard)
+A_TrayMenu.Insert("3&", "Save diagnostic bundle...", SaveDiagnostics)
 ; the wizard must be seen once - even with calibration already in the ini.
 ; Completing it OR closing/skipping it sets the Seen flag; after that it only
 ; opens from the tray menu.
@@ -989,6 +1078,8 @@ function Get-BorderBlock {
             $graphics.Dispose()
             $image.Dispose()
         }
+        # keep a copy for the diagnostic bundle (overwritten every scan)
+        Copy-Item -LiteralPath $png -Destination (Join-Path $env:TEMP ('voyage-diag-border-' + $Index + '.png')) -Force -ErrorAction SilentlyContinue
         Add-Block $builder $Index (Read-OcrLines $png $Engine)
     } catch {
         Add-Block $builder $Index ("OCR ERROR: " + $_.Exception.Message)
@@ -1128,6 +1219,11 @@ function Get-AllBorderBlocks {
         if ($lines.Count -eq 0) {
             [VoyageOcrImage]::Normalize($png, $prepared)
             $lines = @(Get-OcrLineRects $prepared $Engine $scale 64.0)
+        }
+        # keep copies for the diagnostic bundle (overwritten every scan)
+        Copy-Item -LiteralPath $png -Destination (Join-Path $env:TEMP 'voyage-diag-alt.png') -Force -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath $prepared) {
+            Copy-Item -LiteralPath $prepared -Destination (Join-Path $env:TEMP 'voyage-diag-alt-prep.png') -Force -ErrorAction SilentlyContinue
         }
         if ($lines.Count -eq 0) { throw 'Windows OCR found no border tooltips in the Alt overview. If Windows HDR is on, turn it off for the scan (Win+Alt+B).' }
         # cluster vertically-adjacent, horizontally-overlapping lines
@@ -1466,6 +1562,10 @@ ScanBorders() {
                     || StrSplit(blocks[idx], "`n").Length >= 4)
                     suspects.Push(A_Index) ; 1-based for BorderPoints()
             }
+            suspectNote := ""
+            for , i in suspects
+                suspectNote .= (suspectNote = "" ? "" : ",") i
+            Log("alt scan | " blocks.Count " blocks | suspects: " (suspectNote = "" ? "none" : suspectNote))
             if (suspects.Length <= 4) {
                 if (suspects.Length > 0) {
                     ToolTip "Alt scan read " (12 - suspects.Length) "/12 - hovering the other " suspects.Length "..."
@@ -1482,19 +1582,23 @@ ScanBorders() {
                             . "=== VOYAGE BORDER " idx " ===`n" blocks[idx] "`n=== END VOYAGE BORDER ==="
                 }
                 StopOcrServer()
+                SaveDiagText("borders", finalBlob)
                 return finalBlob
             }
             ; 5+ suspects: the overview is unreliable here - hover everything
         }
+        Log("alt overview unusable - full per-border fallback")
         ToolTip "Alt overview didn't work here - falling back to the per-border scan..."
     }
     result := ScanBordersHover()
     StopOcrServer()
+    SaveDiagText("borders", result)
     return result
 }
 
 ScanBordersHover(only := 0) {
     global PoeWinTitle, BorderHoverDelay, BorderOcrAttempts, Running
+    Log("hover scan | " (only ? "rescanning " only.Length " suspect(s)" : "all 12"))
     WinGetPos &winX, &winY, &winW, &winH, PoeWinTitle
     ; one persistent helper per sweep: PowerShell boots and compiles while we
     ; hover the first border, then every border is a quick capture + read
@@ -1751,11 +1855,13 @@ RunBordersOnly(*) {
     }
     Sleep ActivateDelay
 
+    Log("borders-only start")
     ToolTip "Reading 12 board borders with Windows OCR..."
         . "`nThis can take 15-30 seconds on a 4K screen."
         . "`n(" KeyLabel(Keys["Abort"]) " to abort)"
     borderBlob := ScanBorders()
     ToolTip()
+    Log("borders-only | " (borderBlob != "" ? "sent" : "FAILED"))
 
     if (Running && borderBlob != "") {
         A_Clipboard := borderBlob
@@ -1810,6 +1916,8 @@ RunSweep(*) {
     Sleep ActivateDelay
 
     pages := PagesCalibrated() ? 2 : 1
+    Log("sweep start | grid " GridCols "x" GridRows " | pages " pages
+        . " | EmptySkipRows " EmptySkipRows " | AltScan " AltScanBorders)
     Loop pages {
         if !Running
             break
@@ -1872,6 +1980,8 @@ RunSweep(*) {
         Click Page1TabX, Page1TabY
         Sleep PageFlipDelay
     }
+    Log("sweep phase 1 | copied " copied " | skipped " skipped " | nonChart " nonChart)
+    SaveDiagText("charts", blob)
 
     ; Calibration sanity guard: distinct physical Charts always differ in their
     ; rolled values, so EVERY grid cell copying the same text means the mouse
@@ -1901,6 +2011,8 @@ RunSweep(*) {
                 . " Fullscreen (use Windowed)."
                 . " (If the chart inventory is genuinely empty, ignore this.)"
     }
+    if (calibWarn != "")
+        Log("sweep warning | " calibWarn)
 
     ; ---- Phase 2: OCR the 12 board-border modifier tooltips ----
     if Running && BoardCalibrated() {
@@ -1932,6 +2044,8 @@ RunSweep(*) {
 
     Running := false
     ReleaseModifiers()
+    Log("sweep done | sent " copied " charts | borders "
+        . (borderBlob != "" ? "sent" : (BoardCalibrated() ? "FAILED" : "skipped")))
     borderNote := BoardCalibrated()
         ? (borderBlob != "" ? " + 12 border OCR scans" : " (border OCR failed)")
         : " (borders skipped: run the tray Setup wizard)"

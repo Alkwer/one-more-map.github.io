@@ -259,6 +259,16 @@ assert.match(ahkImporter, /Win\+Alt\+B/)
 assert.match(ahkImporter, /-shot-all\.txt/)
 assert.match(ahkImporter, /ShotMarker/)
 
+// diagnostic bundle: version stamp, tray entry, rolling log, artifact
+// retention, and the zip step must all be present so issue reports can
+// arrive with real data instead of "it didn't work"
+assert.match(ahkImporter, /ScriptVersion := /)
+assert.match(ahkImporter, /Save diagnostic bundle/)
+assert.match(ahkImporter, /Compress-Archive/)
+assert.match(ahkImporter, /voyage-diag-alt\.png/)
+assert.match(ahkImporter, /voyage-diag-border-/)
+assert.match(ahkImporter, /sweep start \| grid/)
+
 // 8.3 short-path guard (issue #27): %TEMP% like C:\Users\HARDPC~1 breaks
 // PowerShell's path normalizer - the helper paths must be built from the
 // expanded long path.
