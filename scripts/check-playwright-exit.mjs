@@ -2,13 +2,48 @@ import assert from 'node:assert/strict'
 import { spawn, spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { createServer } from 'node:net'
-import { dirname } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { stripVTControlCharacters } from 'node:util'
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const require = createRequire(import.meta.url)
 const playwrightCli = require.resolve('@playwright/test/cli')
 const timeoutMs = Number(process.env.PLAYWRIGHT_EXIT_TIMEOUT_MS ?? 20_000)
+
+export const failingProbeMarker = 'PLAYWRIGHT_EXIT_PROBE_BROWSER_STARTED_7A3956F7'
+export const expectedFailureSignature = 'PLAYWRIGHT_EXIT_PROBE_EXPECTED_FAILURE_E44D809A'
+
+function assertExitOne(name, { code, signal }) {
+  assert.equal(signal, null, `${name} exited via signal ${signal}`)
+  assert.equal(code, 1, `Expected ${name} to exit 1, received ${code}`)
+}
+
+function normalizedOutputLines(output) {
+  return stripVTControlCharacters(output)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+}
+
+function verifyNoTestsProbeResult(result) {
+  assertExitOne('Playwright no-tests probe', result)
+  assert.match(result.output, /No tests found/i)
+}
+
+export function verifyFailingProbeResult(result) {
+  assertExitOne('Playwright failing-test probe', result)
+  const lines = normalizedOutputLines(result.output)
+
+  assert.ok(
+    lines.includes(failingProbeMarker),
+    `Playwright did not emit the exact browser-start marker: ${failingProbeMarker}`,
+  )
+  assert.ok(
+    lines.includes(`Error: ${expectedFailureSignature}`),
+    `Playwright did not emit the exact expected failure: ${expectedFailureSignature}`,
+  )
+}
 
 function availablePort(port = 0) {
   return new Promise((resolve, reject) => {
@@ -54,14 +89,14 @@ async function waitForPortRelease(port) {
 
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
 
-async function runProbe(name, args, verifyOutput) {
+async function runProbe(name, args, verifyResult, env = {}) {
   const port = await availablePort()
   const startedAt = Date.now()
   let output = ''
   const child = spawn(process.execPath, [playwrightCli, 'test', ...args, '--reporter=line'], {
     cwd: root,
     detached: process.platform !== 'win32',
-    env: { ...process.env, CI: '1', PLAYWRIGHT_PORT: String(port) },
+    env: { ...process.env, ...env, CI: '1', PLAYWRIGHT_PORT: String(port) },
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
   })
@@ -89,35 +124,41 @@ async function runProbe(name, args, verifyOutput) {
     throw new Error(`${name} did not exit within ${timeoutMs}ms`)
   }
 
-  assert.equal(outcome.exit.signal, null, `${name} exited via signal ${outcome.exit.signal}`)
-  assert.equal(outcome.exit.code, 1, `Expected ${name} to exit 1, received ${outcome.exit.code}`)
-  verifyOutput(output)
+  verifyResult({ ...outcome.exit, output })
   await waitForPortRelease(port)
 
   console.log(`${name} exited in ${Date.now() - startedAt}ms and released port ${port}.`)
 }
 
 async function main() {
-  await runProbe('Playwright no-tests probe', ['--grep', '__never_matches__'], (output) => {
-    assert.match(output, /No tests found/i)
-  })
+  await runProbe(
+    'Playwright no-tests probe',
+    ['--grep', '__never_matches__'],
+    verifyNoTestsProbeResult,
+  )
   await runProbe(
     'Playwright failing-test probe',
     [
+      'e2e/playwright-exit-probe.spec.ts',
+      '--project',
+      'chromium',
       '--grep',
-      'serves the Pages redirect and production assets',
-      '--timeout',
-      '1',
+      'fails after the intended Chromium page starts',
+      '--retries',
+      '0',
       '--workers',
       '1',
     ],
-    (output) => {
-      assert.doesNotMatch(output, /No tests found/i)
+    verifyFailingProbeResult,
+    {
+      PLAYWRIGHT_EXIT_PROBE: '1',
     },
   )
 }
 
-main().catch((error) => {
-  console.error(error)
-  process.exit(1)
-})
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error)
+    process.exit(1)
+  })
+}

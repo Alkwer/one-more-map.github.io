@@ -95,6 +95,7 @@ test('dataset and generated research-summary updates keep required checks while 
 
   assert.match(windowsBlock, /^ {4}needs: scope$/m)
   assert.match(windowsBlock, /^ {4}if: needs\.scope\.outputs\.data_only != 'true'$/m)
+  assert.match(windowsBlock, /^ {6}- run: npx playwright install chromium$/m)
 
   assert.match(qualityBlock, /^ {4}needs: scope$/m)
   assert.match(qualityBlock, /^ {6}PAGES_CANONICAL_ORIGIN: https:\/\/alkwer\.github\.io$/m)

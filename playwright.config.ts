@@ -10,6 +10,7 @@ const rawProjectSitePrefix =
 const require = createRequire(import.meta.url)
 const viteCli = resolve(dirname(require.resolve('vite/package.json')), 'bin/vite.js')
 const previewCommand = `"${process.execPath}" "${viteCli}" preview --outDir staging-playwright --host ${host} --port ${port} --strictPort`
+const exitProbeEnabled = process.env.PLAYWRIGHT_EXIT_PROBE === '1'
 
 function normalizeProjectSitePrefix(value: string): string {
   const segments = value.split('/').filter(Boolean)
@@ -44,7 +45,11 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      testIgnore: [/browser-smoke\.spec\.ts/, /project-site-deployment\.spec\.ts/],
+      testIgnore: [
+        /browser-smoke\.spec\.ts/,
+        /project-site-deployment\.spec\.ts/,
+        ...(exitProbeEnabled ? [] : [/playwright-exit-probe\.spec\.ts/]),
+      ],
       use: { ...devices['Desktop Chrome'] },
     },
     {
