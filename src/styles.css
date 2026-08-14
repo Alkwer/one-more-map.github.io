@@ -61,6 +61,15 @@
   box-sizing: border-box;
 }
 
+/* plain links: browser-default blue is unreadable on the dark theme */
+a {
+  color: var(--accent2);
+  text-decoration-color: rgba(107, 163, 200, 0.5);
+}
+a:hover {
+  color: var(--gold-bright);
+}
+
 body {
   margin: 0;
   background: #030506 url('/bg.webp') center top / cover no-repeat fixed;
