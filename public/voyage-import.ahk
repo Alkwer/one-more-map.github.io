@@ -922,30 +922,26 @@ function Get-OcrLineRects {
     }
 }
 
-# Match tooltip blocks to border points as a GLOBAL assignment, not greedy
-# nearest: tooltips render offset outward and stack along a side, so a
-# tooltip's individually-nearest point is often its neighbour's. Start from
-# the greedy solution, then 2-opt swap pairs until total distance is locally
-# minimal - for 12 points this converges instantly and fixes the cascades.
+# Match tooltip blocks to border points with cheapest-pair-first greedy.
+# IMPORTANT - do not "improve" this to a total-distance-optimal assignment:
+# the game CROSSES corner labels (a left-edge pill's tooltip renders up in
+# the corner while the top-edge pill's tooltip renders down the side), and
+# a field test against a real annotated board showed this greedy resolving
+# all 12 correctly while the distance-optimal version swapped three corner
+# pairs. Cheapest-first dynamics happen to mirror the game's layout.
 function Resolve-BorderAssignment {
     param($Points, $Blocks)
     $count = $Points.Count
-    $dist = New-Object 'double[,]' $count, $Blocks.Count
+    $assigned = @($null) * $count
+    $used = @{}
+    $order = @()
     for ($p = 0; $p -lt $count; $p++) {
         for ($b = 0; $b -lt $Blocks.Count; $b++) {
             $cx = ($Blocks[$b].X + $Blocks[$b].R) / 2.0
             $cy = ($Blocks[$b].Y + $Blocks[$b].B) / 2.0
             $dx = $cx - $Points[$p].X
             $dy = $cy - $Points[$p].Y
-            $dist[$p, $b] = $dx * $dx + $dy * $dy
-        }
-    }
-    $assigned = @($null) * $count
-    $used = @{}
-    $order = @()
-    for ($p = 0; $p -lt $count; $p++) {
-        for ($b = 0; $b -lt $Blocks.Count; $b++) {
-            $order += [pscustomobject]@{ P = $p; B = $b; D = $dist[$p, $b] }
+            $order += [pscustomobject]@{ P = $p; B = $b; D = ($dx * $dx + $dy * $dy) }
         }
     }
     foreach ($pair in ($order | Sort-Object D)) {
@@ -953,30 +949,12 @@ function Resolve-BorderAssignment {
         $assigned[$pair.P] = $pair.B
         $used[$pair.B] = $true
     }
-    $improved = $true
-    $rounds = 0
-    while ($improved -and $rounds -lt 50) {
-        $improved = $false
-        $rounds++
-        for ($i = 0; $i -lt $count; $i++) {
-            for ($j = $i + 1; $j -lt $count; $j++) {
-                $bi = $assigned[$i]
-                $bj = $assigned[$j]
-                if ($null -eq $bi -or $null -eq $bj) { continue }
-                if (($dist[$i, $bj] + $dist[$j, $bi]) -lt ($dist[$i, $bi] + $dist[$j, $bj])) {
-                    $assigned[$i] = $bj
-                    $assigned[$j] = $bi
-                    $improved = $true
-                }
-            }
-        }
-    }
     return $assigned
 }
 
 # One held-Alt screenshot shows every border tooltip at once. OCR it with
 # per-line geometry, cluster lines into tooltip blocks, then assign each
-# block to a border point via the global matcher above.
+# block to a border point via the matcher above.
 function Get-AllBorderBlocks {
     param([int]$Left, [int]$Top, [int]$Width, [int]$Height, [string]$PointSpec, $Engine)
     $builder = [System.Text.StringBuilder]::new()
