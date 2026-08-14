@@ -731,7 +731,23 @@ test('provides touch-only detail controls without placing or deleting charts', a
   const inspectLibrary = page.getByRole('button', {
     name: `Inspect details for ${chartName}`,
   })
+  const deleteLibrary = page.getByRole('button', {
+    name: `Delete ${chartName}`,
+  })
   await expect(inspectLibrary).toBeVisible()
+  await expect(deleteLibrary).toBeVisible()
+
+  const [deleteBox, inspectBox] = await Promise.all([
+    deleteLibrary.boundingBox(),
+    inspectLibrary.boundingBox(),
+  ])
+  if (!deleteBox || !inspectBox) {
+    throw new Error('Expected visible chart-grid touch controls')
+  }
+  expect(deleteBox.width).toBeGreaterThanOrEqual(24)
+  expect(deleteBox.height).toBeGreaterThanOrEqual(24)
+  expect(deleteBox.y + deleteBox.height).toBeLessThanOrEqual(inspectBox.y)
+
   await inspectLibrary.tap()
   await expect(page.locator('.poe-tooltip')).toContainText('Area Level: 63 · Corner')
   await expect(libraryChart).toHaveAttribute('aria-pressed', 'false')
