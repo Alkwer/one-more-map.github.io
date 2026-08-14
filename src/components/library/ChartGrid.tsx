@@ -9,6 +9,9 @@ import { TooltipDescription, tooltipProps } from '../Tooltip'
 
 interface Props {
   charts: ChartData[]
+  pageStartIndex: number
+  totalCount: number
+  pageStatusId: string
   onBoard: ReadonlySet<string>
   weights: Weights
   disabledMods: ReadonlySet<string>
@@ -21,8 +24,13 @@ interface Props {
 
 export function ChartGrid(props: Props) {
   return (
-    <div className="chart-grid" role="group" aria-label="Charts">
-      {props.charts.map((chart) => {
+    <div
+      className="chart-grid"
+      role="list"
+      aria-label="Charts"
+      aria-describedby={props.pageStatusId}
+    >
+      {props.charts.map((chart, index) => {
         const unresolvedShape = !isChartShapeResolved(chart)
         const modifiers = chart.modIds.map((id) => voyageModById.get(id)).filter(Boolean)
         // Lead with the implicit (adjacent/voyage) because it is the strategic modifier.
@@ -73,6 +81,10 @@ export function ChartGrid(props: Props) {
         return (
           <div
             key={chart.uid}
+            role="listitem"
+            aria-posinset={props.pageStartIndex + index + 1}
+            aria-setsize={props.totalCount}
+            data-library-chart-uid={chart.uid}
             className={`chart-sq ${unresolvedShape ? 'unresolved-shape' : ''} ${props.selected === chart.uid ? 'selected' : ''} ${props.onBoard.has(chart.uid) ? 'on-board' : ''} ${modifier ? `sscope-${modifier.scope}` : ''}`}
           >
             <button

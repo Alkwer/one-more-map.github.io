@@ -43,8 +43,9 @@ contracts.
 ## Chart library UI
 
 `components/Library.tsx` owns filter/sort controls, the persisted grid/list preference, selection
-coordination, and which editor is open. `components/library/libraryView.ts` filters and sorts charts
-without owning state or mutating the pool. `components/library/ChartGrid.tsx` and
+coordination, pagination, and which editor is open. `components/library/libraryView.ts` filters,
+sorts, and slices charts into bounded 40-item pages without owning state or mutating the pool.
+`components/library/ChartGrid.tsx` and
 `components/library/ChartList.tsx` preserve the two existing presentation trees, while
 `components/library/ChartEditor.tsx` owns chart field changes and explicit shape resolution.
 Reusable chart ranking remains a pure heuristic in `logic/chartRanking.ts`, shared by the library
@@ -53,6 +54,10 @@ and filler solver without either UI component importing the other.
 Grid/list persistence still uses the existing `library-view` storage key. Unresolved charts must
 continue to open the list editor instead of becoming selectable, and the extracted presentation
 components must preserve card classes, accessible names, pressed states, tooltips, and action order.
+Filtering and sorting reset pagination to the first page. Editing follows a chart when a changed
+sort key moves it to another page, while removal restores focus to the next chart (or the add button
+when the library becomes empty). Paged list items expose their position in the complete filtered set
+with `aria-posinset` and `aria-setsize`.
 
 ## Solver UI
 

@@ -1125,6 +1125,42 @@ textarea {
   width: auto;
   flex-shrink: 0;
 }
+.library-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 32px;
+  margin: 0 0 8px;
+}
+.library-page-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.library-page-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.library-page-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.library-page-controls select {
+  width: auto;
+  min-width: 48px;
+  padding-block: 3px;
+}
+.library-page-controls button {
+  padding-block: 3px;
+}
 .edge-glyph {
   color: var(--accent2);
   flex-shrink: 0;
@@ -2748,6 +2784,13 @@ textarea {
     width: calc(100vw - 44px);
     max-width: calc(100vw - 44px);
     align-self: flex-start;
+  }
+  .library-pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .library-page-controls {
+    justify-content: flex-start;
   }
   .voyage-advisor-grid {
     grid-template-columns: minmax(0, 1fr);

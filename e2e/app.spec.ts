@@ -147,8 +147,8 @@ test('stays usable when browser storage access is blocked', async ({ appPage }) 
   await expect(appPage.locator('.app')).toBeVisible()
   await appPage.getByRole('button', { name: '+ Add chart', exact: true }).click()
   await expect(libraryHeading(appPage)).toContainText('(1)')
-  await appPage.getByRole('button', { name: 'Switch to list view' }).click()
-  await expect(appPage.getByRole('button', { name: 'Switch to grid view' })).toBeVisible()
+  await appPage.getByRole('button', { name: 'Switch to grid view' }).click()
+  await expect(appPage.getByRole('button', { name: 'Switch to list view' })).toBeVisible()
 })
 
 test('warns and offers recovery when autosave starts failing after load', async ({ appPage }) => {
@@ -415,6 +415,78 @@ test('reports partial and blocked additions at the 250-chart library boundary', 
     'The library is full (250-chart limit). Remove a chart before adding demo charts.',
   )
   await expect(onboarding).toBeVisible()
+})
+
+test('paginates all 250 charts with bounded grid and list DOM while preserving library workflows', async ({
+  appPage,
+}) => {
+  const seededState = defaultState()
+  seededState.pool = Array.from({ length: 250 }, (_, index) => ({
+    uid: `full-library-${index + 1}`,
+    name: `Full Chart ${String(index + 1).padStart(3, '0')}`,
+    level: 83,
+    edges: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+    modIds: [],
+    shape: 'Crossing' as const,
+    shapeResolved: true,
+  }))
+  const serializedState = serializeState(seededState)
+  await appPage.addInitScript((raw) => {
+    localStorage.setItem('allflame-voyage-solver', raw)
+  }, serializedState)
+
+  await openApp(appPage)
+  const library = appPage.locator('.library')
+  const pageStatus = library.getByRole('status').filter({ hasText: 'Showing charts' })
+  await expect(libraryHeading(appPage)).toContainText('(250)')
+  await expect(pageStatus).toHaveText('Showing charts 1–40 of 250. Page 1 of 7.')
+  await expect(library.locator('.chart-sq')).toHaveCount(40)
+  await expect(library.locator('.chart-sq svg')).toHaveCount(40)
+  await expect(library.locator('.chart-sq').first()).toHaveAttribute('aria-posinset', '1')
+  await expect(library.locator('.chart-sq').last()).toHaveAttribute('aria-posinset', '40')
+  await expect(library.locator('.chart-sq').last()).toHaveAttribute('aria-setsize', '250')
+  expect(await library.locator('*').count()).toBeLessThan(1_500)
+
+  const nextPage = library.getByRole('button', { name: 'Next chart page' })
+  await nextPage.focus()
+  await appPage.keyboard.press('Enter')
+  await expect(pageStatus).toHaveText('Showing charts 41–80 of 250. Page 2 of 7.')
+  await expect(nextPage).toBeFocused()
+  await expect(
+    library.getByRole('button', { name: 'Select Full Chart 001 for placement' }),
+  ).toHaveCount(0)
+
+  await library.getByLabel('Sort charts').selectOption('name')
+  await expect(pageStatus).toHaveText('Showing charts 1–40 of 250. Page 1 of 7.')
+  const filter = library.getByLabel('Filter charts by name or modifier')
+  await filter.fill('Full Chart 250')
+  await expect(pageStatus).toHaveText('Showing charts 1–1 of 1. Page 1 of 1.')
+  await expect(library.locator('.chart-sq')).toHaveCount(1)
+  await expect(
+    library.getByRole('button', { name: 'Select Full Chart 250 for placement' }),
+  ).toHaveAccessibleName('Select Full Chart 250 for placement')
+
+  await filter.fill('')
+  await library.getByRole('button', { name: 'Switch to list view' }).click()
+  await expect(library.locator('.chart-card')).toHaveCount(40)
+  await library.getByLabel('Chart library page', { exact: true }).selectOption('7')
+  await expect(pageStatus).toHaveText('Showing charts 241–250 of 250. Page 7 of 7.')
+  await expect(library.locator('.chart-card')).toHaveCount(10)
+
+  await library.getByRole('button', { name: 'Edit Full Chart 250' }).click()
+  const chartName = library.getByLabel('Chart name')
+  await chartName.fill('A Full Chart 250')
+  await expect(pageStatus).toHaveText('Showing charts 1–40 of 250. Page 1 of 7.')
+  await expect(chartName).toHaveValue('A Full Chart 250')
+  await expect(chartName).toBeFocused()
+
+  await library.getByRole('button', { name: 'Close editor for A Full Chart 250' }).click()
+  await library.getByRole('button', { name: 'Delete A Full Chart 250' }).click()
+  await expect(libraryHeading(appPage)).toContainText('(249)')
+  await expect(
+    library.getByRole('button', { name: 'Select Full Chart 001 for placement' }),
+  ).toBeFocused()
+  await expect(library.locator('.chart-card')).toHaveCount(40)
 })
 
 test('lets low-investment strategies persist independent chart protections', async ({

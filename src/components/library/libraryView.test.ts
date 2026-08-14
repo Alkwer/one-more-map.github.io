@@ -2,7 +2,13 @@ import { describe, expect, it, vi } from 'vitest'
 import { voyageModById } from '../../data/mods'
 import { voyageRewardKey } from '../../logic/rewards'
 import type { ChartData, Weights } from '../../types'
-import { loadLibraryViewMode, selectVisibleCharts, type LibrarySortMode } from './libraryView'
+import {
+  LIBRARY_PAGE_SIZE,
+  loadLibraryViewMode,
+  paginateLibrary,
+  selectVisibleCharts,
+  type LibrarySortMode,
+} from './libraryView'
 
 const chart = (uid: string, name: string, overrides: Partial<ChartData> = {}): ChartData => ({
   uid,
@@ -24,6 +30,49 @@ const select = (
 ) => selectVisibleCharts({ pool, query, sort, weights, disabledMods })
 
 describe('chart library view', () => {
+  it('bounds a full supported library independently of its 250 records', () => {
+    const charts = Array.from({ length: 250 }, (_, index) => chart(`${index}`, `Chart ${index}`))
+
+    const first = paginateLibrary(charts, 0)
+    const middle = paginateLibrary(charts, 3)
+    const last = paginateLibrary(charts, Number.POSITIVE_INFINITY)
+
+    expect(first).toMatchObject({
+      page: 0,
+      pageCount: 7,
+      startIndex: 0,
+      endIndex: LIBRARY_PAGE_SIZE,
+      totalCount: 250,
+    })
+    expect(first.items).toHaveLength(LIBRARY_PAGE_SIZE)
+    expect(middle.items.map(({ uid }) => uid)).toEqual(charts.slice(120, 160).map(({ uid }) => uid))
+    expect(last).toMatchObject({ page: 6, startIndex: 240, endIndex: 250 })
+    expect(last.items).toHaveLength(10)
+  })
+
+  it('clamps stale pages after filtering or removal and handles empty results', () => {
+    expect(paginateLibrary(['only result'], 6)).toMatchObject({
+      items: ['only result'],
+      page: 0,
+      pageCount: 1,
+      startIndex: 0,
+      endIndex: 1,
+    })
+    expect(paginateLibrary([], -10)).toMatchObject({
+      items: [],
+      page: 0,
+      pageCount: 1,
+      startIndex: 0,
+      endIndex: 0,
+      totalCount: 0,
+    })
+  })
+
+  it('rejects invalid page sizes', () => {
+    expect(() => paginateLibrary([], 0, 0)).toThrow(RangeError)
+    expect(() => paginateLibrary([], 0, 1.5)).toThrow(RangeError)
+  })
+
   it.each([
     ['grid', 'grid'],
     ['list', 'list'],

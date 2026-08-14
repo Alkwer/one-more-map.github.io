@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { StrategyReservationPreferences } from '../data/strategies'
 import { selectPieceBank, type PieceType } from '../logic/pieceKeeps'
 import { newUid } from '../logic/parser'
@@ -9,6 +9,8 @@ import { ChartGrid } from './library/ChartGrid'
 import { ChartList } from './library/ChartList'
 import {
   loadLibraryViewMode,
+  LIBRARY_PAGE_SIZE,
+  paginateLibrary,
   selectVisibleCharts,
   type LibrarySortMode,
   type LibraryViewMode,
@@ -35,6 +37,14 @@ export function Library(props: Props) {
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<LibrarySortMode>('value')
   const [view, setView] = useState<LibraryViewMode>(loadLibraryViewMode)
+  const [page, setPage] = useState(0)
+  const libraryRef = useRef<HTMLElement>(null)
+  const addButtonRef = useRef<HTMLButtonElement>(null)
+  const pendingFocus = useRef<{
+    uid: string | null
+    target: 'primary' | 'editor' | 'shape' | 'add'
+  } | null>(null)
+  const pageStatusId = useId()
   const setViewPersist = (nextView: LibraryViewMode) => {
     setView(nextView)
     try {
@@ -61,6 +71,8 @@ export function Library(props: Props) {
     }
     const result = props.onAdd([chart])
     if (result.added === 0) return
+    pendingFocus.current = { uid: chart.uid, target: 'editor' }
+    setViewPersist('list')
     setEditing(chart.uid)
   }
 
@@ -76,8 +88,81 @@ export function Library(props: Props) {
     [props.pool, props.weights, props.disabledMods, query, sort],
   )
 
+  const editingIndex =
+    view === 'list' && editing ? visible.findIndex((chart) => chart.uid === editing) : -1
+  const editingPage = editingIndex >= 0 ? Math.floor(editingIndex / LIBRARY_PAGE_SIZE) : null
+  const paged = paginateLibrary(visible, editingPage ?? page)
+
+  useLayoutEffect(() => {
+    const request = pendingFocus.current
+    if (!request) return
+
+    if (request.target === 'add') {
+      addButtonRef.current?.focus()
+      pendingFocus.current = null
+      return
+    }
+
+    const card = Array.from(
+      libraryRef.current?.querySelectorAll<HTMLElement>('[data-library-chart-uid]') ?? [],
+    ).find((element) => element.dataset.libraryChartUid === request.uid)
+    const target =
+      request.target === 'shape'
+        ? card?.querySelector<HTMLSelectElement>('.shape-confirmation select')
+        : request.target === 'editor'
+          ? card?.querySelector<HTMLInputElement>('.chart-editor input')
+          : card?.querySelector<HTMLButtonElement>('.chart-sq-main, .chart-card-main')
+    if (!target) return
+
+    target.focus()
+    pendingFocus.current = null
+  }, [editing, paged.page, paged.totalCount, view])
+
+  const changePage = (nextPage: number) => {
+    setEditing(null)
+    setPage(nextPage)
+  }
+
+  const removeChart = (uid: string) => {
+    const index = visible.findIndex((chart) => chart.uid === uid)
+    const nextChart = visible[index + 1] ?? visible[index - 1]
+    pendingFocus.current = nextChart
+      ? { uid: nextChart.uid, target: 'primary' }
+      : { uid: null, target: 'add' }
+    if (editing === uid) setEditing(null)
+    props.onRemove(uid)
+  }
+
+  const clearCharts = () => {
+    pendingFocus.current = { uid: null, target: 'add' }
+    setEditing(null)
+    setPage(0)
+    props.onClearCharts()
+  }
+
+  const updateChart = (chart: ChartData) => {
+    const nextPool = props.pool.map((candidate) =>
+      candidate.uid === chart.uid ? chart : candidate,
+    )
+    const nextVisible = selectVisibleCharts({
+      pool: nextPool,
+      query,
+      sort,
+      weights: props.weights,
+      disabledMods: props.disabledMods,
+    })
+    const nextEditingIndex = nextVisible.findIndex((candidate) => candidate.uid === chart.uid)
+    if (nextEditingIndex >= 0) setPage(Math.floor(nextEditingIndex / LIBRARY_PAGE_SIZE))
+    props.onUpdate(chart)
+  }
+
+  const pageStatus =
+    paged.totalCount === 0
+      ? 'No charts match the current filter.'
+      : `Showing charts ${paged.startIndex + 1}\u2013${paged.endIndex} of ${paged.totalCount}. Page ${paged.page + 1} of ${paged.pageCount}.`
+
   return (
-    <section className="library" aria-labelledby="chart-library-title">
+    <section ref={libraryRef} className="library" aria-labelledby="chart-library-title">
       <div className="panel-title">
         <h2 id="chart-library-title" className="panel-title-heading">
           Chart Library{' '}
@@ -88,6 +173,7 @@ export function Library(props: Props) {
         </h2>
         <span className="spacer" />
         <button
+          ref={addButtonRef}
           type="button"
           onClick={addBlank}
           disabled={props.pool.length >= MAX_POOL_CHARTS}
@@ -102,7 +188,7 @@ export function Library(props: Props) {
         {props.pool.length > 0 && (
           <button
             className="clear-charts"
-            onClick={props.onClearCharts}
+            onClick={clearCharts}
             title="Remove every chart from the library and clear the board (borders and weights are kept)"
           >
             Clear all
@@ -120,12 +206,20 @@ export function Library(props: Props) {
             aria-label="Filter charts by name or modifier"
             placeholder="Filter by name or mod…"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setEditing(null)
+              setPage(0)
+              setQuery(event.target.value)
+            }}
           />
           <select
             aria-label="Sort charts"
             value={sort}
-            onChange={(event) => setSort(event.target.value as LibrarySortMode)}
+            onChange={(event) => {
+              setEditing(null)
+              setPage(0)
+              setSort(event.target.value as LibrarySortMode)
+            }}
           >
             <option value="value">Best value</option>
             <option value="level">Highest level</option>
@@ -154,9 +248,60 @@ export function Library(props: Props) {
       {props.pool.length === 0 && (
         <div className="muted pad">No charts yet. Add manually or paste from the game below.</div>
       )}
+      {props.pool.length > 0 && (
+        <nav className="library-pagination" aria-label="Chart library pages">
+          <p
+            id={pageStatusId}
+            className="library-page-status"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            {pageStatus}
+          </p>
+          {paged.pageCount > 1 && (
+            <div className="library-page-controls">
+              <button
+                type="button"
+                aria-label="Previous chart page"
+                disabled={paged.page === 0}
+                onClick={() => changePage(paged.page - 1)}
+              >
+                ← Previous
+              </button>
+              <label>
+                Page{' '}
+                <select
+                  aria-label="Chart library page"
+                  value={paged.page + 1}
+                  onChange={(event) => changePage(Number(event.target.value) - 1)}
+                >
+                  {Array.from({ length: paged.pageCount }, (_, index) => (
+                    <option key={index} value={index + 1}>
+                      {index + 1}
+                    </option>
+                  ))}
+                </select>{' '}
+                of {paged.pageCount}
+              </label>
+              <button
+                type="button"
+                aria-label="Next chart page"
+                disabled={paged.page === paged.pageCount - 1}
+                onClick={() => changePage(paged.page + 1)}
+              >
+                Next →
+              </button>
+            </div>
+          )}
+        </nav>
+      )}
       {view === 'grid' && (
         <ChartGrid
-          charts={visible}
+          charts={paged.items}
+          pageStartIndex={paged.startIndex}
+          totalCount={paged.totalCount}
+          pageStatusId={pageStatusId}
           onBoard={onBoard}
           weights={props.weights}
           disabledMods={props.disabledMods}
@@ -164,23 +309,27 @@ export function Library(props: Props) {
           selected={props.selected}
           onSelect={props.onSelect}
           onConfirmShape={(uid) => {
+            pendingFocus.current = { uid, target: 'shape' }
             setViewPersist('list')
             setEditing(uid)
           }}
-          onRemove={props.onRemove}
+          onRemove={removeChart}
         />
       )}
       {view === 'list' && (
         <ChartList
-          charts={visible}
+          charts={paged.items}
+          pageStartIndex={paged.startIndex}
+          totalCount={paged.totalCount}
+          pageStatusId={pageStatusId}
           onBoard={onBoard}
           selected={props.selected}
           editing={editing}
           bank={bank}
           onSelect={props.onSelect}
           onEdit={setEditing}
-          onRemove={props.onRemove}
-          onUpdate={props.onUpdate}
+          onRemove={removeChart}
+          onUpdate={updateChart}
         />
       )}
     </section>
