@@ -15,6 +15,13 @@ export const UPDATES: UpdateEntry[] = [
   {
     date: '2026-08-14',
     tag: 'new',
+    title: 'HDR-aware border capture (experimental)',
+    detail:
+      'Border import failing with Windows HDR on? The importer now detects HDR and switches to a capture path that tone-maps the real HDR frame instead of reading washed-out pixels. It engages automatically; if anything goes wrong it falls back to the old capture. Re-download the script and report HDR results on GitHub - this one is hard to test without HDR hardware.',
+  },
+  {
+    date: '2026-08-14',
+    tag: 'new',
     title: 'Importer diagnostic bundle',
     detail:
       'Importer acting up? Right-click the tray icon and choose "Save diagnostic bundle..." - it zips your calibration, an activity log and the last scan results onto your desktop, ready to drag into a GitHub issue. Screenshots of your game window are only included if you explicitly say yes. Re-download the script to get it.',

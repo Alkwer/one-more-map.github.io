@@ -269,6 +269,22 @@ assert.match(ahkImporter, /voyage-diag-alt\.png/)
 assert.match(ahkImporter, /voyage-diag-border-/)
 assert.match(ahkImporter, /sweep start \| grid/)
 
+// HDR-aware capture (issue #33 follow-up): the Windows.Graphics.Capture
+// backend with float16 tone mapping must exist, be selectable via
+// [sweep] Capture, and every screenshot must route through the
+// Save-ScreenRegion dispatcher so the GDI fallback always applies
+assert.match(ahkImporter, /class VoyageWgc/)
+assert.match(ahkImporter, /CaptureRegion/)
+assert.match(ahkImporter, /IsHdrEnabled/)
+assert.match(ahkImporter, /SdrWhiteScale/)
+assert.match(ahkImporter, /function Save-ScreenRegion/)
+assert.match(ahkImporter, /"sweep", "Capture"/)
+assert.strictEqual(
+  (ahkImporter.match(/\$graphics\.CopyFromScreen/g) || []).length,
+  1,
+  'all captures except the Save-ScreenRegion fallback must route through the dispatcher',
+)
+
 // 8.3 short-path guard (issue #27): %TEMP% like C:\Users\HARDPC~1 breaks
 // PowerShell's path normalizer - the helper paths must be built from the
 // expanded long path.
