@@ -35,7 +35,7 @@ const expectNoRegexMetaOverflow = async (page: Parameters<typeof openApp>[0]) =>
     .toBe(0)
 }
 
-test('@mobile requests only the mobile background variant', async ({ appPage }) => {
+test('@mobile does not request removed background assets', async ({ appPage }) => {
   const backgroundRequests: string[] = []
   appPage.on('request', (request) => {
     const pathname = new URL(request.url()).pathname
@@ -45,10 +45,9 @@ test('@mobile requests only the mobile background variant', async ({ appPage }) 
   })
 
   await openApp(appPage)
-  await expect
-    .poll(() => backgroundRequests.some((path) => path.endsWith('/bg-mobile.webp')))
-    .toBe(true)
-  expect(backgroundRequests.some((path) => path.endsWith('/bg.webp'))).toBe(false)
+  await appPage.waitForLoadState('networkidle')
+  await expect(appPage.locator('body')).toHaveCSS('background-image', /radial-gradient/)
+  expect(backgroundRequests).toEqual([])
 })
 
 test('@mobile renders the first screen and imports without horizontal overflow', async ({
