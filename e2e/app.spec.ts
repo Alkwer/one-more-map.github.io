@@ -83,6 +83,12 @@ async function restoreAuxiliaryWrites(page: AppPage) {
 const libraryHeading = (page: AppPage) =>
   page.getByRole('heading', { level: 2, name: /Chart Library/ })
 
+async function finishAndConfirm(page: AppPage) {
+  await page.getByRole('button', { name: /Finish Voyage/ }).click()
+  const confirmation = page.getByRole('dialog', { name: /Finish Voyage and consume/ })
+  await confirmation.getByRole('button', { name: /Finish and consume/ }).click()
+}
+
 const chartPayload = (name: string, area: string, implicit: string) =>
   ENGLISH_CHART.replace('Armoured Coral Reef Chart of Ice', name)
     .replace('Undersea Groves', area)
@@ -999,7 +1005,7 @@ test('clears the completed Voyage borders before the next research sequence', as
     BORDER_RESEARCH_STORAGE_KEY,
   )
 
-  await appPage.getByRole('button', { name: /Finish Voyage/ }).click()
+  await finishAndConfirm(appPage)
 
   await expect(appPage.getByText(/Voyage finished: consumed 1 chart/)).toBeVisible()
   await expect(appPage.getByRole('button', { name: 'Border segment 1: No border' })).toBeVisible()
@@ -1180,7 +1186,7 @@ test('does not queue or advance a finished border sequence after a required writ
   const currentBorder = appPage.getByRole('button', { name: /Border segment 1: .*Divine Orb/ })
   await expect(currentBorder).toBeVisible()
   await failAuxiliaryWrites(appPage, BORDER_SUBMISSION_STORAGE_KEY)
-  await appPage.getByRole('button', { name: /Finish Voyage/ }).click()
+  await finishAndConfirm(appPage)
   await expect(research.locator('[role="status"].muted.pad')).toContainText(
     'Border submission storage became unavailable',
   )
@@ -1206,7 +1212,7 @@ test('does not queue or advance a finished border sequence after a required writ
     .click()
   await research.getByLabel('Private submission key').fill('e2e-private-key')
   await failAuxiliaryWrites(appPage, BORDER_RESEARCH_STORAGE_KEY)
-  await appPage.getByRole('button', { name: /Finish Voyage/ }).click()
+  await finishAndConfirm(appPage)
   await expect(research.locator('[role="status"].muted.pad')).toContainText(
     'Border research storage became unavailable',
   )
@@ -1719,6 +1725,48 @@ test('recovers an unknown shape and places it on the board with the keyboard', a
   })
   await removeButton.focus()
   await appPage.keyboard.press('Space')
+  await expect(
+    appPage.getByRole('button', { name: 'Board cell 7, row 3, column 1, start: empty' }),
+  ).toBeVisible()
+})
+
+test('requires confirmation before consuming charts and leaves state unchanged on cancel', async ({
+  appPage,
+}) => {
+  await openApp(appPage)
+  await pasteText(appPage, ENGLISH_CHART)
+  await pasteText(appPage, KOREAN_CHART)
+  await appPage
+    .getByRole('button', { name: 'Select Armoured Coral Reef Chart of Ice for placement' })
+    .click()
+  await appPage.getByRole('button', { name: 'Board cell 7, row 3, column 1, start: empty' }).click()
+  await appPage
+    .getByRole('button', { name: 'Select 해병 고역 산호 암초 해도 for placement' })
+    .click()
+  await appPage.getByRole('button', { name: 'Board cell 8, row 3, column 2: empty' }).click()
+
+  await appPage.getByRole('button', { name: /Finish Voyage/ }).click()
+  const confirmation = appPage.getByRole('dialog', {
+    name: 'Finish Voyage and consume 2 charts?',
+  })
+  await expect(confirmation).toBeVisible()
+  await expect(confirmation.locator('[data-dialog-initial-focus]')).toBeFocused()
+  await expect(appPage.locator('main')).toHaveJSProperty('inert', true)
+  await confirmation.getByRole('button', { name: 'Cancel' }).click()
+
+  await expect(confirmation).toHaveCount(0)
+  await expect(appPage.getByText('Finish Voyage canceled. No charts were consumed.')).toBeVisible()
+  await expect(libraryHeading(appPage)).toContainText('(2)')
+  await expect(
+    appPage.getByRole('button', { name: /Board cell 7,.*Armoured Coral Reef Chart of Ice/ }),
+  ).toBeVisible()
+  await expect(
+    appPage.getByRole('button', { name: /Board cell 8,.*해병 고역 산호 암초 해도/ }),
+  ).toBeVisible()
+
+  await finishAndConfirm(appPage)
+  await expect(appPage.getByText(/Voyage finished: consumed 2 charts/)).toBeVisible()
+  await expect(libraryHeading(appPage)).toContainText('(0)')
   await expect(
     appPage.getByRole('button', { name: 'Board cell 7, row 3, column 1, start: empty' }),
   ).toBeVisible()

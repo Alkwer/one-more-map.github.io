@@ -6,6 +6,7 @@ import {
 } from '../../state/copySequence'
 import type { Board, ChartData } from '../../types'
 import type { PreserveConfirmation } from '../../hooks/useVoyageWorkflows'
+import type { FinishVoyageConfirmation } from '../../hooks/useVoyageWorkflows'
 
 const chartImplicit = (chart: ChartData): string =>
   chart.implicitText ??
@@ -94,6 +95,44 @@ export function CopySequencePrompt(props: CopySequenceProps) {
           <span className="copyseq-hint">or press Ctrl+C</span>
         </button>
         <button className="pc-lost" onClick={props.onCancel}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
+
+interface FinishVoyageConfirmationProps {
+  confirmation: FinishVoyageConfirmation
+  onConfirm: () => void
+  onCancel: () => void
+}
+
+export function FinishVoyageConfirmationPrompt({
+  confirmation,
+  onConfirm,
+  onCancel,
+}: FinishVoyageConfirmationProps) {
+  const chartLabel = `chart${confirmation.consumeCount === 1 ? '' : 's'}`
+  return (
+    <div className="preserve-confirm">
+      <div
+        className="pc-head"
+        id="finish-voyage-confirmation-title"
+        data-dialog-initial-focus
+        tabIndex={-1}
+      >
+        Finish Voyage and consume {confirmation.consumeCount} {chartLabel}?
+      </div>
+      <div className="pc-sub">
+        This permanently removes the {chartLabel} currently placed on the board from your saved
+        library.
+      </div>
+      <div className="pc-actions">
+        <button className="pc-lost" onClick={onConfirm}>
+          Finish and consume {confirmation.consumeCount}
+        </button>
+        <button className="pc-kept" onClick={onCancel}>
           Cancel
         </button>
       </div>

@@ -26,6 +26,11 @@ export interface PreserveConfirmation {
   snapshot: VoyageFinishSnapshot
 }
 
+export interface FinishVoyageConfirmation {
+  consumeCount: number
+  snapshot: VoyageFinishSnapshot
+}
+
 export function useVoyageWorkflows(
   state: AppState,
   chartMap: Map<string, ChartData>,
@@ -35,6 +40,9 @@ export function useVoyageWorkflows(
 ) {
   const [voyageMessage, setVoyageMessage] = useState('')
   const [preserveConfirmation, setPreserveConfirmation] = useState<PreserveConfirmation | null>(
+    null,
+  )
+  const [finishConfirmation, setFinishConfirmation] = useState<FinishVoyageConfirmation | null>(
     null,
   )
   const [copySequence, setCopySequence] = useState<CopySequenceState | null>(null)
@@ -70,6 +78,7 @@ export function useVoyageWorkflows(
       const validation = validateVoyageFinishSnapshot(state, researchSequenceId, snapshot)
       if (!validation.ok) {
         setPreserveConfirmation(null)
+        setFinishConfirmation(null)
         setVoyageMessage(
           validation.reason === 'board-changed'
             ? 'Finish Voyage canceled: the board changed after confirmation started. No charts were consumed.'
@@ -82,6 +91,7 @@ export function useVoyageWorkflows(
       const researchResult = onCommitFinish?.(snapshot.researchSequenceId)
       if (researchResult && !researchResult.ok) {
         setPreserveConfirmation(null)
+        setFinishConfirmation(null)
         setVoyageMessage(researchResult.message)
         window.setTimeout(() => setVoyageMessage(''), 5000)
         return
@@ -101,6 +111,7 @@ export function useVoyageWorkflows(
       )
       window.setTimeout(() => setVoyageMessage(''), 4000)
       setPreserveConfirmation(null)
+      setFinishConfirmation(null)
     },
     [dispatch, onCommitFinish, researchSequenceId, state],
   )
@@ -110,9 +121,19 @@ export function useVoyageWorkflows(
       .filter((uid): uid is string => uid !== null)
       .map((uid) => chartMap.get(uid))
       .filter((chart): chart is ChartData => !!chart && !!chart.preserved)
-    if (preserved.length === 0) commitFinish(new Set(), snapshot)
-    else setPreserveConfirmation({ charts: preserved, index: 0, kept: [], snapshot })
-  }, [chartMap, commitFinish, researchSequenceId, state])
+    if (preserved.length === 0) {
+      setFinishConfirmation({
+        consumeCount: snapshot.boardUids.filter((uid) => uid !== null).length,
+        snapshot,
+      })
+    } else {
+      setPreserveConfirmation({ charts: preserved, index: 0, kept: [], snapshot })
+    }
+  }, [chartMap, researchSequenceId, state])
+  const confirmFinishVoyage = useCallback(() => {
+    if (!finishConfirmation) return
+    commitFinish(new Set(), finishConfirmation.snapshot)
+  }, [commitFinish, finishConfirmation])
   const decidePreserve = useCallback(
     (survived: boolean) => {
       if (!preserveConfirmation) return
@@ -185,7 +206,7 @@ export function useVoyageWorkflows(
     return () => document.removeEventListener('keydown', onKey)
   }, [cancelCopySequence, copyCurrentAndAdvance, copySequence])
 
-  const sequenceActive = !!copySequence || !!preserveConfirmation
+  const sequenceActive = !!copySequence || !!preserveConfirmation || !!finishConfirmation
   const highlightUid = copySequence
     ? currentCopyEntry(copySequence).chartUid
     : preserveConfirmation
@@ -194,6 +215,7 @@ export function useVoyageWorkflows(
 
   return {
     voyageMessage,
+    finishConfirmation,
     preserveConfirmation,
     copySequence,
     copyFailure,
@@ -201,9 +223,11 @@ export function useVoyageWorkflows(
     sequenceActive,
     highlightUid,
     finishVoyage,
+    confirmFinishVoyage,
     decidePreserve,
     cancelPreserveConfirmation: () => {
       setPreserveConfirmation(null)
+      setFinishConfirmation(null)
       setVoyageMessage('Finish Voyage canceled. No charts were consumed.')
       window.setTimeout(() => setVoyageMessage(''), 4000)
     },
