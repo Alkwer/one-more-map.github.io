@@ -4,6 +4,7 @@ import {
   loadKnownBorderIds,
   validateBorderRollIssueBody,
 } from './border-roll-data.mjs'
+import { BORDER_ROLL_COMMENT_MARKER } from './border-roll-validation-comment.mjs'
 
 const argument = (name, fallback = null) => {
   const index = process.argv.indexOf(name)
@@ -60,7 +61,7 @@ if (result.status === 'accepted') {
 } else {
   comment = `❌ This submission could not be accepted:\n\n${result.errors.map((error) => `- ${error}`).join('\n')}\n\nEdit the JSON in the issue body to trigger validation again.${warnings}`
 }
-comment = `<!-- border-roll-validation -->\n${comment}\n`
+comment = `${BORDER_ROLL_COMMENT_MARKER}\n${comment}\n`
 
 const output = { ...result, ...settings, issueNumber: issue.number }
 await writeFile(resultPath, `${JSON.stringify(output, null, 2)}\n`)
