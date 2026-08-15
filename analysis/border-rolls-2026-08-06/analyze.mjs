@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
 
-const DEFAULT_REF = 'origin/main'
+const DEFAULT_REF = '5da127d99125722301046ab56461574f73c67f1e'
 const SIMULATIONS = 20_000
 const POSITION_LABELS = [
   'Top 1',

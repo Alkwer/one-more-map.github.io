@@ -8,7 +8,7 @@ export const BORDER_ROLL_SLOT_COUNT = 12
 export const BORDER_ROLL_PRIOR_SENSITIVITY = [0.25, 2] as const
 export const BORDER_ROLL_NATURAL_BORROW_WEIGHT = 0.5
 
-export const BORDER_ROLL_FIXED_SLOT_FAMILIES = [
+export const BORDER_ROLL_PRESPECIFIED_SLOT_FAMILIES = [
   {
     slot: 1,
     modIds: [
@@ -118,10 +118,11 @@ function confidenceFor(sequenceCount: number): BorderRollModelConfidence {
 }
 
 /**
- * Versioned smoothed model for one generation profile. Version 2 maintains one
+ * Versioned smoothed model for one generation profile. Version 3 maintains one
  * posterior per physical border slot. Four data-backed semantic families start
- * with fixed-slot eligibility; any contradictory observed slot is automatically
- * added so new evidence can widen, rather than be discarded by, the hypothesis.
+ * with prespecified slot eligibility; any contradictory observed slot is
+ * automatically added so new evidence can widen, rather than be discarded by,
+ * the hypothesis.
  */
 export function buildBorderRollModel(
   dataset: BorderRollDatasetInput,
@@ -162,14 +163,16 @@ export function buildBorderRollModel(
   const probabilities = Object.fromEntries(
     uniqueModIds.map((id) => [id, (counts[id] + BORDER_ROLL_PRIOR_PER_MOD) / denominator]),
   )
-  const fixedSlotByModId = new Map<string, number>()
-  for (const family of BORDER_ROLL_FIXED_SLOT_FAMILIES) {
-    for (const id of family.modIds) fixedSlotByModId.set(id, family.slot)
+  const prespecifiedSlotByModId = new Map<string, number>()
+  for (const family of BORDER_ROLL_PRESPECIFIED_SLOT_FAMILIES) {
+    for (const id of family.modIds) prespecifiedSlotByModId.set(id, family.slot)
   }
   const eligibleModIdsBySlot = Array.from({ length: BORDER_ROLL_SLOT_COUNT }, (_, slot) =>
     uniqueModIds.filter((id) => {
-      const fixedSlot = fixedSlotByModId.get(id)
-      return fixedSlot === undefined || fixedSlot === slot || countsBySlot[slot][id] > 0
+      const prespecifiedSlot = prespecifiedSlotByModId.get(id)
+      return (
+        prespecifiedSlot === undefined || prespecifiedSlot === slot || countsBySlot[slot][id] > 0
+      )
     }),
   )
   const probabilitiesBySlot = eligibleModIdsBySlot.map((eligibleIds, slot) => {

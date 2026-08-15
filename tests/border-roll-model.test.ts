@@ -101,6 +101,26 @@ describe('experimental border roll model', () => {
     assert.ok(model.probabilitiesBySlot[1]['b-chaos'] > 0)
   })
 
+  it('keeps the observed b-exalt slot exception in the shipped model', () => {
+    const exalt = estimateModBoardChance(BORDER_ROLL_MODEL, 'b-exalt')
+    assert.ok(exalt)
+
+    assert.ok(exalt.eligibleSlots.includes(1))
+    assert.ok(exalt.eligibleSlots.includes(4))
+    assert.ok(BORDER_ROLL_MODEL.probabilitiesBySlot[4]['b-exalt'] > 0)
+    assert.ok(exalt.observations + exalt.borrowedObservations > 0)
+    assert.notEqual(exalt.evidence, 'prior-only')
+
+    const dataBackedSlots = BORDER_ROLL_MODEL.observationsBySlot
+      .map((slot, index) => ((slot['b-exalt'] ?? 0) > 0 ? index : null))
+      .filter((index): index is number => index !== null)
+
+    for (const slot of dataBackedSlots) {
+      assert.ok(exalt.eligibleSlots.includes(slot))
+      assert.ok(BORDER_ROLL_MODEL.probabilitiesBySlot[slot]['b-exalt'] > 0)
+    }
+  })
+
   it('scores a layout against the posterior for each matching physical slot', () => {
     const model = buildBorderRollModel(
       dataset(

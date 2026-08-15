@@ -1,6 +1,6 @@
 # Allflame Voyage Solver - Mechanics and Modeling Notes
 
-Last reviewed: **2026-08-14**.
+Last reviewed: **2026-08-15**.
 
 This document separates live observations from model assumptions and unresolved
 questions. Historical preview notes are retained only where they explain the
@@ -25,22 +25,28 @@ Research is sufficient to model the **Sulphur cost curve** and an experimental
 slot-aware roll distribution, but not a defensible reroll EV.
 <!-- border-roll-corpus-stats:start -->
 
-The canonical 2026-08-14 export contains 56 boards from 33 Voyages: 33 natural
-boards and 23 paid rerolls from 13 paid sequences.
+The canonical 2026-08-15 export contains 61 boards from 35 Voyages: 35 natural
+boards and 26 paid rerolls from 14 paid sequences.
 <!-- border-roll-corpus-stats:end -->
 
-It strongly supports physical slot families and confirms duplicates, but does
-not establish within-board independence or rare-mod probabilities. Border
-modifiers are present before any charts are placed, so the levels of subsequently
-placed charts cannot determine border-mod eligibility.
+It strongly supports physical slot structure and confirms duplicates, but one
+`b-exalt` observation now contradicts the original strict currency-family slot
+hypothesis. The model widens eligibility for that observed exception instead of
+discarding it. The corpus still does not establish within-board independence or
+rare-mod probabilities. Border modifiers are present before any charts are
+placed, so the levels of subsequently placed charts cannot determine border-mod
+eligibility.
 
 ### Reroll mechanics and cost
 
 - **Confirmed:** the first paid reroll costs **3,000 Dead Man's Sulphur**.
-- **Confirmed:** the price doubles after every reroll of the current board:
-  **3k, 6k, 12k, 24k, 48k**. Current `DeepwaterConstants.datc64` contains three
-  `RerollBorder...` values: `3000`, `200`, and `5`; the first two match the live
-  base cost and 200% cost multiplier.
+- **Confirmed through the third paid reroll:** the displayed next costs follow
+  **3k, 6k, 12k, 24k**. The 2026-08-15 corpus contains the first complete live
+  observation through reroll index 3. A further **48k** step follows the same
+  doubling rule but has not yet been captured. Current
+  `DeepwaterConstants.datc64` contains three `RerollBorder...` values: `3000`,
+  `200`, and `5`; the first two match the live base cost and 200% cost
+  multiplier.
 - The cost of reroll number `n` (1-based) is:
   `cost(n) = 3000 × 2^(n - 1)`.
 - The cumulative cost of `k` rerolls is:
@@ -118,13 +124,13 @@ One community comment gives `75k` for five rerolls, but its written sequence is
   It remains a model demonstration, not a proven reproduction of the server
   roll algorithm.
 
-Current evidence and remaining unknowns:
+Current evidence and remaining unknowns as of the canonical 2026-08-15 export:
 
 1. Weight of each family and tier.
 2. Whether the 12 slots are independent.
-3. Exact duplicates are confirmed, including three copies of one modifier on a
+3. Exact duplicates are confirmed, including four copies of one modifier on a
    board; any higher duplicate limit remains unknown.
-4. A matched natural-versus-paid comparison detects no difference (`p = 0.41`),
+4. A matched natural-versus-paid comparison detects no difference (`p = 0.286`),
    but only the paid-sequence subset summarized above contains a paid reroll, and
    player-selected rerolls can bias the sample. This is non-detection, not
    evidence of equivalence.

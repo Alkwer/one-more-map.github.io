@@ -1,0 +1,506 @@
+{
+  "source": {
+    "baselineRef": "98bcced773e2d50982c8b8c1f7c568cdd08b3bcd",
+    "baselineCommit": "98bcced773e2d50982c8b8c1f7c568cdd08b3bcd",
+    "baselineExportedAt": "2026-08-14T22:54:25.857Z",
+    "currentRef": "working-tree:data/border-rolls-v2.json",
+    "currentCommit": "98bcced773e2d50982c8b8c1f7c568cdd08b3bcd",
+    "currentWorkingTree": true,
+    "currentExportedAt": "2026-08-15T15:40:27.899Z"
+  },
+  "dataQuality": {
+    "validation": {
+      "ok": true,
+      "errors": []
+    },
+    "canonicalModifiers": 64,
+    "incrementalSampleIdsUnique": true,
+    "baselineSampleIdsRetained": true,
+    "baselineSemanticallyRetainedAfterLegacyNormalization": true
+  },
+  "profile": {
+    "baseline": {
+      "boards": 56,
+      "sequences": 33,
+      "slots": 672,
+      "naturalBoards": 33,
+      "paidBoards": 23,
+      "paidSequences": 13,
+      "patches": {
+        "3.29": 53,
+        "3.29.2": 1,
+        "3.29.3": 2
+      },
+      "vesperUpgradeCounts": {
+        "3": 2,
+        "5": 42,
+        "unknown": 12
+      },
+      "samplingReasons": {
+        "gameplay": 6,
+        "unknown": 50
+      },
+      "observedMods": 50,
+      "unseenMods": 14
+    },
+    "incremental": {
+      "boards": 5,
+      "sequences": 2,
+      "slots": 60,
+      "naturalBoards": 2,
+      "paidBoards": 3,
+      "paidSequences": 1,
+      "patches": {
+        "3.29.3": 5
+      },
+      "vesperUpgradeCounts": {
+        "5": 5
+      },
+      "samplingReasons": {
+        "gameplay": 5
+      },
+      "observedMods": 33,
+      "unseenMods": 31
+    },
+    "current": {
+      "boards": 61,
+      "sequences": 35,
+      "slots": 732,
+      "naturalBoards": 35,
+      "paidBoards": 26,
+      "paidSequences": 14,
+      "patches": {
+        "3.29": 53,
+        "3.29.2": 1,
+        "3.29.3": 7
+      },
+      "vesperUpgradeCounts": {
+        "3": 2,
+        "5": 47,
+        "unknown": 12
+      },
+      "samplingReasons": {
+        "gameplay": 11,
+        "unknown": 50
+      },
+      "observedMods": 51,
+      "unseenMods": 13
+    }
+  },
+  "stability": {
+    "baselineTopEight": [
+      {
+        "modId": "b-mag-2",
+        "label": "60% Magnitude"
+      },
+      {
+        "modId": "b-pack-1",
+        "label": "16% Pack Size"
+      },
+      {
+        "modId": "b-anchor-1",
+        "label": "+2 Anchors"
+      },
+      {
+        "modId": "b-mag-1",
+        "label": "40% Magnitude"
+      },
+      {
+        "modId": "b-quantconn-1",
+        "label": "120% Qty, -50%/Conn"
+      },
+      {
+        "modId": "b-goldlantern",
+        "label": "+4 Gold Lanterns"
+      },
+      {
+        "modId": "b-keep-1",
+        "label": "30% Keep Charts"
+      },
+      {
+        "modId": "b-pack-3",
+        "label": "32% Pack Size"
+      }
+    ],
+    "baselineTopEightSlotShare": 0.40476190476190477,
+    "incrementalBaselineTopEightSlotShare": 0.26666666666666666,
+    "currentBaselineTopEightSlotShare": 0.39344262295081966,
+    "modifierSharePearsonOldVsIncremental": 0.5885674199120254,
+    "naturalBoardDriftTest": {
+      "oldNaturalBoards": 33,
+      "newNaturalBoards": 2,
+      "observedTotalVariation": 0.5303030303030303,
+      "shuffledMedian": 0.5214646464646465,
+      "shuffled95Interval": [0.4242424242424241, 0.6439393939393939],
+      "upperTailP": 0.46382680865956705,
+      "permutations": 20000
+    },
+    "newlyObservedMods": [
+      {
+        "modId": "b-exalt",
+        "label": "+1 Exalt Drop",
+        "newSlots": 1
+      }
+    ]
+  },
+  "generationComparison": {
+    "matchedSequences": 14,
+    "observedTotalVariation": 0.2591575091575091,
+    "exactAssignments": 1889568,
+    "upperTailP": 0.28598071093498617
+  },
+  "slotStructure": {
+    "baseline": [
+      {
+        "family": "Currency / currency drops",
+        "expectedPosition": "Top 2",
+        "observed": 9,
+        "inExpectedSlot": 9,
+        "matchRate": 1,
+        "violations": []
+      },
+      {
+        "family": "Rarity",
+        "expectedPosition": "Right 2",
+        "observed": 6,
+        "inExpectedSlot": 6,
+        "matchRate": 1,
+        "violations": []
+      },
+      {
+        "family": "Scarabs",
+        "expectedPosition": "Bottom 2",
+        "observed": 9,
+        "inExpectedSlot": 9,
+        "matchRate": 1,
+        "violations": []
+      },
+      {
+        "family": "Experience",
+        "expectedPosition": "Left 2",
+        "observed": 8,
+        "inExpectedSlot": 8,
+        "matchRate": 1,
+        "violations": []
+      }
+    ],
+    "incremental": [
+      {
+        "family": "Currency / currency drops",
+        "expectedPosition": "Top 2",
+        "observed": 1,
+        "inExpectedSlot": 0,
+        "matchRate": 0,
+        "violations": [
+          {
+            "sampleId": "roll-90362e45-d7b5-4d85-94e4-5378b1940f9f",
+            "sequenceId": "voyage-8143bc23-4ff5-4ade-b93b-fbc6b0c3a715",
+            "capturedAt": "2026-08-15T15:36:16.843Z",
+            "generation": "natural",
+            "modId": "b-exalt",
+            "label": "+1 Exalt Drop",
+            "expectedPosition": "Top 2",
+            "observedPosition": "Right 2"
+          }
+        ]
+      },
+      {
+        "family": "Rarity",
+        "expectedPosition": "Right 2",
+        "observed": 0,
+        "inExpectedSlot": 0,
+        "matchRate": null,
+        "violations": []
+      },
+      {
+        "family": "Scarabs",
+        "expectedPosition": "Bottom 2",
+        "observed": 2,
+        "inExpectedSlot": 2,
+        "matchRate": 1,
+        "violations": []
+      },
+      {
+        "family": "Experience",
+        "expectedPosition": "Left 2",
+        "observed": 4,
+        "inExpectedSlot": 4,
+        "matchRate": 1,
+        "violations": []
+      }
+    ],
+    "current": [
+      {
+        "family": "Currency / currency drops",
+        "expectedPosition": "Top 2",
+        "observed": 10,
+        "inExpectedSlot": 9,
+        "matchRate": 0.9,
+        "violations": [
+          {
+            "sampleId": "roll-90362e45-d7b5-4d85-94e4-5378b1940f9f",
+            "sequenceId": "voyage-8143bc23-4ff5-4ade-b93b-fbc6b0c3a715",
+            "capturedAt": "2026-08-15T15:36:16.843Z",
+            "generation": "natural",
+            "modId": "b-exalt",
+            "label": "+1 Exalt Drop",
+            "expectedPosition": "Top 2",
+            "observedPosition": "Right 2"
+          }
+        ]
+      },
+      {
+        "family": "Rarity",
+        "expectedPosition": "Right 2",
+        "observed": 6,
+        "inExpectedSlot": 6,
+        "matchRate": 1,
+        "violations": []
+      },
+      {
+        "family": "Scarabs",
+        "expectedPosition": "Bottom 2",
+        "observed": 11,
+        "inExpectedSlot": 11,
+        "matchRate": 1,
+        "violations": []
+      },
+      {
+        "family": "Experience",
+        "expectedPosition": "Left 2",
+        "observed": 12,
+        "inExpectedSlot": 12,
+        "matchRate": 1,
+        "violations": []
+      }
+    ]
+  },
+  "duplicates": {
+    "baseline": {
+      "boards": 56,
+      "boardsWithDuplicate": 51,
+      "boardRate": 0.9107142857142857,
+      "matchingPairs": 119,
+      "meanDistinctMods": 10.107142857142858
+    },
+    "incremental": {
+      "boards": 5,
+      "boardsWithDuplicate": 4,
+      "boardRate": 0.8,
+      "matchingPairs": 5,
+      "meanDistinctMods": 11
+    },
+    "current": {
+      "boards": 61,
+      "boardsWithDuplicate": 55,
+      "boardRate": 0.9016393442622951,
+      "matchingPairs": 124,
+      "meanDistinctMods": 10.180327868852459
+    }
+  },
+  "multiplicity": {
+    "baseline": {
+      "boards": 56,
+      "maximumCopiesOnOneBoard": 4,
+      "boardsWithAtLeastThreeCopies": 8,
+      "boardsWithAtLeastFourCopies": 2,
+      "maximumCases": [
+        {
+          "capturedAt": "2026-08-09T15:29:59.488Z",
+          "generation": "natural",
+          "modId": "b-mag-1",
+          "label": "40% Magnitude",
+          "copies": 4
+        },
+        {
+          "capturedAt": "2026-08-13T17:49:32.917Z",
+          "generation": "natural",
+          "modId": "b-pack-1",
+          "label": "16% Pack Size",
+          "copies": 4
+        }
+      ]
+    },
+    "incremental": {
+      "boards": 5,
+      "maximumCopiesOnOneBoard": 2,
+      "boardsWithAtLeastThreeCopies": 0,
+      "boardsWithAtLeastFourCopies": 0,
+      "maximumCases": [
+        {
+          "capturedAt": "2026-08-15T15:36:16.843Z",
+          "generation": "natural",
+          "modId": "b-anchor-1",
+          "label": "+2 Anchors",
+          "copies": 2
+        },
+        {
+          "capturedAt": "2026-08-15T15:37:18.042Z",
+          "generation": "paid-reroll",
+          "modId": "b-rare-1",
+          "label": "50% Rares",
+          "copies": 2
+        },
+        {
+          "capturedAt": "2026-08-15T15:38:10.104Z",
+          "generation": "paid-reroll",
+          "modId": "b-izaro",
+          "label": "2 Goddess Altars",
+          "copies": 2
+        },
+        {
+          "capturedAt": "2026-08-15T15:40:27.899Z",
+          "generation": "paid-reroll",
+          "modId": "b-goldlantern",
+          "label": "+4 Gold Lanterns",
+          "copies": 2
+        }
+      ]
+    },
+    "current": {
+      "boards": 61,
+      "maximumCopiesOnOneBoard": 4,
+      "boardsWithAtLeastThreeCopies": 8,
+      "boardsWithAtLeastFourCopies": 2,
+      "maximumCases": [
+        {
+          "capturedAt": "2026-08-09T15:29:59.488Z",
+          "generation": "natural",
+          "modId": "b-mag-1",
+          "label": "40% Magnitude",
+          "copies": 4
+        },
+        {
+          "capturedAt": "2026-08-13T17:49:32.917Z",
+          "generation": "natural",
+          "modId": "b-pack-1",
+          "label": "16% Pack Size",
+          "copies": 4
+        }
+      ]
+    }
+  },
+  "rerollCosts": {
+    "0": {
+      "3000": 35
+    },
+    "1": {
+      "6000": 14
+    },
+    "2": {
+      "12000": 11
+    },
+    "3": {
+      "24000": 1
+    }
+  },
+  "candidateSlotMasks": {
+    "baseline": [
+      {
+        "family": "Rare / rare-per-connection",
+        "candidateMask": "Pięć segmentów dotykających dolnego rzędu",
+        "observed": 60,
+        "inMask": 60,
+        "matchRate": 1,
+        "positions": [0, 0, 0, 0, 0, 14, 10, 9, 16, 0, 0, 11]
+      },
+      {
+        "family": "At least magic",
+        "candidateMask": "Pięć segmentów dotykających górnego rzędu",
+        "observed": 18,
+        "inMask": 18,
+        "matchRate": 1,
+        "positions": [4, 3, 2, 6, 0, 0, 0, 0, 0, 3, 0, 0]
+      }
+    ],
+    "incremental": [
+      {
+        "family": "Rare / rare-per-connection",
+        "candidateMask": "Pięć segmentów dotykających dolnego rzędu",
+        "observed": 6,
+        "inMask": 6,
+        "matchRate": 1,
+        "positions": [0, 0, 0, 0, 0, 2, 0, 1, 2, 0, 0, 1]
+      },
+      {
+        "family": "At least magic",
+        "candidateMask": "Pięć segmentów dotykających górnego rzędu",
+        "observed": 1,
+        "inMask": 1,
+        "matchRate": 1,
+        "positions": [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0]
+      }
+    ],
+    "current": [
+      {
+        "family": "Rare / rare-per-connection",
+        "candidateMask": "Pięć segmentów dotykających dolnego rzędu",
+        "observed": 66,
+        "inMask": 66,
+        "matchRate": 1,
+        "positions": [0, 0, 0, 0, 0, 16, 10, 10, 18, 0, 0, 12]
+      },
+      {
+        "family": "At least magic",
+        "candidateMask": "Pięć segmentów dotykających górnego rzędu",
+        "observed": 19,
+        "inMask": 19,
+        "matchRate": 1,
+        "positions": [4, 3, 2, 6, 0, 0, 0, 0, 0, 4, 0, 0]
+      }
+    ],
+    "note": "Exploratory hypotheses discovered on the current corpus; preregister before treating future replication as confirmatory."
+  },
+  "divine": {
+    "allBoards": 61,
+    "allBoardHits": 0,
+    "allBoardAppearance95Upper": 0.05924386789811283,
+    "paidBoards": 26,
+    "paidBoardHits": 0,
+    "paidBoardAppearance95Upper": 0.1287289218592153,
+    "shippedModelPriorOnlyBoardChance": 0.010152284263959421,
+    "shippedModelEligibleSlots": [1]
+  },
+  "chartRows": {
+    "cohortGrowth": [
+      {
+        "cohort": "Poprzednia analiza",
+        "boards": 56,
+        "sequences": 33,
+        "paidBoards": 23
+      },
+      {
+        "cohort": "Nowy przyrost",
+        "boards": 5,
+        "sequences": 2,
+        "paidBoards": 3
+      },
+      {
+        "cohort": "Obecny korpus",
+        "boards": 61,
+        "sequences": 35,
+        "paidBoards": 26
+      }
+    ],
+    "topEightStability": [
+      {
+        "cohort": "Poprzednia próba",
+        "slotShare": 0.40476190476190477,
+        "slots": 672,
+        "boards": 56
+      },
+      {
+        "cohort": "Nowe plansze",
+        "slotShare": 0.26666666666666666,
+        "slots": 60,
+        "boards": 5
+      },
+      {
+        "cohort": "Łącznie",
+        "slotShare": 0.39344262295081966,
+        "slots": 732,
+        "boards": 61
+      }
+    ]
+  }
+}
