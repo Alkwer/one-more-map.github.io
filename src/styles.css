@@ -2958,6 +2958,45 @@ textarea {
   font-family: var(--sc);
   letter-spacing: 0.35px;
 }
+.ducat-reference {
+  margin-top: 3px;
+}
+.ducat-reference summary {
+  width: fit-content;
+  color: var(--gold);
+  cursor: pointer;
+  font-family: var(--sc);
+  letter-spacing: 0.25px;
+}
+.ducat-reference summary:hover {
+  color: var(--cream);
+}
+.ducat-reference summary:focus-visible {
+  outline: 2px solid var(--gold-bright);
+  outline-offset: 3px;
+}
+.ducat-implicit {
+  margin: 8px 0 6px;
+}
+.ducat-implicit span {
+  color: var(--text);
+}
+.ducat-reference ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+.ducat-reference li {
+  padding-left: 2px;
+}
+.ducat-reference li strong,
+.ducat-reference li span {
+  display: block;
+}
+.ducat-reference li span {
+  color: var(--text);
+}
 .regex-row {
   display: flex;
   gap: 6px;
