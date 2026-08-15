@@ -110,7 +110,9 @@ describe('Korean Windows OCR selection in the AHK importer', () => {
   it('uses the selected language in image mode while preserving per-scan reroll OCR', () => {
     const calls = ahkImporter.match(/New-OcrEngine -PreferredLanguage \$PreferredLanguage/g)
 
-    expect(calls).toHaveLength(1)
+    // The image/hover path and the Alt overview are mutually exclusive helper
+    // branches; each creates one engine with the same selected language.
+    expect(calls).toHaveLength(2)
     expect(ahkImporter).toContain('EnvSet "VOYAGE_OCR_PREFERRED_LANGUAGE", preferredLanguage')
     expect(ahkImporter).toContain('A_Args.Length >= 3')
     expect(ahkImporter).toContain('ScanRerollCost()')

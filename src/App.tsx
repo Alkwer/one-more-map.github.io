@@ -63,8 +63,10 @@ interface ChartDeletionConfirmation {
   boardCells: number[]
 }
 
-/** One-time notice for the two-page Windows importer update. */
-const AHK_PAGES_KEY = 'announce-ahk-page2'
+/** One-time popup for the importer's one-scan border update.
+ * This supersedes the earlier two-page notice so returning visitors see both changes. */
+const AHK_ALTSCAN_KEY = 'announce-ahk-altscan'
+const ISSUES_URL = 'https://github.com/Alkwer/one-more-map.github.io/issues'
 
 const ModBrowser = lazy(() =>
   import('./components/ModBrowser').then(({ ModBrowser }) => ({ default: ModBrowser })),
@@ -134,9 +136,9 @@ export default function App() {
   const borderResearch = useBorderRollResearch(state.borders)
   const [showAhkNotice, setShowAhkNotice] = useState<boolean>(() => {
     try {
-      if (localStorage.getItem(AHK_PAGES_KEY)) return false
+      if (localStorage.getItem(AHK_ALTSCAN_KEY)) return false
       if (!localStorage.getItem('onboarding-seen')) {
-        localStorage.setItem(AHK_PAGES_KEY, '1')
+        localStorage.setItem(AHK_ALTSCAN_KEY, '1')
         return false
       }
       return true
@@ -147,7 +149,7 @@ export default function App() {
   const dismissAhkNotice = () => {
     setShowAhkNotice(false)
     try {
-      localStorage.setItem(AHK_PAGES_KEY, '1')
+      localStorage.setItem(AHK_ALTSCAN_KEY, '1')
     } catch {
       /* ignore */
     }
@@ -512,23 +514,31 @@ export default function App() {
             data-dialog-initial-focus
             tabIndex={-1}
           >
-            📥 Importer updated — second chart page
+            📥 Importer updated — borders in one scan
             <span className="spacer" />
             <button aria-label="Close importer update" onClick={dismissAhkNotice}>
               ✕
             </button>
           </div>
           <p className="tut-body">
-            The game&apos;s chart panel now has <strong>two pages</strong>, and the Windows bulk
-            importer scans both by switching between the page tabs. Sweeps are faster too: empty
-            tails are skipped instead of waiting on every blank slot.
+            The game now reveals every border tooltip while <strong>Alt</strong> is held, so the
+            importer reads all 12 borders from a <strong>single screenshot</strong> — a couple of
+            seconds instead of 15–30. No new calibration is needed.
           </p>
-          <p className="tut-body">Your downloaded script does not update itself, so to get this:</p>
+          <p className="tut-body">
+            Also new: the blank-row skip is configurable (wizard → <em>Sweep speed</em>; set 0 if
+            you park charts at the bottom of a page), and the sweep covers both chart pages once the
+            wizard knows your page tabs.
+          </p>
           <ol className="ahk-notice-steps">
             <li>Download the script again and replace your old copy.</li>
             <li>
-              Hover the page 1 tab and press <kbd>Shift+F7</kbd>, then hover page 2 and press{' '}
-              <kbd>Shift+F8</kbd>. Your grid and border calibration stays intact.
+              <strong>Exit the running script</strong> (tray icon → Exit) and start the new one — it
+              does not reload itself.
+            </li>
+            <li>
+              Haven&apos;t set the page tabs yet? Rerun the wizard once (tray →{' '}
+              <em>Setup wizard…</em>). Existing calibration is kept.
             </li>
           </ol>
           <div className="sw-actions">
@@ -542,6 +552,13 @@ export default function App() {
             </a>
             <span className="spacer" />
             <button onClick={dismissAhkNotice}>Got it</button>
+          </div>
+          <div className="muted small-note">
+            Something misbehaving?{' '}
+            <a href={ISSUES_URL} target="_blank" rel="noopener noreferrer">
+              Report it on GitHub
+            </a>{' '}
+            — actively monitored.
           </div>
         </ModalDialog>
       )}

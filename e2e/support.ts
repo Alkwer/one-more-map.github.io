@@ -79,7 +79,7 @@ export const test = base.extend<{ appPage: Page; ahkNoticeSeen: boolean }>({
     await page.addInitScript((noticeSeen) => {
       try {
         localStorage.setItem('onboarding-seen', '1')
-        if (noticeSeen) localStorage.setItem('announce-ahk-page2', '1')
+        if (noticeSeen) localStorage.setItem('announce-ahk-altscan', '1')
       } catch {
         // The initial about:blank document has no usable storage origin.
       }

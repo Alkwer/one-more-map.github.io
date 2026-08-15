@@ -111,6 +111,10 @@ const chartMapMods: VoyageModDef[] = [
 // ---------------------------------------------------------------------------
 // Chart implicits - Adjacent pool (revealed on charting)
 // ---------------------------------------------------------------------------
+// Korean aliases are either verbatim Ctrl+C lines observed in a 60-chart
+// Korean-client corpus, or numeric-tier variants explicitly confirmed by that
+// player to use the same localized sentence template. Tests keep those two
+// provenance groups separate.
 const adjacentImplicits: VoyageModDef[] = [
   {
     id: 'adj-ess-1',
@@ -224,6 +228,7 @@ const adjacentImplicits: VoyageModDef[] = [
     id: 'adj-msg-1',
     short: '+1 Message',
     text: 'Adjacent Areas contain an additional Message in a Bottle',
+    aliases: ['인접 지역들에 병 안의 서신 1개 추가 등장'],
     scope: 'adjacent',
     effects: [{ stat: 'treasure', percent: 12 }],
   },
@@ -231,6 +236,7 @@ const adjacentImplicits: VoyageModDef[] = [
     id: 'adj-msg-2',
     short: '+2 Messages',
     text: 'Adjacent Areas contain 2 additional Messages in Bottles',
+    aliases: ['인접 지역들에 병 안의 서신 2개 추가 등장'],
     scope: 'adjacent',
     effects: [{ stat: 'treasure', percent: 22 }],
   },
@@ -589,6 +595,7 @@ const voyageImplicits: VoyageModDef[] = [
     id: 'voy-flask',
     short: '20% Flask Quality',
     text: 'Flasks found in all Voyage Areas have 100% chance to have 20% Quality',
+    aliases: ['모든 항해 지역에서 발견하는 플라스크가 100%의 확률로 20% 퀄리티로 떨어짐'],
     scope: 'global',
     effects: [],
   },
