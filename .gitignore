@@ -10,6 +10,7 @@ test-results/
 # personal local tooling (not part of the site)
 *.ahk
 voyage-import*.ini
+public/voyage-import.log
 # ...but the downloadable copy served by the site IS tracked
 !public/voyage-import.ahk
 !scripts/windows-ocr-window-probe.ahk

@@ -43,9 +43,12 @@ test('Windows OCR privacy documentation matches the in-memory helper lifecycle',
 
   assert.match(guide, /voyage-border-ocr-<helper>\.txt/)
   assert.match(importer, /OcrOutput := TempDir "\\voyage-border-ocr-"/)
-  assert.match(importer, /helper := shell\.Exec\(command\)/)
-  assert.match(importer, /helper\.StdIn\.Write\(OcrPowerShell\(\)\)/)
-  assert.match(importer, /helper\.StdIn\.Close\(\)/)
+  assert.match(importer, /StartHiddenPowerShell\(applicationName, commandLine\)/)
+  assert.match(importer, /PROC_THREAD_ATTRIBUTE_HANDLE_LIST := 0x00020002/)
+  assert.match(importer, /CREATE_NO_WINDOW := 0x08000000/)
+  assert.match(importer, /WriteUtf8Pipe\(OcrStdinHandle, ocrSource\)/)
+  assert.match(importer, /CloseNativeHandle\(OcrStdinHandle\)/)
+  assert.doesNotMatch(importer, /WScript\.Shell|shell\.Exec\(/)
   assert.doesNotMatch(
     importer,
     /FileAppend\s+OcrPowerShell\(\)/,
