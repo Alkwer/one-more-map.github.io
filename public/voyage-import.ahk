@@ -110,7 +110,7 @@ OcrStdinCapacity := 131072 ; keeps the in-memory helper write below the pipe buf
 ; ----------------------------------------
 
 ; version stamp - shown in diagnostic bundles so reports say what they ran
-ScriptVersion := "2026-08-15"
+ScriptVersion := "2026-08-15.2"
 
 IniFile := A_ScriptDir "\voyage-import.ini"
 ; Stop a tab sweep after this many completely blank rows in a row. Set 0 to
@@ -1721,6 +1721,35 @@ function Invoke-OcrFile {
     }
 }
 
+function Test-BorderTooltipAnchor {
+    param([string]$Text)
+    if ([string]::IsNullOrWhiteSpace($Text)) { return $false }
+    # Every implemented English border tooltip contains adjacent (Windows OCR
+    # can miss one of its last letters); Korean tooltips contain the 인접 word.
+    # This deliberately checks only provenance, not the exact modifier/tier.
+    return $Text -match '(?i)\badjac[a-z]{2,5}\b' -or $Text.Contains('인접')
+}
+
+function Get-BorderTooltipCandidateScore {
+    param([string]$Text)
+    if ([string]::IsNullOrWhiteSpace($Text)) { return -1 }
+    $lines = @($Text -split '\r?\n' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    $best = -1
+    for ($start = 0; $start -lt $lines.Count; $start++) {
+        for ($length = 1; $length -le 3 -and ($start + $length) -le $lines.Count; $length++) {
+            $candidate = ($lines[$start..($start + $length - 1)] -join ' ')
+            if (-not (Test-BorderTooltipAnchor $candidate)) { continue }
+            # Match the web parser's one-to-three-line candidate windows. A
+            # more complete tooltip beats an earlier non-empty partial read.
+            $tokenCount = [regex]::Matches($candidate, '[\p{L}\p{N}]+').Count
+            $numberBonus = if ($candidate -match '\p{N}') { 1 } else { 0 }
+            $score = $tokenCount * 2 + $numberBonus
+            if ($score -gt $best) { $best = $score }
+        }
+    }
+    return $best
+}
+
 function Read-OcrLines {
     param(
         [Parameter(Mandatory = $true)][string]$Path,
@@ -1737,33 +1766,32 @@ function Read-OcrLines {
     }
 
     $preparedPath = Join-Path $env:TEMP "voyage-ocr-filtered-$RunId-$PID-$([Guid]::NewGuid().ToString('N')).png"
+    $normalizedPath = Join-Path $env:TEMP "voyage-ocr-normalized-$RunId-$PID-$([Guid]::NewGuid().ToString('N')).png"
     try {
         [VoyageOcrImage]::Prepare($Path, $preparedPath)
-        $text = Invoke-OcrFile $preparedPath $engine
-
-        # The lavender-only mask can occasionally be empty even though the
-        # tooltip is visible. Retry the original screenshot before declaring
-        # the border unreadable.
-        if ([string]::IsNullOrWhiteSpace($text)) {
-            $text = Invoke-OcrFile $Path $engine
+        [VoyageOcrImage]::Normalize($Path, $normalizedPath)
+        $candidates = @(
+            [pscustomobject]@{ Name = 'filtered'; Text = (Invoke-OcrFile $preparedPath $engine) },
+            [pscustomobject]@{ Name = 'unfiltered'; Text = (Invoke-OcrFile $Path $engine) },
+            [pscustomobject]@{ Name = 'normalized'; Text = (Invoke-OcrFile $normalizedPath $engine) })
+        $best = $candidates |
+            ForEach-Object {
+                [pscustomobject]@{
+                    Name = $_.Name
+                    Text = $_.Text
+                    Score = Get-BorderTooltipCandidateScore $_.Text
+                }
+            } |
+            Where-Object { $_.Score -ge 0 } |
+            Sort-Object Score -Descending |
+            Select-Object -First 1
+        if ($null -eq $best) {
+            throw 'Windows OCR found no recognizable border tooltip after filtered, unfiltered and contrast-stretched scans. If Windows HDR is on, turn it off for the scan (Win+Alt+B).'
         }
-        # HDR desktops wash out GDI captures (issue #33): last chance, stretch
-        # the contrast and try once more.
-        if ([string]::IsNullOrWhiteSpace($text)) {
-            $normalizedPath = Join-Path $env:TEMP "voyage-ocr-normalized-$RunId-$PID-$([Guid]::NewGuid().ToString('N')).png"
-            [VoyageOcrImage]::Normalize($Path, $normalizedPath)
-            try {
-                $text = Invoke-OcrFile $normalizedPath $engine
-            } finally {
-                Remove-Item -LiteralPath $normalizedPath -Force -ErrorAction SilentlyContinue
-            }
-        }
-        if ([string]::IsNullOrWhiteSpace($text)) {
-            throw 'Windows OCR returned no text after filtered, unfiltered and contrast-stretched scans. If Windows HDR is on, turn it off for the scan (Win+Alt+B).'
-        }
-        return $text
+        return $best.Text
     } finally {
         Remove-Item -LiteralPath $preparedPath -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $normalizedPath -Force -ErrorAction SilentlyContinue
     }
 }
 
@@ -1884,6 +1912,47 @@ function Get-OcrLineRects {
     }
 }
 
+function Group-BorderTooltipLines {
+    param($Lines)
+    # Cluster vertically-adjacent, horizontally-overlapping OCR lines into
+    # tooltip blocks while retaining their geometry for global assignment.
+    $blocks = @()
+    foreach ($line in ($Lines | Sort-Object Y)) {
+        $joined = $false
+        foreach ($block in $blocks) {
+            $lineHeight = [Math]::Max(12.0, $line.B - $line.Y)
+            $xOverlap = [Math]::Min($line.R, $block.R) - [Math]::Max($line.X, $block.X)
+            if (($line.Y - $block.B) -le ($lineHeight * 0.9) -and $xOverlap -gt 0) {
+                $block.Text = $block.Text + [Environment]::NewLine + $line.Text
+                if ($line.X -lt $block.X) { $block.X = $line.X }
+                if ($line.R -gt $block.R) { $block.R = $line.R }
+                if ($line.B -gt $block.B) { $block.B = $line.B }
+                $joined = $true
+                break
+            }
+        }
+        if (-not $joined) {
+            $blocks += [pscustomobject]@{
+                Text = $line.Text
+                X = $line.X
+                Y = $line.Y
+                R = $line.R
+                B = $line.B
+            }
+        }
+    }
+    return $blocks
+}
+
+function Test-BorderBlockSet {
+    param($Blocks, [int]$ExpectedCount)
+    if ($Blocks.Count -ne $ExpectedCount) { return $false }
+    foreach ($block in $Blocks) {
+        if (-not (Test-BorderTooltipAnchor $block.Text)) { return $false }
+    }
+    return $true
+}
+
 # Match tooltip blocks to border points as a GLOBAL assignment, not greedy
 # nearest: tooltips render offset outward and stack along a side, so a
 # tooltip's individually-nearest point is often its neighbour's. Start from
@@ -1951,46 +2020,35 @@ function Get-AllBorderBlocks {
         Save-ScreenRegion -Left $Left -Top $Top -Width $Width -Height $Height -Path $png
         # mirror the transform inside VoyageOcrImage::Prepare so rects map back
         $scale = [Math]::Min(2.0, 6000.0 / [Math]::Max($Width, $Height))
-        [VoyageOcrImage]::Prepare($png, $prepared)
-        $lines = @(Get-OcrLineRects $prepared $Engine $scale 64.0)
-        if ($lines.Count -eq 0) { $lines = @(Get-OcrLineRects $png $Engine 1.0 0.0) }
-        # HDR washout rescue (issue #33): contrast-stretch and retry
-        if ($lines.Count -eq 0) {
-            [VoyageOcrImage]::Normalize($png, $prepared)
-            $lines = @(Get-OcrLineRects $prepared $Engine $scale 64.0)
-        }
-        if ($lines.Count -eq 0) { throw 'Windows OCR found no border tooltips in the Alt overview. If Windows HDR is on, turn it off for the scan (Win+Alt+B).' }
-        # cluster vertically-adjacent, horizontally-overlapping lines
-        $blocks = @()
-        foreach ($line in ($lines | Sort-Object Y)) {
-            $joined = $false
-            foreach ($block in $blocks) {
-                $lineHeight = [Math]::Max(12.0, $line.B - $line.Y)
-                $xOverlap = [Math]::Min($line.R, $block.R) - [Math]::Max($line.X, $block.X)
-                if (($line.Y - $block.B) -le ($lineHeight * 0.9) -and $xOverlap -gt 0) {
-                    $block.Text = $block.Text + [Environment]::NewLine + $line.Text
-                    if ($line.X -lt $block.X) { $block.X = $line.X }
-                    if ($line.R -gt $block.R) { $block.R = $line.R }
-                    if ($line.B -gt $block.B) { $block.B = $line.B }
-                    $joined = $true
-                    break
-                }
-            }
-            if (-not $joined) {
-                $blocks += [pscustomobject]@{ Text = $line.Text; X = $line.X; Y = $line.Y; R = $line.R; B = $line.B }
-            }
-        }
         $points = @()
         foreach ($pair in $PointSpec.Split(';')) {
             $xy = $pair.Split(',')
             $points += [pscustomobject]@{ X = [double]$xy[0]; Y = [double]$xy[1] }
         }
-        # A merged pair of tooltips leaves fewer than 12 clusters, while noise
-        # or a split tooltip leaves more. Do not feed either case into the
-        # global matcher: with unequal counts even otherwise good assignments
-        # can shift onto neighbouring border positions.
-        if ($blocks.Count -ne $points.Count) {
-            throw "Windows OCR grouped $($blocks.Count)/$($points.Count) border tooltips in the Alt overview."
+
+        # A non-empty OCR pass can still be incomplete. Try all three image
+        # paths from the same screenshot and accept the first one with exactly
+        # 12 recognizable tooltip clusters. Only then spend time on a fresh
+        # held-Alt capture or the per-border hover fallback.
+        $observed = @()
+        [VoyageOcrImage]::Prepare($png, $prepared)
+        $candidate = @(Group-BorderTooltipLines @(Get-OcrLineRects $prepared $Engine $scale 64.0))
+        $observed += "filtered=$($candidate.Count)"
+        $blocks = if (Test-BorderBlockSet $candidate $points.Count) { $candidate } else { $null }
+
+        if ($null -eq $blocks) {
+            $candidate = @(Group-BorderTooltipLines @(Get-OcrLineRects $png $Engine 1.0 0.0))
+            $observed += "unfiltered=$($candidate.Count)"
+            if (Test-BorderBlockSet $candidate $points.Count) { $blocks = $candidate }
+        }
+        if ($null -eq $blocks) {
+            [VoyageOcrImage]::Normalize($png, $prepared)
+            $candidate = @(Group-BorderTooltipLines @(Get-OcrLineRects $prepared $Engine $scale 64.0))
+            $observed += "normalized=$($candidate.Count)"
+            if (Test-BorderBlockSet $candidate $points.Count) { $blocks = $candidate }
+        }
+        if ($null -eq $blocks) {
+            throw "Windows OCR did not produce 12 recognizable border tooltips in the Alt overview ($($observed -join ', '))."
         }
         $assigned = Resolve-BorderAssignment $points $blocks
         for ($p = 0; $p -lt $points.Count; $p++) {
@@ -2504,6 +2562,10 @@ ParseBorderBlocks(blob) {
     return blocks
 }
 
+BorderBlockHasTooltipAnchor(text) {
+    return RegExMatch(text, "i)\badjac[a-z]{2,5}\b") || InStr(text, "인접")
+}
+
 ; Hybrid border scan: accept the Alt overview only when all 12 segments are
 ; trustworthy. A legitimate long modifier can occupy 4+ OCR lines, so height is
 ; not an error signal by itself. The helper now rejects any overview whose raw
@@ -2529,7 +2591,8 @@ ScanBorders() {
                 suspects := []
                 Loop 12 {
                     idx := A_Index - 1
-                    if (!blocks.Has(idx) || InStr(blocks[idx], "OCR ERROR"))
+                    if (!blocks.Has(idx) || InStr(blocks[idx], "OCR ERROR")
+                        || !BorderBlockHasTooltipAnchor(blocks[idx]))
                         suspects.Push(A_Index) ; 1-based for BorderPoints()
                 }
                 Log("alt scan attempt " altAttempt " | " blocks.Count
@@ -2602,6 +2665,7 @@ ScanBordersHover() {
                 && !InStr(block, "Windows OCR returned no text")
                 && !InStr(block, "OCR ERROR:")
                 && !InStr(block, "OCR HELPER ERROR:")
+                && BorderBlockHasTooltipAnchor(block)
                 break
         }
         ; per-border health: errors and pathological slowness both go to the
@@ -2611,9 +2675,16 @@ ScanBordersHover() {
             Log("hover border " index " | OCR error | " borderMs "ms")
         else if (borderMs > 8000)
             Log("hover border " index " | slow: " borderMs "ms")
-        if (block != "") {
+        usable := block != ""
+            && !InStr(block, "Windows OCR returned no text")
+            && !InStr(block, "OCR ERROR:")
+            && !InStr(block, "OCR HELPER ERROR:")
+            && BorderBlockHasTooltipAnchor(block)
+        if usable {
             result .= (result = "" ? "" : "`n") block
             LastBorderScanBlocks++
+        } else {
+            Log("hover border " index " | no recognizable tooltip | " borderMs "ms")
         }
     }
     return result
@@ -3041,6 +3112,10 @@ F10:: {
 ; ---- F9: the real import sweep ----
 F9:: {
     global
+    if Running {
+        Flash "A scan is already running.", 2500
+        return
+    }
     if !Calibrated() {
         MsgBox "Calibrate the chart stash first:`n"
             . "F7 = top-left slot, F8 = bottom-right slot`n"
