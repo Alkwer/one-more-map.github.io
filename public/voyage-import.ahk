@@ -2497,18 +2497,11 @@ ParseBorderBlocks(blob) {
     return blocks
 }
 
-ArrayHas(arr, value) {
-    for , item in arr
-        if (item = value)
-            return true
-    return false
-}
-
-; Hybrid border scan: the one-screenshot Alt overview covers most segments in
-; seconds; any SUSPECT segment (missing, errored, or a suspiciously tall block
-; that smells like two tooltips merged at a cramped resolution) gets the slow
-; per-border hover treatment individually. Worst case on an odd setup is a
-; slightly slower scan, never silently wrong borders.
+; Hybrid border scan: accept the one-screenshot Alt overview only when all 12
+; segments are trustworthy. With even one missing or merged tooltip, assigning
+; the remaining blocks globally is underconstrained and can shift several good
+; modifiers onto neighbouring positions. In that case hover all 12 positions so
+; every OCR result carries an unambiguous border index.
 ScanBorders() {
     global AltScanBorders, Running, LastBorderScanBlocks
     if !RequireSingleBorderTooltipView()
@@ -2530,18 +2523,8 @@ ScanBorders() {
                     || StrSplit(blocks[idx], "`n").Length >= 4)
                     suspects.Push(A_Index) ; 1-based for BorderPoints()
             }
-            suspectNote := ""
-            for , i in suspects
-                suspectNote .= (suspectNote = "" ? "" : ",") i
             Log("alt scan | " blocks.Count " blocks | suspect count " suspects.Length)
-            if (suspects.Length <= 4) {
-                if (suspects.Length > 0) {
-                    ToolTip "Alt scan read " (12 - suspects.Length) "/12 - hovering the other " suspects.Length "..."
-                    rescans := ParseBorderBlocks(ScanBordersHover(suspects))
-                    for , i in suspects
-                        if rescans.Has(i - 1)
-                            blocks[i - 1] := rescans[i - 1]
-                }
+            if (suspects.Length = 0) {
                 finalBlob := ""
                 Loop 12 {
                     idx := A_Index - 1
@@ -2552,22 +2535,24 @@ ScanBorders() {
                 LastBorderScanBlocks := blocks.Count
                 return BorderScanMeta(finalBlob)
             }
-            ; 5+ suspects: the overview is unreliable here - hover everything
+            Log("alt overview incomplete - full per-border fallback")
+            ToolTip "Alt overview was incomplete - verifying all 12 borders one by one..."
+        } else {
+            Log("alt overview unusable - full per-border fallback")
+            ToolTip "Alt overview didn't work here - falling back to the per-border scan..."
         }
-        Log("alt overview unusable - full per-border fallback")
-        ToolTip "Alt overview didn't work here - falling back to the per-border scan..."
     }
     result := ScanBordersHover()
     return BorderScanMeta(result)
 }
 
-ScanBordersHover(only := 0) {
+ScanBordersHover() {
     global PoeHwnd, BorderHoverDelay, BorderOcrAttempts, Running, LastBorderScanBlocks
     if !RequireBoundPoeForeground() {
         Running := false
         return ""
     }
-    Log("hover scan | " (only ? "rescanning " only.Length " suspect(s)" : "all 12"))
+    Log("hover scan | all 12")
     WinGetPos &winX, &winY, &winW, &winH, "ahk_id " PoeHwnd
     result := ""
     LastBorderScanBlocks := 0
@@ -2576,8 +2561,6 @@ ScanBordersHover(only := 0) {
             Running := false
             break
         }
-        if (only && !ArrayHas(only, index))
-            continue
         options := Map(
             "Index", index - 1,
             "WindowLeft", winX,

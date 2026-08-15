@@ -286,6 +286,17 @@ describe('border OCR regressions', () => {
     assert.match(borderRefreshHotkey, /rerollCostBlob := ScanRerollCost\(\)/)
     assert.match(borderRefreshHotkey, /payload := borderBlob/)
     assert.match(borderRefreshHotkey, /DeliverPayloadToSolver\(payload\)/)
+    const borderScannerStart = ahkImporter.indexOf('ScanBorders() {')
+    const borderHoverScannerStart = ahkImporter.indexOf('ScanBordersHover() {', borderScannerStart)
+    assert.ok(borderScannerStart >= 0, 'hybrid border scanner is missing')
+    assert.ok(
+      borderHoverScannerStart > borderScannerStart,
+      'full per-border hover fallback is missing',
+    )
+    const borderScanner = ahkImporter.slice(borderScannerStart, borderHoverScannerStart)
+    assert.match(borderScanner, /if \(suspects\.Length = 0\)/)
+    assert.match(borderScanner, /alt overview incomplete - full per-border fallback/)
+    assert.doesNotMatch(borderScanner, /ScanBordersHover\(suspects\)/)
     assert.match(ahkImporter, /\^F7:: \{/)
     assert.match(ahkImporter, /\+F7:: \{/)
     assert.match(ahkImporter, /\+F8:: \{/)
