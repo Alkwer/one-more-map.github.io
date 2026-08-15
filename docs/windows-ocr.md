@@ -136,7 +136,9 @@ Hover the compass-shaped border reroll button until `Border Modifiers Reroll
 Cost` is visible, then press `Ctrl+F7`. This saves the hover point. During each
 later `F9` or `Ctrl+F9` scan, the helper moves the pointer to that button, waits
 for its tooltip, reads the displayed cost, and maps it to the solver's `Used`
-reroll count. The known next costs are 3,000, 6,000, 12,000, 24,000, and 48,000.
+reroll count. Live corpus observations currently confirm next costs of 3,000,
+6,000, 12,000, and 24,000. The helper also recognizes the expected 48,000 step,
+which follows the client-side doubling rule but has not yet been captured live.
 
 This calibration is optional; without it, the existing reroll counter remains
 unchanged. `Ctrl+F4` also previews the saved reroll-button point after the 12

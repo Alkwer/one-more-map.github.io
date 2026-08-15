@@ -30,7 +30,8 @@ The slot-family evidence is a table because exact positions and counts are the p
 
 ## Reproducibility and validation
 
-- Executed analysis: `node analysis/border-rolls-2026-08-06/analyze.mjs`.
+- Executed analysis:
+  `node analysis/border-rolls-2026-08-06/analyze.mjs --ref 5da127d99125722301046ab56461574f73c67f1e`.
 - Slot association uses 20,000 within-board permutations after collapsing numbered tiers into families.
 - Stability is reported as `first21` versus `afterFirst21`: 9/9 and 12/12 special-family hits landed in the expected slot.
 - Natural versus paid comparison enumerates all 157,464 possible natural-board assignments within the 12 sequences that contain paid rerolls.

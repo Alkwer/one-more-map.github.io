@@ -244,9 +244,12 @@ Version 3:
   count only paid Voyage sequences, so borrowed boards cannot promote confidence;
 - maintains a separate posterior for each physical border slot instead of
   applying one pooled modifier distribution to all 12 positions;
-- starts currency/drop, rarity, scarab-more, and experience families in their
-  observed middle-side slots. A contradictory future observation widens the
-  affected modifier's eligibility instead of being discarded;
+- starts currency/drop, rarity, scarab-more, and experience families with
+  prespecified middle-side slot priors. The current corpus already contains one
+  contradictory observation: `b-exalt` appeared at Right 2 instead of its
+  prespecified Top 2 slot, so that modifier is eligible in both slots. Any later
+  contradictory observation likewise widens only the affected modifier's
+  eligibility instead of being discarded;
 - uses a symmetric Dirichlet(1) prior within each slot's eligible pool, so a
   known but not-yet-observed eligible modifier never receives zero probability;
 - reports sensitivity across Dirichlet priors 0.25–2 instead of presenting one
