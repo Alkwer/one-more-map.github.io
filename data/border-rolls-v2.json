@@ -1,7 +1,7 @@
 {
   "schema": "allflame-border-roll-dataset/v2",
-  "exportedAt": "2026-08-13T17:49:32.917Z",
-  "sampleCount": 55,
+  "exportedAt": "2026-08-14T22:54:25.857Z",
+  "sampleCount": 56,
   "samples": [
     {
       "schema": "allflame-border-roll/v2",
@@ -1431,6 +1431,32 @@
         "b-pack-1",
         "b-exp-1",
         "b-quantconn-1"
+      ]
+    },
+    {
+      "schema": "allflame-border-roll/v2",
+      "sampleId": "roll-45600b23-04d6-475c-aa61-8002e0cd480e",
+      "sequenceId": "voyage-b01380d6-3cad-4391-92ef-955d2dd318a0",
+      "capturedAt": "2026-08-14T22:54:25.857Z",
+      "gamePatch": "3.29.3",
+      "vesperUpgradeCount": 3,
+      "generation": "natural",
+      "samplingReason": "gameplay",
+      "rerollIndex": 0,
+      "displayedNextRerollCost": 3000,
+      "borderModIds": [
+        "b-lanterns",
+        "b-pack-1",
+        "b-quantconn-1",
+        "b-pack-1",
+        "b-rarity-1",
+        "b-drowned-1",
+        "b-crabs-1",
+        "b-rare-1",
+        "b-keep-1",
+        "b-keep-1",
+        "b-exp-1",
+        "b-lanterns"
       ]
     }
   ]
