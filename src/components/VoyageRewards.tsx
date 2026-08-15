@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { CURSED_DUCATS, CURSED_DUCAT_IMPLICIT } from '../data/cursedDucats'
 import { CURRENT_GAME_PATCH } from '../data/gameVersion'
 import { buildChartSearch } from '../logic/regex'
 import { writeClipboardText } from '../logic/clipboard'
@@ -75,6 +76,20 @@ export function VoyageRewards({ score, board, pool, chartMap, notables }: Props)
           are not included in this layout score. Because they affect the whole Voyage, they do not
           change which arrangement scores best.
         </span>
+        <details className="ducat-reference">
+          <summary>View all {CURSED_DUCATS.length} Cursed Ducat effects</summary>
+          <p className="ducat-implicit">
+            Shared implicit: <span>{CURSED_DUCAT_IMPLICIT}</span>
+          </p>
+          <ul>
+            {CURSED_DUCATS.map((ducat) => (
+              <li key={ducat.name}>
+                <strong>{ducat.name}</strong>
+                <span>{ducat.effects.join('; ')}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
       </div>
       <div className="reward-grid">
         {ALL_STATS.filter((stat) => score.perStat[stat] > 0)
