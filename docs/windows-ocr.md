@@ -167,12 +167,13 @@ The two tab positions are stored with the grid calibration in `voyage-import.ini
 - `F10` aborts the current sweep.
 
 Release **Alt** (or the controller's **Left Trigger**) before starting a border
-scan and keep it released until the scan finishes. Patch 3.29.3 uses that input
-to display all 12 border modifiers at once, while the importer deliberately
-reads one position at a time. The helper aborts if it detects a held Alt key,
-and the solver rejects an OCR block containing multiple exact tooltips instead
-of guessing a border position. The all-border view remains useful for manually
-checking the imported result after the scan.
+scan and keep it released until the scan finishes. The importer holds Alt itself
+and normally reads all 12 border modifiers from one screenshot. If that overview
+is incomplete, it retries one fresh Alt screenshot; only two incomplete results
+fall back to reading all 12 positions one at a time. The helper aborts if it
+detects Alt already held before the scan, and it never combines an incomplete
+overview with individually scanned positions because that could shift modifiers
+onto neighbouring borders.
 
 After `F9` or `Ctrl+F9`, the solver window in the default browser becomes active
 and receives the paste automatically. If automatic opening or activation fails,

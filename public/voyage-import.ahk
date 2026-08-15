@@ -1985,6 +1985,13 @@ function Get-AllBorderBlocks {
             $xy = $pair.Split(',')
             $points += [pscustomobject]@{ X = [double]$xy[0]; Y = [double]$xy[1] }
         }
+        # A merged pair of tooltips leaves fewer than 12 clusters, while noise
+        # or a split tooltip leaves more. Do not feed either case into the
+        # global matcher: with unequal counts even otherwise good assignments
+        # can shift onto neighbouring border positions.
+        if ($blocks.Count -ne $points.Count) {
+            throw "Windows OCR grouped $($blocks.Count)/$($points.Count) border tooltips in the Alt overview."
+        }
         $assigned = Resolve-BorderAssignment $points $blocks
         for ($p = 0; $p -lt $points.Count; $p++) {
             if ($null -ne $assigned[$p]) {
@@ -2436,7 +2443,7 @@ RequireSingleBorderTooltipView() {
 
     Running := false
     ToolTip()
-    Flash "Release Alt before border OCR. The importer reads one tooltip at a time.", 5000
+    Flash "Release Alt before border OCR. The importer controls the Alt overview itself.", 5000
     return false
 }
 
@@ -2497,11 +2504,12 @@ ParseBorderBlocks(blob) {
     return blocks
 }
 
-; Hybrid border scan: accept the one-screenshot Alt overview only when all 12
-; segments are trustworthy. With even one missing or merged tooltip, assigning
-; the remaining blocks globally is underconstrained and can shift several good
-; modifiers onto neighbouring positions. In that case hover all 12 positions so
-; every OCR result carries an unambiguous border index.
+; Hybrid border scan: accept the Alt overview only when all 12 segments are
+; trustworthy. A legitimate long modifier can occupy 4+ OCR lines, so height is
+; not an error signal by itself. The helper now rejects any overview whose raw
+; cluster count is not exactly 12. Retry one fresh Alt capture before falling
+; back to hovering all positions; this keeps transient capture misses fast while
+; never mixing an underconstrained overview with individually scanned borders.
 ScanBorders() {
     global AltScanBorders, Running, LastBorderScanBlocks
     if !RequireSingleBorderTooltipView()
@@ -2511,36 +2519,41 @@ ScanBorders() {
         return ""
     }
     if (AltScanBorders != 0) {
-        result := ScanBordersAlt()
-        if (result = "ABORT")
-            return ""
-        if (result != "") {
-            blocks := ParseBorderBlocks(result)
-            suspects := []
-            Loop 12 {
-                idx := A_Index - 1
-                if (!blocks.Has(idx) || InStr(blocks[idx], "OCR ERROR")
-                    || StrSplit(blocks[idx], "`n").Length >= 4)
-                    suspects.Push(A_Index) ; 1-based for BorderPoints()
-            }
-            Log("alt scan | " blocks.Count " blocks | suspect count " suspects.Length)
-            if (suspects.Length = 0) {
-                finalBlob := ""
+        Loop 2 {
+            altAttempt := A_Index
+            result := ScanBordersAlt()
+            if (result = "ABORT")
+                return ""
+            if (result != "") {
+                blocks := ParseBorderBlocks(result)
+                suspects := []
                 Loop 12 {
                     idx := A_Index - 1
-                    if blocks.Has(idx)
-                        finalBlob .= (finalBlob = "" ? "" : "`n")
-                            . "=== VOYAGE BORDER " idx " ===`n" blocks[idx] "`n=== END VOYAGE BORDER ==="
+                    if (!blocks.Has(idx) || InStr(blocks[idx], "OCR ERROR"))
+                        suspects.Push(A_Index) ; 1-based for BorderPoints()
                 }
-                LastBorderScanBlocks := blocks.Count
-                return BorderScanMeta(finalBlob)
+                Log("alt scan attempt " altAttempt " | " blocks.Count
+                    . " blocks | suspect count " suspects.Length)
+                if (suspects.Length = 0) {
+                    finalBlob := ""
+                    Loop 12 {
+                        idx := A_Index - 1
+                        if blocks.Has(idx)
+                            finalBlob .= (finalBlob = "" ? "" : "`n")
+                                . "=== VOYAGE BORDER " idx " ===`n" blocks[idx] "`n=== END VOYAGE BORDER ==="
+                    }
+                    LastBorderScanBlocks := blocks.Count
+                    return BorderScanMeta(finalBlob)
+                }
             }
-            Log("alt overview incomplete - full per-border fallback")
-            ToolTip "Alt overview was incomplete - verifying all 12 borders one by one..."
-        } else {
-            Log("alt overview unusable - full per-border fallback")
-            ToolTip "Alt overview didn't work here - falling back to the per-border scan..."
+            if (altAttempt = 1) {
+                Log("alt overview incomplete - retrying one-screenshot scan")
+                ToolTip "Alt overview was incomplete - retrying the one-screenshot scan..."
+                Sleep 120
+            }
         }
+        Log("alt overview incomplete after retry - full per-border fallback")
+        ToolTip "Alt overview was incomplete twice - verifying all 12 borders one by one..."
     }
     result := ScanBordersHover()
     return BorderScanMeta(result)
