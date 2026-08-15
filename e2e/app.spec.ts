@@ -395,15 +395,15 @@ test.describe('importer update notice', () => {
     await expect(notice.locator('[data-dialog-initial-focus]')).toBeFocused()
     await expect(appPage.locator('main')).toHaveJSProperty('inert', true)
     await expectNoAccessibilityViolations(appPage)
-    await expect(notice).toContainText('two pages')
-    await expect(notice).toContainText('Shift+F7')
+    await expect(notice).toContainText('borders in one scan')
+    await expect(notice).toContainText('Sweep speed')
     const downloadLink = notice.getByRole('link', { name: /Download the updated script/ })
     await expect
       .poll(() =>
         downloadLink.evaluate((element) => new URL((element as HTMLAnchorElement).href).pathname),
       )
       .toBe(`${APP_PATH}voyage-import.ahk`)
-    expect(await appPage.evaluate(() => localStorage.getItem('announce-ahk-page2'))).toBeNull()
+    expect(await appPage.evaluate(() => localStorage.getItem('announce-ahk-altscan'))).toBeNull()
 
     const focusable = notice.locator(
       'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
@@ -417,7 +417,7 @@ test.describe('importer update notice', () => {
     await expect(notice).toHaveCount(0)
     await expect(appPage.locator('main')).toHaveJSProperty('inert', false)
     await expect(appPage.getByRole('button', { name: /TUTORIAL/ })).toBeFocused()
-    expect(await appPage.evaluate(() => localStorage.getItem('announce-ahk-page2'))).toBe('1')
+    expect(await appPage.evaluate(() => localStorage.getItem('announce-ahk-altscan'))).toBe('1')
 
     await appPage.reload()
     await expect(notice).toHaveCount(0)
@@ -850,7 +850,7 @@ test('provides touch-only detail controls without placing or deleting charts', a
   const page = await context.newPage()
   await page.addInitScript(() => {
     localStorage.setItem('onboarding-seen', '1')
-    localStorage.setItem('announce-ahk-page2', '1')
+    localStorage.setItem('announce-ahk-altscan', '1')
   })
   await openApp(page)
   await pasteText(page, ENGLISH_CHART)

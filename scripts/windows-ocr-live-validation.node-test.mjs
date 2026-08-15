@@ -94,6 +94,9 @@ test('cleanup evidence uses the current in-memory OCR artifact contract', async 
     assert.ok(guide.includes(artifact), `live guide must document ${artifact}`)
   }
   assert.match(guide, /does not\s+create a `\.ps1` bridge/)
-  assert.match(importer, /\[ScriptBlock\]::Create\(\$env:VOYAGE_OCR_SCRIPT\)/)
+  assert.match(importer, /helper := shell\.Exec\(command\)/)
+  assert.match(importer, /helper\.StdIn\.Write\(OcrPowerShell\(\)\)/)
+  assert.match(importer, /helper\.StdIn\.Close\(\)/)
   assert.doesNotMatch(importer, /FileAppend\s+OcrPowerShell\(\)/)
+  assert.doesNotMatch(importer, /-ExecutionPolicy Bypass -File/)
 })

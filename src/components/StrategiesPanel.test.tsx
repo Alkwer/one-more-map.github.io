@@ -56,6 +56,28 @@ describe('Korean clipboard aliases feed strategy readiness', () => {
     expect(html).toContain('1/1× Operative’s / Arcanist’s / Diviner’s / Message chart (centre)')
   })
 
+  it('counts the observed Korean Message chart for Speedrun', () => {
+    const parsed = parseKoreanImplicit(
+      '인접 지역들에 병 안의 서신 2개 추가 등장 — 변경이 불가능한 값',
+    )
+    const message = {
+      ...parsed,
+      rewards: [{ stat: 'quantity' as const, percent: 110 }],
+    }
+    const sides = Array.from({ length: 8 }, (_, index) => ({
+      ...message,
+      uid: `${message.uid}-side-${index}`,
+      modIds: [],
+    }))
+
+    expect(message.modIds).toEqual(['adj-msg-2'])
+
+    const html = renderStrategy('milky-speedrun', [message, ...sides])
+
+    expect(html).toContain('class="strat-ready"')
+    expect(html).toContain('1/1× Operative’s / Arcanist’s / Diviner’s / Message chart (centre)')
+  })
+
   it('counts Korean Sea Pillars by destination instead of the rare Chart name', () => {
     const first = parseKoreanArea('바다 기둥')
     const second = { ...first, uid: `${first.uid}-second` }

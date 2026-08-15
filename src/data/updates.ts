@@ -19,7 +19,21 @@ export const UPDATES: UpdateEntry[] = [
     tag: 'reworked',
     title: 'Selectable Alc & Go layouts and sturdier imports',
     detail:
-      'Alc & Go can now build either the classic three-lane highway or a fast continuous S-snake. The Windows importer adds configurable blank-row skipping, clearer zero-copy diagnostics, stuck-key cleanup, and a contrast-stretched fallback for washed-out HDR captures.',
+      'Alc & Go can now build either the classic three-lane highway or a fast continuous S-snake. The Windows importer adds configurable blank-row skipping, clearer zero-copy diagnostics, stuck-key cleanup, automatic HDR detection with tone-mapped frame capture, and a contrast-stretched fallback for washed-out captures.',
+  },
+  {
+    date: '2026-08-14',
+    tag: 'new',
+    title: 'Importer diagnostic bundle',
+    detail:
+      'Importer acting up? Right-click the tray icon and choose "Save diagnostic bundle..." for privacy-safe system and capture status with coarse activity timings. It excludes calibration coordinates, OCR text, screenshots, window titles, usernames, and filesystem paths. Re-download the script to get it.',
+  },
+  {
+    date: '2026-08-14',
+    tag: 'new',
+    title: 'Feedback link',
+    detail:
+      "🐛 Feedback in the header goes straight to the GitHub issue tracker - it is actively monitored, bug reports and ideas both welcome (several of this week's features came from there and Reddit).",
   },
   {
     date: '2026-08-13',

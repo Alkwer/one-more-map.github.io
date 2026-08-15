@@ -546,8 +546,8 @@ export function ImportPanel({
             rel="noopener noreferrer"
           >
             Open a GitHub issue
-          </a>
-          .
+          </a>{' '}
+          — actively monitored, and pull requests are welcome.
         </p>
       </details>
 
