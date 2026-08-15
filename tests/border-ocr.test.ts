@@ -12,6 +12,7 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, it } from 'vitest'
 import { BORDER_SOURCE_SNAPSHOT } from '../src/data/borderSourceRecords'
 import { BORDER_MODS, borderModById } from '../src/data/mods'
@@ -239,11 +240,38 @@ describe('border OCR regressions', () => {
     assert.match(ahkImporter, /QueryFullProcessImageNameW/)
     assert.match(ahkImporter, /command := quote PowerShellExe quote/)
     assert.doesNotMatch(ahkImporter, /command := "powershell\.exe/)
-    assert.match(ahkImporter, /shell := ComObject\("WScript\.Shell"\)/)
-    assert.match(ahkImporter, /helper := shell\.Exec\(command\)/)
-    assert.match(ahkImporter, /helper\.StdIn\.Write\(OcrPowerShell\(\)\)/)
-    assert.match(ahkImporter, /helper\.StdIn\.Close\(\)/)
+    const hiddenLauncherStart = ahkImporter.indexOf('StartHiddenPowerShell(')
+    const ocrRunnerStart = ahkImporter.indexOf('RunOcrHelper(', hiddenLauncherStart)
+    assert.ok(hiddenLauncherStart >= 0, 'native hidden PowerShell launcher is missing')
+    assert.ok(ocrRunnerStart > hiddenLauncherStart, 'OCR runner must follow the native launcher')
+    const hiddenLauncher = ahkImporter.slice(hiddenLauncherStart, ocrRunnerStart)
+    assert.match(hiddenLauncher, /CreatePipe/)
+    assert.match(hiddenLauncher, /"UInt", OcrStdinCapacity/)
+    assert.match(hiddenLauncher, /SetHandleInformation/)
+    assert.match(hiddenLauncher, /STARTF_USESTDHANDLES := 0x100/)
+    assert.match(hiddenLauncher, /CREATE_SUSPENDED := 0x4/)
+    assert.match(hiddenLauncher, /CREATE_NO_WINDOW := 0x08000000/)
+    assert.match(hiddenLauncher, /EXTENDED_STARTUPINFO_PRESENT := 0x00080000/)
+    assert.match(hiddenLauncher, /PROC_THREAD_ATTRIBUTE_HANDLE_LIST := 0x00020002/)
+    assert.match(hiddenLauncher, /UpdateProcThreadAttribute/)
+    assert.match(hiddenLauncher, /"CreateProcessW"/)
+    assert.match(hiddenLauncher, /"Str", applicationName/)
+    assert.match(
+      hiddenLauncher,
+      /"UInt", CREATE_SUSPENDED \| CREATE_NO_WINDOW \| EXTENDED_STARTUPINFO_PRESENT/,
+    )
+    assert.match(ahkImporter, /OcrStdinCapacity := 131072/)
+    assert.match(ahkImporter, /StrPut\(ocrSource, "UTF-8"\) - 1 > OcrStdinCapacity/)
+    assert.match(ahkImporter, /WriteUtf8Pipe\(OcrStdinHandle, ocrSource\)/)
+    assert.match(ahkImporter, /CloseNativeHandle\(OcrStdinHandle\)/)
+    assert.match(ahkImporter, /ProcessImagePath\(OcrPid\)[\s\S]*ResumeThread/)
+    assert.match(ahkImporter, /catch as ocrError \{[\s\S]*cancellable && !Running/)
+    assert.match(ahkImporter, /--probe-hidden-ocr-launcher/)
+    assert.match(ahkImporter, /visibleConsole=/)
+    assert.doesNotMatch(ahkImporter, /WScript\.Shell|shell\.Exec\(/)
+    assert.doesNotMatch(ahkImporter, /CREATE_NEW_CONSOLE|DETACHED_PROCESS|WinHide/)
     assert.doesNotMatch(ahkImporter, /^\s*OcrHelper\s*:=|EnsureOcrHelper/m)
+    assert.doesNotMatch(ahkImporter, /VOYAGE_OCR_SCRIPT/)
     assert.doesNotMatch(ahkImporter, /FileAppend OcrPowerShell\(\)/)
     assert.doesNotMatch(ahkImporter, /-ExecutionPolicy Bypass -File/)
     assert.doesNotMatch(ahkImporter, /Done\. Refreshed 12 borders/)
@@ -267,6 +295,11 @@ describe('border OCR regressions', () => {
     assert.match(ahkImporter, /아이템 종류: 해도/)
     assert.match(fullImportHotkey, /for tabIndex, tabPoint in tabPoints/)
     assert.match(fullImportHotkey, /MouseMove tabPoint\[1\], tabPoint\[2\], 0\s+Click/)
+    assert.match(fullImportHotkey, /borderBlob := ScanBorders\(\)/)
+    assert.match(fullImportHotkey, /payload := blob/)
+    assert.match(fullImportHotkey, /payload \.= borderBlob/)
+    assert.match(fullImportHotkey, /payload \.= rerollCostBlob/)
+    assert.match(fullImportHotkey, /DeliverPayloadToSolver\(payload\)/)
     assert.match(ahkImporter, /EmptySkipRows := IniRead/)
     assert.match(ahkImporter, /PromptEmptySkip/)
     assert.match(fullImportHotkey, /emptyRowStreak := 0/)
@@ -417,6 +450,32 @@ describe('border OCR regressions', () => {
     },
   )
 
+  const autoHotkeyDirectories = [
+    process.env.AUTOHOTKEY_V2_DIR,
+    join(process.env.ProgramFiles ?? 'C:\\Program Files', 'AutoHotkey', 'v2'),
+  ].filter((directory): directory is string => Boolean(directory))
+  const autoHotkeyRuntimes = autoHotkeyDirectories
+    .flatMap((directory) =>
+      ['AutoHotkey64.exe', 'AutoHotkey32.exe'].map((name) => join(directory, name)),
+    )
+    .filter(existsSync)
+  it.skipIf(process.platform !== 'win32' || autoHotkeyRuntimes.length === 0)(
+    'streams the OCR helper without a visible console on installed AHK architectures',
+    () => {
+      const importer = fileURLToPath(new URL('../public/voyage-import.ahk', import.meta.url))
+      for (const autoHotkey of autoHotkeyRuntimes) {
+        const output = execFileSync(
+          autoHotkey,
+          ['/ErrorStdOut', importer, '--probe-hidden-ocr-launcher'],
+          { encoding: 'utf8', windowsHide: true },
+        )
+
+        assert.match(output, /^stdinExecuted=true$/m, autoHotkey)
+        assert.match(output, /^visibleConsole=false$/m, autoHotkey)
+      }
+    },
+  )
+
   it.skipIf(process.platform !== 'win32')(
     'ignores a prepositioned predictable helper and a replacement watcher race',
     async () => {
@@ -451,15 +510,12 @@ describe('border OCR regressions', () => {
             '-NoProfile',
             '-NonInteractive',
             '-Command',
-            '& ([ScriptBlock]::Create($env:VOYAGE_OCR_SCRIPT))',
+            '$reader = [IO.StreamReader]::new([Console]::OpenStandardInput(), [Text.UTF8Encoding]::new($false)); try { & ([ScriptBlock]::Create($reader.ReadToEnd())) } finally { $reader.Dispose() }',
           ],
           {
             cwd: raceDirectory,
             encoding: 'utf8',
-            env: {
-              ...process.env,
-              VOYAGE_OCR_SCRIPT: "Start-Sleep -Milliseconds 250; [Console]::Out.Write('trusted')",
-            },
+            input: "Start-Sleep -Milliseconds 250; [Console]::Out.Write('trusted')",
             windowsHide: true,
           },
         )

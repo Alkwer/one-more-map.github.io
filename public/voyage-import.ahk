@@ -104,12 +104,13 @@ BorderPreviewDelay := 900 ; ms per point during the Ctrl+F4 visual preview
 ClipTimeout   := 0.2   ; seconds to wait for Ctrl+C (only empty cells wait the full time)
 AltRevealDelay := 350  ; ms for held-Alt to reveal every border tooltip at once
 OcrTimeout    := 90    ; seconds before a stuck Windows OCR scan is stopped
+OcrStdinCapacity := 131072 ; keeps the in-memory helper write below the pipe buffer
 ; If it ever MISSES a chart, raise HoverDelay ~10ms at a time (the cursor
 ; isn't settling before Ctrl+C).
 ; ----------------------------------------
 
 ; version stamp - shown in diagnostic bundles so reports say what they ran
-ScriptVersion := "2026-08-14"
+ScriptVersion := "2026-08-15"
 
 IniFile := A_ScriptDir "\voyage-import.ini"
 ; Stop a tab sweep after this many completely blank rows in a row. Set 0 to
@@ -531,16 +532,36 @@ TempDir := LongPath(A_Temp)
 ; the PNGs cleaned below are the only files created by normal OCR attempts.
 OcrOutput := TempDir "\voyage-border-ocr-" ScriptPid ".txt"
 OcrPid := 0
+OcrProcessHandle := 0
+OcrThreadHandle := 0
+OcrStdinHandle := 0
 LastBorderScanBlocks := 0
 Running := false
 A_TrayMenu.Add "Configure blank-row skip...", PromptEmptySkip
 
 StopOcrProcess() {
-    global OcrPid
-    pid := OcrPid
-    if pid && ProcessExist(pid) {
-        try ProcessClose pid
-        try ProcessWaitClose pid, 1
+    global OcrPid, OcrProcessHandle, OcrThreadHandle, OcrStdinHandle
+    if OcrStdinHandle {
+        try DllCall("CloseHandle", "Ptr", OcrStdinHandle)
+        OcrStdinHandle := 0
+    }
+    if OcrProcessHandle {
+        try {
+            if (DllCall("WaitForSingleObject", "Ptr", OcrProcessHandle, "UInt", 0, "UInt") = 0x102)
+                DllCall("TerminateProcess", "Ptr", OcrProcessHandle, "UInt", 1)
+            DllCall("WaitForSingleObject", "Ptr", OcrProcessHandle, "UInt", 1000, "UInt")
+        }
+    } else if OcrPid && ProcessExist(OcrPid) {
+        try ProcessClose OcrPid
+        try ProcessWaitClose OcrPid, 1
+    }
+    if OcrThreadHandle {
+        try DllCall("CloseHandle", "Ptr", OcrThreadHandle)
+        OcrThreadHandle := 0
+    }
+    if OcrProcessHandle {
+        try DllCall("CloseHandle", "Ptr", OcrProcessHandle)
+        OcrProcessHandle := 0
     }
     OcrPid := 0
 }
@@ -2068,46 +2089,341 @@ PreferredOcrLanguage() {
     return ""
 }
 
+Win32Failure(action) {
+    return Error(action " (Windows error " A_LastError ").")
+}
+
+CloseNativeHandle(handle) {
+    if handle && handle != -1
+        DllCall("CloseHandle", "Ptr", handle)
+}
+
+StartHiddenPowerShell(applicationName, commandLine) {
+    global OcrStdinCapacity
+    static HANDLE_FLAG_INHERIT := 0x1
+        , STARTF_USESHOWWINDOW := 0x1
+        , STARTF_USESTDHANDLES := 0x100
+        , SW_HIDE := 0
+        , CREATE_SUSPENDED := 0x4
+        , CREATE_NO_WINDOW := 0x08000000
+        , EXTENDED_STARTUPINFO_PRESENT := 0x00080000
+        , PROC_THREAD_ATTRIBUTE_HANDLE_LIST := 0x00020002
+        , GENERIC_WRITE := 0x40000000
+        , FILE_SHARE_READ_WRITE := 0x3
+        , OPEN_EXISTING := 0x3
+        , FILE_ATTRIBUTE_NORMAL := 0x80
+        , SECURITY_ATTRIBUTES_SIZE := A_PtrSize = 8 ? 24 : 12
+        , SECURITY_ATTRIBUTES_INHERIT := A_PtrSize = 8 ? 16 : 8
+        , STARTUPINFO_SIZE := A_PtrSize = 8 ? 104 : 68
+        , STARTUPINFOEX_SIZE := A_PtrSize = 8 ? 112 : 72
+        , STARTUPINFO_dwFlags := A_PtrSize = 8 ? 60 : 44
+        , STARTUPINFO_wShowWindow := A_PtrSize = 8 ? 64 : 48
+        , STARTUPINFO_hStdInput := A_PtrSize = 8 ? 80 : 56
+        , PROCESS_INFORMATION_SIZE := A_PtrSize = 8 ? 24 : 16
+
+    stdinRead := 0
+    stdinWrite := 0
+    nullOutput := 0
+    processHandle := 0
+    threadHandle := 0
+    attributeListReady := false
+    returned := false
+    try {
+        securityAttributes := Buffer(SECURITY_ATTRIBUTES_SIZE, 0)
+        NumPut("UInt", SECURITY_ATTRIBUTES_SIZE, securityAttributes)
+        NumPut("Int", true, securityAttributes, SECURITY_ATTRIBUTES_INHERIT)
+        if !DllCall(
+            "CreatePipe",
+            "PtrP", &stdinRead,
+            "PtrP", &stdinWrite,
+            "Ptr", securityAttributes.Ptr,
+            "UInt", OcrStdinCapacity,
+            "Int"
+        )
+            throw Win32Failure("Could not create the Windows OCR stdin pipe")
+        if !DllCall(
+            "SetHandleInformation",
+            "Ptr", stdinWrite,
+            "UInt", HANDLE_FLAG_INHERIT,
+            "UInt", 0,
+            "Int"
+        )
+            throw Win32Failure("Could not protect the Windows OCR stdin pipe")
+
+        nullOutput := DllCall(
+            "CreateFileW",
+            "Str", "NUL",
+            "UInt", GENERIC_WRITE,
+            "UInt", FILE_SHARE_READ_WRITE,
+            "Ptr", securityAttributes.Ptr,
+            "UInt", OPEN_EXISTING,
+            "UInt", FILE_ATTRIBUTE_NORMAL,
+            "Ptr", 0,
+            "Ptr"
+        )
+        if !nullOutput || nullOutput = -1
+            throw Win32Failure("Could not open the Windows OCR null output")
+
+        attributeListSize := 0
+        DllCall(
+            "InitializeProcThreadAttributeList",
+            "Ptr", 0,
+            "UInt", 1,
+            "UInt", 0,
+            "UPtrP", &attributeListSize,
+            "Int"
+        )
+        if !attributeListSize
+            throw Win32Failure("Could not size the Windows OCR process attribute list")
+        attributeList := Buffer(attributeListSize, 0)
+        if !DllCall(
+            "InitializeProcThreadAttributeList",
+            "Ptr", attributeList.Ptr,
+            "UInt", 1,
+            "UInt", 0,
+            "UPtrP", &attributeListSize,
+            "Int"
+        )
+            throw Win32Failure("Could not initialize the Windows OCR process attribute list")
+        attributeListReady := true
+
+        inheritedHandles := Buffer(A_PtrSize * 2, 0)
+        NumPut("Ptr", stdinRead, "Ptr", nullOutput, inheritedHandles)
+        if !DllCall(
+            "UpdateProcThreadAttribute",
+            "Ptr", attributeList.Ptr,
+            "UInt", 0,
+            "UPtr", PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+            "Ptr", inheritedHandles.Ptr,
+            "UPtr", inheritedHandles.Size,
+            "Ptr", 0,
+            "Ptr", 0,
+            "Int"
+        )
+            throw Win32Failure("Could not restrict Windows OCR child handles")
+
+        startupInfo := Buffer(STARTUPINFOEX_SIZE, 0)
+        NumPut("UInt", STARTUPINFOEX_SIZE, startupInfo)
+        NumPut(
+            "UInt", STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES,
+            startupInfo,
+            STARTUPINFO_dwFlags
+        )
+        NumPut("UShort", SW_HIDE, startupInfo, STARTUPINFO_wShowWindow)
+        NumPut(
+            "Ptr", stdinRead,
+            "Ptr", nullOutput,
+            "Ptr", nullOutput,
+            startupInfo,
+            STARTUPINFO_hStdInput
+        )
+        NumPut("Ptr", attributeList.Ptr, startupInfo, STARTUPINFO_SIZE)
+
+        commandLineChars := StrPut(commandLine, "UTF-16")
+        commandLineBuffer := Buffer(commandLineChars * 2, 0)
+        StrPut(commandLine, commandLineBuffer, "UTF-16")
+        processInfo := Buffer(PROCESS_INFORMATION_SIZE, 0)
+        if !DllCall(
+            "CreateProcessW",
+            "Str", applicationName,
+            "Ptr", commandLineBuffer.Ptr,
+            "Ptr", 0,
+            "Ptr", 0,
+            "Int", true,
+            "UInt", CREATE_SUSPENDED | CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT,
+            "Ptr", 0,
+            "Ptr", 0,
+            "Ptr", startupInfo.Ptr,
+            "Ptr", processInfo.Ptr,
+            "Int"
+        )
+            throw Win32Failure("Could not start the hidden Windows OCR process")
+
+        processHandle := NumGet(processInfo, 0, "Ptr")
+        threadHandle := NumGet(processInfo, A_PtrSize, "Ptr")
+        pid := NumGet(processInfo, A_PtrSize * 2, "UInt")
+        result := {
+            ProcessID: pid,
+            ProcessHandle: processHandle,
+            ThreadHandle: threadHandle,
+            StdinHandle: stdinWrite
+        }
+        processHandle := 0
+        threadHandle := 0
+        stdinWrite := 0
+        returned := true
+        return result
+    } finally {
+        if attributeListReady
+            DllCall("DeleteProcThreadAttributeList", "Ptr", attributeList.Ptr)
+        CloseNativeHandle(stdinRead)
+        CloseNativeHandle(stdinWrite)
+        CloseNativeHandle(nullOutput)
+        CloseNativeHandle(threadHandle)
+        if processHandle {
+            if !returned
+                DllCall("TerminateProcess", "Ptr", processHandle, "UInt", 1)
+            CloseNativeHandle(processHandle)
+        }
+    }
+}
+
+WriteUtf8Pipe(handle, text) {
+    requiredBytes := StrPut(text, "UTF-8")
+    bytes := Buffer(requiredBytes, 0)
+    StrPut(text, bytes, "UTF-8")
+    remaining := requiredBytes - 1
+    offset := 0
+    while remaining > 0 {
+        chunk := Min(remaining, 16384)
+        written := 0
+        if !DllCall(
+            "WriteFile",
+            "Ptr", handle,
+            "Ptr", bytes.Ptr + offset,
+            "UInt", chunk,
+            "UIntP", &written,
+            "Ptr", 0,
+            "Int"
+        )
+            throw Win32Failure("Could not stream the Windows OCR helper")
+        if !written
+            throw Error("Windows OCR stdin closed before the helper was streamed.")
+        offset += written
+        remaining -= written
+    }
+}
+
+PowerShellStdinCommand() {
+    global PowerShellExe
+    quote := Chr(34)
+    return quote PowerShellExe quote
+        . " -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "
+        . quote "$reader = [IO.StreamReader]::new([Console]::OpenStandardInput(), [Text.UTF8Encoding]::new($false)); "
+        . "try { & ([ScriptBlock]::Create($reader.ReadToEnd())) } finally { $reader.Dispose() }" quote
+}
+
 RunOcrHelper(options, cancellable := true, preferredLanguage := "") {
     global OcrOutput, OcrPid, OcrTimeout, Running
-    global PowerShellExe, ExpectedPowerShellImage
+    global OcrProcessHandle, OcrThreadHandle, OcrStdinHandle
+    global PowerShellExe, ExpectedPowerShellImage, OcrStdinCapacity
     CleanupOcrArtifacts()
-    quote := Chr(34)
     try {
         if (preferredLanguage = "")
             preferredLanguage := PreferredOcrLanguage()
-        command := quote PowerShellExe quote
-            . " -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "
-            . quote "& ([ScriptBlock]::Create([Console]::In.ReadToEnd()))" quote
+        ocrSource := OcrPowerShell()
+        if (StrPut(ocrSource, "UTF-8") - 1 > OcrStdinCapacity)
+            throw Error("The in-memory Windows OCR helper exceeds its stdin pipe budget.")
+        command := PowerShellStdinCommand()
         try {
             SetOcrEnvironment(options, preferredLanguage)
-            shell := ComObject("WScript.Shell")
-            helper := shell.Exec(command)
+            helper := StartHiddenPowerShell(PowerShellExe, command)
             OcrPid := helper.ProcessID
+            OcrProcessHandle := helper.ProcessHandle
+            OcrThreadHandle := helper.ThreadHandle
+            OcrStdinHandle := helper.StdinHandle
         } finally {
             ClearOcrEnvironment()
         }
         actualImage := ProcessImagePath(OcrPid)
         if (NormalizeWindowsPath(actualImage) != NormalizeWindowsPath(ExpectedPowerShellImage)) {
-            try ProcessClose OcrPid
             throw Error("Windows OCR child image was not the trusted System32 PowerShell.")
         }
-        helper.StdIn.Write(OcrPowerShell())
-        helper.StdIn.Close()
-        deadline := A_TickCount + OcrTimeout * 1000
-        while ProcessExist(OcrPid) {
+        if (DllCall("ResumeThread", "Ptr", OcrThreadHandle, "UInt") = 0xFFFFFFFF)
+            throw Win32Failure("Could not resume the verified Windows OCR process")
+        CloseNativeHandle(OcrThreadHandle)
+        OcrThreadHandle := 0
+        if (cancellable && !Running)
+            return ""
+        try WriteUtf8Pipe(OcrStdinHandle, ocrSource)
+        catch as writeError {
             if (cancellable && !Running)
                 return ""
+            throw writeError
+        }
+        CloseNativeHandle(OcrStdinHandle)
+        OcrStdinHandle := 0
+        deadline := A_TickCount + OcrTimeout * 1000
+        loop {
+            if (cancellable && !Running)
+                return ""
+            if !OcrProcessHandle
+                return ""
+            waitResult := DllCall("WaitForSingleObject", "Ptr", OcrProcessHandle, "UInt", 100, "UInt")
+            if (waitResult = 0)
+                break
+            if (waitResult != 0x102)
+                throw Win32Failure("Could not wait for the Windows OCR process")
             if (A_TickCount > deadline) {
                 MsgBox "Windows OCR timed out. Try again, or raise OcrTimeout in the script."
                 return ""
             }
-            Sleep 100
         }
+        CloseNativeHandle(OcrProcessHandle)
+        OcrProcessHandle := 0
         OcrPid := 0
         if !FileExist(OcrOutput)
             return ""
         return FileRead(OcrOutput, "UTF-8")
+    } catch as ocrError {
+        if (cancellable && !Running)
+            return ""
+        throw ocrError
+    } finally {
+        CleanupOcr()
+    }
+}
+
+RunHiddenPowerShellProbe() {
+    global OcrPid, OcrProcessHandle, OcrThreadHandle, OcrStdinHandle
+    global PowerShellExe, ExpectedPowerShellImage
+    baselineConsoles := Map()
+    for hwnd in WinGetList("ahk_class ConsoleWindowClass")
+        baselineConsoles[hwnd] := true
+    visibleConsole := false
+    exitCode := 0
+    try {
+        helper := StartHiddenPowerShell(PowerShellExe, PowerShellStdinCommand())
+        OcrPid := helper.ProcessID
+        OcrProcessHandle := helper.ProcessHandle
+        OcrThreadHandle := helper.ThreadHandle
+        OcrStdinHandle := helper.StdinHandle
+        actualImage := ProcessImagePath(OcrPid)
+        if (NormalizeWindowsPath(actualImage) != NormalizeWindowsPath(ExpectedPowerShellImage))
+            throw Error("Hidden-launch probe did not start the trusted System32 PowerShell.")
+        if (DllCall("ResumeThread", "Ptr", OcrThreadHandle, "UInt") = 0xFFFFFFFF)
+            throw Win32Failure("Could not resume the hidden-launch probe")
+        CloseNativeHandle(OcrThreadHandle)
+        OcrThreadHandle := 0
+        WriteUtf8Pipe(OcrStdinHandle, "Start-Sleep -Milliseconds 1000; exit 23")
+        CloseNativeHandle(OcrStdinHandle)
+        OcrStdinHandle := 0
+        deadline := A_TickCount + 5000
+        loop {
+            waitResult := DllCall("WaitForSingleObject", "Ptr", OcrProcessHandle, "UInt", 5, "UInt")
+            if (waitResult = 0)
+                break
+            if (waitResult != 0x102)
+                throw Win32Failure("Could not wait for the hidden-launch probe")
+            if WinExist("ahk_pid " OcrPid)
+                visibleConsole := true
+            for hwnd in WinGetList("ahk_class ConsoleWindowClass") {
+                if !baselineConsoles.Has(hwnd) {
+                    visibleConsole := true
+                    break
+                }
+            }
+            if (A_TickCount > deadline)
+                throw Error("Hidden-launch probe timed out.")
+        }
+        if !DllCall(
+            "GetExitCodeProcess",
+            "Ptr", OcrProcessHandle,
+            "UIntP", &exitCode,
+            "Int"
+        )
+            throw Win32Failure("Could not read the hidden-launch probe result")
+        return { StdinExecuted: exitCode = 23, VisibleConsole: visibleConsole }
     } finally {
         CleanupOcr()
     }
@@ -2396,6 +2712,20 @@ DeliverySummary(delivery) {
     if (delivery = "clipboard")
         return " Auto-import skipped: " LastDeliveryError ". The payload remains on the clipboard for Ctrl+V."
     return " No payload was delivered."
+}
+
+; Developer smoke-test: prove that the real stdin launcher executes without
+; ever creating a visible PowerShell or conhost window.
+if A_Args.Length >= 1 && A_Args[1] = "--probe-hidden-ocr-launcher" {
+    try {
+        probe := RunHiddenPowerShellProbe()
+        FileAppend "stdinExecuted=" (probe.StdinExecuted ? "true" : "false") "`n"
+            . "visibleConsole=" (probe.VisibleConsole ? "true" : "false") "`n", "*", "UTF-8"
+        ExitApp probe.StdinExecuted && !probe.VisibleConsole ? 0 : 1
+    } catch as probeError {
+        FileAppend "probeError=" probeError.Message "`n", "*", "UTF-8"
+        ExitApp 2
+    }
 }
 
 ; Developer smoke-test: run the embedded Windows OCR helper against an image.
