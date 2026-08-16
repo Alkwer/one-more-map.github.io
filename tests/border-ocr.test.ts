@@ -303,10 +303,25 @@ describe('border OCR regressions', () => {
     assert.match(ahkImporter, /function Test-BorderTooltipAnchor/)
     assert.match(ahkImporter, /function Get-BorderTooltipCandidateScore/)
     assert.match(ahkImporter, /function Group-BorderTooltipLines/)
+    assert.match(
+      ahkImporter,
+      /function Select-RecognizableBorderBlocks[\s\S]*?Where-Object \{ Test-BorderTooltipAnchor \$_\.Text \}/,
+    )
     assert.match(ahkImporter, /function Test-BorderBlockSet/)
-    assert.match(ahkImporter, /filtered=\$\(\$candidate\.Count\)/)
-    assert.match(ahkImporter, /unfiltered=\$\(\$candidate\.Count\)/)
-    assert.match(ahkImporter, /normalized=\$\(\$candidate\.Count\)/)
+    assert.match(ahkImporter, /filtered=\$\(\$clustered\.Count\)->\$\(\$candidate\.Count\)/)
+    assert.match(ahkImporter, /unfiltered=\$\(\$clustered\.Count\)->\$\(\$candidate\.Count\)/)
+    assert.match(ahkImporter, /normalized=\$\(\$clustered\.Count\)->\$\(\$candidate\.Count\)/)
+    const altScannerStart = ahkImporter.indexOf('function Get-AllBorderBlocks')
+    const assignmentStart = ahkImporter.indexOf(
+      '$assigned = Resolve-BorderAssignment',
+      altScannerStart,
+    )
+    const altBeforeAssignment = ahkImporter.slice(altScannerStart, assignmentStart)
+    assert.equal(
+      (altBeforeAssignment.match(/Select-RecognizableBorderBlocks \$clustered/g) ?? []).length,
+      3,
+      'all Alt-scan image paths must drop unrelated OCR blocks before assignment',
+    )
     assert.match(ahkImporter, /12 recognizable border tooltips/)
     assert.match(ahkImporter, /BorderBlockHasTooltipAnchor\(block\)/)
     assert.match(ahkImporter, /\^F7:: \{/)
