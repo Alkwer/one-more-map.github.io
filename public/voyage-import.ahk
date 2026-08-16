@@ -1885,6 +1885,14 @@ function Get-AllBorderBlocks {
                 $blocks += [pscustomobject]@{ Text = $line.Text; X = $line.X; Y = $line.Y; R = $line.R; B = $line.B }
             }
         }
+        # Ground-loot labels are blue, blue passes the tooltip mask, and a
+        # 13th text block then displaces a real tooltip in the 12-slot
+        # assignment (issue #41: "HYDRASCALE BOOTS" stole a border). Every
+        # real border tooltip mentions adjacency in English or Korean, so
+        # gate the clusters on that. A tooltip mangled beyond recognition
+        # gets dropped here too, which just means a hover rescan - never a
+        # loot label imported as a border.
+        $blocks = @($blocks | Where-Object { $_.Text -match 'adjacent|areas|voyage|인접|지역|항해' })
         $points = @()
         foreach ($pair in $PointSpec.Split(';')) {
             $xy = $pair.Split(',')
@@ -2223,6 +2231,13 @@ ArrayHas(arr, value) {
     return false
 }
 
+; a real border tooltip always mentions adjacency (English or Korean) -
+; anything else that sneaks through OCR (loot labels, stray UI text) gets
+; the hover-rescan treatment instead of being imported as a border
+BorderBlockLooksReal(text) {
+    return RegExMatch(text, "i)adjacent|areas|voyage|인접|지역|항해") ? true : false
+}
+
 ; Hybrid border scan: the one-screenshot Alt overview covers most segments in
 ; seconds; any SUSPECT segment (missing, errored, or a suspiciously tall block
 ; that smells like two tooltips merged at a cramped resolution) gets the slow
@@ -2242,7 +2257,8 @@ ScanBorders() {
             Loop 12 {
                 idx := A_Index - 1
                 if (!blocks.Has(idx) || InStr(blocks[idx], "OCR ERROR")
-                    || StrSplit(blocks[idx], "`n").Length >= 4)
+                    || StrSplit(blocks[idx], "`n").Length >= 4
+                    || !BorderBlockLooksReal(blocks[idx]))
                     suspects.Push(A_Index) ; 1-based for BorderPoints()
             }
             suspectNote := ""

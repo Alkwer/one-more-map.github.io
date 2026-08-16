@@ -301,6 +301,17 @@ assert.match(ahkImporter, /hover border /)
 assert.match(ahkImporter, /VoyageOcrImage\]::LongPath\(\$env:TEMP\)/)
 assert.match(ahkImporter, /public static string LongPath/)
 
+// blue ground-loot labels pass the tooltip mask and can displace a real
+// tooltip in the 12-slot assignment (issue #41, "HYDRASCALE BOOTS"): both
+// the helper's cluster gate and the script's suspect check must require
+// adjacency wording (English or Korean) before trusting a block
+assert.strictEqual(
+  (ahkImporter.match(/adjacent\|areas\|voyage\|인접\|지역\|항해/g) || []).length,
+  2,
+  'keyword gate must exist in both the PS cluster filter and the AHK suspect check',
+)
+assert.match(ahkImporter, /BorderBlockLooksReal/)
+
 // 8.3 short-path guard (issue #27): %TEMP% like C:\Users\HARDPC~1 breaks
 // PowerShell's path normalizer - the helper paths must be built from the
 // expanded long path.
