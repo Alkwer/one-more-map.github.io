@@ -8,6 +8,7 @@ import {
   ImportWorkerError,
   isImportWorkerRequestCancelled,
 } from '../logic/importWorkerClient'
+import { dedupeNewCharts } from '../logic/importDedupe'
 import { isChartClipboardText } from '../logic/chartClipboard'
 import { chartAdditionResult, type ChartAdditionResult } from '../logic/chartCapacity'
 import {
@@ -83,7 +84,10 @@ export function ImportPanel({
       importClientRef.current = client
 
       const importRequest = Promise.all([
-        client.parse(source, MAX_POOL_CHARTS - stateRef.current.pool.length),
+        // Parse the complete bounded inventory before deduplication. Limiting
+        // this to remaining capacity could stop on re-scans before reaching a
+        // genuinely new chart later in the same sweep.
+        client.parse(source, MAX_POOL_CHARTS),
         import('../logic/borderOcr'),
       ] as const)
       let parsedWithHelpers: Awaited<typeof importRequest>
@@ -109,6 +113,7 @@ export function ImportPanel({
       const [parsed, { applyBorderOcrStateSnapshot }] = parsedWithHelpers
       const currentState = stateRef.current
       const { borderOcr, charts, rejected, unresolved, stoppedEarly } = parsed
+      const { fresh, skipped: rescanned } = dedupeNewCharts(currentState.pool, charts)
       const borderApplication = applyBorderOcrStateSnapshot(
         currentState.borders,
         currentState.borderRerollsUsed,
@@ -133,8 +138,8 @@ export function ImportPanel({
         setMsg('No items recognised. Is this Ctrl+C item text?')
         return
       }
-      let addition = chartAdditionResult(currentState.pool.length, charts.length)
-      let acceptedCharts = charts.slice(0, addition.added)
+      let addition = chartAdditionResult(currentState.pool.length, fresh.length)
+      let acceptedCharts = fresh.slice(0, addition.added)
 
       const nextState: AppState = {
         ...currentState,
@@ -159,9 +164,9 @@ export function ImportPanel({
           const captureMessage = borderResearch.captureImportedRoll(borders, borderOcr.rerollCost)
           if (captureMessage) parts.push(captureMessage)
         }
-      } else if (charts.length > 0) {
-        addition = onImport(charts)
-        acceptedCharts = charts.slice(0, addition.added)
+      } else if (fresh.length > 0) {
+        addition = onImport(fresh)
+        acceptedCharts = fresh.slice(0, addition.added)
         if (acceptedCharts.length > 0) {
           stateRef.current = {
             ...currentState,
@@ -169,7 +174,7 @@ export function ImportPanel({
           }
         }
       }
-      if (addition.added > 0 || hasOcrPayload) {
+      if (charts.length > 0 || hasOcrPayload) {
         setText('')
       }
 
@@ -184,6 +189,11 @@ export function ImportPanel({
 
       if (addition.added > 0)
         parts.push(`Imported ${addition.added} chart${addition.added === 1 ? '' : 's'}`)
+      if (rescanned > 0) {
+        parts.push(
+          `skipped ${rescanned} re-scanned chart${rescanned === 1 ? '' : 's'} already in your library (use "Clear all charts" first for a fresh import)`,
+        )
+      }
       if (addition.skipped > 0) {
         parts.push(
           `skipped ${addition.skipped} because the ${MAX_POOL_CHARTS}-chart library limit was reached`,
@@ -204,7 +214,7 @@ export function ImportPanel({
       }
       // Distinct physical charts have different rolls. A large byte-identical
       // batch usually means the bulk importer's saved grid calibration is off.
-      if (acceptedCharts.length >= 5) {
+      if (charts.length >= 5) {
         const key = (chart: ChartData) =>
           JSON.stringify([
             chart.name,
@@ -215,10 +225,10 @@ export function ImportPanel({
             chart.shape,
             chart.rawText,
           ])
-        const first = key(acceptedCharts[0])
-        if (acceptedCharts.every((chart) => key(chart) === first)) {
+        const first = key(charts[0])
+        if (charts.every((chart) => key(chart) === first)) {
           parts.push(
-            `⚠ all ${acceptedCharts.length} are identical - if this came from the bulk importer, recalibrate its grid with F7/F8, then reset and re-import`,
+            `⚠ all ${charts.length} are identical - if this came from the bulk importer, recalibrate its grid with F7/F8, then reset and re-import`,
           )
         }
       }
@@ -478,6 +488,24 @@ export function ImportPanel({
         <a className="ahk-dl" href={`${import.meta.env.BASE_URL}voyage-import.ahk`} download>
           ⬇ Download voyage-import.ahk
         </a>
+        <details className="ahk-faq">
+          <summary>Is this allowed under GGG's third-party policy?</summary>
+          <p className="muted small">
+            Our read: yes. GGG's macro rules govern inputs that affect the game, and the importer's
+            sweep is read-only - mouse hovers and Ctrl+C copies (the same primitive Awakened PoE
+            Trade sends on every price-check), plus holding Alt to reveal tooltips for the
+            screenshot. Nothing is moved, used, created or decided in-game; your character and stash
+            are identical before and after a run. The only real UI interaction is flipping the chart
+            panel's page tab, which the script flips back when done. Invocation is always your own
+            keypress - nothing ever triggers from timers or screen-watching.
+          </p>
+          <p className="muted small">
+            That said, this is our interpretation, not a GGG ruling. If GGG ever indicates
+            otherwise, the tool will change immediately. And if you'd rather not use the importer at
+            all, everything works by hand - the solver itself is just a webpage you paste item text
+            into; it never touches the game.
+          </p>
+        </details>
         <ol className="ahk-steps">
           <li>
             Install{' '}
