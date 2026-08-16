@@ -110,7 +110,7 @@ OcrStdinCapacity := 131072 ; keeps the in-memory helper write below the pipe buf
 ; ----------------------------------------
 
 ; version stamp - shown in diagnostic bundles so reports say what they ran
-ScriptVersion := "2026-08-15.2"
+ScriptVersion := "2026-08-16.1"
 
 IniFile := A_ScriptDir "\voyage-import.ini"
 ; Stop a tab sweep after this many completely blank rows in a row. Set 0 to
@@ -536,6 +536,7 @@ OcrProcessHandle := 0
 OcrThreadHandle := 0
 OcrStdinHandle := 0
 LastBorderScanBlocks := 0
+LastBorderScanMode := "not-run"
 Running := false
 A_TrayMenu.Add "Configure blank-row skip...", PromptEmptySkip
 
@@ -2577,6 +2578,33 @@ BorderBlockHasTooltipAnchor(text) {
     return RegExMatch(text, "i)\badjac[a-z]{2,5}\b") || InStr(text, "인접")
 }
 
+; The helper deliberately returns twelve indexed OCR-error blocks when an Alt
+; overview is unusable. Keep the useful, privacy-safe pass counts in the log so
+; support can distinguish a hidden tooltip from unrelated OCR noise without
+; recording any recognized text.
+AltScanDiagnostic(blocks) {
+    if !blocks.Has(0)
+        return ""
+    if RegExMatch(
+        blocks[0],
+        "i)\((filtered=\d+->\d+, unfiltered=\d+->\d+, normalized=\d+->\d+)\)",
+        &counts
+    )
+        return " | " counts[1]
+    return ""
+}
+
+BorderScanMethodNote() {
+    global LastBorderScanMode
+    if (LastBorderScanMode = "alt")
+        return " via one-shot Alt scan"
+    if (LastBorderScanMode = "hover-fallback")
+        return " via per-border fallback"
+    if (LastBorderScanMode = "hover-only")
+        return " via per-border scan (Alt disabled)"
+    return ""
+}
+
 ; Hybrid border scan: accept the Alt overview only when all 12 segments are
 ; trustworthy. A legitimate long modifier can occupy 4+ OCR lines, so height is
 ; not an error signal by itself. The helper now rejects any overview whose raw
@@ -2584,7 +2612,8 @@ BorderBlockHasTooltipAnchor(text) {
 ; back to hovering all positions; this keeps transient capture misses fast while
 ; never mixing an underconstrained overview with individually scanned borders.
 ScanBorders() {
-    global AltScanBorders, Running, LastBorderScanBlocks
+    global AltScanBorders, Running, LastBorderScanBlocks, LastBorderScanMode
+    LastBorderScanMode := "not-run"
     if !RequireSingleBorderTooltipView()
         return ""
     if !RequireBoundPoeForeground() {
@@ -2607,7 +2636,7 @@ ScanBorders() {
                         suspects.Push(A_Index) ; 1-based for BorderPoints()
                 }
                 Log("alt scan attempt " altAttempt " | " blocks.Count
-                    . " blocks | suspect count " suspects.Length)
+                    . " blocks | suspect count " suspects.Length AltScanDiagnostic(blocks))
                 if (suspects.Length = 0) {
                     finalBlob := ""
                     Loop 12 {
@@ -2617,6 +2646,8 @@ ScanBorders() {
                                 . "=== VOYAGE BORDER " idx " ===`n" blocks[idx] "`n=== END VOYAGE BORDER ==="
                     }
                     LastBorderScanBlocks := blocks.Count
+                    LastBorderScanMode := "alt"
+                    Log("border scan method | one-shot Alt overview")
                     return BorderScanMeta(finalBlob)
                 }
             }
@@ -2628,6 +2659,9 @@ ScanBorders() {
         }
         Log("alt overview incomplete after retry - full per-border fallback")
         ToolTip "Alt overview was incomplete twice - verifying all 12 borders one by one..."
+        LastBorderScanMode := "hover-fallback"
+    } else {
+        LastBorderScanMode := "hover-only"
     }
     result := ScanBordersHover()
     return BorderScanMeta(result)
@@ -3116,7 +3150,7 @@ F10:: {
     costNote := RerollCostCalibrated()
         ? (rerollCostBlob != "" ? " + reroll cost" : " (reroll-cost OCR failed)")
         : " (reroll cost skipped: calibrate Ctrl+F7)"
-    Flash "Copied " LastBorderScanBlocks "/12 border OCR results"
+    Flash "Copied " LastBorderScanBlocks "/12 border OCR results" BorderScanMethodNote()
         . costNote "; charts were not rescanned." DeliverySummary(delivery), 8000
 }
 
@@ -3320,7 +3354,7 @@ F9:: {
     Log("sweep done | sent " copied " charts | borders "
         . (borderBlob != "" ? "sent" : (BoardCalibrated() ? "FAILED" : "skipped")))
     borderNote := BoardCalibrated()
-        ? " + " LastBorderScanBlocks "/12 border OCR results"
+        ? " + " LastBorderScanBlocks "/12 border OCR results" BorderScanMethodNote()
         : " (borders skipped: calibrate F5/F6)"
     costNote := RerollCostCalibrated()
         ? (rerollCostBlob != "" ? " + reroll cost" : " (reroll-cost OCR failed)")
