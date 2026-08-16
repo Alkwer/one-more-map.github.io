@@ -232,6 +232,25 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
         <a className="ahk-dl" href={`${import.meta.env.BASE_URL}voyage-import.ahk`} download>
           ⬇ Download voyage-import.ahk
         </a>
+        <details className="ahk-faq">
+          <summary>Is this allowed under GGG's third-party policy?</summary>
+          <p className="muted small">
+            Our read: yes. GGG's macro rules govern inputs that affect the game, and the
+            importer's sweep is read-only - mouse hovers and Ctrl+C copies (the same primitive
+            Awakened PoE Trade sends on every price-check), plus holding Alt to reveal tooltips
+            for the screenshot. Nothing is moved, used, created or decided in-game; your
+            character and stash are identical before and after a run. The only real UI
+            interaction is flipping the chart panel's page tab, which the script flips back when
+            done. Invocation is always your own keypress - nothing ever triggers from timers or
+            screen-watching.
+          </p>
+          <p className="muted small">
+            That said, this is our interpretation, not a GGG ruling. If GGG ever indicates
+            otherwise, the tool will change immediately. And if you'd rather not use the importer
+            at all, everything works by hand - the solver itself is just a webpage you paste item
+            text into; it never touches the game.
+          </p>
+        </details>
         <ol className="ahk-steps">
           <li>
             Install{' '}
