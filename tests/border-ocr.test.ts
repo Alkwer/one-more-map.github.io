@@ -226,6 +226,7 @@ describe('border OCR regressions', () => {
     assert.match(ahkImporter, /Release Alt before border OCR/)
     assert.match(ahkImporter, /VOYAGE BORDER SCAN META/)
     assert.match(ahkImporter, /Captured: " LastBorderScanBlocks/)
+    assert.match(ahkImporter, /ScriptVersion := "2026-08-16\.1"/)
     assert.match(ahkImporter, /OCR Language: \$script:RecognizerLanguage/)
     assert.match(ahkImporter, /CleanupOcrArtifacts\(\)/)
     assert.match(ahkImporter, /voyage-border-" ScriptPid "-\*\.png/)
@@ -298,6 +299,18 @@ describe('border OCR regressions', () => {
     assert.match(borderScanner, /Loop 2 \{[\s\S]*?result := ScanBordersAlt\(\)/)
     assert.match(borderScanner, /alt overview incomplete after retry - full per-border fallback/)
     assert.match(borderScanner, /BorderBlockHasTooltipAnchor\(blocks\[idx\]\)/)
+    assert.match(borderScanner, /AltScanDiagnostic\(blocks\)/)
+    assert.match(borderScanner, /LastBorderScanMode := "alt"/)
+    assert.match(borderScanner, /LastBorderScanMode := "hover-fallback"/)
+    assert.match(ahkImporter, /function Select-RecognizableBorderBlocks/)
+    assert.match(
+      ahkImporter,
+      /filtered=\\d\+->\\d\+, unfiltered=\\d\+->\\d\+, normalized=\\d\+->\\d\+/,
+    )
+    assert.match(ahkImporter, /via one-shot Alt scan/)
+    assert.match(ahkImporter, /via per-border fallback/)
+    assert.match(borderRefreshHotkey, /BorderScanMethodNote\(\)/)
+    assert.match(fullImportHotkey, /BorderScanMethodNote\(\)/)
     assert.doesNotMatch(borderScanner, /StrSplit\(blocks\[idx\],[\s\S]*?Length >= 4/)
     assert.doesNotMatch(borderScanner, /ScanBordersHover\(suspects\)/)
     assert.match(ahkImporter, /function Test-BorderTooltipAnchor/)
