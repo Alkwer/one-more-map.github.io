@@ -4,6 +4,7 @@ import { ALL_GOOD_MODS_REGEX, RARE_IMPLICITS } from '../data/strategies'
 import { generateDemoCharts } from '../logic/demo'
 import { parseBorderOcrPayload } from '../logic/borderOcr'
 import { isChartClipboardText, parseChartText } from '../logic/parser'
+import { dedupeNewCharts } from '../logic/importDedupe'
 import type { AppState } from '../logic/storage'
 import { defaultState } from '../logic/storage'
 import type { ChartData } from '../types'
@@ -30,6 +31,11 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
       return
     }
 
+    // Re-running the bulk importer re-copies the same physical charts, and
+    // importing those re-scans again created phantom duplicates the solver
+    // then placed as "the same chart twice" (issue #46)
+    const { fresh, skipped } = dedupeNewCharts(state.pool, charts)
+
     if (borderOcr.blockCount > 0) {
       // A complete importer sweep is a snapshot of all 12 current rolls.
       // Start clean so an OCR miss cannot leave a stale modifier from an
@@ -42,19 +48,24 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
         for (const match of borderOcr.matches) borders[match.index] = match.id
         return {
           ...current,
-          pool: charts.length > 0 ? [...current.pool, ...charts] : current.pool,
+          pool: fresh.length > 0 ? [...current.pool, ...fresh] : current.pool,
           borders,
         }
       })
-    } else if (charts.length > 0) {
-      onImport(charts)
+    } else if (fresh.length > 0) {
+      onImport(fresh)
     }
     if (charts.length > 0 || borderOcr.blockCount > 0) {
       setText('')
     }
 
     const parts: string[] = []
-    if (charts.length) parts.push(`Imported ${charts.length} chart${charts.length === 1 ? '' : 's'}`)
+    if (fresh.length) parts.push(`Imported ${fresh.length} chart${fresh.length === 1 ? '' : 's'}`)
+    if (skipped)
+      parts.push(
+        `skipped ${skipped} re-scanned chart${skipped === 1 ? '' : 's'} already in your library`
+          + ' (use "Clear all charts" first for a fresh import)',
+      )
     // distinct physical charts always differ in their rolled values, so a big
     // batch of byte-identical imports means the bulk importer's mouse hovered
     // one item the whole sweep - bad grid calibration (issue #20)
@@ -92,8 +103,9 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
     setMsg(parts.join('; ') || 'Nothing imported')
 
     // rare-implicit charts are the Divine strategies' fuel - flag them loudly
-    // so a jackpot piece never slips into the library unnoticed
-    const rares = charts.filter((c) =>
+    // so a jackpot piece never slips into the library unnoticed (only newly
+    // imported ones celebrate - re-scans are old news)
+    const rares = fresh.filter((c) =>
       c.modIds.some((id) => (RARE_IMPLICITS as readonly string[]).includes(id)),
     ).length
     setRareAlert(
@@ -101,7 +113,7 @@ export function ImportPanel({ onImport, state, onLoadState }: Props) {
         ? `${rares} Rare Monsters chart${rares === 1 ? '' : 's'} imported - Divine-strategy fuel! Locked 🔒 in the library until you run a Divine border board.`
         : '',
     )
-  }, [onImport, onLoadState, text])
+  }, [onImport, onLoadState, state.pool, text])
 
   // Ctrl+V anywhere on the page: if the clipboard holds chart item text, import
   // it straight away (no need to focus the box). Normal pastes into fields are
