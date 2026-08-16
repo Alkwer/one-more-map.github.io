@@ -1944,6 +1944,14 @@ function Group-BorderTooltipLines {
     return $blocks
 }
 
+function Select-RecognizableBorderBlocks {
+    param($Blocks)
+    # Blue ground-loot labels such as HYDRASCALE BOOTS can pass the tooltip
+    # mask. Remove them before exact-count validation and geometric assignment
+    # so a 13th unrelated block cannot displace a real border tooltip.
+    return @($Blocks | Where-Object { Test-BorderTooltipAnchor $_.Text })
+}
+
 function Test-BorderBlockSet {
     param($Blocks, [int]$ExpectedCount)
     if ($Blocks.Count -ne $ExpectedCount) { return $false }
@@ -2032,19 +2040,22 @@ function Get-AllBorderBlocks {
         # held-Alt capture or the per-border hover fallback.
         $observed = @()
         [VoyageOcrImage]::Prepare($png, $prepared)
-        $candidate = @(Group-BorderTooltipLines @(Get-OcrLineRects $prepared $Engine $scale 64.0))
-        $observed += "filtered=$($candidate.Count)"
+        $clustered = @(Group-BorderTooltipLines @(Get-OcrLineRects $prepared $Engine $scale 64.0))
+        $candidate = @(Select-RecognizableBorderBlocks $clustered)
+        $observed += "filtered=$($clustered.Count)->$($candidate.Count)"
         $blocks = if (Test-BorderBlockSet $candidate $points.Count) { $candidate } else { $null }
 
         if ($null -eq $blocks) {
-            $candidate = @(Group-BorderTooltipLines @(Get-OcrLineRects $png $Engine 1.0 0.0))
-            $observed += "unfiltered=$($candidate.Count)"
+            $clustered = @(Group-BorderTooltipLines @(Get-OcrLineRects $png $Engine 1.0 0.0))
+            $candidate = @(Select-RecognizableBorderBlocks $clustered)
+            $observed += "unfiltered=$($clustered.Count)->$($candidate.Count)"
             if (Test-BorderBlockSet $candidate $points.Count) { $blocks = $candidate }
         }
         if ($null -eq $blocks) {
             [VoyageOcrImage]::Normalize($png, $prepared)
-            $candidate = @(Group-BorderTooltipLines @(Get-OcrLineRects $prepared $Engine $scale 64.0))
-            $observed += "normalized=$($candidate.Count)"
+            $clustered = @(Group-BorderTooltipLines @(Get-OcrLineRects $prepared $Engine $scale 64.0))
+            $candidate = @(Select-RecognizableBorderBlocks $clustered)
+            $observed += "normalized=$($clustered.Count)->$($candidate.Count)"
             if (Test-BorderBlockSet $candidate $points.Count) { $blocks = $candidate }
         }
         if ($null -eq $blocks) {
