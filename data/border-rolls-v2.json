@@ -1,7 +1,7 @@
 {
   "schema": "allflame-border-roll-dataset/v2",
-  "exportedAt": "2026-08-15T15:40:27.899Z",
-  "sampleCount": 61,
+  "exportedAt": "2026-08-15T19:43:11.328Z",
+  "sampleCount": 66,
   "samples": [
     {
       "schema": "allflame-border-roll/v2",
@@ -1587,6 +1587,136 @@
         "b-lanterns",
         "b-drowned-3",
         "b-pack-2"
+      ]
+    },
+    {
+      "schema": "allflame-border-roll/v2",
+      "sampleId": "roll-98326d95-951d-4292-b8d6-fb82f64dbaf4",
+      "sequenceId": "voyage-aef8f7a1-3cb0-44fa-a074-8b89fe04d93d",
+      "capturedAt": "2026-08-15T17:12:57.249Z",
+      "gamePatch": "3.29.3",
+      "vesperUpgradeCount": 5,
+      "generation": "natural",
+      "samplingReason": "gameplay",
+      "rerollIndex": 0,
+      "displayedNextRerollCost": 3000,
+      "borderModIds": [
+        "b-pack-1",
+        "b-minmagic",
+        "b-pack-1",
+        "b-sulphdrop",
+        "b-rarity-2",
+        "b-anchor-1",
+        "b-drowned-2",
+        "b-goldlantern",
+        "b-pack-1",
+        "b-lanterns",
+        "b-anchor-1",
+        "b-beasts-2"
+      ]
+    },
+    {
+      "schema": "allflame-border-roll/v2",
+      "sampleId": "roll-4232d742-fc33-4eab-ae6c-928ba3e6adbc",
+      "sequenceId": "voyage-aef8f7a1-3cb0-44fa-a074-8b89fe04d93d",
+      "capturedAt": "2026-08-15T17:14:29.865Z",
+      "gamePatch": "3.29.3",
+      "vesperUpgradeCount": 5,
+      "generation": "paid-reroll",
+      "samplingReason": "gameplay",
+      "rerollIndex": 1,
+      "displayedNextRerollCost": 6000,
+      "borderModIds": [
+        "b-decks",
+        "b-lanterns",
+        "b-izaro",
+        "b-locker",
+        "b-quantconn-1",
+        "b-crabs-1",
+        "b-crabs-3",
+        "b-drowned-3",
+        "b-mag-1",
+        "b-keep-2",
+        "b-lanterns",
+        "b-mag-1"
+      ]
+    },
+    {
+      "schema": "allflame-border-roll/v2",
+      "sampleId": "roll-545ad33c-938b-4e74-b644-9c452d06e816",
+      "sequenceId": "voyage-39fc542b-d039-4495-890c-4372c6bb1108",
+      "capturedAt": "2026-08-15T18:30:55.541Z",
+      "gamePatch": "3.29.3",
+      "vesperUpgradeCount": 5,
+      "generation": "natural",
+      "samplingReason": "gameplay",
+      "rerollIndex": 0,
+      "displayedNextRerollCost": 3000,
+      "borderModIds": [
+        "b-minmagic",
+        "b-lanterns",
+        "b-pack-1",
+        "b-mag-2",
+        "b-anchor-2",
+        "b-drowned-2",
+        "b-rare-2",
+        "b-scarab-2",
+        "b-izaro",
+        "b-locker",
+        "b-pack-2",
+        "b-goldlantern"
+      ]
+    },
+    {
+      "schema": "allflame-border-roll/v2",
+      "sampleId": "roll-91f32e43-e97c-4155-8480-382f8d47fb70",
+      "sequenceId": "voyage-ed36af5c-0119-4f57-ac67-1f45afe39541",
+      "capturedAt": "2026-08-15T19:30:20.404Z",
+      "gamePatch": "3.29.3",
+      "vesperUpgradeCount": 5,
+      "generation": "natural",
+      "samplingReason": "gameplay",
+      "rerollIndex": 0,
+      "displayedNextRerollCost": 3000,
+      "borderModIds": [
+        "b-izaro",
+        "b-keep-2",
+        "b-sulphdrop",
+        "b-izaro",
+        "b-octoboss",
+        "b-rareconn-1",
+        "b-mag-1",
+        "b-lanterns",
+        "b-mag-2",
+        "b-goldlantern",
+        "b-mag-1",
+        "b-keep-1"
+      ]
+    },
+    {
+      "schema": "allflame-border-roll/v2",
+      "sampleId": "roll-ab1e8375-d33a-44a6-b33f-b34f3a91afae",
+      "sequenceId": "voyage-e65d0bf0-cac9-4f14-9111-60fd69714c62",
+      "capturedAt": "2026-08-15T19:43:11.328Z",
+      "gamePatch": "3.29.3",
+      "vesperUpgradeCount": 5,
+      "generation": "natural",
+      "samplingReason": "gameplay",
+      "rerollIndex": 0,
+      "displayedNextRerollCost": 3000,
+      "borderModIds": [
+        "b-anchor-1",
+        "b-curr-2",
+        "b-anchor-1",
+        "b-pack-1",
+        "b-mag-2",
+        "b-pack-1",
+        "b-rare-3",
+        "b-mag-3",
+        "b-mag-3",
+        "b-anchor-1",
+        "b-drowned-2",
+        "b-quantconn-1"
       ]
     }
   ]
