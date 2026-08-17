@@ -25,7 +25,7 @@ Research is sufficient to model the **Sulphur cost curve** and an experimental
 slot-aware roll distribution, but not a defensible reroll EV.
 <!-- border-roll-corpus-stats:start -->
 
-The canonical 2026-08-15 export contains 66 boards from 39 Voyages: 39 natural
+The canonical 2026-08-16 export contains 67 boards from 40 Voyages: 40 natural
 boards and 27 paid rerolls from 15 paid sequences.
 <!-- border-roll-corpus-stats:end -->
 
