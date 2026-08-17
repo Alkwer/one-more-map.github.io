@@ -1,7 +1,7 @@
 {
   "schema": "allflame-border-roll-dataset/v2",
-  "exportedAt": "2026-08-15T19:43:11.328Z",
-  "sampleCount": 66,
+  "exportedAt": "2026-08-16T10:42:48.709Z",
+  "sampleCount": 67,
   "samples": [
     {
       "schema": "allflame-border-roll/v2",
@@ -1717,6 +1717,32 @@
         "b-anchor-1",
         "b-drowned-2",
         "b-quantconn-1"
+      ]
+    },
+    {
+      "schema": "allflame-border-roll/v2",
+      "sampleId": "roll-e0592289-f032-4a9c-8862-e94b3449c9cd",
+      "sequenceId": "voyage-5c83ab8c-6e26-4b8c-a7af-3889118602e6",
+      "capturedAt": "2026-08-16T10:42:48.709Z",
+      "gamePatch": "3.29.3",
+      "vesperUpgradeCount": 5,
+      "generation": "natural",
+      "samplingReason": "gameplay",
+      "rerollIndex": 0,
+      "displayedNextRerollCost": 3000,
+      "borderModIds": [
+        "b-mag-3",
+        "b-chaos",
+        "b-pack-2",
+        "b-lanterns",
+        "b-quantconn-1",
+        "b-keep-2",
+        "b-rare-1",
+        "b-goldlantern",
+        "b-quantconn-1",
+        "b-keep-1",
+        "b-exp-3",
+        "b-sulphdrop"
       ]
     }
   ]
