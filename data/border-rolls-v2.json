@@ -1,7 +1,7 @@
 {
   "schema": "allflame-border-roll-dataset/v2",
-  "exportedAt": "2026-08-16T10:42:48.709Z",
-  "sampleCount": 67,
+  "exportedAt": "2026-08-17T12:44:58.286Z",
+  "sampleCount": 70,
   "samples": [
     {
       "schema": "allflame-border-roll/v2",
@@ -1743,6 +1743,84 @@
         "b-keep-1",
         "b-exp-3",
         "b-sulphdrop"
+      ]
+    },
+    {
+      "schema": "allflame-border-roll/v2",
+      "sampleId": "roll-278f465b-c940-441f-8401-25876a8af531",
+      "sequenceId": "voyage-f6e901f1-c9b9-4716-ad17-e47cb5193a46",
+      "capturedAt": "2026-08-17T12:30:08.339Z",
+      "gamePatch": "3.29.3",
+      "vesperUpgradeCount": 5,
+      "generation": "natural",
+      "samplingReason": "gameplay",
+      "rerollIndex": 0,
+      "displayedNextRerollCost": 3000,
+      "borderModIds": [
+        "b-anchor-1",
+        "b-gold-2",
+        "b-quantconn-1",
+        "b-anchor-1",
+        "b-rarity-1",
+        "b-rareconn-1",
+        "b-quantconn-1",
+        "b-scarab-2",
+        "b-quantconn-1",
+        "b-beasts-1",
+        "b-pack-1",
+        "b-mag-3"
+      ]
+    },
+    {
+      "schema": "allflame-border-roll/v2",
+      "sampleId": "roll-f387f814-7057-4203-8a88-f7e25e634230",
+      "sequenceId": "voyage-c94cd372-c200-480b-b58a-41a8e6287f5f",
+      "capturedAt": "2026-08-17T12:43:29.679Z",
+      "gamePatch": "3.29.3",
+      "vesperUpgradeCount": 5,
+      "generation": "natural",
+      "samplingReason": "gameplay",
+      "rerollIndex": 0,
+      "displayedNextRerollCost": 3000,
+      "borderModIds": [
+        "b-crabboss",
+        "b-curr-1",
+        "b-octoboss",
+        "b-pack-2",
+        "b-lanterns",
+        "b-rare-2",
+        "b-keep-2",
+        "b-locker",
+        "b-rare-1",
+        "b-drowned-3",
+        "b-anchor-1",
+        "b-rare-1"
+      ]
+    },
+    {
+      "schema": "allflame-border-roll/v2",
+      "sampleId": "roll-00618cbe-7285-44a9-aa8c-0536a7590ef8",
+      "sequenceId": "voyage-c94cd372-c200-480b-b58a-41a8e6287f5f",
+      "capturedAt": "2026-08-17T12:44:58.286Z",
+      "gamePatch": "3.29.3",
+      "vesperUpgradeCount": 5,
+      "generation": "paid-reroll",
+      "samplingReason": "gameplay",
+      "rerollIndex": 1,
+      "displayedNextRerollCost": 6000,
+      "borderModIds": [
+        "b-keep-1",
+        "b-pack-3",
+        "b-mag-1",
+        "b-mag-2",
+        "b-rarity-1",
+        "b-pack-1",
+        "b-anchor-1",
+        "b-rare-1",
+        "b-pack-1",
+        "b-lanterns",
+        "b-mag-3",
+        "b-rare-1"
       ]
     }
   ]
