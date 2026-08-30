@@ -429,14 +429,25 @@ export function ImportPanel({
         </button>
       </div>
       {msg && (
-        <div className="muted pad" role="status" aria-live="polite" aria-atomic="true">
+        <div
+          className="muted pad"
+          role="status"
+          aria-label="Import result"
+          aria-live="polite"
+          aria-atomic="true"
+        >
           {msg}
         </div>
       )}
       <div className={rareAlert ? 'import-rare-alert' : undefined}>
         <span>
           {rareAlert && <span aria-hidden="true">🎰 </span>}
-          <span role="status" aria-live="polite" aria-atomic="true">
+          <span
+            role="status"
+            aria-label="Rare-chart import alert"
+            aria-live="polite"
+            aria-atomic="true"
+          >
             {rareAlert}
           </span>
         </span>

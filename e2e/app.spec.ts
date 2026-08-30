@@ -449,7 +449,9 @@ test('reports partial and blocked additions at the 250-chart library boundary', 
 
   await appPage.getByRole('button', { name: '🎲 Demo ×25' }).click()
   await expect(libraryHeading(appPage)).toContainText('(250)')
-  const importStatus = appPage.locator('.import-panel').getByRole('status')
+  const importStatus = appPage
+    .locator('.import-panel')
+    .getByRole('status', { name: 'Import result' })
   await expect(importStatus).toContainText(
     'Added 1 random demo chart; skipped 24 because the 250-chart library limit was reached',
   )
@@ -930,9 +932,9 @@ test('rejects an oversized chart paste before it can monopolize the main thread'
   }, oversized)
 
   expect(dispatchMilliseconds).toBeLessThan(500)
-  await expect(appPage.locator('.import-panel').getByRole('status')).toContainText(
-    `maximum size is ${MAX_IMPORT_TEXT_LENGTH.toLocaleString('en-US')} characters`,
-  )
+  await expect(
+    appPage.locator('.import-panel').getByRole('status', { name: 'Import result' }),
+  ).toContainText(`maximum size is ${MAX_IMPORT_TEXT_LENGTH.toLocaleString('en-US')} characters`)
   await expect(appPage.getByRole('textbox', { name: 'Chart or border import text' })).toHaveValue(
     '',
   )
@@ -969,7 +971,9 @@ test('dispatches the maximum import to a worker without a 50 ms main-thread task
     .poll(() => workerUrls.some((url) => /\/assets\/import\.worker-[^/]+\.js$/.test(url)))
     .toBe(true)
   await expect(libraryHeading(appPage)).toContainText('(250)')
-  await expect(appPage.locator('.import-panel').getByRole('status')).toContainText(
+  await expect(
+    appPage.locator('.import-panel').getByRole('status', { name: 'Import result' }),
+  ).toContainText(
     'Imported 250 charts; stopped before 50 additional items because the 250-chart library limit was reached',
   )
 })
@@ -999,9 +1003,9 @@ test('cancels a stale bulk import when a newer paste arrives', async ({ appPage 
     [staleImport, currentImport] as const,
   )
 
-  await expect(appPage.locator('.import-panel').getByRole('status')).toContainText(
-    'Imported 1 chart',
-  )
+  await expect(
+    appPage.locator('.import-panel').getByRole('status', { name: 'Import result' }),
+  ).toContainText('Imported 1 chart')
   await expect(libraryHeading(appPage)).toContainText('(1)')
   await expect(
     appPage.getByRole('button', { name: `Select ${currentName} for placement` }),
@@ -1205,7 +1209,9 @@ test('invalidates stale borders and rerolls after an interrupted Windows OCR swe
   await pasteText(appPage, `${INCOMPLETE_BORDER_SCAN_PAYLOAD}\n${REROLL_COST_PAYLOAD}`)
 
   await expect(firstBorder).toHaveCount(0)
-  const importStatus = appPage.getByRole('region', { name: 'Import' }).getByRole('status')
+  const importStatus = appPage
+    .getByRole('region', { name: 'Import' })
+    .getByRole('status', { name: 'Import result' })
   await expect(importStatus).toContainText('matched 11/12 border modifiers')
   await expect(importStatus).toContainText(
     'cleared the stale border snapshot and reroll count; recommendations are paused until a complete scan',
