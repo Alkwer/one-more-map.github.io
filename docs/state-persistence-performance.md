@@ -9,8 +9,15 @@ Domain state and codecs remain independent of browser storage (issue #366).
   count, character, and file-size limits.
 - A replacement or chart-library mutation fully validates the compact JSON,
   readable export, UTF-8 export size, and decode-without-recovery requirement.
-  It retains those exact strings as a frozen, typed payload. Autosave writes
+  It retains the exact compact string as a frozen, typed payload. Autosave writes
   that payload and still reads the storage key back to verify the write.
+- The full boundary parses and decodes the compact string, then counts the ASCII
+  whitespace that two-space JSON formatting adds to that parsed tree. Adding this
+  count to compact character/UTF-8 lengths enforces the exact readable export
+  budgets without allocating another large string. Explicit exports format the
+  certified snapshot on demand. Tests compare the counts against actual readable
+  JSON for nested empty/nonempty containers, sparse arrays, escaped/control
+  characters, astral Unicode, lone surrogates, and custom JSON conversions.
 - Once the reducer has certified a state, settings and board mutations with an
   unchanged library validate only settings and the nine board references. They
   subtract/add the small metadata envelopes' exact compact/pretty JSON lengths
@@ -41,6 +48,8 @@ runner noise, for a **10 ms** median ceiling, after three warm-ups and eleven
 measured samples. Native browser `localStorage` I/O can vary by device, browser,
 quota, and disk conditions; this portable gate measures application CPU work and
 the write/read verification path, not a browser disk-latency guarantee.
+Performance test files run sequentially so the persistence gate does not compete
+with the solver benchmark in another worker.
 
 ## Reference measurement
 
@@ -51,8 +60,8 @@ the same fixture, warm-ups, sample count, and in-memory repository.
 
 | Mutation plus autosave | Before median | After median | Target | CI ceiling |
 | ---------------------- | ------------: | -----------: | -----: | ---------: |
-| Board rotation         |      10.15 ms |      5.24 ms |   8 ms |      10 ms |
-| Preserved-chart toggle |      10.67 ms |      4.59 ms |   8 ms |      10 ms |
+| Board rotation         |      10.15 ms |      3.47 ms |   8 ms |      10 ms |
+| Preserved-chart toggle |      10.67 ms |      3.26 ms |   8 ms |      10 ms |
 
 These values are a reference, not a timing assertion against the baseline.
 The regression gate enforces the documented absolute budget. Run timing tests

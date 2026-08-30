@@ -2,8 +2,10 @@ import { describe, expect, it, vi } from 'vitest'
 import { createNearLimitState } from '../../benchmarks/state-persistence-fixture'
 import {
   MAX_STATE_FILE_BYTES,
+  MAX_RAW_TEXT_LENGTH,
   prepareStateForPersistence,
   serializeState,
+  STATE_VERSION,
 } from '../logic/stateCodec'
 import { createStateRepository, LOCAL_STATE_KEY } from '../logic/stateRepository'
 import { defaultState, type AppState } from './appState'
@@ -33,6 +35,42 @@ function repository() {
 }
 
 describe('state mutation persistence', () => {
+  it('matches actual readable JSON counts for varied nested, escaped, and UTF-8 payloads', () => {
+    const cases = [
+      null,
+      [],
+      {},
+      { empty: [[], {}, null], nested: { empty: {} } },
+      { sparse: Array(3) },
+      { 'quote"\\\n🧭': ['line\nbreak\t"\\', '한글', '\ud800', '🧭', 0, -0, 1.5, true] },
+      [[{ one: [] }, [[], [{ '\r\t': '😃' }]]]],
+      { omitted: undefined, converted: { toJSON: () => ({ '🧭': ['\n', {}, []] }) } },
+    ]
+    for (const extra of cases) {
+      const state = { ...defaultState(), extra }
+      const compact = JSON.stringify({ ...state, v: STATE_VERSION })
+      const exported = JSON.stringify({ ...state, v: STATE_VERSION }, null, 2)
+      const result = prepareStateForPersistence(state)
+      expect(result.ok).toBe(true)
+      if (!result.ok) throw new Error(result.message)
+      expect(result.persistence.budget).toEqual({
+        compactChars: compact.length,
+        exportedChars: exported.length,
+        exportedBytes: new TextEncoder().encode(exported).byteLength,
+      })
+      expect(serializeState(state, 2)).toBe(exported)
+    }
+    const maximum = createNearLimitState(0)
+    const exported = JSON.stringify({ ...maximum, v: STATE_VERSION }, null, 2)
+    expect(new TextEncoder().encode(exported).byteLength).toBe(MAX_STATE_FILE_BYTES)
+    expect(prepared(maximum).persistence?.budget.exportedBytes).toBe(MAX_STATE_FILE_BYTES)
+    maximum.pool.find((chart) => chart.rawText!.length < MAX_RAW_TEXT_LENGTH)!.rawText += 'x'
+    expect(prepareStateForPersistence(maximum)).toMatchObject({
+      ok: false,
+      message: expect.stringContaining('character limit'),
+    })
+  })
+
   it('checks metadata without serializing library text and maintains exact chained budgets', () => {
     let current = prepared(createNearLimitState(1_000))
     const actions: AppStateAction[] = [
@@ -102,13 +140,13 @@ describe('state mutation persistence', () => {
       uid: current.state.pool[0].uid,
     })
     expect(next.mutationError).toBeNull()
-    expect(stringify).toHaveBeenCalledTimes(2)
+    expect(stringify).toHaveBeenCalledTimes(1)
     const payload = next.persistence?.payload
     expect(payload).toBeDefined()
     expect(Object.isFrozen(payload)).toBe(true)
     const saved = repository()
     expect(saved.savePreparedLocal(payload!)).toEqual({ ok: true })
-    expect(stringify).toHaveBeenCalledTimes(2)
+    expect(stringify).toHaveBeenCalledTimes(1)
     stringify.mockRestore()
     expect(saved.values.get(LOCAL_STATE_KEY)).toBe(payload!.compact)
     expect(saved.loadLocal()).toEqual(next.state)

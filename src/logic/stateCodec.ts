@@ -69,7 +69,6 @@ const validatedPayload = Symbol('validated state payload')
 export interface ValidatedStatePayload {
   readonly [validatedPayload]: true
   readonly compact: string
-  readonly exported: string
 }
 
 export interface StatePersistenceSnapshot {
@@ -581,25 +580,38 @@ function stringifyState(state: AppState, space?: number): string {
  */
 export function prepareStateForPersistence(state: AppState): StatePreparationResult {
   let compact: string
-  let exported: string
   try {
     compact = stringifyState(state)
-    exported = stringifyState(state, 2)
+    if (typeof compact !== 'string') {
+      return { ok: false, message: 'state contains a value that cannot be serialized' }
+    }
   } catch {
     return { ok: false, message: 'state contains a value that cannot be serialized' }
   }
 
+  const compactCheck = checkStateSizeBudget({
+    compactChars: compact.length,
+    exportedChars: compact.length,
+    exportedBytes: 0,
+  })
+  if (!compactCheck.ok) return compactCheck
+  const parsed: unknown = JSON.parse(compact)
+  const whitespace = prettyJsonWhitespace(parsed)
   const characterCheck = checkStateSizeBudget({
     compactChars: compact.length,
-    exportedChars: exported.length,
+    exportedChars: compact.length + whitespace,
     exportedBytes: 0,
   })
   if (!characterCheck.ok) return characterCheck
-  const budget = measureStateJson(compact, exported)
+  const budget: StateSizeBudget = {
+    compactChars: compact.length,
+    exportedChars: compact.length + whitespace,
+    exportedBytes: new TextEncoder().encode(compact).byteLength + whitespace,
+  }
   const sizeCheck = checkStateSizeBudget(budget)
   if (!sizeCheck.ok) return sizeCheck
 
-  const decoded = decodeStateJson(compact)
+  const decoded = decodeState(parsed)
   if (!decoded.ok) return { ok: false, message: decoded.message }
   if (decoded.warnings.length > 0) {
     return {
@@ -611,9 +623,34 @@ export function prepareStateForPersistence(state: AppState): StatePreparationRes
     ok: true,
     persistence: {
       budget,
-      payload: Object.freeze({ [validatedPayload]: true as const, compact, exported }),
+      payload: Object.freeze({ [validatedPayload]: true as const, compact }),
     },
   }
+}
+
+/**
+ * JSON.stringify(parsed, null, 2) adds only ASCII whitespace to compact JSON:
+ * one space per object property colon, plus line breaks and indentation for
+ * nonempty containers. Walk the already-parsed tree, never the large strings.
+ */
+function prettyJsonWhitespace(parsed: unknown): number {
+  let whitespace = 0
+  const pending = [{ value: parsed, depth: 0 }]
+  while (pending.length > 0) {
+    const { value, depth } = pending.pop()!
+    if (typeof value !== 'object' || value === null) continue
+    const values: unknown[] = Object.values(value)
+    if (values.length === 0) continue
+    const entries = values.length
+    whitespace += entries + 1 + entries * 2 * (depth + 1) + 2 * depth
+    if (!Array.isArray(value)) whitespace += entries
+    for (const child of values) {
+      if (typeof child === 'object' && child !== null) {
+        pending.push({ value: child, depth: depth + 1 })
+      }
+    }
+  }
+  return whitespace
 }
 
 function measureStateJson(compact: string, exported: string): StateSizeBudget {
@@ -698,8 +735,8 @@ export function serializeState(state: AppState, space?: number): string {
   const prepared = prepareStateForPersistence(state)
   if (!prepared.ok) throw new Error(prepared.message)
   if (space === undefined || space === 0) return prepared.persistence.payload!.compact
-  if (space === 2) return prepared.persistence.payload!.exported
-  return stringifyState(state, space)
+  // Readable exports are uncommon; format the certified snapshot only on demand.
+  return JSON.stringify(JSON.parse(prepared.persistence.payload!.compact), null, space)
 }
 
 export function decodeState(value: unknown): StateDecodeResult {
