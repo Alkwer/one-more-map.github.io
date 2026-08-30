@@ -1,3 +1,4 @@
+import { formatDecimal, formatNumber, t, ui } from '../../i18n/locale'
 import { hasOptimalityGuarantee, type SolverResult } from '../../logic/solver'
 import type { Board } from '../../types'
 
@@ -17,10 +18,13 @@ export function SolverResults({ results, onApply }: Props) {
   return (
     <>
       <h4 id="solver-results-title" className="panel-title small">
-        Results
+        {t('Results')}
       </h4>
       <div className="muted small-note">
-        Search method: <strong>{methodLabel}</strong> · Guarantee: {guaranteeLabel}
+        {t('Search method: ')}
+        <strong>{ui(methodLabel)}</strong>
+        {t(' · Guarantee: ')}
+        {ui(guaranteeLabel)}
       </div>
       <div className="results" aria-labelledby="solver-results-title">
         {results.map((result, index) => (
@@ -29,14 +33,17 @@ export function SolverResults({ results, onApply }: Props) {
             className={`result ${result.valid ? '' : 'invalid'}`}
             onClick={() => onApply(result.board)}
           >
-            <span>#{index + 1}</span>
-            <span>{result.reward.toFixed(1)} pts</span>
-            {!result.valid && <span className="badge bad">not fully reachable</span>}
+            <span>#{formatNumber(index + 1)}</span>
+            <span>
+              {ui(formatDecimal(result.reward, 1))}
+              {t(' pts')}
+            </span>
+            {!result.valid && <span className="badge bad">{t('not fully reachable')}</span>}
           </button>
         ))}
       </div>
       <div className="muted small-note">
-        Ranked by your weights and estimated mod values. Click a result to load it.
+        {t('Ranked by your weights and estimated mod values. Click a result to load it.')}
       </div>
     </>
   )

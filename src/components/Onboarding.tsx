@@ -1,3 +1,4 @@
+import { t, ui } from '../i18n/locale'
 import { useId, useState } from 'react'
 import { MAX_POOL_CHARTS } from '../logic/stateCodec'
 import { shouldCloseOnboardingAfterDemo, type ChartAdditionResult } from '../logic/chartCapacity'
@@ -55,39 +56,47 @@ export function Onboarding({ onClose, onDemo, remainingChartCapacity }: Props) {
     <div className="onboard-backdrop" data-modal-root onClick={onClose}>
       <div {...dialogProps} className="onboard" onClick={(event) => event.stopPropagation()}>
         <h2 id={titleId} className="panel-title" data-dialog-initial-focus tabIndex={-1}>
-          Plan your Voyage
+          {t('Plan your Voyage')}
         </h2>
         <p className="onboard-intro">
-          Build a high-value 3×3 Voyage from your charted Charts, solved automatically around
-          connector shapes, adjacency, and border rolls.
+          {t(
+            'Build a high-value 3×3 Voyage from your charted Charts, solved automatically around connector shapes, adjacency, and border rolls.',
+          )}
         </p>
         {STEPS.map((s) => (
           <div key={s.title} className="onboard-step">
-            <h3 className="onboard-step-title">{s.title}</h3>
-            <div className="onboard-step-body">{s.body}</div>
+            <h3 className="onboard-step-title">{ui(s.title)}</h3>
+            <div className="onboard-step-body">{ui(s.body)}</div>
           </div>
         ))}
         <div className="onboard-scopes">
-          Modifier colours:&nbsp;
-          <span className="scope-self">■ chart's own area</span>&nbsp;·&nbsp;
-          <span className="scope-adjacent">■ adjacent areas</span>&nbsp;·&nbsp;
-          <span className="scope-global">■ whole voyage</span>
+          {t('Modifier colours: ')}
+          <span className="scope-self">{t("■ chart's own area")}</span>&nbsp;·&nbsp;
+          <span className="scope-adjacent">{t('■ adjacent areas')}</span>&nbsp;·&nbsp;
+          <span className="scope-global">{t('■ whole voyage')}</span>
         </div>
         <div className="onboard-actions">
           <button
             className="primary"
             onClick={addDemoCharts}
             disabled={libraryFull}
-            title={libraryFull ? `Library is full (${MAX_POOL_CHARTS}-chart limit)` : undefined}
+            title={
+              libraryFull
+                ? t('Library is full ({limit}-chart limit)', { limit: MAX_POOL_CHARTS })
+                : undefined
+            }
           >
-            Try it with 25 demo charts
+            {t('Try it with 25 demo charts')}
           </button>
-          <button onClick={onClose}>Start planning</button>
+          <button onClick={onClose}>{t('Start planning')}</button>
         </div>
         {(libraryFull || additionMessage) && (
           <div className="muted pad" role="status" aria-live="polite">
-            {additionMessage ||
-              `The library is full (${MAX_POOL_CHARTS}-chart limit). Remove a chart before adding demo charts.`}
+            {ui(additionMessage) ||
+              t(
+                'The library is full ({v0}-chart limit). Remove a chart before adding demo charts.',
+                { v0: MAX_POOL_CHARTS },
+              )}
           </div>
         )}
       </div>

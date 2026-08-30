@@ -1,3 +1,4 @@
+import { formatDecimal, formatNumber, t, ui } from '../../i18n/locale'
 import { useState } from 'react'
 import { voyageModById } from '../../data/mods'
 import { rotateEdges } from '../../logic/connectivity'
@@ -48,8 +49,8 @@ export function BoardCell({
   const column = (cellIndex % 3) + 1
   const position = `Board cell ${cellIndex + 1}, row ${row}, column ${column}${isStart ? ', start' : ''}`
   const startBadge = isStart ? (
-    <span className="tile-start" title="The Voyage begins here">
-      ⚓ Start
+    <span className="tile-start" title={t('The Voyage begins here')}>
+      {t('⚓ Start')}
     </span>
   ) : null
   if (!placement || !chart) {
@@ -58,12 +59,12 @@ export function BoardCell({
         <button
           type="button"
           className="tile-select"
-          aria-label={`${position}: empty`}
+          aria-label={t('{v0}: empty', { v0: position })}
           aria-pressed={selected}
           onClick={onClick}
         >
           {startBadge}
-          {placing && <span className="tile-empty-label">place here</span>}
+          {placing && <span className="tile-empty-label">{t('place here')}</span>}
         </button>
       </div>
     )
@@ -83,7 +84,7 @@ export function BoardCell({
         text: `${mod!.text}  (${scopeLabel[mod!.scope]})`,
         cls: `scope-${mod!.scope}`,
       })),
-      { text: `Weighted value: ${score.toFixed(1)}`, cls: 'val' },
+      { text: `Weighted value: ${formatDecimal(score, 1)}`, cls: 'val' },
       ...(chart.preserved
         ? [{ text: '🔒 Preserved - Finish Voyage will not consume it', cls: 'muted' }]
         : []),
@@ -101,7 +102,7 @@ export function BoardCell({
       <button
         type="button"
         className="tile-select"
-        aria-label={tileLabel}
+        aria-label={ui(tileLabel)}
         aria-pressed={selected}
         data-chart-name={chart.name}
         onClick={onClick}
@@ -117,13 +118,13 @@ export function BoardCell({
           (primary.short ? (
             <div className="tile-duo">
               <span className="tile-duo-col">
-                <span className={`tile-duo-pct scope-${primary.scope}`}>{primary.short}</span>
+                <span className={`tile-duo-pct scope-${primary.scope}`}>{ui(primary.short)}</span>
                 <span className="tile-duo-label">
                   {primary.scope === 'self'
-                    ? 'this area'
+                    ? t('this area')
                     : primary.scope === 'adjacent'
-                      ? 'adjacent areas'
-                      : 'whole voyage'}
+                      ? t('adjacent areas')
+                      : t('whole voyage')}
                 </span>
               </span>
             </div>
@@ -131,38 +132,49 @@ export function BoardCell({
             <div className="tile-duo">
               <span className="tile-duo-col">
                 <span className={`tile-duo-pct scope-${primary.scope}`}>
-                  +{primary.effects[0].percent}% {STAT_SHORT[primary.effects[0].stat]}
+                  +{formatNumber(primary.effects[0].percent)}%{' '}
+                  {ui(STAT_SHORT[primary.effects[0].stat])}
                 </span>
                 <span className="tile-duo-label">
                   {primary.scope === 'self'
-                    ? 'this area'
+                    ? t('this area')
                     : primary.scope === 'adjacent'
-                      ? 'adjacent areas'
-                      : 'whole voyage'}
+                      ? t('adjacent areas')
+                      : t('whole voyage')}
                 </span>
               </span>
             </div>
           ) : (
-            <div className={`tile-duo-text scope-${primary.scope}`}>{primary.text}</div>
+            <div className={`tile-duo-text scope-${primary.scope}`}>{ui(primary.text)}</div>
           ))}
         {!primary && chart.implicitText && (
           <div className="tile-duo-text scope-global">{chart.implicitText}</div>
         )}
         {chart.preserved && (
-          <span className="tile-preserved-badge" title="Preserved: kept when you Finish Voyage">
-            🔒 Kept
+          <span
+            className="tile-preserved-badge"
+            title={t('Preserved: kept when you Finish Voyage')}
+          >
+            {t('🔒 Kept')}
           </span>
         )}
         {startBadge}
-        <span className="tile-lvl">lvl {chart.level}</span>
-        <span className="tile-score">{score.toFixed(1)}</span>
+        <span className="tile-lvl">
+          {t('lvl ')}
+          {formatNumber(chart.level)}
+        </span>
+        <span className="tile-score">{ui(formatDecimal(score, 1))}</span>
       </button>
-      <div className="tile-actions" role="group" aria-label={`Actions for ${chart.name}`}>
+      <div
+        className="tile-actions"
+        role="group"
+        aria-label={t('Actions for {v0}', { v0: chart.name })}
+      >
         <button
           type="button"
           className="tile-inspect"
-          aria-label={`Inspect details for ${chart.name}`}
-          title="Inspect chart details"
+          aria-label={t('Inspect details for {v0}', { v0: chart.name })}
+          title={t('Inspect chart details')}
           {...tooltipProps(tooltipData, descriptionId, true)}
         >
           ⓘ
@@ -172,14 +184,18 @@ export function BoardCell({
           className={chart.preserved ? 'active' : ''}
           aria-label={
             chart.preserved
-              ? `Stop preserving ${chart.name} in row ${row}, column ${column}`
-              : `Preserve ${chart.name} in row ${row}, column ${column}`
+              ? t('Stop preserving {v0} in row {v1}, column {v2}', {
+                  v0: chart.name,
+                  v1: row,
+                  v2: column,
+                })
+              : t('Preserve {v0} in row {v1}, column {v2}', { v0: chart.name, v1: row, v2: column })
           }
           aria-pressed={!!chart.preserved}
           title={
             chart.preserved
-              ? 'Preserved: unmark to allow consuming'
-              : 'Preserve: keep this chart when you Finish Voyage'
+              ? t('Preserved: unmark to allow consuming')
+              : t('Preserve: keep this chart when you Finish Voyage')
           }
           onClick={(event) => {
             event.stopPropagation()
@@ -191,9 +207,11 @@ export function BoardCell({
         <button
           type="button"
           aria-label={
-            copied ? `Search copied for ${chart.name}` : `Copy in-game search for ${chart.name}`
+            copied
+              ? t('Search copied for {v0}', { v0: chart.name })
+              : t('Copy in-game search for {v0}', { v0: chart.name })
           }
-          title="Copy an in-game search string (name + modifier) to find this exact chart"
+          title={t('Copy an in-game search string (name + modifier) to find this exact chart')}
           onClick={async (event) => {
             event.stopPropagation()
             const search = buildSingleChartSearch(chart)
@@ -217,8 +235,13 @@ export function BoardCell({
         </button>
         <button
           type="button"
-          aria-label={`Rotate ${chart.name} in row ${row}, column ${column}; current rotation ${rotationDegrees} degrees`}
-          title="Rotate"
+          aria-label={t('Rotate {v0} in row {v1}, column {v2}; current rotation {v3} degrees', {
+            v0: chart.name,
+            v1: row,
+            v2: column,
+            v3: rotationDegrees,
+          })}
+          title={t('Rotate')}
           onClick={(event) => {
             event.stopPropagation()
             onRotate()
@@ -228,8 +251,12 @@ export function BoardCell({
         </button>
         <button
           type="button"
-          aria-label={`Remove ${chart.name} from row ${row}, column ${column}`}
-          title="Remove"
+          aria-label={t('Remove {v0} from row {v1}, column {v2}', {
+            v0: chart.name,
+            v1: row,
+            v2: column,
+          })}
+          title={t('Remove')}
           onClick={(event) => {
             event.stopPropagation()
             onRemove()
@@ -241,12 +268,12 @@ export function BoardCell({
       {copyFailure && (
         <div className="tile-copy-fallback">
           <span role="status" aria-live="polite">
-            {copyFailure.detail}
-            {copyFailure.manualText && ' Select the search text and copy it manually.'}
+            {ui(copyFailure.detail)}
+            {copyFailure.manualText && t(' Select the search text and copy it manually.')}
           </span>
           {copyFailure.manualText && (
             <input
-              aria-label={`Manual in-game search for ${chart.name}`}
+              aria-label={t('Manual in-game search for {v0}', { v0: chart.name })}
               readOnly
               value={copyFailure.manualText}
               onFocus={(event) => event.target.select()}

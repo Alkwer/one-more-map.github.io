@@ -1,3 +1,4 @@
+import { formatNumber, t, ui } from '../../i18n/locale'
 import { voyageModById } from '../../data/mods'
 import {
   currentCopyEntry,
@@ -36,46 +37,50 @@ export function CopySequencePrompt(props: CopySequenceProps) {
   return (
     <div className="preserve-confirm copyseq">
       <div className="pc-head">
-        Place into game in the original bottom-left-first order. Copy pastes an in-game search
-        string; Ctrl+Left-click the chart it finds. Step {props.sequence.step + 1} of{' '}
-        {props.sequence.order.length}.
+        {t(
+          'Place into game in the original bottom-left-first order. Copy pastes an in-game search string; Ctrl+Left-click the chart it finds. Step ',
+        )}
+        {formatNumber(props.sequence.step + 1)}
+        {t(' of')} {formatNumber(props.sequence.order.length)}.
       </div>
       {!stillPlaced && chart && (
         <div className="pc-sub" role="status">
-          The board changed. Continuing the original chart sequence; its square is no longer
-          highlighted.
+          {t(
+            'The board changed. Continuing the original chart sequence; its square is no longer highlighted.',
+          )}
         </div>
       )}
       {chart && (
         <>
           <div className="pc-name">{chart.name}</div>
           <div className="pc-sub">
-            {chartImplicit(chart)}
-            {chart.shape ? ` · Shape: ${chart.shape}` : ''}
+            {ui(chartImplicit(chart))}
+            {chart.shape ? t(' · Shape: {v0}', { v0: chart.shape }) : ''}
           </div>
         </>
       )}
       {!chart && (
         <div className="pc-sub" role="alert">
-          This chart is no longer in the library. The sequence will stop so you can review the board
-          and start again.
+          {t(
+            'This chart is no longer in the library. The sequence will stop so you can review the board and start again.',
+          )}
         </div>
       )}
       {props.failure && (
         <div className="copyseq-manual" role="alert">
-          <strong>Nothing was copied, so this chart has not advanced.</strong>
-          <div className="pc-sub">{props.failure.detail}</div>
+          <strong>{t('Nothing was copied, so this chart has not advanced.')}</strong>
+          <div className="pc-sub">{ui(props.failure.detail)}</div>
           {props.failure.manualText && (
             <>
               <label>
-                Manual copy search
+                {t('Manual copy search')}
                 <input
                   readOnly
                   value={props.failure.manualText}
                   onFocus={(event) => event.currentTarget.select()}
                 />
               </label>
-              <button onClick={props.onManualAdvance}>I copied it manually — next</button>
+              <button onClick={props.onManualAdvance}>{t('I copied it manually — next')}</button>
             </>
           )}
         </div>
@@ -87,18 +92,18 @@ export function CopySequencePrompt(props: CopySequenceProps) {
           onClick={props.onAdvance}
         >
           {props.pending
-            ? 'Copying…'
+            ? t('Copying…')
             : props.failure?.reason === 'invalid'
-              ? 'Search exceeds in-game limit'
+              ? t('Search exceeds in-game limit')
               : props.failure
-                ? '📋 Retry clipboard copy'
+                ? t('📋 Retry clipboard copy')
                 : props.sequence.step + 1 >= props.sequence.order.length
-                  ? '📋 Copy last & finish'
-                  : '📋 Copy & next'}
-          <span className="copyseq-hint">or press Ctrl+C</span>
+                  ? t('📋 Copy last & finish')
+                  : t('📋 Copy & next')}
+          <span className="copyseq-hint">{t('or press Ctrl+C')}</span>
         </button>
         <button className="pc-lost" onClick={props.onCancel}>
-          Cancel
+          {t('Cancel')}
         </button>
       </div>
     </div>
@@ -125,18 +130,21 @@ export function FinishVoyageConfirmationPrompt({
         data-dialog-initial-focus
         tabIndex={-1}
       >
-        Finish Voyage and consume {confirmation.consumeCount} {chartLabel}?
+        {t('Finish Voyage and consume ')}
+        {formatNumber(confirmation.consumeCount)} {ui(chartLabel)}?
       </div>
       <div className="pc-sub">
-        This permanently removes the {chartLabel} currently placed on the board from your saved
-        library.
+        {t('This permanently removes the ')}
+        {ui(chartLabel)}
+        {t(' currently placed on the board from your saved library.')}
       </div>
       <div className="pc-actions">
         <button className="pc-lost" onClick={onConfirm}>
-          Finish and consume {confirmation.consumeCount}
+          {t('Finish and consume ')}
+          {formatNumber(confirmation.consumeCount)}
         </button>
         <button className="pc-kept" onClick={onCancel}>
-          Cancel
+          {t('Cancel')}
         </button>
       </div>
     </div>
@@ -166,17 +174,19 @@ export function ChartDeletionConfirmationPrompt({
   return (
     <div className="preserve-confirm">
       <div className="pc-head" id="chart-deletion-confirmation-title">
-        Delete {chartName}?
+        {t('Delete ')}
+        {chartName}?
       </div>
       <div className="pc-sub">
-        This permanently removes the chart from your saved library. {placementNotice}
+        {t('This permanently removes the chart from your saved library. ')}
+        {ui(placementNotice)}
       </div>
       <div className="pc-actions">
         <button className="pc-kept" data-dialog-initial-focus onClick={onCancel}>
-          Cancel
+          {t('Cancel')}
         </button>
         <button className="pc-lost" onClick={onConfirm}>
-          Delete chart
+          {t('Delete chart')}
         </button>
       </div>
     </div>
@@ -202,19 +212,22 @@ export function PreserveConfirmationPrompt({
         data-dialog-initial-focus
         tabIndex={-1}
       >
-        Preserved chart {confirmation.index + 1} of {confirmation.charts.length} (its square is
-        glowing). Did it actually survive the Voyage?
+        {t('Preserved chart ')}
+        {formatNumber(confirmation.index + 1)}
+        {t(' of ')}
+        {formatNumber(confirmation.charts.length)}
+        {t(' (its square is glowing). Did it actually survive the Voyage?')}
       </div>
       <div className="pc-name">{confirmation.charts[confirmation.index].name}</div>
       <div className="pc-actions">
         <button className="pc-kept" onClick={() => onDecide(true)}>
-          ✓ Kept it
+          {t('✓ Kept it')}
         </button>
         <button className="pc-lost" onClick={() => onDecide(false)}>
-          ✕ Was consumed
+          {t('✕ Was consumed')}
         </button>
         <button className="pc-lost" onClick={onCancel}>
-          Cancel Finish
+          {t('Cancel Finish')}
         </button>
       </div>
     </div>

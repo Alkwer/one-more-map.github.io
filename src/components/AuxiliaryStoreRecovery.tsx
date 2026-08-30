@@ -1,3 +1,4 @@
+import { t, ui } from '../i18n/locale'
 import { useId } from 'react'
 import type { AuxiliaryStorageRecovery } from '../logic/auxiliaryStorageRecovery'
 
@@ -25,20 +26,29 @@ export function AuxiliaryStoreRecovery({ label, filename, recovery, onRetry, onR
 
   return (
     <section className="auxiliary-store-recovery" role="alert" aria-labelledby={titleId}>
-      <h3 id={titleId}>{label} needs recovery</h3>
+      <h3 id={titleId}>
+        {ui(label)}
+        {t(' needs recovery')}
+      </h3>
       <p>
-        {recovery.message} The original active value was not overwritten. Normal writes to this
-        store are paused until recovery is resolved.
+        {ui(recovery.message)}
+        {t(
+          ' The original active value was not overwritten. Normal writes to this store are paused until recovery is resolved.',
+        )}
       </p>
       {recovery.raw === null ? (
         <p className="recovery-backup-error" role="status">
-          Browser storage is unavailable, so there is no readable payload to export or reset.
+          {t('Browser storage is unavailable, so there is no readable payload to export or reset.')}
         </p>
       ) : (
         <p className={canReset ? 'recovery-backup-ok' : 'recovery-backup-error'} role="status">
           {canReset
-            ? `Exact raw backup created as localStorage entry “${recovery.backupKey}”.`
-            : 'A browser backup could not be verified. Export the exact raw payload before leaving this page.'}
+            ? t('Exact raw backup created as localStorage entry “{v0}”.', {
+                v0: recovery.backupKey,
+              })
+            : t(
+                'A browser backup could not be verified. Export the exact raw payload before leaving this page.',
+              )}
         </p>
       )}
       <div className="saved-state-recovery-actions">
@@ -46,11 +56,11 @@ export function AuxiliaryStoreRecovery({ label, filename, recovery, onRetry, onR
           disabled={recovery.raw === null}
           onClick={() => recovery.raw && exportRawPayload(recovery.raw, filename)}
         >
-          Export original JSON
+          {t('Export original JSON')}
         </button>
-        <button onClick={onRetry}>Retry / migrate</button>
+        <button onClick={onRetry}>{t('Retry / migrate')}</button>
         <button className="danger" disabled={!canReset} onClick={onReset}>
-          Reset this store…
+          {t('Reset this store…')}
         </button>
       </div>
     </section>

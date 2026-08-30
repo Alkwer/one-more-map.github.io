@@ -1,3 +1,4 @@
+import { t, ui } from '../i18n/locale'
 import { useMemo, useState } from 'react'
 import type { StrategyDef } from '../data/strategies'
 import { selectSolverEligibleCharts } from '../logic/chartShapes'
@@ -71,7 +72,7 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply, onOpenPla
   return (
     <section className="solver" aria-labelledby="solver-title">
       <h3 id="solver-title" className="panel-title">
-        Solver
+        {t('Solver')}
       </h3>
 
       <SolverControls state={state} activeStrategy={activeStrategy} onPatch={onPatch} />
@@ -101,7 +102,7 @@ export function SolverPanel({ state, activeStrategy, onPatch, onApply, onOpenPla
         onLanguageChange={setSearchLanguageOverride}
       />
       <span className="sr-only" role="status" aria-live="polite">
-        {copyMessage}
+        {ui(copyMessage)}
       </span>
 
       <SolverResults results={results} onApply={onApply} />

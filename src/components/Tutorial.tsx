@@ -1,3 +1,4 @@
+import { formatNumber, t, ui } from '../i18n/locale'
 import { useId, useLayoutEffect, useState } from 'react'
 import { useModalDialog } from './ModalDialog'
 
@@ -159,17 +160,17 @@ export function Tutorial({ onClose }: Props) {
       <div {...dialogProps} className={`onboard tutorial tut-docked ${dockTop ? 'tut-top' : ''}`}>
         <div className="panel-title">
           <h2 id={titleId} className="panel-title-heading" data-dialog-initial-focus tabIndex={-1}>
-            {s.icon} {s.title}
+            {s.icon} {ui(s.title)}
           </h2>
           <span className="spacer" />
-          <button aria-label="Close tutorial" onClick={onClose}>
+          <button aria-label={t('Close tutorial')} onClick={onClose}>
             ✕
           </button>
         </div>
-        <div className="tut-where">📍 {s.where}</div>
+        <div className="tut-where">📍 {ui(s.where)}</div>
         {s.body.map((p, i) => (
           <p key={i} className="tut-body">
-            {p}
+            {ui(p)}
           </p>
         ))}
         <div className="tut-dots">
@@ -178,29 +179,29 @@ export function Tutorial({ onClose }: Props) {
               key={i}
               className={`tut-dot ${i === step ? 'on' : ''}`}
               onClick={() => setStep(i)}
-              title={`${STEPS[i].icon} ${STEPS[i].title}`}
-              aria-label={`Go to tutorial step ${i + 1}: ${STEPS[i].title}`}
+              title={t('{v0} {v1}', { v0: STEPS[i].icon, v1: STEPS[i].title })}
+              aria-label={t('Go to tutorial step {v0}: {v1}', { v0: i + 1, v1: STEPS[i].title })}
               aria-current={i === step ? 'step' : undefined}
             />
           ))}
         </div>
         <div className="sw-actions">
           <button disabled={step === 0} onClick={() => setStep((x) => x - 1)}>
-            ← Back
+            {t('← Back')}
           </button>
           <span className="spacer" />
           <span className="muted tut-count">
-            {step + 1} / {STEPS.length}
+            {formatNumber(step + 1)} / {formatNumber(STEPS.length)}
           </span>
           <span className="spacer" />
           {!last && (
             <button className="primary tut-next" onClick={() => setStep((x) => x + 1)}>
-              Next →
+              {t('Next →')}
             </button>
           )}
           {last && (
             <button className="primary tut-next" onClick={onClose}>
-              ⚓ Set sail
+              {t('⚓ Set sail')}
             </button>
           )}
         </div>

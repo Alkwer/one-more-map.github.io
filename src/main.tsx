@@ -19,10 +19,12 @@ if (window.top !== window.self) blockFramedApplication()
 else void mountApplication()
 
 async function mountApplication() {
-  const [{ createRoot }, { default: App }] = await Promise.all([
+  const [{ createRoot }, { default: App }, { initializeLocale }] = await Promise.all([
     import('react-dom/client'),
     import('./App'),
+    import('./i18n/locale'),
   ])
+  await initializeLocale()
 
   // Harvest Edition: Google Sheets garden-planner theme, for old times' sake
   try {

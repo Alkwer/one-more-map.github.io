@@ -1,3 +1,4 @@
+import { formatNumber, t, ui } from '../i18n/locale'
 import { useId, useMemo } from 'react'
 import { planSession } from '../logic/sessionPlan'
 import type { StrategyReservationPreferences } from '../data/strategies'
@@ -43,24 +44,27 @@ export function SessionPlanner({
       >
         <div className="panel-title">
           <h2 id={titleId} className="panel-title-heading" data-dialog-initial-focus tabIndex={-1}>
-            Session Plan
+            {t('Session Plan')}
           </h2>
           <span className="spacer" />
-          <button onClick={onClose}>Done</button>
+          <button onClick={onClose}>{t('Done')}</button>
         </div>
         <p className="onboard-intro" style={{ marginBottom: 10 }}>
-          Your whole library, sequenced: run these top to bottom, pressing Finish Voyage between
-          runs. Each entry only uses charts the ones above it left behind.
+          {t(
+            'Your whole library, sequenced: run these top to bottom, pressing Finish Voyage between runs. Each entry only uses charts the ones above it left behind.',
+          )}
         </p>
         {plan.blocked > 0 && (
           <div className="muted pad">
-            {plan.blocked} chart{plan.blocked === 1 ? ' needs' : 's need'} shape confirmation and
-            cannot be planned in strict connector mode.
+            {formatNumber(plan.blocked)}
+            {t(' chart')}
+            {plan.blocked === 1 ? t(' needs') : t('s need')}
+            {t(' shape confirmation and cannot be planned in strict connector mode.')}
           </div>
         )}
         {plan.eligible < 9 && (
           <div className="muted pad">
-            Fewer than 9 runnable charts - import or confirm some first.
+            {t('Fewer than 9 runnable charts - import or confirm some first.')}
           </div>
         )}
         <div className="plan-list">
@@ -69,51 +73,58 @@ export function SessionPlanner({
             return (
               <div key={e.strategyId} className="plan-row ready">
                 <span className="plan-step">
-                  {e.runs > 1 ? `${step - e.runs + 1}-${step}` : step}
+                  {e.runs > 1
+                    ? t('{v0}-{v1}', { v0: step - e.runs + 1, v1: step })
+                    : formatNumber(step)}
                 </span>
                 <span className="plan-name">
                   {e.name}
-                  {e.runs > 1 && <span className="plan-runs"> ×{e.runs}</span>}
+                  {e.runs > 1 && <span className="plan-runs"> ×{formatNumber(e.runs)}</span>}
                 </span>
-                <span className="plan-note muted">{e.note}</span>
+                <span className="plan-note muted">{ui(e.note)}</span>
                 <span className="spacer" />
                 <button
-                  aria-label={`Use ${e.name} strategy`}
+                  aria-label={t('Use {v0} strategy', { v0: e.name })}
                   onClick={() => {
                     onUseStrategy(e.strategyId)
                     onClose()
                   }}
-                  title="Activate this strategy and close the plan"
+                  title={t('Activate this strategy and close the plan')}
                 >
-                  Use
+                  {t('Use')}
                 </button>
               </div>
             )
           })}
           {ready.length === 0 && plan.eligible >= 9 && (
             <div className="muted pad">
-              Nothing is ready to run - see what each strategy is waiting on below.
+              {t('Nothing is ready to run - see what each strategy is waiting on below.')}
             </div>
           )}
         </div>
         {waiting.length > 0 && (
           <>
-            <div className="panel-title small">Waiting on pieces</div>
+            <div className="panel-title small">{t('Waiting on pieces')}</div>
             <div className="plan-list">
               {waiting.map((e) => (
                 <div key={e.strategyId} className="plan-row waiting">
                   <span className="plan-step">⏳</span>
                   <span className="plan-name">{e.name}</span>
-                  <span className="plan-note muted">{e.note}</span>
+                  <span className="plan-note muted">{ui(e.note)}</span>
                 </div>
               ))}
             </div>
           </>
         )}
         <div className="muted small-note">
-          {plan.allocated} chart{plan.allocated === 1 ? '' : 's'} allocated · {plan.leftover} left
-          over (held-back fuel and oddments). Protections in Solver Settings shape what each
-          strategy may spend.
+          {formatNumber(plan.allocated)}
+          {t(' chart')}
+          {plan.allocated === 1 ? '' : t('s')}
+          {t(' allocated · ')}
+          {formatNumber(plan.leftover)}
+          {t(
+            ' left over (held-back fuel and oddments). Protections in Solver Settings shape what each strategy may spend.',
+          )}
         </div>
       </div>
     </div>

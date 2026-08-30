@@ -1,3 +1,4 @@
+import { formatNumber, t, ui } from '../i18n/locale'
 import { lazy, Suspense, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { StrategyReservationPreferences } from '../data/strategies'
 import { selectPieceBank, type PieceType } from '../logic/pieceKeeps'
@@ -176,16 +177,22 @@ export function Library(props: Props) {
   const pageStatus =
     paged.totalCount === 0
       ? 'No charts match the current filter.'
-      : `Showing charts ${paged.startIndex + 1}\u2013${paged.endIndex} of ${paged.totalCount}. Page ${paged.page + 1} of ${paged.pageCount}.`
+      : t('Showing charts {start}–{end} of {total}. Page {page} of {pages}.', {
+          start: paged.startIndex + 1,
+          end: paged.endIndex,
+          total: paged.totalCount,
+          page: paged.page + 1,
+          pages: paged.pageCount,
+        })
 
   return (
     <section ref={libraryRef} className="library" aria-labelledby="chart-library-title">
       <div className="panel-title">
         <h2 id="chart-library-title" className="panel-title-heading">
-          Chart Library{' '}
+          {t('Chart Library')}{' '}
           <span className="muted">
-            ({query ? `${visible.length}/` : ''}
-            {props.pool.length})
+            ({query ? t('{v0}/', { v0: visible.length }) : ''}
+            {formatNumber(props.pool.length)})
           </span>
         </h2>
         <span className="spacer" />
@@ -196,32 +203,36 @@ export function Library(props: Props) {
           disabled={props.pool.length >= MAX_POOL_CHARTS}
           title={
             props.pool.length >= MAX_POOL_CHARTS
-              ? `Library is full (${MAX_POOL_CHARTS}-chart limit)`
-              : 'Add a chart manually'
+              ? t('Library is full ({limit}-chart limit)', { limit: MAX_POOL_CHARTS })
+              : t('Add a chart manually')
           }
         >
-          + Add chart
+          {t('+ Add chart')}
         </button>
         {props.pool.length > 0 && (
           <button
             className="clear-charts"
             onClick={clearCharts}
-            title="Remove every chart from the library and clear the board (borders and weights are kept)"
+            title={t(
+              'Remove every chart from the library and clear the board (borders and weights are kept)',
+            )}
           >
-            Clear all
+            {t('Clear all')}
           </button>
         )}
       </div>
       {props.pool.length >= MAX_POOL_CHARTS && (
         <div className="muted pad" role="status" aria-live="polite">
-          Library is full ({MAX_POOL_CHARTS}-chart limit). Remove a chart to add another.
+          {t('Library is full (')}
+          {formatNumber(MAX_POOL_CHARTS)}
+          {t('-chart limit). Remove a chart to add another.')}
         </div>
       )}
       {props.pool.length > 0 && (
         <div className="library-tools">
           <input
-            aria-label="Filter charts by name or modifier"
-            placeholder="Filter by name or mod…"
+            aria-label={t('Filter charts by name or modifier')}
+            placeholder={t('Filter by name or mod…')}
             value={query}
             onChange={(event) => {
               setEditing(null)
@@ -230,7 +241,7 @@ export function Library(props: Props) {
             }}
           />
           <select
-            aria-label="Sort charts"
+            aria-label={t('Sort charts')}
             value={sort}
             onChange={(event) => {
               setEditing(null)
@@ -238,14 +249,14 @@ export function Library(props: Props) {
               setSort(event.target.value as LibrarySortMode)
             }}
           >
-            <option value="value">Best value</option>
-            <option value="level">Highest level</option>
-            <option value="name">Name</option>
+            <option value="value">{t('Best value')}</option>
+            <option value="level">{t('Highest level')}</option>
+            <option value="name">{t('Name')}</option>
           </select>
           <button
             type="button"
-            aria-label={view === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
-            title={view === 'grid' ? 'List view (edit charts)' : 'Grid view'}
+            aria-label={view === 'grid' ? t('Switch to list view') : t('Switch to grid view')}
+            title={view === 'grid' ? t('List view (edit charts)') : t('Grid view')}
             onClick={() => setViewPersist(view === 'grid' ? 'list' : 'grid')}
           >
             {view === 'grid' ? '☰' : '⊞'}
@@ -256,18 +267,20 @@ export function Library(props: Props) {
         <div className="savefor-bar">
           <button
             onClick={props.onOpenSaveWizard}
-            title="Choose how many of each strategy piece the solver should keep in reserve"
+            title={t('Choose how many of each strategy piece the solver should keep in reserve')}
           >
-            🔖 Save charts for strategies…
+            {t('🔖 Save charts for strategies…')}
           </button>
         </div>
       )}
       {props.pool.length === 0 && (
-        <div className="muted pad">No charts yet. Add manually or paste from the game below.</div>
+        <div className="muted pad">
+          {t('No charts yet. Add manually or paste from the game below.')}
+        </div>
       )}
       {props.pool.length > 0 && (
         <>
-          <nav className="library-pagination" aria-label="Chart library pages">
+          <nav className="library-pagination" aria-label={t('Chart library pages')}>
             <p
               id={pageStatusId}
               className="library-page-status"
@@ -275,40 +288,41 @@ export function Library(props: Props) {
               aria-live="polite"
               aria-atomic="true"
             >
-              {pageStatus}
+              {ui(pageStatus)}
             </p>
             {paged.pageCount > 1 && (
               <div className="library-page-controls">
                 <button
                   type="button"
-                  aria-label="Previous chart page"
+                  aria-label={t('Previous chart page')}
                   disabled={paged.page === 0}
                   onClick={() => changePage(paged.page - 1)}
                 >
-                  ← Previous
+                  {t('← Previous')}
                 </button>
                 <label>
-                  Page{' '}
+                  {t('Page')}{' '}
                   <select
-                    aria-label="Chart library page"
+                    aria-label={t('Chart library page')}
                     value={paged.page + 1}
                     onChange={(event) => changePage(Number(event.target.value) - 1)}
                   >
                     {Array.from({ length: paged.pageCount }, (_, index) => (
                       <option key={index} value={index + 1}>
-                        {index + 1}
+                        {formatNumber(index + 1)}
                       </option>
                     ))}
                   </select>{' '}
-                  of {paged.pageCount}
+                  {t('of ')}
+                  {formatNumber(paged.pageCount)}
                 </label>
                 <button
                   type="button"
-                  aria-label="Next chart page"
+                  aria-label={t('Next chart page')}
                   disabled={paged.page === paged.pageCount - 1}
                   onClick={() => changePage(paged.page + 1)}
                 >
-                  Next →
+                  {t('Next →')}
                 </button>
               </div>
             )}
@@ -316,7 +330,7 @@ export function Library(props: Props) {
           <Suspense
             fallback={
               <div className="muted pad" role="status" aria-live="polite">
-                Loading chart library…
+                {t('Loading chart library…')}
               </div>
             }
           >

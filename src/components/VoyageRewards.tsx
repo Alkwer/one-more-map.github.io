@@ -1,3 +1,4 @@
+import { formatDecimal, formatNumber, t, ui } from '../i18n/locale'
 import { useState } from 'react'
 import { CURSED_DUCATS, CURSED_DUCAT_IMPLICIT } from '../data/cursedDucats'
 import { CURRENT_GAME_PATCH } from '../data/gameVersion'
@@ -50,42 +51,54 @@ export function VoyageRewards({ score, board, pool, chartMap, notables }: Props)
     <section className="score-panel" aria-labelledby="voyage-rewards-title">
       <div className="score-total">
         <h2 id="voyage-rewards-title" className="score-title">
-          Voyage Rewards <strong>{score.total.toFixed(1)}</strong>
+          {t('Voyage Rewards ')}
+          <strong>{ui(formatDecimal(score.total, 1))}</strong>
         </h2>
         <span className="spacer" />
         <button
-          aria-label="Copy in-game chart search"
+          aria-label={t('Copy in-game chart search')}
           onClick={copySearch}
           disabled={board.every((placement) => !placement)}
-          title="Copy a candidate in-game Chart search, then verify that only the placed Charts are highlighted"
+          title={t(
+            'Copy a candidate in-game Chart search, then verify that only the placed Charts are highlighted',
+          )}
         >
-          {searchMessage || '⌕ Copy in-game search'}
+          {ui(searchMessage) || t('⌕ Copy in-game search')}
         </button>
         <span className="sr-only" role="status" aria-live="polite">
-          {searchMessage}
+          {ui(searchMessage)}
         </span>
       </div>
       <div className="muted small-note" style={{ marginTop: 0 }}>
-        A relative score for comparing your layouts, based on your weights and estimated mod values.
-        Not exact loot value. See the actual contents below.
+        {t(
+          'A relative score for comparing your layouts, based on your weights and estimated mod values. Not exact loot value. See the actual contents below.',
+        )}
       </div>
       <div className="ducat-scope-note" role="note">
-        <strong>Cursed Ducats (PoE {CURRENT_GAME_PATCH})</strong>
+        <strong>
+          {t('Cursed Ducats (PoE ')}
+          {ui(CURRENT_GAME_PATCH)})
+        </strong>
         <span>
-          Their Voyage-wide monster Toughness, Item Quantity/Rarity, and build-specific downsides
-          are not included in this layout score. Because they affect the whole Voyage, they do not
-          change which arrangement scores best.
+          {t(
+            'Their Voyage-wide monster Toughness, Item Quantity/Rarity, and build-specific downsides are not included in this layout score. Because they affect the whole Voyage, they do not change which arrangement scores best.',
+          )}
         </span>
         <details className="ducat-reference">
-          <summary>View all {CURSED_DUCATS.length} Cursed Ducat effects</summary>
+          <summary>
+            {t('View all ')}
+            {formatNumber(CURSED_DUCATS.length)}
+            {t(' Cursed Ducat effects')}
+          </summary>
           <p className="ducat-implicit">
-            Shared implicit: <span>{CURSED_DUCAT_IMPLICIT}</span>
+            {t('Shared implicit: ')}
+            <span>{ui(CURSED_DUCAT_IMPLICIT)}</span>
           </p>
           <ul>
             {CURSED_DUCATS.map((ducat) => (
               <li key={ducat.name}>
                 <strong>{ducat.name}</strong>
-                <span>{ducat.effects.join('; ')}</span>
+                <span>{ui(ducat.effects.join('; '))}</span>
               </li>
             ))}
           </ul>
@@ -96,25 +109,27 @@ export function VoyageRewards({ score, board, pool, chartMap, notables }: Props)
           .sort((left, right) => score.perStat[right] - score.perStat[left])
           .map((stat, index) => (
             <div key={stat} className={`reward-card ${index === 0 ? 'best' : ''}`}>
-              <div className="reward-value">+{Math.round(score.perStat[stat] * 100)}%</div>
-              <div className="reward-label">{STAT_LABELS[stat]}</div>
+              <div className="reward-value">
+                +{formatNumber(Math.round(score.perStat[stat] * 100))}%
+              </div>
+              <div className="reward-label">{ui(STAT_LABELS[stat])}</div>
             </div>
           ))}
         {ALL_STATS.every((stat) => score.perStat[stat] === 0) && (
-          <div className="muted reward-grid-empty">Place charts to see bonuses</div>
+          <div className="muted reward-grid-empty">{t('Place charts to see bonuses')}</div>
         )}
       </div>
       {ALL_STATS.some((stat) => score.perStat[stat] > 0) && (
-        <div className="muted small-note">Average bonus per area across the Voyage.</div>
+        <div className="muted small-note">{t('Average bonus per area across the Voyage.')}</div>
       )}
       {notables.length > 0 && (
         <>
-          <h3 className="panel-title small">Guaranteed & Notable</h3>
+          <h3 className="panel-title small">{t('Guaranteed & Notable')}</h3>
           <div className="notable-list">
             {notables.map((notable) => (
-              <span key={notable.label} className="notable-item" title={notable.full}>
-                {notable.label}
-                {notable.count > 1 ? ` ×${notable.count}` : ''}
+              <span key={notable.label} className="notable-item" title={ui(notable.full)}>
+                {ui(notable.label)}
+                {notable.count > 1 ? t(' ×{v0}', { v0: notable.count }) : ''}
               </span>
             ))}
           </div>

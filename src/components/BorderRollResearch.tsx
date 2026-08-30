@@ -1,3 +1,4 @@
+import { formatNumber, t, ui } from '../i18n/locale'
 import { useMemo, useState } from 'react'
 import { CURRENT_GAME_PATCH } from '../data/gameVersion'
 import {
@@ -99,17 +100,18 @@ export function BorderRollResearch({ borders, controller, protectedRoll, default
       onToggle={(event) => setIsOpen(event.currentTarget.open)}
     >
       <summary>
-        📊 Contribute border-roll data ({sequenceView.activeSampleCount} active
+        {t('📊 Contribute border-roll data (')}
+        {formatNumber(sequenceView.activeSampleCount)}
+        {t(' active')}
         {sequenceView.archivedSampleCount > 0
-          ? ` · ${sequenceView.archivedSampleCount} archived`
+          ? t(' · {v0} archived', { v0: sequenceView.archivedSampleCount })
           : ''}
         )
       </summary>
       <p className="muted">
-        Every complete 12/12 OCR scan is saved automatically. Scan the natural board and every paid
-        reroll; Finish Voyage closes the sequence and can submit it automatically. Successfully sent
-        sequences are archived locally and hidden from this list by default. Select your Superior
-        Sovereign progress once so quest-gated border pools can be tested separately.
+        {t(
+          'Every complete 12/12 OCR scan is saved automatically. Scan the natural board and every paid reroll; Finish Voyage closes the sequence and can submit it automatically. Successfully sent sequences are archived locally and hidden from this list by default. Select your Superior Sovereign progress once so quest-gated border pools can be tested separately.',
+        )}
       </p>
 
       <label className="roll-auto-submit">
@@ -120,8 +122,9 @@ export function BorderRollResearch({ borders, controller, protectedRoll, default
           onChange={(event) => controller.setRandomizedResearchEnabled(event.target.checked)}
         />
         <span>
-          Voluntary randomized research (20% of new Voyages are assigned one paid reroll before the
-          natural board is seen; jackpot / preserve recommendations are always exempt)
+          {t(
+            'Voluntary randomized research (20% of new Voyages are assigned one paid reroll before the natural board is seen; jackpot / preserve recommendations are always exempt)',
+          )}
         </span>
       </label>
       {store.activeSequenceSamplingReason === 'randomized-research' && (
@@ -129,29 +132,34 @@ export function BorderRollResearch({ borders, controller, protectedRoll, default
           <div className="share-banner-copy">
             <strong>
               {randomizedResearchProtected
-                ? 'Jackpot protected — keep this natural board'
+                ? t('Jackpot protected — keep this natural board')
                 : randomizedResearchComplete
-                  ? 'Randomized research pair complete'
-                  : 'Research Voyage assigned before seeing the roll'}
+                  ? t('Randomized research pair complete')
+                  : t('Research Voyage assigned before seeing the roll')}
             </strong>
             {randomizedResearchProtected ? (
               <span>
-                {protectedRoll!.strategy} triggered the preserve safeguard. Do not reroll this
-                board; the randomized research assignment is waived.{' '}
+                {ui(protectedRoll!.strategy)}
+                {t(
+                  ' triggered the preserve safeguard. Do not reroll this board; the randomized research assignment is waived.',
+                )}{' '}
                 {savedNaturalBoardMatches
-                  ? 'Its saved natural scan remains useful research data.'
-                  : 'This protection does not depend on research storage or a saved natural sample.'}
+                  ? t('Its saved natural scan remains useful research data.')
+                  : t(
+                      'This protection does not depend on research storage or a saved natural sample.',
+                    )}
               </span>
             ) : randomizedResearchComplete ? (
               <span>
-                The natural board and one paid reroll are labelled as a pre-assigned research pair.
-                Continue only for gameplay reasons.
+                {t(
+                  'The natural board and one paid reroll are labelled as a pre-assigned research pair. Continue only for gameplay reasons.',
+                )}
               </span>
             ) : (
               <span>
-                Save the natural board, then—only if you are comfortable with the cost—record
-                exactly one paid reroll even when the recommendation says KEEP. The assignment is
-                voluntary; never exceed your Sulphur budget.
+                {t(
+                  'Save the natural board, then—only if you are comfortable with the cost—record exactly one paid reroll even when the recommendation says KEEP. The assignment is voluntary; never exceed your Sulphur budget.',
+                )}
               </span>
             )}
           </div>
@@ -160,7 +168,7 @@ export function BorderRollResearch({ borders, controller, protectedRoll, default
 
       {store.recovery && (
         <AuxiliaryStoreRecovery
-          label="Border research"
+          label={t('Border research')}
           filename="allflame-border-research-recovery.json"
           recovery={store.recovery}
           onRetry={controller.retryResearchRecovery}
@@ -169,7 +177,7 @@ export function BorderRollResearch({ borders, controller, protectedRoll, default
       )}
       {controller.submissionStore.recovery && (
         <AuxiliaryStoreRecovery
-          label="Border submission queue"
+          label={t('Border submission queue')}
           filename="allflame-border-submission-recovery.json"
           recovery={controller.submissionStore.recovery}
           onRetry={controller.retrySubmissionRecovery}
@@ -179,17 +187,17 @@ export function BorderRollResearch({ borders, controller, protectedRoll, default
 
       <div className="roll-research-grid">
         <label>
-          Game patch
+          {t('Game patch')}
           <input
             value={controller.gamePatch}
             maxLength={32}
-            placeholder={CURRENT_GAME_PATCH}
+            placeholder={ui(CURRENT_GAME_PATCH)}
             disabled={researchBlocked}
             onChange={(event) => controller.setGamePatch(event.target.value)}
           />
         </label>
         <label>
-          Vesper upgrades (Superior Sovereign)
+          {t('Vesper upgrades (Superior Sovereign)')}
           <select
             value={controller.vesperUpgradeCount ?? ''}
             disabled={researchBlocked}
@@ -199,16 +207,16 @@ export function BorderRollResearch({ borders, controller, protectedRoll, default
             }}
           >
             <option value="" disabled>
-              Select current progress
+              {t('Select current progress')}
             </option>
             {VESPER_UPGRADE_OPTIONS.map((value) => (
               <option key={value} value={value}>
-                {value}/5
+                {ui(value)}/5
               </option>
             ))}
           </select>
           <small className="field-hint">
-            Check Challenges → Superior Sovereign. Legacy samples remain “unknown”.
+            {t('Check Challenges → Superior Sovereign. Legacy samples remain “unknown”.')}
           </small>
         </label>
       </div>
@@ -216,40 +224,45 @@ export function BorderRollResearch({ borders, controller, protectedRoll, default
       <div className="roll-research-status">
         <span className={missingBorders === 0 ? 'sample-ready' : 'sample-incomplete'}>
           {missingBorders === 0
-            ? '✓ All 12 borders ready'
-            : `${missingBorders} borders still missing`}
+            ? t('✓ All 12 borders ready')
+            : t('{v0} borders still missing', { v0: missingBorders })}
         </span>
         <span>
           {randomizedResearchProtected ? (
-            <>Next: keep natural board · research reroll waived</>
+            <>{t('Next: keep natural board · research reroll waived')}</>
           ) : (
             <>
-              Next:{' '}
+              {t('Next:')}{' '}
               {controller.nextRollIndex === 0
-                ? 'natural board'
-                : `paid reroll ${controller.nextRollIndex}`}
+                ? t('natural board')
+                : t('paid reroll {v0}', { v0: controller.nextRollIndex })}
               {controller.displayedNextRerollCost === null
-                ? ' · no known next cost'
-                : ` · next cost ${controller.displayedNextRerollCost.toLocaleString('en-US')}`}
+                ? t(' · no known next cost')
+                : t(' · next cost {v0}', {
+                    v0: formatNumber(controller.displayedNextRerollCost),
+                  })}
             </>
           )}
         </span>
-        <span>Sequence {store.activeSequenceId.slice(-8)}</span>
         <span>
-          Sampling:{' '}
+          {t('Sequence ')}
+          {ui(store.activeSequenceId.slice(-8))}
+        </span>
+        <span>
+          {t('Sampling:')}{' '}
           {store.activeSequenceSamplingReason === 'randomized-research'
             ? randomizedResearchProtected
-              ? 'randomized research · jackpot exemption'
-              : 'randomized research'
-            : 'normal gameplay'}
+              ? t('randomized research · jackpot exemption')
+              : t('randomized research')
+            : t('normal gameplay')}
         </span>
         <span
           className={controller.vesperUpgradeCount === null ? 'sample-incomplete' : 'sample-ready'}
         >
-          Vesper{' '}
+          {t('Vesper')}{' '}
           {controller.vesperUpgradeCount === null
-            ? 'progress unknown'
-            : `${controller.vesperUpgradeCount}/5`}
+            ? t('progress unknown')
+            : t('{v0}/5', { v0: controller.vesperUpgradeCount })}
         </span>
       </div>
 
@@ -258,19 +271,19 @@ export function BorderRollResearch({ borders, controller, protectedRoll, default
           onClick={() => controller.recordCurrentRoll(borders)}
           disabled={researchBlocked || missingBorders > 0 || controller.vesperUpgradeCount === null}
         >
-          Save current roll
+          {t('Save current roll')}
         </button>
         <button disabled={researchBlocked} onClick={controller.startNextSequence}>
-          Start next Voyage
+          {t('Start next Voyage')}
         </button>
         <button onClick={exportSamples} disabled={store.samples.length === 0}>
-          Export dataset
+          {t('Export dataset')}
         </button>
         {sequenceView.archivedSequenceCount > 0 && (
           <button onClick={() => setShowArchived((current) => !current)}>
             {showArchived
-              ? 'Hide archived'
-              : `Show archived (${sequenceView.archivedSequenceCount})`}
+              ? t('Hide archived')
+              : t('Show archived ({v0})', { v0: sequenceView.archivedSequenceCount })}
           </button>
         )}
       </div>
@@ -283,10 +296,10 @@ export function BorderRollResearch({ borders, controller, protectedRoll, default
             disabled={!controller.endpointConfigured || submissionBlocked}
             onChange={(event) => controller.setAutoSubmitEnabled(event.target.checked)}
           />
-          <span>Automatic submission on Finish Voyage</span>
+          <span>{t('Automatic submission on Finish Voyage')}</span>
         </label>
         <label>
-          Private submission key
+          {t('Private submission key')}
           <input
             type="password"
             autoComplete="off"
@@ -308,30 +321,35 @@ export function BorderRollResearch({ borders, controller, protectedRoll, default
           }
           onClick={controller.submitQueuedSequences}
         >
-          Submit queued Voyages
+          {t('Submit queued Voyages')}
         </button>
       </div>
       <div className="roll-research-status">
-        The key is kept in memory for this tab only. Enter it completely, then submit the queued
-        Voyages explicitly. Keys saved by older versions are erased on load; rotate a previously
-        stored key before re-entering it.
+        {t(
+          'The key is kept in memory for this tab only. Enter it completely, then submit the queued Voyages explicitly. Keys saved by older versions are erased on load; rotate a previously stored key before re-entering it.',
+        )}
       </div>
       {controller.submissionStore.credentialRotationRequired && (
         <div className="share-banner error" role="alert">
-          A private key saved by an older version was removed from active storage and recovery
-          backups. Revoke or rotate that key before entering its replacement.
+          {t(
+            'A private key saved by an older version was removed from active storage and recovery backups. Revoke or rotate that key before entering its replacement.',
+          )}
         </div>
       )}
       <div className="roll-research-status">
         <span>
           {controller.endpointConfigured
-            ? `${controller.submissionStore.queue.length} Voyage sequence${controller.submissionStore.queue.length === 1 ? '' : 's'} queued${failedSubmissionCount > 0 ? ` · ${failedSubmissionCount} needs retry` : ''}`
-            : 'Automatic submission service is not configured in this build'}
+            ? t('{v0} Voyage sequence{v1} queued{v2}', {
+                v0: controller.submissionStore.queue.length,
+                v1: controller.submissionStore.queue.length === 1 ? '' : 's',
+                v2: failedSubmissionCount > 0 ? ` · ${failedSubmissionCount} needs retry` : '',
+              })
+            : t('Automatic submission service is not configured in this build')}
         </span>
       </div>
 
       {sequenceView.visibleSequences.length > 0 ? (
-        <ol className="roll-sample-list" aria-label="Locally saved Voyage sequences">
+        <ol className="roll-sample-list" aria-label={t('Locally saved Voyage sequences')}>
           {sequenceView.visibleSequences.map((sequence) => {
             const sequenceId = sequence[0].sequenceId
             const archived = sequenceView.archivedIds.has(sequenceId)
@@ -345,17 +363,19 @@ export function BorderRollResearch({ borders, controller, protectedRoll, default
               >
                 <div className="roll-sequence-header">
                   <span>
-                    Voyage {sequenceId.slice(-8)} · {sequence.length}{' '}
-                    {sequence.length === 1 ? 'roll' : 'rolls'} · {sequence[0].gamePatch} · Vesper{' '}
+                    {t('Voyage ')}
+                    {ui(sequenceId.slice(-8))} · {formatNumber(sequence.length)}{' '}
+                    {sequence.length === 1 ? t('roll') : t('rolls')} · {ui(sequence[0].gamePatch)}
+                    {t(' · Vesper')}{' '}
                     {sequence[0].vesperUpgradeCount === null
-                      ? 'unknown'
-                      : `${sequence[0].vesperUpgradeCount}/5`}{' '}
+                      ? t('unknown')
+                      : t('{v0}/5', { v0: sequence[0].vesperUpgradeCount })}{' '}
                     ·{' '}
                     {sequence[0].samplingReason === 'randomized-research'
-                      ? 'randomized research'
+                      ? t('randomized research')
                       : sequence[0].samplingReason === 'unknown'
-                        ? 'legacy sampling reason'
-                        : 'normal gameplay'}
+                        ? t('legacy sampling reason')
+                        : t('normal gameplay')}
                   </span>
                   <div className="roll-sequence-actions">
                     {queuedItem && (
@@ -367,36 +387,41 @@ export function BorderRollResearch({ borders, controller, protectedRoll, default
                               : 'sample-ready'
                           }
                         >
-                          {queuedItem.delivery.status === 'failed' ? 'Submission failed' : 'Queued'}
+                          {queuedItem.delivery.status === 'failed'
+                            ? t('Submission failed')
+                            : t('Queued')}
                         </span>
                         {queuedItem.delivery.status === 'failed' && (
                           <>
                             <span className="roll-research-status">
-                              {queuedItem.delivery.lastError ?? 'Automatic submission failed'} ·{' '}
-                              {queuedItem.delivery.attemptCount}{' '}
-                              {queuedItem.delivery.attemptCount === 1 ? 'attempt' : 'attempts'}
+                              {ui(queuedItem.delivery.lastError) ??
+                                t('Automatic submission failed')}{' '}
+                              · {formatNumber(queuedItem.delivery.attemptCount)}{' '}
+                              {queuedItem.delivery.attemptCount === 1
+                                ? t('attempt')
+                                : t('attempts')}
                             </span>
                             <button
                               disabled={submissionBlocked}
                               onClick={() => controller.retryQueuedSequence(sequenceId)}
                             >
-                              Retry submission
+                              {t('Retry submission')}
                             </button>
                           </>
                         )}
                         <button onClick={() => controller.cancelQueuedSequence(sequenceId)}>
-                          Cancel queued submission
+                          {t('Cancel queued submission')}
                         </button>
                       </>
                     )}
                     {archived ? (
                       <>
-                        <span className="sample-ready">Archived</span>
+                        <span className="sample-ready">{t('Archived')}</span>
                         <button
                           disabled={researchBlocked}
                           onClick={() => controller.restoreSequence(sequenceId)}
                         >
-                          Restore
+                          {t('Restore')}
                         </button>
                       </>
                     ) : (
@@ -415,36 +440,39 @@ export function BorderRollResearch({ borders, controller, protectedRoll, default
                             )
                           }
                         >
-                          Submit Voyage
+                          {t('Submit Voyage')}
                         </button>
                         {sequenceId !== store.activeSequenceId && (
                           <button
                             disabled={researchBlocked}
                             onClick={() => controller.archiveSequence(sequenceId)}
                           >
-                            Archive
+                            {t('Archive')}
                           </button>
                         )}
                       </>
                     )}
                   </div>
                 </div>
-                <ol aria-label={`Rolls in Voyage ${sequenceId.slice(-8)}`}>
+                <ol aria-label={t('Rolls in Voyage {v0}', { v0: sequenceId.slice(-8) })}>
                   {sequence.map((sample) => (
                     <li key={sample.sampleId}>
                       <span>
                         {sample.generation === 'natural'
-                          ? 'natural board'
-                          : `paid reroll ${sample.rerollIndex}`}
+                          ? t('natural board')
+                          : t('paid reroll {v0}', { v0: sample.rerollIndex })}
                       </span>
                       <button
                         disabled={researchBlocked}
-                        aria-label={`Remove ${sample.generation} sample captured ${sample.capturedAt}`}
+                        aria-label={t('Remove {v0} sample captured {v1}', {
+                          v0: sample.generation,
+                          v1: sample.capturedAt,
+                        })}
                         onClick={() => {
                           controller.removeSample(sample.sampleId)
                         }}
                       >
-                        Remove
+                        {t('Remove')}
                       </button>
                     </li>
                   ))}
@@ -454,17 +482,18 @@ export function BorderRollResearch({ borders, controller, protectedRoll, default
           })}
         </ol>
       ) : sequenceView.archivedSequenceCount > 0 ? (
-        <p className="muted small">All submitted Voyage sequences are archived locally.</p>
+        <p className="muted small">{t('All submitted Voyage sequences are archived locally.')}</p>
       ) : null}
 
       {controller.message && (
         <div className="muted pad" role="status" aria-live="polite" aria-atomic="true">
-          {controller.message}
+          {ui(controller.message)}
         </div>
       )}
       <p className="muted small">
-        Automatic submission is off by default. Without a private key, “Submit Voyage” still opens
-        one pre-filled GitHub issue. A bot validates, labels, and closes accepted submissions.
+        {t(
+          'Automatic submission is off by default. Without a private key, “Submit Voyage” still opens one pre-filled GitHub issue. A bot validates, labels, and closes accepted submissions.',
+        )}
       </p>
     </details>
   )
