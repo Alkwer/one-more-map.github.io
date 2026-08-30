@@ -39,3 +39,36 @@ test('tutorial steps have generous hit areas and a full-control keyboard focus r
   await steps.nth(2).click({ position: { x: 2, y: 2 } })
   await expect(steps.nth(2)).toHaveAttribute('aria-current', 'step')
 })
+
+test('strategy details expose stable unique relationships while expanding and collapsing', async ({
+  appPage,
+}) => {
+  await openApp(appPage)
+  const strategies = appPage.getByRole('region', { name: 'Strategies', exact: true })
+  const headers = strategies.locator('.strat-head')
+  const targets = await headers.evaluateAll((buttons) =>
+    buttons.map((button) => button.getAttribute('aria-controls')),
+  )
+  expect(targets.length).toBeGreaterThan(1)
+  expect(new Set(targets).size).toBe(targets.length)
+  for (const header of await headers.all()) {
+    await expect(header).toHaveAttribute('aria-expanded', 'false')
+    const target = await header.getAttribute('aria-controls')
+    const details = appPage.locator(`[id="${target}"]`)
+    await expect(details).toHaveCount(1)
+    await expect(details).toBeHidden()
+    await expect(details).toHaveAttribute('aria-labelledby', (await header.getAttribute('id'))!)
+  }
+
+  await headers.first().click()
+  await expect(headers.first()).toHaveAttribute('aria-expanded', 'true')
+  await expect(appPage.locator(`[id="${targets[0]}"]`)).toBeVisible()
+  await headers.nth(1).click()
+  await expect(headers.first()).toHaveAttribute('aria-expanded', 'false')
+  await expect(appPage.locator(`[id="${targets[0]}"]`)).toBeHidden()
+  await expect(headers.nth(1)).toHaveAttribute('aria-expanded', 'true')
+  await headers.nth(1).click()
+  await expect(headers.nth(1)).toHaveAttribute('aria-expanded', 'false')
+  await expect(headers.nth(1)).toHaveAttribute('aria-controls', targets[1]!)
+  await expect(appPage.locator(`[id="${targets[1]}"]`)).toBeHidden()
+})
