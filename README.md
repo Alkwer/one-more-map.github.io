@@ -65,7 +65,11 @@ research questions.
 
 ## Quick start
 
-Use Node.js 24 (the version used by CI) and npm:
+Use Node.js 24.x (the version used by CI) and its bundled npm. `.nvmrc`
+selects the same major version for version managers (`nvm install && nvm use`
+with nvm-sh). `package.json` and `.npmrc` reject unsupported Node versions
+during installation; npm's `devEngines` check also rejects them before scripts
+run. If npm reports `EBADENGINE` or `EBADDEVENGINES`, switch to Node 24 and retry:
 
 ```bash
 npm ci

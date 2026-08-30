@@ -1,7 +1,7 @@
 import type { ChartData, Board } from '../types'
 import { emptyBoard, emptyBorders } from '../types'
-import type { AppState } from '../logic/storage'
-import { validateStateForPersistence } from '../logic/storage'
+import type { AppState } from '../state/appState'
+import { validateStateForPersistence } from '../logic/stateCodec'
 import { chartAdditionResult } from '../logic/chartCapacity'
 
 export type AppStateAction =
