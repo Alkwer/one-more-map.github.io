@@ -100,7 +100,9 @@ export function ModBrowser({ disabled, onToggle, onBulk, onClose }: Props) {
                 <span className="spacer" />
                 <button
                   className="mb-bulk"
-                  aria-label={`${anyOn ? t('Disable all') : t('Enable all')} ${ui(g.title)}`}
+                  aria-label={t(anyOn ? 'Disable all {group}' : 'Enable all {group}', {
+                    group: ui(g.title),
+                  })}
                   onClick={() => onBulk(ids, anyOn)}
                 >
                   {anyOn ? t('Disable all') : t('Enable all')}

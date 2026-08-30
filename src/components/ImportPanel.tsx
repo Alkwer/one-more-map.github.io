@@ -490,7 +490,7 @@ export function ImportPanel({
         <div
           className="muted pad"
           role="status"
-          aria-label="Import result"
+          aria-label={t('Import result')}
           aria-live="polite"
           aria-atomic="true"
         >
@@ -502,7 +502,7 @@ export function ImportPanel({
           {rareAlert && <span aria-hidden="true">🎰 </span>}
           <span
             role="status"
-            aria-label="Rare-chart import alert"
+            aria-label={t('Rare-chart import alert')}
             aria-live="polite"
             aria-atomic="true"
           >
@@ -512,7 +512,7 @@ export function ImportPanel({
         {rareAlert && (
           <button
             className="announce-close"
-            aria-label="Dismiss rare-chart import alert"
+            aria-label={t('Dismiss rare-chart import alert')}
             onClick={() => setRareAlert('')}
           >
             ✕

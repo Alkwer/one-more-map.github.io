@@ -1,6 +1,10 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AppHeader } from '../components/app/AppHeader'
+import { BuildFooter } from '../components/app/BuildFooter'
+import { StrategiesPanel } from '../components/StrategiesPanel'
+import { STRATEGIES } from '../data/strategies'
+import { defaultState } from '../logic/storage'
 import { SolverActions } from '../components/solver/SolverActions'
 import { RewardWeights } from '../components/solver/RewardWeights'
 import { TooltipDescription } from '../components/Tooltip'
@@ -110,6 +114,35 @@ describe('translations and localized numbers', async () => {
     )
     expect(markup).toContain('Share layout')
     expect(markup).not.toContain('배치 공유')
+  })
+
+  it('localizes build and strategy controls while preserving canonical metadata and names', async () => {
+    await setLocale('ko')
+    const commit = '0123456789abcdef0123456789abcdef01234567'
+    const builtAt = '2026-08-31T10:15:00.000Z'
+    const footer = renderToStaticMarkup(
+      <BuildFooter build={{ commit, shortCommit: '0123456', builtAt }} />,
+    )
+    expect(footer).toContain('aria-label="애플리케이션 빌드"')
+    expect(footer).toContain('기능 제안</a>')
+    expect(footer).toContain(`/commit/${commit}`)
+    expect(footer).toContain(`<time dateTime="${builtAt}">${builtAt}</time>`)
+    expect(footer).toContain(`template=feature_request.yml&amp;build=${commit}`)
+
+    const strategies = renderToStaticMarkup(
+      <StrategiesPanel
+        activeId={null}
+        pool={[]}
+        borders={defaultState().borders}
+        onSelect={() => {}}
+      />,
+    )
+    expect(strategies).toContain(
+      `aria-label="전략 활성화: ${STRATEGIES[0].name.replace(/&/g, '&amp;')}"`,
+    )
+    expect(
+      translate('ko', 'Strategy active: {name} (recommendation)', { name: STRATEGIES[0].name }),
+    ).toBe(`활성 전략: ${STRATEGIES[0].name} (추천)`)
   })
 
   it('uses missing reward defaults before formatting and preserves explicit zero weights', async () => {

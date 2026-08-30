@@ -209,7 +209,12 @@ export function StrategySuggestions({
                   className={`suggestion-use ${isActive ? 'active' : ''}`}
                   disabled={isActive}
                   onClick={() => onSelect(suggestion.strategy.id)}
-                  aria-label={`${isActive ? 'Strategy active' : 'Set active strategy'}: ${suggestion.strategy.name} (recommendation)`}
+                  aria-label={t(
+                    isActive
+                      ? 'Strategy active: {name} (recommendation)'
+                      : 'Set active strategy: {name} (recommendation)',
+                    { name: suggestion.strategy.name },
+                  )}
                 >
                   {isActive ? t('✓ Strategy active') : t('Set active strategy')}
                 </button>

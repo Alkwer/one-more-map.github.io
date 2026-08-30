@@ -237,8 +237,8 @@ export function StrategiesPanel({
               className={`strat-use ${isActive ? 'on' : ''}`}
               aria-label={
                 isActive
-                  ? `Active - click to turn off: ${s.name}`
-                  : `Set active strategy: ${s.name}`
+                  ? t('Active - click to turn off: {name}', { name: s.name })
+                  : t('Set active strategy: {name}', { name: s.name })
               }
               onClick={() => onSelect(isActive ? null : s.id)}
             >

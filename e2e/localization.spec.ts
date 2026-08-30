@@ -1,4 +1,5 @@
 import { KOREAN_CHART, expect, openApp, pasteText, test } from './support'
+import { STRATEGIES } from '../src/data/strategies'
 
 test.describe('Korean interface', () => {
   test.use({ locale: 'ko-KR' })
@@ -10,9 +11,23 @@ test.describe('Korean interface', () => {
     await expect(appPage.locator('html')).toHaveAttribute('lang', 'ko')
     await expect(appPage.getByRole('combobox', { name: '언어', exact: true })).toHaveValue('ko')
     await expect(appPage.getByRole('heading', { name: '해도 보관함' })).toBeVisible()
+    await expect(appPage.getByRole('contentinfo', { name: '애플리케이션 빌드' })).toBeVisible()
+    await expect(appPage.getByRole('link', { name: '기능 제안' })).toHaveAttribute(
+      'href',
+      /template=feature_request.yml.*build=/,
+    )
+    await expect(
+      appPage.getByRole('button', { name: `전략 활성화: ${STRATEGIES[0].name}`, exact: true }),
+    ).toHaveCount(1)
+    await expect(
+      appPage.getByRole('status', { name: '희귀 해도 가져오기 알림', exact: true }),
+    ).toHaveCount(1)
     await pasteText(appPage, KOREAN_CHART, { waitForImport: false })
     await expect(appPage.locator('.library [data-library-chart-uid]')).toHaveCount(1)
     await expect(appPage.locator('.import-panel [role="status"]').first()).toContainText(
+      '해도 1개를 가져왔습니다',
+    )
+    await expect(appPage.getByRole('status', { name: '가져오기 결과', exact: true })).toContainText(
       '해도 1개를 가져왔습니다',
     )
     const originalChart = await appPage
