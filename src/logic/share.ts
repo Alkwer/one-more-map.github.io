@@ -1,3 +1,4 @@
+import { defaultState, type AppState } from '../state/appState'
 import { strategyById } from '../data/strategies'
 import type {
   Borders,
@@ -12,12 +13,10 @@ import type { AdjacencyMode } from './scoring'
 import {
   decodeState,
   decodeStateJson,
-  defaultState,
   MAX_POOL_CHARTS,
   STATE_VERSION,
-  type AppState,
   type StateDecodeErrorCode,
-} from './storage'
+} from './stateCodec'
 import { chartRewardModifierIds } from './rewards'
 
 export const SHARE_VERSION = 1

@@ -5,7 +5,7 @@ import {
   type StrategyDef,
 } from '../../data/strategies'
 import type { AdjacencyMode } from '../../logic/scoring'
-import type { AppState } from '../../logic/storage'
+import type { AppState } from '../../state/appState'
 import type { ConnectivityMode } from '../../types'
 import { RewardWeights } from './RewardWeights'
 
