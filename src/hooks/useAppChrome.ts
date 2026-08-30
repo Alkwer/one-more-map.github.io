@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { encodeShare } from '../logic/share'
 import { writeClipboardText } from '../logic/clipboard'
-import type { AppState } from '../logic/storage'
+import type { AppState } from '../state/appState'
 
 export function useAppChrome(state: AppState) {
   const [showOnboarding, setShowOnboarding] = useState<boolean>(() => {

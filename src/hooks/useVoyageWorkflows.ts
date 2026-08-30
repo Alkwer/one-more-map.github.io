@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch } from 'react'
-import type { AppState } from '../logic/storage'
+import type { AppState } from '../state/appState'
 import {
   createVoyageFinishSnapshot,
   validateVoyageFinishSnapshot,
