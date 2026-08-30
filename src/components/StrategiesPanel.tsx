@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { STRATEGIES, type StrategyDef } from '../data/strategies'
 import { strategyReadiness } from '../logic/strategyReadiness'
 import { writeClipboardText } from '../logic/clipboard'
@@ -113,6 +113,7 @@ export function StrategiesPanel({
   onLayoutChoice,
 }: Props) {
   const [expanded, setExpanded] = useState<string | null>(activeId)
+  const detailsPrefix = useId()
 
   return (
     <section className="strategies" aria-labelledby="strategies-title">
@@ -138,10 +139,15 @@ export function StrategiesPanel({
       {STRATEGIES.map((s) => {
         const isActive = activeId === s.id
         const isOpen = expanded === s.id
+        const headerId = `${detailsPrefix}-${s.id}-header`
+        const detailsId = `${detailsPrefix}-${s.id}-details`
         return (
           <div key={s.id} className={`strat-card ${isActive ? 'active' : ''}`}>
             <button
               className="strat-head"
+              id={headerId}
+              aria-expanded={isOpen}
+              aria-controls={detailsId}
               onClick={() => setExpanded(isOpen ? null : s.id)}
               title="Show details"
             >
@@ -151,38 +157,42 @@ export function StrategiesPanel({
               </span>
               <span className="strat-tagline">{s.tagline}</span>
             </button>
-            {isOpen && (
-              <div className="strat-body">
-                <ul className="strat-guide">
-                  {s.guide.map((g, i) => (
-                    <li key={i}>{g}</li>
-                  ))}
-                </ul>
-                {s.source.url ? (
-                  <a
-                    className="strat-source"
-                    href={s.source.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    ▶ {s.source.label}
-                  </a>
-                ) : (
-                  <span className="strat-source">{s.source.label}</span>
-                )}
-                {s.extraLinks?.map((l) => (
-                  <a
-                    key={l.url}
-                    className="strat-source strat-extra-link"
-                    href={l.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    🔗 {l.label}
-                  </a>
+            <div
+              className="strat-body"
+              id={detailsId}
+              role="region"
+              aria-labelledby={headerId}
+              hidden={!isOpen}
+            >
+              <ul className="strat-guide">
+                {s.guide.map((g, i) => (
+                  <li key={i}>{g}</li>
                 ))}
-              </div>
-            )}
+              </ul>
+              {s.source.url ? (
+                <a
+                  className="strat-source"
+                  href={s.source.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  ▶ {s.source.label}
+                </a>
+              ) : (
+                <span className="strat-source">{s.source.label}</span>
+              )}
+              {s.extraLinks?.map((l) => (
+                <a
+                  key={l.url}
+                  className="strat-source strat-extra-link"
+                  href={l.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  🔗 {l.label}
+                </a>
+              ))}
+            </div>
             {(isActive || isOpen) &&
               s.layouts &&
               (() => {
@@ -216,6 +226,11 @@ export function StrategiesPanel({
             {(isActive || isOpen) && <Readiness strategy={s} pool={pool} borders={borders} />}
             <button
               className={`strat-use ${isActive ? 'on' : ''}`}
+              aria-label={
+                isActive
+                  ? `Active - click to turn off: ${s.name}`
+                  : `Set active strategy: ${s.name}`
+              }
               onClick={() => onSelect(isActive ? null : s.id)}
             >
               {isActive ? '✓ Active - click to turn off' : 'Set active strategy'}

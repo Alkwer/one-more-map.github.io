@@ -1,4 +1,4 @@
-import { appendFile } from 'node:fs/promises'
+import { appendFile, readFile } from 'node:fs/promises'
 import { setTimeout as delay } from 'node:timers/promises'
 import { pathToFileURL } from 'node:url'
 
@@ -97,6 +97,7 @@ export async function verifyPublishedArtifact({
   pageUrl,
   solverSubpath = DEFAULT_SOLVER_SUBPATH,
   expectedCommit,
+  expectedAppUrl,
   fetchImpl = fetch,
   requestTimeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
 }) {
@@ -108,6 +109,11 @@ export async function verifyPublishedArtifact({
     !solverUrl.pathname.startsWith(rootUrl.pathname)
   ) {
     throw new Error(`SOLVER_SUBPATH must stay below the published root ${rootUrl}`)
+  }
+  if (expectedAppUrl && solverUrl.href !== expectedAppUrl) {
+    throw new Error(
+      `Published app URL ${solverUrl} does not match package homepage ${expectedAppUrl}`,
+    )
   }
   const cacheKey = encodeURIComponent(expectedCommit)
 
@@ -156,6 +162,7 @@ export async function smokeTestPages({
   pageUrl,
   solverSubpath = DEFAULT_SOLVER_SUBPATH,
   expectedCommit,
+  expectedAppUrl,
   attempts = DEFAULT_ATTEMPTS,
   retryDelayMs = DEFAULT_RETRY_DELAY_MS,
   requestTimeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
@@ -180,6 +187,7 @@ export async function smokeTestPages({
         pageUrl,
         solverSubpath,
         expectedCommit,
+        expectedAppUrl,
         fetchImpl,
         requestTimeoutMs: boundedTimeout,
       })
@@ -213,7 +221,13 @@ async function appendSummary(markdown) {
 
 async function main() {
   try {
+    const packageJson = JSON.parse(
+      await readFile(new URL('../package.json', import.meta.url), 'utf8'),
+    )
+    if (!packageJson.homepage)
+      throw new Error('package.json must advertise the published app homepage')
     const result = await smokeTestPages({
+      expectedAppUrl: packageJson.homepage,
       pageUrl: process.env.PAGE_URL,
       solverSubpath: process.env.SOLVER_SUBPATH,
       expectedCommit: process.env.EXPECTED_COMMIT_SHA,

@@ -196,6 +196,7 @@ export function StrategySuggestions({
                   className={`suggestion-use ${isActive ? 'active' : ''}`}
                   disabled={isActive}
                   onClick={() => onSelect(suggestion.strategy.id)}
+                  aria-label={`${isActive ? 'Strategy active' : 'Set active strategy'}: ${suggestion.strategy.name} (recommendation)`}
                 >
                   {isActive ? '✓ Strategy active' : 'Set active strategy'}
                 </button>
