@@ -38,3 +38,36 @@ test('canonical metadata rewriting fails closed', () => {
   assert.throws(() => setCanonicalLink('<head></head>', canonical, 'missing.html'), /found 0/)
   assert.throws(() => setCanonicalLink(`${html}${html}`, canonical, 'duplicate.html'), /found 2/)
 })
+
+// These assertions also run against every built Pages artifact during staging.
+test('production metadata supports root and nested deployments without stale social links', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const { assertAppMetadata, setAppSocialUrls } = await import('./app-metadata.mjs')
+  const template = await readFile(new URL('../index.html', import.meta.url), 'utf8')
+  for (const prefix of ['/', '/one-more-map.github.io/', '/preview/nested/']) {
+    const canonical = canonicalAppUrl(prefix)
+    const html = setAppSocialUrls(setCanonicalLink(template, canonical, 'index.html'), canonical)
+    assert.doesNotThrow(() => assertAppMetadata(html, canonical))
+    assert.match(html, new RegExp(`${canonical}social-preview.png`.replaceAll('.', '\\.')))
+    assert.throws(
+      () => assertAppMetadata(html.replace('name="description"', 'name="removed"'), canonical),
+      /description/,
+    )
+    assert.throws(
+      () => assertAppMetadata(html.replace('property="og:url"', 'property="removed"'), canonical),
+      /og:url/,
+    )
+    assert.throws(
+      () => assertAppMetadata(html.replace('rel="icon"', 'rel="removed"'), canonical),
+      /icon/,
+    )
+    assert.throws(
+      () =>
+        assertAppMetadata(
+          html.replaceAll(`${canonical}social-preview.png`, 'https://example.test/old.png'),
+          canonical,
+        ),
+      /canonical app URL/,
+    )
+  }
+})

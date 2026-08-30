@@ -1,3 +1,4 @@
+import { assertStagedAppMetadata, setAppSocialUrls } from './app-metadata.mjs'
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import {
@@ -37,8 +38,15 @@ async function stageDeployment(target, sitePrefix) {
 
   for (const path of [join(target, 'index.html'), join(appDirectory, 'index.html')]) {
     const html = await readFile(path, 'utf8')
-    await writeFile(path, setCanonicalLink(html, canonicalUrl, path))
+    const canonicalHtml = setCanonicalLink(html, canonicalUrl, path)
+    await writeFile(
+      path,
+      path === join(appDirectory, 'index.html')
+        ? setAppSocialUrls(canonicalHtml, canonicalUrl)
+        : canonicalHtml,
+    )
   }
+  await assertStagedAppMetadata(appDirectory, canonicalUrl)
   // deployment.json is copied from dist, keeping the UI and public marker identical.
 }
 
