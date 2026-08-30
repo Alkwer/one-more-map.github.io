@@ -4,6 +4,7 @@ import {
   serializeState,
   STATE_VERSION,
   type StateDecodeErrorCode,
+  type ValidatedStatePayload,
 } from './stateCodec'
 
 export const LOCAL_STATE_KEY = 'allflame-voyage-solver'
@@ -65,6 +66,15 @@ export function createStateRepository(storage: StateStorage) {
       }
     }
 
+    return writeSerializedState(serialized)
+  }
+
+  /** Reuse the immutable payload already fully validated by the reducer. */
+  function savePreparedLocal(payload: ValidatedStatePayload): LocalSaveResult {
+    return writeSerializedState(payload.compact)
+  }
+
+  function writeSerializedState(serialized: string): LocalSaveResult {
     try {
       storage.setItem(LOCAL_STATE_KEY, serialized)
     } catch (error) {
@@ -174,5 +184,5 @@ export function createStateRepository(storage: StateStorage) {
     return result.status === 'ready' ? result.state : null
   }
 
-  return { saveLocal, loadLocalState, loadLocal, quarantineLocalState }
+  return { saveLocal, savePreparedLocal, loadLocalState, loadLocal, quarantineLocalState }
 }
