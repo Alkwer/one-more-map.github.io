@@ -80,6 +80,7 @@ export function ImportPanel({
 
       setParsing(true)
       setMsg('Parsing import…')
+      setRareAlert('')
       const client = importClientRef.current ?? new ImportWorkerClient()
       importClientRef.current = client
 
@@ -432,14 +433,23 @@ export function ImportPanel({
           {msg}
         </div>
       )}
-      {rareAlert && (
-        <div className="import-rare-alert">
-          <span>🎰 {rareAlert}</span>
-          <button className="announce-close" title="Dismiss" onClick={() => setRareAlert('')}>
+      <div className={rareAlert ? 'import-rare-alert' : undefined}>
+        <span>
+          {rareAlert && <span aria-hidden="true">🎰 </span>}
+          <span role="status" aria-live="polite" aria-atomic="true">
+            {rareAlert}
+          </span>
+        </span>
+        {rareAlert && (
+          <button
+            className="announce-close"
+            aria-label="Dismiss rare-chart import alert"
+            onClick={() => setRareAlert('')}
+          >
             ✕
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       <details className="ahk-help">
         <summary>🎲 Rolling & keeping charts (Milky's regexes)</summary>
