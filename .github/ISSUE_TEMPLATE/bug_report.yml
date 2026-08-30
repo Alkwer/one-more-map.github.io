@@ -1,16 +1,49 @@
 name: Bug report
 description: Something broken in the solver site or the AHK importer
 body:
-  - type: input
-    id: build
+  - type: markdown
     attributes:
-      label: App build
-      description: Copy the commit and build time from the app footer. Feedback links fill this automatically.
+      value: |
+        **Security issue? Do not report it here.** [Report vulnerabilities privately](https://github.com/Alkwer/one-more-map.github.io/security/advisories/new).
+        For an improvement rather than a bug, use the [feature request form](https://github.com/Alkwer/one-more-map.github.io/issues/new?template=feature_request.yml).
+        Do not include submission keys, account data, or screenshots containing personal information.
   - type: textarea
     id: what-happened
     attributes:
       label: What happened?
-      description: What did you do, what did you expect, and what happened instead?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: List the steps from opening the app. If needed, attach a minimal example with personal information removed.
+      placeholder: |
+        1. Open the app...
+        2. Import or select...
+        3. Observe...
+    validations:
+      required: true
+  - type: input
+    id: browser-os
+    attributes:
+      label: Browser and operating system
+      placeholder: e.g. Chrome 149 on Windows 11, or Safari on iOS
+    validations:
+      required: true
+  - type: input
+    id: game-patch
+    attributes:
+      label: Path of Exile patch
+      placeholder: e.g. 3.29.3, or not applicable
+    validations:
+      required: true
+  - type: input
+    id: build
+    attributes:
+      label: App build
+      description: Copy the commit and build time from the app footer. Feedback links fill this automatically. Enter unknown if unavailable.
     validations:
       required: true
   - type: textarea

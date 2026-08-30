@@ -1,4 +1,4 @@
-import { BUILD_INFO, REPOSITORY_URL, type BuildInfo } from '../../buildInfo'
+import { BUILD_INFO, REPOSITORY_URL, feedbackUrl, type BuildInfo } from '../../buildInfo'
 
 export function BuildFooter({ build = BUILD_INFO }: { build?: BuildInfo }) {
   return (
@@ -20,6 +20,9 @@ export function BuildFooter({ build = BUILD_INFO }: { build?: BuildInfo }) {
       <span>
         Built <time dateTime={build.builtAt}>{build.builtAt}</time>
       </span>
+      <a href={feedbackUrl(build, 'feature_request.yml')} target="_blank" rel="noopener noreferrer">
+        Request a feature
+      </a>
     </footer>
   )
 }
