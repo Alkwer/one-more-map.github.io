@@ -1,5 +1,5 @@
 import { useId, useState } from 'react'
-import { MAX_POOL_CHARTS } from '../logic/storage'
+import { MAX_POOL_CHARTS } from '../logic/stateCodec'
 import { shouldCloseOnboardingAfterDemo, type ChartAdditionResult } from '../logic/chartCapacity'
 import { useModalDialog } from './ModalDialog'
 

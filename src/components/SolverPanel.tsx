@@ -8,7 +8,7 @@ import {
   type SearchClientLanguage,
 } from '../logic/regex'
 import { writeClipboardText } from '../logic/clipboard'
-import type { AppState } from '../logic/storage'
+import type { AppState } from '../state/appState'
 import type { Board } from '../types'
 import { useSolverRequests } from '../hooks/useSolverRequests'
 import { BestChartsRegex } from './solver/BestChartsRegex'
