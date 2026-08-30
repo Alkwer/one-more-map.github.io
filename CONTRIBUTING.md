@@ -235,3 +235,13 @@ upstream synchronization workflow.
 
 Pull requests run the quality job but do not deploy. A merge to `main` deploys
 only after that same quality gate succeeds.
+
+## Public feedback
+
+Use the app's **Feedback** link for a bug report or **Request a feature** in the
+footer for an improvement. Both open structured GitHub forms with the full app
+revision and build time already filled in. Bug reports ask for reproduction
+steps, browser/OS and game patch; importer diagnostics remain optional.
+[Choose a report type](https://github.com/Alkwer/one-more-map.github.io/issues/new/choose)
+when reporting from outside the app. Never use public issue forms for security
+reports; follow [SECURITY.md](SECURITY.md) instead.

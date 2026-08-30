@@ -1,3 +1,4 @@
+import { FEEDBACK_URL } from '../../buildInfo'
 import { setLocale, t, ui, type Locale } from '../../i18n/locale'
 import { useLocale } from '../../i18n/useLocale'
 interface Props {
@@ -12,8 +13,6 @@ interface Props {
   onToggleTheme: () => void
   onShare: () => void
 }
-
-const ISSUES_URL = 'https://github.com/Alkwer/one-more-map.github.io/issues'
 
 export function AppHeader(props: Props) {
   const locale = useLocale()
@@ -61,7 +60,7 @@ export function AppHeader(props: Props) {
         </button>
         <a
           className="feedback-link"
-          href={ISSUES_URL}
+          href={FEEDBACK_URL}
           target="_blank"
           rel="noopener noreferrer"
           title={t('Bug reports and feature requests on GitHub')}

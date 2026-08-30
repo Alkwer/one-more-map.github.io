@@ -38,3 +38,59 @@ test('canonical metadata rewriting fails closed', () => {
   assert.throws(() => setCanonicalLink('<head></head>', canonical, 'missing.html'), /found 0/)
   assert.throws(() => setCanonicalLink(`${html}${html}`, canonical, 'duplicate.html'), /found 2/)
 })
+
+// These assertions also run against every built Pages artifact during staging.
+test('production metadata supports root and nested deployments without stale social links', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const { assertAppMetadata, setAppSocialUrls } = await import('./app-metadata.mjs')
+  const template = await readFile(new URL('../index.html', import.meta.url), 'utf8')
+  for (const prefix of ['/', '/one-more-map.github.io/', '/preview/nested/']) {
+    const canonical = canonicalAppUrl(prefix)
+    const html = setAppSocialUrls(setCanonicalLink(template, canonical, 'index.html'), canonical)
+    assert.doesNotThrow(() => assertAppMetadata(html, canonical))
+    assert.match(html, new RegExp(`${canonical}social-preview.png`.replaceAll('.', '\\.')))
+    assert.throws(
+      () => assertAppMetadata(html.replace('name="description"', 'name="removed"'), canonical),
+      /description/,
+    )
+    assert.throws(
+      () => assertAppMetadata(html.replace('property="og:url"', 'property="removed"'), canonical),
+      /og:url/,
+    )
+    assert.throws(
+      () => assertAppMetadata(html.replace('rel="icon"', 'rel="removed"'), canonical),
+      /icon/,
+    )
+    assert.throws(
+      () =>
+        assertAppMetadata(
+          html.replaceAll(`${canonical}social-preview.png`, 'https://example.test/old.png'),
+          canonical,
+        ),
+      /canonical app URL/,
+    )
+  }
+})
+
+test('README and package advertise the canonical maintained live app', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const packageJson = JSON.parse(
+    await readFile(new URL('../package.json', import.meta.url), 'utf8'),
+  )
+  const readme = await readFile(new URL('../README.md', import.meta.url), 'utf8')
+  const canonical = canonicalAppUrl(DEFAULT_PRODUCTION_SITE_PREFIX)
+  assert.equal(packageJson.homepage, canonical)
+  assert.equal(packageJson.repository.type, 'git')
+  assert.equal(
+    packageJson.repository.url,
+    'git+https://github.com/Alkwer/one-more-map.github.io.git',
+  )
+  assert.equal(
+    packageJson.bugs.url,
+    'https://github.com/Alkwer/one-more-map.github.io/issues/new/choose',
+  )
+  assert.ok(
+    readme.split('## What it does')[0].includes(`](${canonical})`),
+    'the live-app call to action must be prominent in the README introduction',
+  )
+})

@@ -1,5 +1,6 @@
 import { formatNumber, joinMessages, message, t, type UiMessage, ui } from '../i18n/locale'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { FEEDBACK_URL } from '../buildInfo'
 import { ALL_GOOD_MODS_REGEX, RARE_IMPLICITS } from '../data/strategies'
 import type { ProtectedBorderRoll } from './BorderRollResearch'
 import { DeferredBorderRollResearch } from './DeferredBorderRollResearch'
@@ -662,7 +663,7 @@ export function ImportPanel({
         <p className="muted small">
           {t('Problems or ideas?')}{' '}
           <a
-            href="https://github.com/Alkwer/one-more-map.github.io/issues"
+            href={FEEDBACK_URL}
             target="_blank"
             rel="noopener noreferrer"
           >
