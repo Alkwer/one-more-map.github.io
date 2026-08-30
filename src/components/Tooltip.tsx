@@ -90,7 +90,7 @@ function togglePoeTooltip(el: HTMLElement, data: TooltipData) {
 export function TooltipDescription({ id, data }: { id: string; data: TooltipData }) {
   return (
     <span id={id} className="sr-only">
-      {ui(data.title)}. {ui(data.lines.map((line) => line.text).join('. '))}
+      {data.title}. {ui(data.lines.map((line) => line.text).join('. '))}
     </span>
   )
 }
@@ -203,7 +203,7 @@ export function TooltipLayer() {
   return (
     <div ref={tooltipRef} className="poe-tooltip" style={style} aria-hidden="true">
       <div className="poe-tt-header">
-        <span className="poe-tt-title">{ui(data.title)}</span>
+        <span className="poe-tt-title">{data.title}</span>
       </div>
       {data.lines.length > 0 && (
         <div className="poe-tt-body">
