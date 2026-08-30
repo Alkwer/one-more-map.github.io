@@ -235,6 +235,11 @@ export function StrategiesPanel({
             {(isActive || isOpen) && <Readiness strategy={s} pool={pool} borders={borders} />}
             <button
               className={`strat-use ${isActive ? 'on' : ''}`}
+              aria-label={
+                isActive
+                  ? `Active - click to turn off: ${s.name}`
+                  : `Set active strategy: ${s.name}`
+              }
               onClick={() => onSelect(isActive ? null : s.id)}
             >
               {isActive ? t('✓ Active - click to turn off') : t('Set active strategy')}
