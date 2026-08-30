@@ -6,7 +6,11 @@ MIT license.
 
 ## Development setup
 
-Use Node.js 24 (the CI version) and npm:
+Use Node.js 24.x (the CI version) and its bundled npm. `.nvmrc` selects this
+major version; with nvm-sh, run `nvm install && nvm use` first. The `engines`
+and `devEngines` declarations in `package.json`, together with `.npmrc`, fail
+early on unsupported Node versions. An `EBADENGINE` or `EBADDEVENGINES` error
+means you should switch to Node 24 before retrying:
 
 ```bash
 npm ci
