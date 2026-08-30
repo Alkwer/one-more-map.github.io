@@ -1,5 +1,5 @@
 import type { ChartData } from '../../types'
-import { MAX_REWARD_PERCENT } from '../../logic/storage'
+import { MAX_REWARD_PERCENT } from '../../logic/stateCodec'
 
 export function updateImportedReward(
   chart: ChartData,

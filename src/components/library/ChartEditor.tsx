@@ -5,7 +5,7 @@ import {
   edgesForChartShape,
   isChartShapeResolved,
 } from '../../logic/chartShapes'
-import { MAX_CHART_NAME_LENGTH, MAX_REWARD_PERCENT } from '../../logic/storage'
+import { MAX_CHART_NAME_LENGTH, MAX_REWARD_PERCENT } from '../../logic/stateCodec'
 import type { ChartData, Edges } from '../../types'
 import { STAT_LABELS } from '../../types'
 import { updateImportedReward } from './chartEditorRewards'
