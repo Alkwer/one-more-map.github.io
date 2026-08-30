@@ -31,7 +31,7 @@ describe('structured feedback', () => {
     },
   )
 
-  it('offers a feature link carrying the displayed build and keeps the security channel in the chooser', () => {
+  it('offers a feature link carrying the displayed build and preserves research submissions and the private security channel', () => {
     const html = renderToStaticMarkup(<BuildFooter build={build} />)
     expect(html).toContain('template=feature_request.yml')
     expect(html).toContain(`build=${build.commit}`)
@@ -40,7 +40,7 @@ describe('structured feedback', () => {
       new URL('../.github/ISSUE_TEMPLATE/config.yml', import.meta.url),
       'utf8',
     )
-    expect(config).toContain('blank_issues_enabled: false')
+    expect(config).toContain('blank_issues_enabled: true')
     expect(config).toContain(privateReporting)
   })
 })
