@@ -57,6 +57,30 @@ export type StateDecodeResult =
 
 export type StatePersistenceResult = { ok: true } | { ok: false; message: string }
 
+export interface StateSizeBudget {
+  readonly compactChars: number
+  readonly exportedChars: number
+  readonly exportedBytes: number
+}
+
+const validatedPayload = Symbol('validated state payload')
+
+/** Immutable bytes certified at a full persistence boundary, independent of later state edits. */
+export interface ValidatedStatePayload {
+  readonly [validatedPayload]: true
+  readonly compact: string
+  readonly exported: string
+}
+
+export interface StatePersistenceSnapshot {
+  readonly budget: StateSizeBudget
+  /** Present after full validation; metadata-only mutations defer serialization until autosave. */
+  readonly payload?: ValidatedStatePayload
+}
+
+export type StatePreparationResult =
+  { ok: true; persistence: StatePersistenceSnapshot } | { ok: false; message: string }
+
 class StateDecodeError extends Error {
   constructor(
     readonly code: StateDecodeErrorCode,
@@ -555,7 +579,7 @@ function stringifyState(state: AppState, space?: number): string {
  * the UI produces. A successful result guarantees both forms fit their input
  * budgets and the compact form can be decoded without recovery adjustments.
  */
-export function validateStateForPersistence(state: AppState): StatePersistenceResult {
+export function prepareStateForPersistence(state: AppState): StatePreparationResult {
   let compact: string
   let exported: string
   try {
@@ -565,15 +589,15 @@ export function validateStateForPersistence(state: AppState): StatePersistenceRe
     return { ok: false, message: 'state contains a value that cannot be serialized' }
   }
 
-  if (compact.length > MAX_STATE_JSON_CHARS || exported.length > MAX_STATE_JSON_CHARS) {
-    return {
-      ok: false,
-      message: `state JSON exceeds the ${MAX_STATE_JSON_CHARS}-character limit`,
-    }
-  }
-  if (new TextEncoder().encode(exported).byteLength > MAX_STATE_FILE_BYTES) {
-    return { ok: false, message: 'state JSON export exceeds the 2 MiB file limit' }
-  }
+  const characterCheck = checkStateSizeBudget({
+    compactChars: compact.length,
+    exportedChars: exported.length,
+    exportedBytes: 0,
+  })
+  if (!characterCheck.ok) return characterCheck
+  const budget = measureStateJson(compact, exported)
+  const sizeCheck = checkStateSizeBudget(budget)
+  if (!sizeCheck.ok) return sizeCheck
 
   const decoded = decodeStateJson(compact)
   if (!decoded.ok) return { ok: false, message: decoded.message }
@@ -583,12 +607,98 @@ export function validateStateForPersistence(state: AppState): StatePersistenceRe
       message: `state would require recovery on reload: ${decoded.warnings[0]}`,
     }
   }
+  return {
+    ok: true,
+    persistence: {
+      budget,
+      payload: Object.freeze({ [validatedPayload]: true as const, compact, exported }),
+    },
+  }
+}
+
+function measureStateJson(compact: string, exported: string): StateSizeBudget {
+  return {
+    compactChars: compact.length,
+    exportedChars: exported.length,
+    exportedBytes: new TextEncoder().encode(exported).byteLength,
+  }
+}
+
+function checkStateSizeBudget(budget: StateSizeBudget): StatePersistenceResult {
+  if (budget.compactChars > MAX_STATE_JSON_CHARS || budget.exportedChars > MAX_STATE_JSON_CHARS) {
+    return {
+      ok: false,
+      message: `state JSON exceeds the ${MAX_STATE_JSON_CHARS}-character limit`,
+    }
+  }
+  if (budget.exportedBytes > MAX_STATE_FILE_BYTES) {
+    return { ok: false, message: 'state JSON export exceeds the 2 MiB file limit' }
+  }
+
   return { ok: true }
 }
 
+/**
+ * An immutable reducer can reuse the unchanged pool's certified size. Validate
+ * only settings and the nine board references, then apply exact JSON/UTF-8 size
+ * deltas. Full validation still runs when this state crosses the save boundary.
+ */
+export function prepareStateMetadataMutation(
+  previous: AppState,
+  next: AppState,
+  previousBudget: StateSizeBudget,
+): StatePreparationResult {
+  if (previous.pool !== next.pool) return prepareStateForPersistence(next)
+
+  try {
+    const warnings: string[] = []
+    decodeBoard(next.board, next.pool, warnings)
+    const settings = decodeState({ ...next, pool: [], board: emptyBoard(), v: STATE_VERSION })
+    if (!settings.ok) return { ok: false, message: settings.message }
+    warnings.push(...settings.warnings)
+    if (warnings.length > 0) {
+      return {
+        ok: false,
+        message: `state would require recovery on reload: ${warnings[0]}`,
+      }
+    }
+
+    // Replacing the same pool with [] preserves every other property's JSON
+    // indentation and escaping, so subtracting these envelopes is exact.
+    const measureEnvelope = (state: AppState) => {
+      const envelope = { ...state, pool: [] }
+      return measureStateJson(stringifyState(envelope), stringifyState(envelope, 2))
+    }
+    const before = measureEnvelope(previous)
+    const after = measureEnvelope(next)
+    const budget: StateSizeBudget = {
+      compactChars: previousBudget.compactChars - before.compactChars + after.compactChars,
+      exportedChars: previousBudget.exportedChars - before.exportedChars + after.exportedChars,
+      exportedBytes: previousBudget.exportedBytes - before.exportedBytes + after.exportedBytes,
+    }
+    const sizeCheck = checkStateSizeBudget(budget)
+    return sizeCheck.ok ? { ok: true, persistence: { budget } } : sizeCheck
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof StateDecodeError
+          ? error.message
+          : 'state contains a value that cannot be serialized',
+    }
+  }
+}
+
+export function validateStateForPersistence(state: AppState): StatePersistenceResult {
+  const prepared = prepareStateForPersistence(state)
+  return prepared.ok ? { ok: true } : prepared
+}
+
 export function serializeState(state: AppState, space?: number): string {
-  const validation = validateStateForPersistence(state)
-  if (!validation.ok) throw new Error(validation.message)
+  const prepared = prepareStateForPersistence(state)
+  if (!prepared.ok) throw new Error(prepared.message)
+  if (space === undefined || space === 0) return prepared.persistence.payload!.compact
+  if (space === 2) return prepared.persistence.payload!.exported
   return stringifyState(state, space)
 }
 

@@ -87,6 +87,7 @@ const performanceFiles = listedFiles('vitest.performance.config.ts')
 assert.deepEqual(performanceFiles, [
   'tests/performance/import-worker-boundary.test.ts',
   'tests/performance/solver-performance-budget.test.ts',
+  'tests/performance/state-persistence-budget.test.ts',
 ])
 
 console.log(

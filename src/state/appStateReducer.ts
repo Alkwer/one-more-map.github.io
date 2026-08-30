@@ -1,7 +1,11 @@
 import type { ChartData, Board } from '../types'
 import { emptyBoard, emptyBorders } from '../types'
 import type { AppState } from '../state/appState'
-import { validateStateForPersistence } from '../logic/stateCodec'
+import {
+  prepareStateForPersistence,
+  prepareStateMetadataMutation,
+  type StatePersistenceSnapshot,
+} from '../logic/stateCodec'
 import { chartAdditionResult } from '../logic/chartCapacity'
 
 export type AppStateAction =
@@ -29,6 +33,7 @@ export interface VoyageFinishSummary {
 export interface PersistableAppState {
   state: AppState
   mutationError: string | null
+  persistence?: StatePersistenceSnapshot
 }
 
 /** Reject UI mutations that would create a state which cannot be exported and restored. */
@@ -37,14 +42,20 @@ export function persistableAppStateReducer(
   action: AppStateAction,
 ): PersistableAppState {
   const next = appStateReducer(current.state, action)
-  const persistence = validateStateForPersistence(next)
-  if (!persistence.ok) {
+  if (action.type !== 'replace' && next === current.state && current.persistence) {
+    return { ...current, mutationError: null }
+  }
+  const prepared =
+    current.persistence && action.type !== 'replace'
+      ? prepareStateMetadataMutation(current.state, next, current.persistence.budget)
+      : prepareStateForPersistence(next)
+  if (!prepared.ok) {
     return {
-      state: current.state,
-      mutationError: `Change was not applied because it could not be saved: ${persistence.message}`,
+      ...current,
+      mutationError: `Change was not applied because it could not be saved: ${prepared.message}`,
     }
   }
-  return { state: next, mutationError: null }
+  return { state: next, mutationError: null, persistence: prepared.persistence }
 }
 
 export function summarizeVoyageFinish(
