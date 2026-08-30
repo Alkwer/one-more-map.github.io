@@ -74,37 +74,50 @@ The development server is available at `http://localhost:5173`.
 
 ## Commands
 
-| Command                            | Purpose                                                        |
-| ---------------------------------- | -------------------------------------------------------------- |
-| `npm ci`                           | Install the exact dependency versions from `package-lock.json` |
-| `npm run dev`                      | Start the Vite development server                              |
-| `npm test`                         | Run the Vitest test suite once                                 |
-| `npm run test:performance`         | Enforce the noise-tolerant solver latency budget               |
-| `npm run validate:data-update`     | Validate a dataset-only update and build the application       |
-| `npm run audit:ci`                 | Enforce the production and high-severity dependency policy     |
-| `npm run check:production-headers` | Verify anti-framing headers at a deployed HTTPS URL            |
-| `npm run check:scope`              | Verify test discovery stays inside the tracked project scope   |
-| `npm run check:research-stats`     | Check documented corpus statistics against canonical JSON      |
-| `npm run sync:research-stats`      | Regenerate documented corpus statistics from canonical JSON    |
-| `npm run windows-ocr:preflight`    | Inspect a privacy-safe Windows OCR live-test environment       |
-| `npm run check:bundle`             | Enforce initial application gzip budgets from Vite's manifest  |
-| `npm run typecheck`                | Strict-check app, E2E, tests, benchmarks, and TS configs       |
-| `npm run lint`                     | Run ESLint with zero warnings allowed                          |
-| `npm run check:eol`                | Require LF endings in every tracked text file                  |
-| `npm run format:eol`               | Normalize every tracked text file to LF                        |
-| `npm run format:check`             | Check formatting with Prettier                                 |
-| `npm run format`                   | Rewrite supported files with Prettier                          |
-| `npm run build`                    | Create the production bundle in `dist/`                        |
-| `npm run preview`                  | Serve the production bundle locally after a build              |
-| `npm run build:pages`              | Build the Pages artifact and nested-prefix E2E wrapper         |
-| `npm run preview:pages`            | Serve the staged E2E wrapper locally                           |
-| `npm run test:e2e`                 | Build and run the bounded Chromium/WebKit browser matrix       |
-| `npm run test:e2e:exit`            | Check bounded Playwright teardown and preview-port cleanup     |
-| `npm run test:e2e:ui`              | Build and open the interactive Playwright test runner          |
-| `npm run validate`                 | Run typecheck, tests, lint, formatting, and production build   |
-| `npm run bench:solver`             | Run the solver performance benchmark                           |
+| Command                            | Purpose                                                          |
+| ---------------------------------- | ---------------------------------------------------------------- |
+| `npm ci`                           | Install the exact dependency versions from `package-lock.json`   |
+| `npm run dev`                      | Start the Vite development server                                |
+| `npm test`                         | Run the Vitest test suite once                                   |
+| `npm run test:data`                | Test canonical dataset parsing, aggregation, and research stats  |
+| `npm run test:workflow`            | Test workflow, deployment, repository, and Windows OCR policies  |
+| `npm run test:performance`         | Enforce the noise-tolerant solver latency budget                 |
+| `npm run validate:data-update`     | Validate a dataset-only update and build the application         |
+| `npm run audit:ci`                 | Enforce the production and high-severity dependency policy       |
+| `npm run audit:production`         | Reject every known production dependency advisory                |
+| `npm run audit:high`               | Reject high or critical advisories across all dependencies       |
+| `npm run check:production-headers` | Verify anti-framing headers at a deployed HTTPS URL              |
+| `npm run check:scope`              | Verify test discovery stays inside the tracked project scope     |
+| `npm run check:docs`               | Keep the command reference complete and npm script links valid   |
+| `npm run check:research-stats`     | Check documented corpus statistics against canonical JSON        |
+| `npm run sync:research-stats`      | Regenerate documented corpus statistics from canonical JSON      |
+| `npm run windows-ocr:preflight`    | Inspect a privacy-safe Windows OCR live-test environment         |
+| `npm run check:bundle`             | Enforce initial application gzip budgets from Vite's manifest    |
+| `npm run typecheck`                | Strict-check app, E2E, tests, benchmarks, and TS configs         |
+| `npm run lint`                     | Run ESLint with zero warnings allowed                            |
+| `npm run check:eol`                | Require LF endings in every tracked text file                    |
+| `npm run format:eol`               | Normalize every tracked text file to LF                          |
+| `npm run format:check`             | Check formatting with Prettier                                   |
+| `npm run format`                   | Rewrite supported files with Prettier                            |
+| `npm run build`                    | Create the production bundle in `dist/`                          |
+| `npm run preview`                  | Serve the production bundle locally after a build                |
+| `npm run build:pages`              | Build the Pages artifact and nested-prefix E2E wrapper           |
+| `npm run stage:pages`              | Stage an existing dist build for Pages and nested-prefix E2E     |
+| `npm run build:pages:e2e`          | Build in E2E mode and stage the Pages browser-test artifact      |
+| `npm run preview:pages`            | Serve the staged E2E wrapper locally                             |
+| `npm run test:e2e`                 | Build and run the bounded Chromium/WebKit browser matrix         |
+| `npm run test:e2e:exit`            | Check bounded Playwright teardown and preview-port cleanup       |
+| `npm run test:e2e:ui`              | Build and open the interactive Playwright test runner            |
+| `npm run validate`                 | Run scope/docs/data checks, types, tests, lint, format and build |
+| `npm run bench:solver`             | Run the solver performance benchmark                             |
 
-Run `npm run validate` before opening a pull request. Git attributes, Prettier,
+Follow the [complete local CI gate](CONTRIBUTING.md#local-quality-gate) before
+opening a pull request. `npm run validate` is its static/unit/build portion;
+normal changes also require dependency audits, performance, browser, and Windows
+teardown checks. Dataset-only changes use the documented focused gate instead.
+`npm run check:docs` (included in `validate`) checks this command reference against
+`package.json` and rejects stale script names in README and CONTRIBUTING.
+Git attributes, Prettier,
 and the EOL check keep tracked text on LF even when Git uses `core.autocrlf=true`.
 The production build also keeps the entry surfaces at or below 100 KiB gzip and
 their complete eager dependency graph at or below 120 KiB gzip; lazy screens are
@@ -186,8 +199,11 @@ module map and contributor workflow.
 
 ## Deployment
 
-GitHub Actions runs `npm ci` and `npm run validate` for pull requests and pushes
-to `main`. Changes limited to `data/border-rolls-v2.json` and its generated
+GitHub Actions installs the locked dependencies, verifies private reporting,
+and runs the [complete quality gate](CONTRIBUTING.md#local-quality-gate) for pull
+requests and pushes to `main`: audits, `validate`, solver performance, the browser
+matrix, and a separate Windows native-launcher/teardown job. Changes limited to
+`data/border-rolls-v2.json` and its generated
 corpus-statistics block in `RESEARCH.md` use focused dataset, model, and
 production-build validation; they skip the Windows teardown job and browser
 matrix. A successful `main` build is staged under
