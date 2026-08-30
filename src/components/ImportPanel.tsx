@@ -17,7 +17,7 @@ import {
   MAX_IMPORT_SIGNATURE_PREFIX_LENGTH,
   MAX_IMPORT_TEXT_LENGTH,
 } from '../logic/importLimits'
-import type { AppState } from '../logic/storage'
+import type { AppState } from '../state/appState'
 import {
   decodeStateFile,
   defaultState,
