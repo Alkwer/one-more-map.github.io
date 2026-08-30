@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AppHeader } from '../components/app/AppHeader'
 import { SolverActions } from '../components/solver/SolverActions'
 import { RewardWeights } from '../components/solver/RewardWeights'
+import { TooltipDescription } from '../components/Tooltip'
 import { REWARD_TYPES } from '../logic/rewards'
 import {
   formatDecimal,
@@ -100,6 +101,15 @@ describe('translations and localized numbers', async () => {
     expect(ui(status)).toBe('해도 1개를 가져왔습니다; JSON에서 상태를 불러왔습니다')
     await setLocale('en')
     expect(ui(status)).toBe('Imported 1 chart; State loaded from JSON')
+  })
+
+  it('preserves chart names even when they match an interface message', async () => {
+    await setLocale('ko')
+    const markup = renderToStaticMarkup(
+      <TooltipDescription id="chart-description" data={{ title: 'Share layout', lines: [] }} />,
+    )
+    expect(markup).toContain('Share layout')
+    expect(markup).not.toContain('배치 공유')
   })
 
   it('uses missing reward defaults before formatting and preserves explicit zero weights', async () => {
