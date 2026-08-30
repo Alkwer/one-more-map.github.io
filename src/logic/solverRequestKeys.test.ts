@@ -216,4 +216,46 @@ describe('solver request keys', () => {
     expect(changedInventory).not.toBe(inventory)
     expect(changedInteractive).not.toBe(interactive)
   })
+
+  it('keeps ordinary results for changes to inactive or ineffective layout preferences', () => {
+    const state = {
+      pool: [chart()],
+      borders: Array(12).fill(null),
+      ...inventoryOptions,
+      disabledMods: [],
+      layoutChoice: { 'alc-and-go': 'highway' },
+    }
+    const original = createSolverStateKey(state, {}, 'alc-and-go')
+    expect(
+      createSolverStateKey(
+        { ...state, layoutChoice: { ...state.layoutChoice, 'inactive-strategy': 'snake' } },
+        {},
+        'alc-and-go',
+      ),
+    ).toBe(original)
+    // Missing and unrecognized persisted choices both resolve to the default layout.
+    expect(createSolverStateKey({ ...state, layoutChoice: {} }, {}, 'alc-and-go')).toBe(original)
+    expect(
+      createSolverStateKey(
+        { ...state, layoutChoice: { 'alc-and-go': 'unknown-variant' } },
+        {},
+        'alc-and-go',
+      ),
+    ).toBe(original)
+  })
+
+  it('keeps filler and manual results across all strategy layout preferences', () => {
+    const state = {
+      pool: [chart()],
+      borders: Array(12).fill(null),
+      ...inventoryOptions,
+      disabledMods: [],
+      layoutChoice: { 'alc-and-go': 'highway' },
+    }
+    const changed = { ...state, layoutChoice: { 'alc-and-go': 'snake' } }
+    expect(createSolverStateKey(changed, {}, 'alc-and-go', 'filler')).toBe(
+      createSolverStateKey(state, {}, 'alc-and-go', 'filler'),
+    )
+    expect(createSolverStateKey(changed, {}, null)).toBe(createSolverStateKey(state, {}, null))
+  })
 })
