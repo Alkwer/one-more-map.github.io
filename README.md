@@ -3,6 +3,8 @@
 A browser-based planner and auto-solver for the **Voyage Board** in Path of
 Exile 3.29 _Curse of the Allflame_.
 
+**[Open Allflame Voyage Solver](https://alkwer.github.io/one-more-map.github.io/allflame-voyage-solver/)**
+
 ## What it does
 
 - Models the 3×3 Voyage Board, chart rotation, connector validity, reachability
@@ -194,6 +196,12 @@ matrix. A successful `main` build is staged under
 `/allflame-voyage-solver/`, with a redirect at the Pages root, and then deployed
 to the maintained production URL
 [`https://alkwer.github.io/one-more-map.github.io/allflame-voyage-solver/`](https://alkwer.github.io/one-more-map.github.io/allflame-voyage-solver/).
+The repository homepage, package homepage, and prominent link above use this
+same canonical URL. CI checks README and package metadata for drift and, after every
+deployment, fetches the advertised app, its hashed assets, and the exact deployed
+commit marker. Repository owners should update the GitHub homepage alongside
+these files if the deployment moves.
+
 Both the redirect and application document emit that canonical URL. The staging
 script derives canonical metadata from the configured origin and deployment
 prefix so root-site and project-site artifacts cannot point at a divergent

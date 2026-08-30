@@ -64,6 +64,7 @@ test('Pages deploy smoke-tests the final public artifact and commit marker', asy
   assert.match(stagePages, /buildInfo\.commit !== deploymentCommit/)
   assert.match(smokeTest, /::error title=Published Pages smoke test failed::/)
   assert.match(smokeTest, /process\.env\.GITHUB_STEP_SUMMARY/)
+  assert.match(smokeTest, /expectedAppUrl: packageJson\.homepage/)
 })
 
 test('dataset and generated research-summary updates keep required checks while skipping browser jobs', async () => {

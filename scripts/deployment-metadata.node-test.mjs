@@ -71,3 +71,26 @@ test('production metadata supports root and nested deployments without stale soc
     )
   }
 })
+
+test('README and package advertise the canonical maintained live app', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const packageJson = JSON.parse(
+    await readFile(new URL('../package.json', import.meta.url), 'utf8'),
+  )
+  const readme = await readFile(new URL('../README.md', import.meta.url), 'utf8')
+  const canonical = canonicalAppUrl(DEFAULT_PRODUCTION_SITE_PREFIX)
+  assert.equal(packageJson.homepage, canonical)
+  assert.equal(packageJson.repository.type, 'git')
+  assert.equal(
+    packageJson.repository.url,
+    'git+https://github.com/Alkwer/one-more-map.github.io.git',
+  )
+  assert.equal(
+    packageJson.bugs.url,
+    'https://github.com/Alkwer/one-more-map.github.io/issues/new/choose',
+  )
+  assert.ok(
+    readme.split('## What it does')[0].includes(`](${canonical})`),
+    'the live-app call to action must be prominent in the README introduction',
+  )
+})
