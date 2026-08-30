@@ -1,4 +1,4 @@
-import type { AppState } from './storage'
+import type { AppState } from '../state/appState'
 
 export interface VoyageFinishSnapshot {
   boardUids: (string | null)[]
