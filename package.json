@@ -1,6 +1,14 @@
 {
   "name": "allflame-voyage-solver",
   "private": true,
+  "homepage": "https://alkwer.github.io/one-more-map.github.io/allflame-voyage-solver/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Alkwer/one-more-map.github.io.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Alkwer/one-more-map.github.io/issues/new/choose"
+  },
   "version": "0.1.0",
   "type": "module",
   "engines": {
