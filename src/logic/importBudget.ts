@@ -1,3 +1,4 @@
+import { formatNumber } from '../i18n/locale'
 import { importSizeLimitMessage, MAX_IMPORT_TEXT_LENGTH } from './importLimits'
 
 /**
@@ -79,9 +80,7 @@ export function assertImportWithinBudget(source: string): void {
     const rawLineEnd = end > start && source.charCodeAt(end - 1) === 13 ? end - 1 : end
     const lineLength = rawLineEnd - start
     if (lineLength > MAX_IMPORT_LINE_LENGTH) {
-      throw limitError(
-        `a line exceeds ${MAX_IMPORT_LINE_LENGTH.toLocaleString('en-US')} characters`,
-      )
+      throw limitError(`a line exceeds ${formatNumber(MAX_IMPORT_LINE_LENGTH)} characters`)
     }
 
     const line = source.slice(start, rawLineEnd).trim()
@@ -120,7 +119,7 @@ export function assertImportWithinBudget(source: string): void {
         }
         if (activeOcr.length > MAX_IMPORT_OCR_BLOCK_LENGTH) {
           throw limitError(
-            `an OCR block exceeds ${MAX_IMPORT_OCR_BLOCK_LENGTH.toLocaleString('en-US')} characters`,
+            `an OCR block exceeds ${formatNumber(MAX_IMPORT_OCR_BLOCK_LENGTH)} characters`,
           )
         }
       }
@@ -138,9 +137,7 @@ export function assertImportWithinBudget(source: string): void {
         throw limitError(`a chart item exceeds ${MAX_IMPORT_LINES_PER_CHART} lines`)
       }
       if (chartLength > MAX_IMPORT_CHART_LENGTH) {
-        throw limitError(
-          `a chart item exceeds ${MAX_IMPORT_CHART_LENGTH.toLocaleString('en-US')} characters`,
-        )
+        throw limitError(`a chart item exceeds ${formatNumber(MAX_IMPORT_CHART_LENGTH)} characters`)
       }
     }
 

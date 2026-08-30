@@ -1,3 +1,4 @@
+import { formatNumber } from '../i18n/locale'
 import {
   DEFAULT_MAX_REROLL_COST,
   KEEP_MODEL_PERCENTILE_LINES,
@@ -82,7 +83,7 @@ interface DecisionCandidate {
 const percent = (fit: number | null) =>
   fit === null ? 'no measurable ratio' : `${Math.round(fit * 100)}%`
 
-const sulphur = (value: number) => value.toLocaleString('en-US')
+const sulphur = (value: number) => formatNumber(value)
 
 const candidateFrom = (evaluation: StrategySuggestion): DecisionCandidate => {
   const layoutStatus =

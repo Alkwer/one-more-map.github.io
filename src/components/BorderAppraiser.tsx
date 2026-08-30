@@ -1,3 +1,4 @@
+import { formatDecimal, formatNumber, t, ui } from '../i18n/locale'
 import type {
   BorderAppraisal,
   BorderAppraisalStatus,
@@ -31,7 +32,7 @@ const ISSUE_LABEL: Record<Exclude<BorderSegmentIssue, null>, string> = {
 }
 
 const scoreText = (value: number) =>
-  `${value > 0 ? '+' : ''}${Math.abs(value) < 0.05 ? '0.0' : value.toFixed(1)}`
+  `${value > 0 ? '+' : ''}${Math.abs(value) < 0.05 ? '0.0' : formatDecimal(value, 1)}`
 
 const segmentTitle = (segment: BorderSegmentAppraisal) => {
   if (!segment.bestLabel) return undefined
@@ -50,23 +51,23 @@ function SegmentRow({
     segment.contribution < 0 ? 'negative' : segment.contribution > 0 ? 'positive' : 'zero'
 
   return (
-    <div className={`border-appraisal-row ${tone}`} title={segmentTitle(segment)}>
+    <div className={`border-appraisal-row ${tone}`} title={ui(segmentTitle(segment))}>
       <div className="border-appraisal-place">
-        <span>{segment.position}</span>
-        <span className="muted">{segment.chartName ?? 'Empty square'}</span>
+        <span>{ui(segment.position)}</span>
+        <span className="muted">{segment.chartName ?? t('Empty square')}</span>
       </div>
       <div className="border-appraisal-mod">
-        <span>{segment.modLabel ?? 'No border selected'}</span>
+        <span>{ui(segment.modLabel) ?? t('No border selected')}</span>
         {!compact && (
           <span className="muted">
-            {issue ??
+            {ui(issue) ??
               (segment.fit !== null
-                ? `${Math.round(segment.fit * 100)}% slot fit`
-                : 'Scored effect')}
+                ? t('{v0}% slot fit', { v0: Math.round(segment.fit * 100) })
+                : t('Scored effect'))}
           </span>
         )}
       </div>
-      <strong>{segment.modId ? scoreText(segment.contribution) : '—'}</strong>
+      <strong>{segment.modId ? ui(scoreText(segment.contribution)) : '—'}</strong>
     </div>
   )
 }
@@ -87,41 +88,44 @@ export function BorderAppraiser({ appraisal, contextLabel }: Props) {
       <div className="border-appraiser-head">
         <div>
           <h3 id="border-appraiser-title" className="panel-title">
-            Border Fit Diagnostic
+            {t('Border Fit Diagnostic')}
           </h3>
-          <div className="muted border-appraiser-subtitle">{contextLabel}</div>
+          <div className="muted border-appraiser-subtitle">{ui(contextLabel)}</div>
         </div>
         <span className={`border-fit-badge ${appraisal.status}`}>
-          {STATUS_LABEL[appraisal.status]}
+          {ui(STATUS_LABEL[appraisal.status])}
         </span>
       </div>
 
       <div className="border-appraisal-hero">
         <div>
-          <div className="border-appraisal-score">{scoreText(appraisal.score)}</div>
-          <div className="muted">marginal Voyage score</div>
+          <div className="border-appraisal-score">{ui(scoreText(appraisal.score))}</div>
+          <div className="muted">{t('marginal Voyage score')}</div>
         </div>
         <div className="border-fit">
           <div className="border-fit-line">
-            <span>Theoretical ceiling ratio</span>
-            <strong>{fitPercent === null ? '—' : `${fitPercent}%`}</strong>
+            <span>{t('Theoretical ceiling ratio')}</span>
+            <strong>{fitPercent === null ? '—' : t('{v0}%', { v0: fitPercent })}</strong>
           </div>
           <div className="border-fit-track" aria-hidden="true">
             <span style={{ width: `${fitPercent ?? 0}%` }} />
           </div>
           <div className="muted border-fit-meta">
-            {appraisal.enteredBorders}/12 entered · {appraisal.activeSegments} active
+            {formatNumber(appraisal.enteredBorders)}
+            {t('/12 entered · ')}
+            {formatNumber(appraisal.activeSegments)}
+            {t(' active')}
             {appraisal.attentionSegments > 0
-              ? ` · ${appraisal.attentionSegments} need attention`
+              ? t(' · {v0} need attention', { v0: appraisal.attentionSegments })
               : ''}
           </div>
         </div>
       </div>
 
       <div className="muted small-note border-appraisal-note">
-        Score is the difference versus this same layout with no borders. The ceiling ratio assumes a
-        best-scoring known modifier in every relevant slot simultaneously; it is not a roll
-        percentile and is never used as a keep/reroll threshold.
+        {t(
+          'Score is the difference versus this same layout with no borders. The ceiling ratio assumes a best-scoring known modifier in every relevant slot simultaneously; it is not a roll percentile and is never used as a keep/reroll threshold.',
+        )}
       </div>
 
       {statGains.length > 0 && (
@@ -129,7 +133,7 @@ export function BorderAppraiser({ appraisal, contextLabel }: Props) {
           {statGains.map(({ stat, value }) => (
             <span key={stat} className={value < 0 ? 'negative' : ''}>
               {value > 0 ? '+' : ''}
-              {Math.round(value * 100)}% {STAT_LABELS[stat]}
+              {formatNumber(Math.round(value * 100))}% {ui(STAT_LABELS[stat])}
             </span>
           ))}
         </div>
@@ -137,7 +141,7 @@ export function BorderAppraiser({ appraisal, contextLabel }: Props) {
 
       {top.length > 0 ? (
         <>
-          <h4 className="panel-title small">Strongest current matches</h4>
+          <h4 className="panel-title small">{t('Strongest current matches')}</h4>
           <div className="border-appraisal-list top">
             {top.map((segment) => (
               <SegmentRow key={segment.segment} segment={segment} compact />
@@ -147,15 +151,15 @@ export function BorderAppraiser({ appraisal, contextLabel }: Props) {
       ) : (
         <div className="border-appraisal-empty muted">
           {appraisal.placedCharts === 0
-            ? 'Place charts to measure which borders support the layout.'
+            ? t('Place charts to measure which borders support the layout.')
             : appraisal.enteredBorders === 0
-              ? 'Enter or import the 12 current borders to appraise the roll.'
-              : 'The entered borders add no positive value under the current weights.'}
+              ? t('Enter or import the 12 current borders to appraise the roll.')
+              : t('The entered borders add no positive value under the current weights.')}
         </div>
       )}
 
       <details className="border-appraisal-details">
-        <summary>All border contributions</summary>
+        <summary>{t('All border contributions')}</summary>
         <div className="border-appraisal-list">
           {appraisal.segments.map((segment) => (
             <SegmentRow key={segment.segment} segment={segment} />

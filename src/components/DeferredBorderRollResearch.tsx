@@ -1,3 +1,4 @@
+import { formatNumber, t } from '../i18n/locale'
 import { lazy, Suspense, useState } from 'react'
 import type { BorderRollResearchController } from '../hooks/useBorderRollResearch'
 import type { Borders } from '../types'
@@ -26,8 +27,10 @@ function Summary({ controller }: Pick<Props, 'controller'>) {
 
   return (
     <>
-      📊 Contribute border-roll data ({activeSampleCount} active
-      {archivedSampleCount > 0 ? ` · ${archivedSampleCount} archived` : ''})
+      {t('📊 Contribute border-roll data (')}
+      {formatNumber(activeSampleCount)}
+      {t(' active')}
+      {archivedSampleCount > 0 ? t(' · {v0} archived', { v0: archivedSampleCount }) : ''})
     </>
   )
 }
@@ -39,7 +42,7 @@ function LoadingResearch({ controller }: Pick<Props, 'controller'>) {
         <Summary controller={controller} />
       </summary>
       <p role="status" aria-live="polite" className="muted">
-        Loading border-roll research tools…
+        {t('Loading border-roll research tools…')}
       </p>
     </details>
   )

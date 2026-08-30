@@ -1,3 +1,4 @@
+import { t, ui } from '../i18n/locale'
 import { useId, useMemo, useState } from 'react'
 import { BORDER_MODS, VOYAGE_MODS } from '../data/mods'
 import type { Scope } from '../types'
@@ -68,19 +69,20 @@ export function ModBrowser({ disabled, onToggle, onBulk, onClose }: Props) {
       >
         <div className="panel-title">
           <h2 id={titleId} className="panel-title-heading" data-dialog-initial-focus tabIndex={-1}>
-            Chart Modifiers
+            {t('Chart Modifiers')}
           </h2>
           <span className="spacer" />
-          <button onClick={onClose}>Done</button>
+          <button onClick={onClose}>{t('Done')}</button>
         </div>
         <p className="onboard-intro" style={{ marginBottom: 8 }}>
-          Every modifier the solver knows about. Untick any you do not care about and it will be
-          worth nothing in scoring. Your choices are saved and carry across updates.
-          {disabledCount > 0 ? ` (${disabledCount} off)` : ''}
+          {t(
+            'Every modifier the solver knows about. Untick any you do not care about and it will be worth nothing in scoring. Your choices are saved and carry across updates.',
+          )}
+          {disabledCount > 0 ? t(' ({v0} off)', { v0: disabledCount }) : ''}
         </p>
         <input
-          aria-label="Filter chart modifiers"
-          placeholder="Filter modifiers…"
+          aria-label={t('Filter chart modifiers')}
+          placeholder={t('Filter modifiers…')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           style={{ marginBottom: 10 }}
@@ -93,11 +95,11 @@ export function ModBrowser({ disabled, onToggle, onBulk, onClose }: Props) {
           return (
             <div key={g.title} className="mb-group">
               <div className="mb-group-head">
-                <span className="mb-group-title">{g.title}</span>
-                <span className="muted mb-group-hint">{g.hint}</span>
+                <span className="mb-group-title">{ui(g.title)}</span>
+                <span className="muted mb-group-hint">{ui(g.hint)}</span>
                 <span className="spacer" />
                 <button className="mb-bulk" onClick={() => onBulk(ids, anyOn)}>
-                  {anyOn ? 'Disable all' : 'Enable all'}
+                  {anyOn ? t('Disable all') : t('Enable all')}
                 </button>
               </div>
               <div className="mb-list">
@@ -110,8 +112,8 @@ export function ModBrowser({ disabled, onToggle, onBulk, onClose }: Props) {
                         checked={on}
                         onChange={(e) => onToggle(m.id, !e.target.checked)}
                       />
-                      <span className="mb-text">{m.text}</span>
-                      {m.value && <span className="mb-value">{m.value}</span>}
+                      <span className="mb-text">{ui(m.text)}</span>
+                      {m.value && <span className="mb-value">{ui(m.value)}</span>}
                     </label>
                   )
                 })}

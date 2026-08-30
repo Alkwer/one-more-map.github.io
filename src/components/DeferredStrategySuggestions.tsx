@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale'
 import { lazy, Suspense } from 'react'
 import type { StrategySuggestionResult } from '../logic/strategySuggestions'
 
@@ -21,14 +22,14 @@ function Placeholder({ loading = false }: { loading?: boolean }) {
       <div className="suggestion-heading">
         <div>
           <h3 className="panel-title" id="strategy-suggestions-title">
-            Strategy compatibility
+            {t('Strategy compatibility')}
           </h3>
         </div>
       </div>
       <div className="suggestion-empty" aria-live="polite">
         {loading
-          ? 'Loading strategy compatibility…'
-          : 'Import charts or enter border modifiers to get a strategy recommendation.'}
+          ? t('Loading strategy compatibility…')
+          : t('Import charts or enter border modifiers to get a strategy recommendation.')}
       </div>
     </section>
   )

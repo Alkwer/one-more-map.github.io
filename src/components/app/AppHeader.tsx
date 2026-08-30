@@ -1,3 +1,5 @@
+import { setLocale, t, ui, type Locale } from '../../i18n/locale'
+import { useLocale } from '../../i18n/useLocale'
 interface Props {
   disabledModCount: number
   harvestTheme: boolean
@@ -14,63 +16,82 @@ interface Props {
 const ISSUES_URL = 'https://github.com/Alkwer/one-more-map.github.io/issues'
 
 export function AppHeader(props: Props) {
+  const locale = useLocale()
   return (
     <header>
       <h1>
-        Allflame <span className="accent">Voyage Solver</span>
+        {t('Allflame ')}
+        <span className="accent">{t('Voyage Solver')}</span>
       </h1>
       <button className="tutorial-btn" data-dialog-fallback-focus onClick={props.onOpenTutorial}>
-        🧭 TUTORIAL · how to use this
+        {t('🧭 TUTORIAL · how to use this')}
       </button>
       <div className="header-right">
-        <span className="tag">PoE 3.29: Curse of the Allflame</span>
+        <label className="language-picker">
+          <span className="sr-only">{t('Language')}</span>
+          <select
+            aria-label={t('Language')}
+            title={t('Interface language (untranslated text uses English)')}
+            value={locale}
+            onChange={(event) => void setLocale(event.target.value as Locale)}
+          >
+            <option value="en" lang="en">
+              English
+            </option>
+            <option value="ko" lang="ko">
+              한국어
+            </option>
+          </select>
+        </label>
+        <span className="tag">{t('PoE 3.29: Curse of the Allflame')}</span>
         <button
-          aria-label="Open how it works guide"
-          title="How it works"
+          aria-label={t('Open how it works guide')}
+          title={t('How it works')}
           onClick={props.onOpenOnboarding}
         >
           ?
         </button>
         <button
-          aria-label={props.updatesUnseen ? 'Updates — new updates' : 'Updates'}
+          aria-label={props.updatesUnseen ? t('Updates — new updates') : t('Updates')}
           className={props.updatesUnseen ? 'updates-btn unseen' : 'updates-btn'}
-          title="What's new on the site"
+          title={t("What's new on the site")}
           onClick={props.onOpenUpdates}
         >
-          Updates
+          {t('Updates')}
         </button>
         <a
           className="feedback-link"
           href={ISSUES_URL}
           target="_blank"
           rel="noopener noreferrer"
-          title="Bug reports and feature requests on GitHub"
+          title={t('Bug reports and feature requests on GitHub')}
         >
-          🐛 Feedback
+          {t('🐛 Feedback')}
         </a>
         <button
-          title="Browse all modifiers and switch off ones you don't want"
+          title={t("Browse all modifiers and switch off ones you don't want")}
           onClick={props.onOpenMods}
         >
-          Mods{props.disabledModCount > 0 ? ` (${props.disabledModCount} off)` : ''}
+          {t('Mods')}
+          {props.disabledModCount > 0 ? t(' ({count} off)', { count: props.disabledModCount }) : ''}
         </button>
         <button
           className="theme-link"
-          aria-label={props.harvestTheme ? 'Use the Allflame theme' : 'Use the Harvest theme'}
+          aria-label={props.harvestTheme ? t('Use the Allflame theme') : t('Use the Harvest theme')}
           title={
             props.harvestTheme
-              ? 'Back to the Allflame theme'
-              : 'Harvest Edition, like the old garden planner sheets'
+              ? t('Back to the Allflame theme')
+              : t('Harvest Edition, like the old garden planner sheets')
           }
           onClick={props.onToggleTheme}
         >
           {props.harvestTheme ? '🔥' : '🌱'}
         </button>
-        <button aria-label="Share layout" onClick={props.onShare}>
-          {props.shareMessage || 'Share layout'}
+        <button aria-label={t('Share layout')} onClick={props.onShare}>
+          {ui(props.shareMessage) || t('Share layout')}
         </button>
         <span className="sr-only" role="status" aria-live="polite">
-          {props.shareMessage}
+          {ui(props.shareMessage)}
         </span>
       </div>
     </header>

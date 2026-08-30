@@ -1,3 +1,4 @@
+import { t, ui } from '../../i18n/locale'
 import {
   DIVINE_RARE_RESERVATIONS,
   MANUAL_STRATEGY_RESERVATIONS,
@@ -32,14 +33,14 @@ export function SolverControls({ state, activeStrategy, onPatch }: Props) {
   return (
     <>
       <div className="field">
-        <label htmlFor="connector-rule">Connector rule</label>
+        <label htmlFor="connector-rule">{t('Connector rule')}</label>
         <select
           id="connector-rule"
           value={state.mode}
           onChange={(event) => onPatch({ mode: event.target.value as ConnectivityMode })}
         >
-          <option value="strict">Connectors must line up (real rule)</option>
-          <option value="any">Ignore connectors (experiment)</option>
+          <option value="strict">{t('Connectors must line up (real rule)')}</option>
+          <option value="any">{t('Ignore connectors (experiment)')}</option>
         </select>
       </div>
 
@@ -49,18 +50,18 @@ export function SolverControls({ state, activeStrategy, onPatch }: Props) {
           checked={state.allowRotation}
           onChange={(event) => onPatch({ allowRotation: event.target.checked })}
         />
-        Charts can be rotated
+        {t('Charts can be rotated')}
       </label>
 
       <div className="field">
-        <label htmlFor="adjacency-mode">Adjacent modifiers reach</label>
+        <label htmlFor="adjacency-mode">{t('Adjacent modifiers reach')}</label>
         <select
           id="adjacency-mode"
           value={state.adjacencyMode}
           onChange={(event) => onPatch({ adjacencyMode: event.target.value as AdjacencyMode })}
         >
-          <option value="physical">Any neighbouring area</option>
-          <option value="connected">Only connected neighbours</option>
+          <option value="physical">{t('Any neighbouring area')}</option>
+          <option value="connected">{t('Only connected neighbours')}</option>
         </select>
       </div>
 
@@ -70,19 +71,19 @@ export function SolverControls({ state, activeStrategy, onPatch }: Props) {
           checked={state.adjacentAffectsSelf}
           onChange={(event) => onPatch({ adjacentAffectsSelf: event.target.checked })}
         />
-        Adjacent modifiers also affect their own area
+        {t('Adjacent modifiers also affect their own area')}
       </label>
 
       {activeStrategy && (
         <div className="strat-override-note">
-          ⚑ <strong>{activeStrategy.name}</strong> is steering the solver - your manual weights
-          below are ignored while it's active.
+          ⚑ <strong>{activeStrategy.name}</strong>
+          {t(" is steering the solver - your manual weights below are ignored while it's active.")}
         </div>
       )}
 
       {availableReservations.length > 0 && (
         <fieldset className="strategy-reservations">
-          <legend>Protect chart types</legend>
+          <legend>{t('Protect chart types')}</legend>
           {availableReservations.map((option) => (
             <label className="check" key={option.id}>
               <input
@@ -99,12 +100,13 @@ export function SolverControls({ state, activeStrategy, onPatch }: Props) {
                   })
                 }
               />
-              {option.label}
+              {ui(option.label)}
             </label>
           ))}
           <div className="muted small-note">
-            Enabled chart types stay out of this solve pool. These choices persist when you switch
-            strategies.
+            {t(
+              'Enabled chart types stay out of this solve pool. These choices persist when you switch strategies.',
+            )}
           </div>
         </fieldset>
       )}
