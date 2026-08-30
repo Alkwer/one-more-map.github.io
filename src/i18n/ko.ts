@@ -243,6 +243,9 @@ export const koreanMessages: Readonly<Record<string, string>> = {
   'Copied!': '복사했습니다!',
   Loading: '불러오는 중',
   'Loading…': '불러오는 중…',
+  'Loading help…': '도움말 불러오는 중…',
+  'Help could not be loaded. Importing still works. Reload the page to try the help again.':
+    '도움말을 불러올 수 없습니다. 가져오기는 계속 사용할 수 있습니다. 도움말을 다시 보려면 페이지를 새로 고치세요.',
   'Your latest change was kept out of the library': '최근 변경 사항이 보관함에 적용되지 않았습니다',
   ' Your previous saved state is still intact.': ' 이전에 저장한 상태는 유지됩니다.',
   'Discard shared layout': '공유 배치 닫기',
