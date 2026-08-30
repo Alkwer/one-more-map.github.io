@@ -8,7 +8,8 @@ export function useAppChrome(state: AppState) {
     try {
       return !localStorage.getItem('onboarding-seen')
     } catch {
-      return false
+      // Without persistent storage, show the guide once per page load.
+      return true
     }
   })
   const [showMods, setShowMods] = useState(false)
@@ -22,7 +23,7 @@ export function useAppChrome(state: AppState) {
     try {
       localStorage.setItem('onboarding-seen', '1')
     } catch {
-      /* ignore */
+      // Closing still works for this page; the guide returns after a reload.
     }
   }
   const toggleTheme = () => {
