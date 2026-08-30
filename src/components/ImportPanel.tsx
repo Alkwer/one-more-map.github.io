@@ -662,11 +662,7 @@ export function ImportPanel({
         </p>
         <p className="muted small">
           {t('Problems or ideas?')}{' '}
-          <a
-            href={FEEDBACK_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <a href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer">
             {t('Open a GitHub issue')}
           </a>{' '}
           {t('— actively monitored, and pull requests are welcome.')}
