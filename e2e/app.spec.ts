@@ -152,6 +152,10 @@ test('stays usable when browser storage access is blocked', async ({ appPage }) 
 
   await openApp(appPage)
   await expect(appPage.locator('.app')).toBeVisible()
+  await appPage
+    .getByRole('dialog', { name: 'Plan your Voyage' })
+    .getByRole('button', { name: 'Start planning' })
+    .click()
   await appPage.getByRole('button', { name: '+ Add chart', exact: true }).click()
   await expect(libraryHeading(appPage)).toContainText('(1)')
   await appPage.getByRole('button', { name: 'Switch to grid view' }).click()
