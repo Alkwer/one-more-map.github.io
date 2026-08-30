@@ -3896,3 +3896,18 @@ textarea {
   line-height: 1.45;
   color: var(--muted-readable);
 }
+
+.build-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 20px;
+  padding: 16px;
+  color: var(--muted-readable);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.build-footer a {
+  color: var(--gold);
+}

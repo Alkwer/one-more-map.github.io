@@ -6,7 +6,11 @@ MIT license.
 
 ## Development setup
 
-Use Node.js 24 (the CI version) and npm:
+Use Node.js 24.x (the CI version) and its bundled npm. `.nvmrc` selects this
+major version; with nvm-sh, run `nvm install && nvm use` first. The `engines`
+and `devEngines` declarations in `package.json`, together with `.npmrc`, fail
+early on unsupported Node versions. An `EBADENGINE` or `EBADDEVENGINES` error
+means you should switch to Node 24 before retrying:
 
 ```bash
 npm ci
@@ -145,3 +149,13 @@ upstream synchronization workflow.
 
 Pull requests run the quality job but do not deploy. A merge to `main` deploys
 only after that same quality gate succeeds.
+
+## Public feedback
+
+Use the app's **Feedback** link for a bug report or **Request a feature** in the
+footer for an improvement. Both open structured GitHub forms with the full app
+revision and build time already filled in. Bug reports ask for reproduction
+steps, browser/OS and game patch; importer diagnostics remain optional.
+[Choose a report type](https://github.com/Alkwer/one-more-map.github.io/issues/new/choose)
+when reporting from outside the app. Never use public issue forms for security
+reports; follow [SECURITY.md](SECURITY.md) instead.
