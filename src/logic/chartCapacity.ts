@@ -1,4 +1,4 @@
-import { MAX_POOL_CHARTS } from './storage'
+import { MAX_POOL_CHARTS } from './stateCodec'
 
 export interface ChartAdditionResult {
   added: number
