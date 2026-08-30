@@ -20,6 +20,10 @@ const productionSitePrefix =
 const canonicalOrigin = process.env.PAGES_CANONICAL_ORIGIN ?? DEFAULT_CANONICAL_ORIGIN
 const prefixSegments = sitePrefixSegments(rawProjectSitePrefix)
 const deploymentCommit = process.env.GITHUB_SHA?.trim() || 'local'
+const buildInfo = JSON.parse(await readFile(join(dist, 'deployment.json'), 'utf8'))
+if (buildInfo.commit !== deploymentCommit) {
+  throw new Error('Built app revision does not match GITHUB_SHA; rebuild before staging.')
+}
 
 async function stageDeployment(target, sitePrefix) {
   const appDirectory = join(target, APP_DIRECTORY)
@@ -35,10 +39,7 @@ async function stageDeployment(target, sitePrefix) {
     const html = await readFile(path, 'utf8')
     await writeFile(path, setCanonicalLink(html, canonicalUrl, path))
   }
-  await writeFile(
-    join(appDirectory, 'deployment.json'),
-    `${JSON.stringify({ commit: deploymentCommit })}\n`,
-  )
+  // deployment.json is copied from dist, keeping the UI and public marker identical.
 }
 
 await rm(staging, { recursive: true, force: true })

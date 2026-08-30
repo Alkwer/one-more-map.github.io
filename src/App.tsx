@@ -13,6 +13,7 @@ import { DeferredStrategySuggestions } from './components/DeferredStrategySugges
 import { TooltipLayer } from './components/Tooltip'
 import { VoyageAdvisor } from './components/VoyageAdvisor'
 import { AppHeader } from './components/app/AppHeader'
+import { BuildFooter } from './components/app/BuildFooter'
 import { VoyageBoardStatus } from './components/app/VoyageBoardStatus'
 import {
   ChartDeletionConfirmationPrompt,
@@ -752,6 +753,7 @@ export default function App() {
           />
         </section>
       </main>
+      <BuildFooter />
     </div>
   )
 }

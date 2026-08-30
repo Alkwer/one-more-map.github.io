@@ -1,6 +1,11 @@
 name: Bug report
 description: Something broken in the solver site or the AHK importer
 body:
+  - type: input
+    id: build
+    attributes:
+      label: App build
+      description: Copy the commit and build time from the app footer. Feedback links fill this automatically.
   - type: textarea
     id: what-happened
     attributes:
