@@ -1,6 +1,10 @@
 import type { AppState } from '../state/appState'
 import type { StrategyEvaluationOptions } from './strategySuggestions'
-import { defaultStrategyReservations } from '../data/strategies'
+import {
+  defaultStrategyReservations,
+  resolveStrategyLayout,
+  strategyById,
+} from '../data/strategies'
 import type { Borders, ChartData, Weights } from '../types'
 
 const normalizedRewards = (chart: ChartData) =>
@@ -67,8 +71,11 @@ export function createSolverStateKey(
   state: SolverStateKeyInput,
   weights: Weights,
   activeStrategyId: string | null,
+  kind: 'solve' | 'filler' = 'solve',
 ): string {
+  const strategy = activeStrategyId ? strategyById.get(activeStrategyId) : undefined
   return JSON.stringify({
+    kind,
     pool: state.pool.map((chart) => normalizedChart(chart, true)),
     board: state.board ?? [],
     borders: state.borders,
@@ -80,7 +87,10 @@ export function createSolverStateKey(
     disabledMods: normalizedDisabledMods(state.disabledMods),
     strategyReservations: state.strategyReservations,
     pieceKeeps: state.pieceKeeps ?? {},
-    layoutChoice: normalizedLayoutChoice(state.layoutChoice),
+    strategyLayout:
+      kind === 'solve' && strategy
+        ? (resolveStrategyLayout(strategy, state.layoutChoice) ?? null)
+        : null,
     activeStrategyId,
   })
 }
