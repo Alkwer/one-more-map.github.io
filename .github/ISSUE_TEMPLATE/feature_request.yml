@@ -1,0 +1,42 @@
+name: Feature request
+description: Suggest an improvement to voyage planning or importing
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Security issue? Do not report it here.** [Report vulnerabilities privately](https://github.com/Alkwer/one-more-map.github.io/security/advisories/new).
+        Do not include submission keys, account data, or screenshots containing personal information.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What are you trying to achieve, and what is difficult today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Suggested improvement
+      description: Describe the behavior you would like, including alternatives you considered.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Current workflow or reproduction steps
+      description: If this improves an existing workflow, list the steps that show its limitation.
+  - type: input
+    id: browser-os
+    attributes:
+      label: Browser and operating system
+      placeholder: e.g. Chrome 149 on Windows 11, or not applicable
+  - type: input
+    id: game-patch
+    attributes:
+      label: Path of Exile patch
+      placeholder: e.g. 3.29.3, or not applicable
+  - type: input
+    id: build
+    attributes:
+      label: App build
+      description: Copy the commit and build time from the app footer. The feature request link fills this automatically.

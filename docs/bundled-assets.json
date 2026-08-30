@@ -1,5 +1,14 @@
 {
   "schemaVersion": 1,
   "description": "Binary assets intentionally bundled with the application. Every entry must have verified redistribution permission.",
-  "assets": []
+  "assets": [
+    {
+      "path": "public/social-preview.png",
+      "source": "scripts/generate-social-preview.ps1",
+      "author": "one-more-map contributors",
+      "license": "MIT",
+      "permissionStatus": "verified",
+      "evidence": "Original project artwork: programmatically drawn board grid, route and product text; no game artwork or third-party images. Reproducible from the included source script and covered by LICENSE."
+    }
+  ]
 }

@@ -3,7 +3,7 @@ import { resolveStrategyLayout, type StrategyDef } from '../data/strategies'
 import { hasOptimalityGuarantee, type SolverResult } from '../logic/solver'
 import { createSolverStateKey } from '../logic/solverRequestKeys'
 import { isWorkerRequestCancelled, SolverWorkerClient } from '../logic/solverWorkerClient'
-import type { AppState } from '../logic/storage'
+import type { AppState } from '../state/appState'
 import type { ChartData, Weights } from '../types'
 import {
   KEEP_BEST_CHARTS,

@@ -136,3 +136,22 @@ test('keeps the solver URL below a project Pages root', async () => {
     /must stay below the published root/,
   )
 })
+
+test('verifies the package homepage is the app reached from the deployed Pages URL', async () => {
+  const result = await verifyPublishedArtifact({
+    pageUrl,
+    expectedAppUrl: solverUrl,
+    expectedCommit: commit,
+    fetchImpl: publishedFetch(),
+  })
+  assert.equal(result.solverUrl, solverUrl)
+  await assert.rejects(
+    verifyPublishedArtifact({
+      pageUrl,
+      expectedAppUrl: 'https://example.test/wrong-prefix/allflame-voyage-solver/',
+      expectedCommit: commit,
+      fetchImpl: publishedFetch(),
+    }),
+    /does not match package homepage/,
+  )
+})

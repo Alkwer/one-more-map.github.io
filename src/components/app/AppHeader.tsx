@@ -1,3 +1,5 @@
+import { FEEDBACK_URL } from '../../buildInfo'
+
 interface Props {
   disabledModCount: number
   harvestTheme: boolean
@@ -10,8 +12,6 @@ interface Props {
   onToggleTheme: () => void
   onShare: () => void
 }
-
-const ISSUES_URL = 'https://github.com/Alkwer/one-more-map.github.io/issues'
 
 export function AppHeader(props: Props) {
   return (
@@ -41,7 +41,7 @@ export function AppHeader(props: Props) {
         </button>
         <a
           className="feedback-link"
-          href={ISSUES_URL}
+          href={FEEDBACK_URL}
           target="_blank"
           rel="noopener noreferrer"
           title="Bug reports and feature requests on GitHub"

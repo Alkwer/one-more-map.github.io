@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { defineConfig, loadEnv, type Plugin, type UserConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { resolveBuildIdentity } from './scripts/build-identity.ts'
 import {
   borderIntakeContentSecurityPolicy,
   resolveBorderIntakeDeployment,
@@ -33,14 +34,27 @@ export function createAppViteConfig(
   const deployment = resolveBorderIntakeDeployment(loadEnv(mode, process.cwd(), ''), mode)
   const contentSecurityPolicy = borderIntakeContentSecurityPolicy(deployment)
   const securityHeaders = productionSecurityHeaders(contentSecurityPolicy)
+  const buildInfo = resolveBuildIdentity(process.env)
 
   return {
     base: './',
     define: {
       __BORDER_ROLL_INTAKE_URL__: JSON.stringify(deployment.endpoint),
+      __APP_BUILD_INFO__: JSON.stringify(buildInfo),
     },
     plugins: [
       react(),
+      {
+        name: 'emit-build-identity',
+        apply: 'build',
+        generateBundle() {
+          this.emitFile({
+            type: 'asset',
+            fileName: 'deployment.json',
+            source: `${JSON.stringify(buildInfo)}\n`,
+          })
+        },
+      },
       {
         name: 'border-intake-deployment-config',
         transformIndexHtml(html) {

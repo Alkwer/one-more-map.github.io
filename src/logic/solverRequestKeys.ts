@@ -1,4 +1,4 @@
-import type { AppState } from './storage'
+import type { AppState } from '../state/appState'
 import type { StrategyEvaluationOptions } from './strategySuggestions'
 import {
   defaultStrategyReservations,
