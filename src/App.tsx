@@ -1,3 +1,4 @@
+import { FEEDBACK_URL } from './buildInfo'
 import { lazy, Suspense, useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { AutosaveFailureWarning } from './components/AutosaveFailureWarning'
 import { BoardView } from './components/Board'
@@ -13,6 +14,7 @@ import { DeferredStrategySuggestions } from './components/DeferredStrategySugges
 import { TooltipLayer } from './components/Tooltip'
 import { VoyageAdvisor } from './components/VoyageAdvisor'
 import { AppHeader } from './components/app/AppHeader'
+import { BuildFooter } from './components/app/BuildFooter'
 import { VoyageBoardStatus } from './components/app/VoyageBoardStatus'
 import {
   ChartDeletionConfirmationPrompt,
@@ -68,7 +70,6 @@ interface ChartDeletionConfirmation {
 /** One-time popup for the importer's one-scan border update.
  * This supersedes the earlier two-page notice so returning visitors see both changes. */
 const AHK_ALTSCAN_KEY = 'announce-ahk-altscan'
-const ISSUES_URL = 'https://github.com/Alkwer/one-more-map.github.io/issues'
 
 const ModBrowser = lazy(() =>
   import('./components/ModBrowser').then(({ ModBrowser }) => ({ default: ModBrowser })),
@@ -558,7 +559,7 @@ export default function App() {
           </div>
           <div className="muted small-note">
             Something misbehaving?{' '}
-            <a href={ISSUES_URL} target="_blank" rel="noopener noreferrer">
+            <a href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer">
               Report it on GitHub
             </a>{' '}
             — actively monitored.
@@ -755,6 +756,7 @@ export default function App() {
           />
         </section>
       </main>
+      <BuildFooter />
     </div>
   )
 }

@@ -6,27 +6,77 @@ MIT license.
 
 ## Development setup
 
-Use Node.js 24 (the CI version) and npm:
+Use Node.js 24.x (the CI version) and its bundled npm. `.nvmrc` selects this
+major version; with nvm-sh, run `nvm install && nvm use` first. The `engines`
+and `devEngines` declarations in `package.json`, together with `.npmrc`, fail
+early on unsupported Node versions. An `EBADENGINE` or `EBADDEVENGINES` error
+means you should switch to Node 24 before retrying:
 
 ```bash
 npm ci
 npm run dev
 ```
 
-Before opening a pull request, run the same quality gate as CI:
+## Local quality gate
+
+The required jobs in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)
+have two paths. `npm run validate` is only the static/unit/build portion of the
+normal path, not the entire CI gate. All normal changes, including documentation
+and configuration changes, run the following checks.
+
+### Normal changes
+
+Run these commands from the repository root in Bash on Linux (the quality job's
+platform), using Node 24 and authenticated GitHub CLI access to the canonical
+repository. The private-reporting check reads a repository setting; a permission
+error requires a maintainer or CI to verify it, and must not be treated as a pass.
 
 ```bash
+npm ci
+test "$(gh api repos/Alkwer/one-more-map.github.io/private-vulnerability-reporting --jq '.enabled')" = true
+export CI=1
+export PAGES_CANONICAL_ORIGIN=https://alkwer.github.io
+export PAGES_PRODUCTION_SITE_PREFIX=/one-more-map.github.io/
+export PLAYWRIGHT_PROJECT_SITE_PREFIX=/one-more-map.github.io/
+npm run audit:ci
 npm run validate
+npm run test:performance
+npx playwright install --with-deps chromium webkit
+npm run build:pages:e2e
+npx playwright test
 ```
 
-For browser, Web Worker, import/export, or GitHub Pages path changes, also run:
+`npm run test:e2e` combines the last two commands. The browser matrix is required
+for every normal change, not only edits to browser code. Browser installation
+is needed once per Playwright version; `--with-deps` installs Linux system
+dependencies and may require elevated OS permissions. `CI=1` also matches CI's
+single browser worker, retry policy, forbidden focused tests, and fresh preview
+server requirement.
 
-```bash
-npx playwright install chromium webkit
-npm run test:e2e
+The separate Windows job must also pass. On Windows, install the same pinned
+AutoHotkey v2.0.26 runtime used by `deploy.yml` (its install step records the
+download URL and SHA-256), then run the following in PowerShell. Adjust the
+runtime directory to its actual location; the native probe skips without an
+installed runtime, so check that the executable exists first:
+
+```powershell
+npm ci
+$env:AUTOHOTKEY_V2_DIR = 'C:\tools\AutoHotkey-2.0.26'
+if (-not (Test-Path (Join-Path $env:AUTOHOTKEY_V2_DIR 'AutoHotkey64.exe'))) {
+    throw 'Install the pinned AutoHotkey v2.0.26 runtime before the native launcher check.'
+}
+npx vitest run --config vitest.config.ts tests/border-ocr.test.ts
+npx playwright install chromium
+npm run test:e2e:exit
 ```
 
-This builds the deployable Pages artifact in `staging/` and a
+`test:e2e:exit` verifies bounded no-tests and deliberately failing Playwright
+runs and checks that the preview port is released. A Linux or macOS
+run cannot substitute for this Windows process-cleanup gate. Contributors
+without Windows should report that limitation and require the Windows CI job
+to pass before merge.
+
+Browser staging builds the deployable Pages artifact in `staging/` and a
 `staging-playwright/` wrapper that serves it at the root and below
 `PLAYWRIGHT_PROJECT_SITE_PREFIX` (default `/one-more-map.github.io/`). It then
 runs the bounded desktop Chromium, mobile Chromium, WebKit, and focused nested
@@ -34,13 +84,52 @@ deployment projects against that production artifact. See
 [docs/browser-support.md](docs/browser-support.md) for the exact flow and
 viewport matrix.
 
-`validate` strictly type-checks application code, E2E tests, root tests,
-benchmarks, and the Vite/Vitest configuration before running the Vitest suite,
-ESLint, Prettier's format check, and the production build. When changing the
-solver or scoring hot path, also run `npm run test:performance` and
-`npm run bench:solver`. The benchmark environment and budgets are documented in
+`validate` checks test discovery, command documentation, generated research
+statistics, and TypeScript application/E2E/test/benchmark/configuration files;
+then it runs unit, data, and workflow tests, lint, LF enforcement, Prettier, and
+the production build with bundle budgets. When changing the solver or scoring
+hot path, also run `npm run bench:solver` as a diagnostic; the performance gate
+above is mandatory for all normal changes. The environment and budgets are in
 [docs/solver-performance.md](docs/solver-performance.md). The full command
 reference is in [README.md](README.md#commands).
+
+### Dataset-only changes
+
+The focused path applies only when `data/border-rolls-v2.json` changes, optionally
+with its generated corpus-statistics block in `RESEARCH.md`, and no other files
+change. CI's path classifier permits the whole `RESEARCH.md` file, so contributors
+must keep edits there limited to the generated block. A README-only, research-only,
+or mixed code/data change uses the normal gate. Manual workflow dispatch always
+uses the normal gate.
+
+Fetch the current accepted source corpus before validation. Do not point the
+validator at the proposed dataset as its own source. These Bash commands match
+the dataset-only quality job and require authenticated GitHub CLI access:
+
+```bash
+npm ci
+test "$(gh api repos/Alkwer/one-more-map.github.io/private-vulnerability-reporting --jq '.enabled')" = true
+export BORDER_ROLL_ACCEPTED_PATH="$(mktemp)"
+trap 'rm -f "$BORDER_ROLL_ACCEPTED_PATH"' EXIT
+export PAGES_CANONICAL_ORIGIN=https://alkwer.github.io
+export PAGES_PRODUCTION_SITE_PREFIX=/one-more-map.github.io/
+export PLAYWRIGHT_PROJECT_SITE_PREFIX=/one-more-map.github.io/
+node scripts/fetch-accepted-border-roll-issues.mjs \
+  --repo Alkwer/one-more-map.github.io \
+  --output "$BORDER_ROLL_ACCEPTED_PATH"
+npm run validate:data-update
+```
+
+This verifies a byte-for-byte canonical rebuild from accepted issue records,
+research statistics, data tests, the focused border-roll model test, LF endings,
+formatting, and the production build/bundle budget. It skips dependency audits,
+full unit/workflow/type/lint validation, solver timing, the browser matrix, and
+the Windows job, exactly as the dataset-only CI path does. The accepted corpus
+can change after a local fetch; rerun the fetch if CI reports a newer source.
+
+The deployment-only `npm run build:pages`, Pages upload/deploy, and public URL
+smoke test run after a successful push to `main`; they are not PR validation
+commands and require the workflow's deployment configuration and credentials.
 
 ## Dependency updates and audit policy
 
@@ -128,7 +217,8 @@ search.
 1. Branch from an up-to-date `main` and keep the change focused.
 2. Install from the lockfile with `npm ci`.
 3. Make the change and add or update tests and documentation.
-4. Run `npm run validate` and any relevant solver benchmark or manual check.
+4. Run the applicable [local quality gate](#local-quality-gate), plus any relevant
+   solver benchmark or manual check. Record any platform-only checks left to CI.
 5. Describe the user-visible effect, model assumptions, and verification in the
    pull request.
 
@@ -145,3 +235,13 @@ upstream synchronization workflow.
 
 Pull requests run the quality job but do not deploy. A merge to `main` deploys
 only after that same quality gate succeeds.
+
+## Public feedback
+
+Use the app's **Feedback** link for a bug report or **Request a feature** in the
+footer for an improvement. Both open structured GitHub forms with the full app
+revision and build time already filled in. Bug reports ask for reproduction
+steps, browser/OS and game patch; importer diagnostics remain optional.
+[Choose a report type](https://github.com/Alkwer/one-more-map.github.io/issues/new/choose)
+when reporting from outside the app. Never use public issue forms for security
+reports; follow [SECURITY.md](SECURITY.md) instead.

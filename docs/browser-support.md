@@ -31,6 +31,14 @@ higher.
   and require the manual matrix in [windows-ocr.md](windows-ocr.md). CI does not
   launch Path of Exile or execute live OCR.
 
+## When browser storage is blocked
+
+The app remains usable when access to `localStorage` or its read/write methods
+throws. The first-run guide is shown if its saved "seen" flag cannot be read.
+Closing the guide hides it for the current page even if saving that flag fails;
+it appears again after a reload because the app cannot remember that dismissal.
+Export any charts you need to retain before reloading a storage-blocked session.
+
 ## Local commands
 
 Install both CI browser engines once, then run the bounded matrix:
