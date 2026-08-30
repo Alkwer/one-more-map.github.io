@@ -35,6 +35,11 @@ The before/after results below were collected on 2026-07-31 with:
 Timings vary by machine. The product target is measured on this documented
 reference environment; CI uses a wider regression tolerance described below.
 
+The project supports Node.js 24.x, declared in `package.json` and `.nvmrc`
+and enforced during npm installation and script execution. CI follows the
+same major version. Keep the historical 24.13.1 measurement above unchanged;
+record the exact Node patch version when publishing a new baseline.
+
 ## Before and after
 
 | Workload           | Issue baseline at `8bf3f8d` | Recheck before the fix at `d95213f` | After the fix | Improvement from recheck | Target |
