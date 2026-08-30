@@ -43,6 +43,15 @@ This is a deliberate fallback, not a claim that every game term has a verified
 Korean translation. Both visible text and accessible labels use the same layer;
 there is no DOM text rewriting or HTML interpretation of translations.
 
+The rolling-regex and Windows OCR instructions load independently when their
+native details disclosures first open. Their summaries and the main importer
+remain available immediately. The help subtree stays mounted after closing, so
+reopening keeps nested FAQ state and does not request the chunk again. A localized
+loading status and an isolated error boundary keep optional help loading or
+failure from interrupting chart imports.
+The one-time importer-update notice likewise keeps its modal shell, title, focus
+and close action available while its instructional body loads only when shown.
+
 `src/i18n/locale.test.tsx` checks locale resolution, blocked storage, metadata,
 fallback text, interpolation, number formatting, accessible controls, and stored
 message changes. `e2e/localization.spec.ts` checks Korean imports and live language

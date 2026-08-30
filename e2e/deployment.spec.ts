@@ -38,6 +38,10 @@ test('serves the Pages redirect and production assets from the subpath', async (
       .toBe(true)
   }
 
+  await appPage
+    .locator('summary')
+    .filter({ hasText: /Bulk-import.*Windows OCR/ })
+    .click()
   const downloadHref = await appPage.locator('a.ahk-dl').getAttribute('href')
   expect(downloadHref).not.toBeNull()
   const downloadUrl = new URL(downloadHref!, appPage.url())

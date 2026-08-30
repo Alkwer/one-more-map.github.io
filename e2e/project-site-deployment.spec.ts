@@ -60,6 +60,10 @@ test('covers the focused deployment flow below a project-site prefix', async ({
       .toBe(true)
   }
 
+  await appPage
+    .locator('summary')
+    .filter({ hasText: /Bulk-import.*Windows OCR/ })
+    .click()
   const downloadHref = await appPage.locator('a.ahk-dl').getAttribute('href')
   expect(downloadHref).not.toBeNull()
   const downloadUrl = new URL(downloadHref!, appPage.url())
