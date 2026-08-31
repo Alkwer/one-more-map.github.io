@@ -2,7 +2,7 @@ import { lazy, Suspense, useId, useLayoutEffect, useMemo, useRef, useState } fro
 import type { StrategyReservationPreferences } from '../data/strategies'
 import { selectPieceBank, type PieceType } from '../logic/pieceKeeps'
 import { newUid } from '../logic/chartUid'
-import { MAX_POOL_CHARTS } from '../logic/storage'
+import { MAX_POOL_CHARTS } from '../logic/stateCodec'
 import type { ChartAdditionResult } from '../logic/chartCapacity'
 import type { Board, ChartData, Weights } from '../types'
 import {

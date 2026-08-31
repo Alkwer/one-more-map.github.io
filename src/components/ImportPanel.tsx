@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { FEEDBACK_URL } from '../buildInfo'
 import { ALL_GOOD_MODS_REGEX, RARE_IMPLICITS } from '../data/strategies'
 import type { ProtectedBorderRoll } from './BorderRollResearch'
 import { DeferredBorderRollResearch } from './DeferredBorderRollResearch'
@@ -17,7 +18,7 @@ import {
   MAX_IMPORT_SIGNATURE_PREFIX_LENGTH,
   MAX_IMPORT_TEXT_LENGTH,
 } from '../logic/importLimits'
-import type { AppState } from '../logic/storage'
+import type { AppState } from '../state/appState'
 import {
   decodeStateFile,
   defaultState,
@@ -80,6 +81,7 @@ export function ImportPanel({
 
       setParsing(true)
       setMsg('Parsing import…')
+      setRareAlert('')
       const client = importClientRef.current ?? new ImportWorkerClient()
       importClientRef.current = client
 
@@ -428,18 +430,38 @@ export function ImportPanel({
         </button>
       </div>
       {msg && (
-        <div className="muted pad" role="status" aria-live="polite" aria-atomic="true">
+        <div
+          className="muted pad"
+          role="status"
+          aria-label="Import result"
+          aria-live="polite"
+          aria-atomic="true"
+        >
           {msg}
         </div>
       )}
-      {rareAlert && (
-        <div className="import-rare-alert">
-          <span>🎰 {rareAlert}</span>
-          <button className="announce-close" title="Dismiss" onClick={() => setRareAlert('')}>
+      <div className={rareAlert ? 'import-rare-alert' : undefined}>
+        <span>
+          {rareAlert && <span aria-hidden="true">🎰 </span>}
+          <span
+            role="status"
+            aria-label="Rare-chart import alert"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            {rareAlert}
+          </span>
+        </span>
+        {rareAlert && (
+          <button
+            className="announce-close"
+            aria-label="Dismiss rare-chart import alert"
+            onClick={() => setRareAlert('')}
+          >
             ✕
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       <details className="ahk-help">
         <summary>🎲 Rolling & keeping charts (Milky's regexes)</summary>
@@ -568,11 +590,7 @@ export function ImportPanel({
         </p>
         <p className="muted small">
           Problems or ideas?{' '}
-          <a
-            href="https://github.com/Alkwer/one-more-map.github.io/issues"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <a href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer">
             Open a GitHub issue
           </a>{' '}
           — actively monitored, and pull requests are welcome.

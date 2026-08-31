@@ -1,0 +1,6 @@
+# Border-roll research exports use prefilled title/body URLs without a form.
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability privately
+    url: https://github.com/Alkwer/one-more-map.github.io/security/advisories/new
+    about: Use private vulnerability reporting; never publish exploit details or secrets in an issue.

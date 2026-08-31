@@ -60,9 +60,11 @@ test('Pages deploy smoke-tests the final public artifact and commit marker', asy
   assert.match(deployBlock, /^ {8}timeout-minutes: 6$/m)
   assert.match(deployBlock, /^ {8}run: node scripts\/smoke-test-pages\.mjs$/m)
   assert.match(stagePages, /process\.env\.GITHUB_SHA/)
-  assert.match(stagePages, /join\(appDirectory, 'deployment\.json'\)/)
+  assert.match(stagePages, /join\(dist, 'deployment\.json'\)/)
+  assert.match(stagePages, /buildInfo\.commit !== deploymentCommit/)
   assert.match(smokeTest, /::error title=Published Pages smoke test failed::/)
   assert.match(smokeTest, /process\.env\.GITHUB_STEP_SUMMARY/)
+  assert.match(smokeTest, /expectedAppUrl: packageJson\.homepage/)
 })
 
 test('dataset and generated research-summary updates keep required checks while skipping browser jobs', async () => {

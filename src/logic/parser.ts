@@ -14,7 +14,7 @@ import {
   MAX_POOL_CHARTS,
   MAX_RAW_TEXT_LENGTH,
   MAX_SHAPE_INPUT_LENGTH,
-} from './storage'
+} from './stateCodec'
 import { assertImportWithinBudget, MAX_IMPORT_REJECTIONS } from './importBudget'
 import { newUid } from './chartUid'
 
