@@ -1,3 +1,4 @@
+import { formatNumber, t, ui } from '../../i18n/locale'
 import { voyageModById } from '../../data/mods'
 import { isChartShapeResolved } from '../../logic/chartShapes'
 import { displayChartValue } from '../../logic/chartRanking'
@@ -27,7 +28,7 @@ export function ChartGrid(props: Props) {
     <div
       className="chart-grid"
       role="list"
-      aria-label="Charts"
+      aria-label={t('Charts')}
       aria-describedby={props.pageStatusId}
     >
       {props.charts.map((chart, index) => {
@@ -92,8 +93,8 @@ export function ChartGrid(props: Props) {
               className="chart-sq-main"
               aria-label={
                 unresolvedShape
-                  ? `Confirm shape for ${chart.name}`
-                  : `Select ${chart.name} for placement`
+                  ? t('Confirm shape for {v0}', { v0: chart.name })
+                  : t('Select {v0} for placement', { v0: chart.name })
               }
               aria-pressed={!unresolvedShape && props.selected === chart.uid}
               onClick={activate}
@@ -101,15 +102,15 @@ export function ChartGrid(props: Props) {
             >
               <TooltipDescription id={descriptionId} data={tooltip} />
               {unresolvedShape ? (
-                <span className="sq-shape-warning">Confirm shape</span>
+                <span className="sq-shape-warning">{t('Confirm shape')}</span>
               ) : modifier?.short ? (
                 <span className={`sq-reward-text scope-${modifier.scope}`}>
-                  <span className="sq-shortname">{modifier.short}</span>
+                  <span className="sq-shortname">{ui(modifier.short)}</span>
                 </span>
               ) : modifier?.effects[0] ? (
                 <span className={`sq-reward-text scope-${modifier.scope}`}>
-                  <span className="sq-pct">+{modifier.effects[0].percent}%</span>
-                  <span className="sq-statname">{STAT_SHORT[modifier.effects[0].stat]}</span>
+                  <span className="sq-pct">+{formatNumber(modifier.effects[0].percent)}%</span>
+                  <span className="sq-statname">{ui(STAT_SHORT[modifier.effects[0].stat])}</span>
                 </span>
               ) : chart.implicitText ? (
                 <span className="sq-reward-text scope-global">
@@ -124,17 +125,20 @@ export function ChartGrid(props: Props) {
                 </span>
               )}
               {lock && (
-                <span className="sq-lock" title={lock}>
+                <span className="sq-lock" title={ui(lock)}>
                   🔒
                 </span>
               )}
-              <span className="sq-val">{value}</span>
-              <span className="sq-lvl">L:{chart.level}</span>
+              <span className="sq-val">{formatNumber(value)}</span>
+              <span className="sq-lvl">
+                {t('L:')}
+                {formatNumber(chart.level)}
+              </span>
             </button>
             <button
               type="button"
               className="sq-info"
-              aria-label={`Inspect details for ${chart.name}`}
+              aria-label={t('Inspect details for {v0}', { v0: chart.name })}
               {...tooltipProps(tooltip, descriptionId, true)}
             >
               ⓘ
@@ -142,8 +146,8 @@ export function ChartGrid(props: Props) {
             <button
               type="button"
               className="sq-del"
-              aria-label={`Delete ${chart.name}`}
-              title="Delete"
+              aria-label={t('Delete {v0}', { v0: chart.name })}
+              title={t('Delete')}
               onClick={() => props.onRemove(chart.uid)}
             >
               ✕

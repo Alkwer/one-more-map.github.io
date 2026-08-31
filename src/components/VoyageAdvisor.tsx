@@ -1,3 +1,4 @@
+import { formatNumber, t, ui } from '../i18n/locale'
 import type { VoyageDecision } from '../logic/voyageDecision'
 
 interface Props {
@@ -8,7 +9,7 @@ interface Props {
   onSelectStrategy: (id: string) => void
 }
 
-const sulphur = (value: number | null) => (value === null ? '—' : value.toLocaleString('en-US'))
+const sulphur = (value: number | null) => (value === null ? '—' : formatNumber(value))
 
 const toneFor = (decision: VoyageDecision) => {
   if (decision.kind === 'play' || decision.kind === 'switch') return 'keep'
@@ -50,15 +51,15 @@ export function VoyageAdvisor({
         <div className="voyage-advisor-grid">
           <div className="voyage-decision">
             <h2 id="voyage-advisor-title" className="panel-title">
-              Voyage Recommendation
+              {t('Voyage Recommendation')}
             </h2>
             <div className="voyage-decision-label">
-              {loading ? 'Analyzing strategies…' : 'Analysis unavailable'}
+              {loading ? t('Analyzing strategies…') : t('Analysis unavailable')}
             </div>
             <div className="voyage-decision-reason">
               {loading
-                ? 'Comparing your chart library with the current border roll in the background.'
-                : `Strategy analysis failed: ${error}`}
+                ? t('Comparing your chart library with the current border roll in the background.')
+                : t('Strategy analysis failed: {error}', { error })}
             </div>
           </div>
         </div>
@@ -90,44 +91,53 @@ export function VoyageAdvisor({
       <div className="voyage-advisor-grid">
         <div className="voyage-decision">
           <h2 id="voyage-advisor-title" className="panel-title">
-            Voyage Recommendation
+            {t('Voyage Recommendation')}
           </h2>
-          <div className="voyage-decision-label">{decision.label}</div>
-          <div className="voyage-decision-reason">{decision.reason}</div>
-          <small>Decision basis: {decision.decisionBasis}</small>
+          <div className="voyage-decision-label">{ui(decision.label)}</div>
+          <div className="voyage-decision-reason">{ui(decision.reason)}</div>
+          <small>
+            {t('Decision basis: ')}
+            {ui(decision.decisionBasis)}
+          </small>
           {action && (
             <button
               className="voyage-primary-action"
               onClick={() => onSelectStrategy(action.strategyId)}
             >
-              {action.label}
+              {ui(action.label)}
             </button>
           )}
         </div>
 
         <div className="voyage-context">
-          <span>{contextLabelFor(decision)}</span>
-          <strong>{decision.strategyName ?? 'Import charts to compare'}</strong>
+          <span>{ui(contextLabelFor(decision))}</span>
+          <strong>{decision.strategyName ?? t('Import charts to compare')}</strong>
           {forecast && (
             <div className="voyage-model" data-testid="experimental-roll-model">
               <div className="voyage-model-head">
-                <span>Paid-reroll slot model v{forecast.modelVersion}</span>
+                <span>
+                  {t('Paid-reroll slot model v')}
+                  {formatNumber(forecast.modelVersion)}
+                </span>
                 <strong className={forecast.modelConfidence}>
-                  {forecast.modelConfidence} confidence
+                  {ui(forecast.modelConfidence)}
+                  {t(' confidence')}
                 </strong>
               </div>
               <div className="voyage-fit-summary voyage-model-summary">
                 <div>
-                  <span>Achievable-roll percentile (prior range)</span>
+                  <span>{t('Achievable-roll percentile (prior range)')}</span>
                   <strong>
-                    {rollPercentile}%
-                    {percentileRange ? ` (${percentileRange[0]}–${percentileRange[1]}%)` : ''}
+                    {ui(rollPercentile)}%
+                    {percentileRange
+                      ? t(' ({v0}–{v1}%)', { v0: percentileRange[0], v1: percentileRange[1] })
+                      : ''}
                   </strong>
                 </div>
                 <div>
-                  <span>Keep percentile</span>
+                  <span>{t('Keep percentile')}</span>
                   <strong>
-                    {modelKeepLinePercent === null ? '—' : `${modelKeepLinePercent}%`}
+                    {modelKeepLinePercent === null ? '—' : t('{v0}%', { v0: modelKeepLinePercent })}
                   </strong>
                 </div>
               </div>
@@ -138,68 +148,77 @@ export function VoyageAdvisor({
                 )}
               </div>
               <p className="voyage-model-insight">
-                <strong>{improveChance}%</strong> of modeled paid rerolls score higher than this
-                roll{improveRange ? ` (${improveRange[0]}–${improveRange[1]}% prior range)` : ''}.
+                <strong>{ui(improveChance)}%</strong>
+                {t(' of modeled paid rerolls score higher than this roll')}
+                {improveRange
+                  ? t(' ({v0}–{v1}% prior range)', { v0: improveRange[0], v1: improveRange[1] })
+                  : ''}
+                .
               </p>
               <small>
-                {forecast.sampleCount} paid-reroll boards · {forecast.sequenceCount} paid Voyage
-                sequences · {forecast.borrowedNaturalBoardCount} natural boards borrowed at half
-                weight
+                {formatNumber(forecast.sampleCount)}
+                {t(' paid-reroll boards · ')}
+                {formatNumber(forecast.sequenceCount)}
+                {t(' paid Voyage sequences · ')}
+                {formatNumber(forecast.borrowedNaturalBoardCount)}
+                {t(' natural boards borrowed at half weight')}
               </small>
             </div>
           )}
           {!forecast &&
             (fitPercent === null ? (
-              <small>Enter the border roll to measure contextual border fit.</small>
+              <small>{t('Enter the border roll to measure contextual border fit.')}</small>
             ) : (
               <>
                 <div className="voyage-fit-summary">
                   <div>
-                    <span>Theoretical ceiling ratio</span>
-                    <strong>{fitPercent}%</strong>
+                    <span>{t('Theoretical ceiling ratio')}</span>
+                    <strong>{formatNumber(fitPercent)}%</strong>
                   </div>
                 </div>
                 <div className="voyage-fit-track" aria-hidden="true">
                   <span style={{ width: `${fitPercent}%` }} />
                 </div>
                 <small>
-                  Diagnostic only: contribution versus a best-known modifier in every relevant slot.
-                  No keep/reroll threshold is applied to this scale.
+                  {t(
+                    'Diagnostic only: contribution versus a best-known modifier in every relevant slot. No keep/reroll threshold is applied to this scale.',
+                  )}
                 </small>
               </>
             ))}
           {forecast && fitPercent !== null && (
             <div className="voyage-fit-diagnostic">
-              <div className="voyage-fit-diagnostic-head">Secondary ceiling diagnostic</div>
+              <div className="voyage-fit-diagnostic-head">{t('Secondary ceiling diagnostic')}</div>
               <div className="voyage-fit-summary">
                 <div>
-                  <span>Theoretical ceiling ratio</span>
-                  <strong>{fitPercent}%</strong>
+                  <span>{t('Theoretical ceiling ratio')}</span>
+                  <strong>{formatNumber(fitPercent)}%</strong>
                 </div>
               </div>
               <small>
-                Contribution versus a best-known modifier in every relevant slot. This is not a
-                percentile, has no decision line, and cannot trigger KEEP or REROLL.
+                {t(
+                  'Contribution versus a best-known modifier in every relevant slot. This is not a percentile, has no decision line, and cannot trigger KEEP or REROLL.',
+                )}
               </small>
             </div>
           )}
         </div>
 
         <div className="voyage-costs">
-          <div className="voyage-cost-heading">Reroll cost</div>
+          <div className="voyage-cost-heading">{t('Reroll cost')}</div>
           <div className="voyage-reroll-used">
-            <span>Used</span>
+            <span>{t('Used')}</span>
             <div className="reroll-stepper">
               <button
-                aria-label="Decrease rerolls used"
+                aria-label={t('Decrease rerolls used')}
                 disabled={decision.rerollsUsed === 0}
                 onClick={() => onChangeRerolls(decision.rerollsUsed - 1)}
               >
                 −
               </button>
-              <strong>{decision.rerollsUsed}/5</strong>
+              <strong>{formatNumber(decision.rerollsUsed)}/5</strong>
               <button
-                aria-label="Increase rerolls used"
+                aria-label={t('Increase rerolls used')}
                 disabled={decision.rerollsUsed === 5}
                 onClick={() => onChangeRerolls(decision.rerollsUsed + 1)}
               >
@@ -209,24 +228,28 @@ export function VoyageAdvisor({
           </div>
           <div className="voyage-cost-values">
             <div>
-              <span>Spent</span>
-              <strong>{sulphur(decision.spent)}</strong>
-              <small>Sulphur</small>
+              <span>{t('Spent')}</span>
+              <strong>{ui(sulphur(decision.spent))}</strong>
+              <small>{t('Sulphur')}</small>
             </div>
             <div className="next">
-              <span>Next</span>
-              <strong>{sulphur(decision.nextCost)}</strong>
-              <small>{decision.nextCost === null ? 'cap reached' : 'Sulphur'}</small>
+              <span>{t('Next')}</span>
+              <strong>{ui(sulphur(decision.nextCost))}</strong>
+              <small>{decision.nextCost === null ? t('cap reached') : t('Sulphur')}</small>
             </div>
           </div>
         </div>
       </div>
 
       <div className="voyage-disclaimer">
-        <span>{forecast ? 'Experimental probability model' : 'Heuristic guidance'}</span>
+        <span>{forecast ? t('Experimental probability model') : t('Heuristic guidance')}</span>
         {forecast
-          ? 'Slot-aware frequencies update with the canonical dataset. Confidence counts only paid Voyage sequences; natural boards stabilize weights without raising it. A recommendation requires the full prior-sensitivity range to stay on one side of the keep line; an overlapping range preserves the board instead of recommending spend. Slots are still modeled independently, and prior-only estimates are not observed drops. This is not Sulphur expected value.'
-          : 'A modeled comparison is unavailable, so the app preserves the board instead of using the theoretical ceiling ratio as a spending signal.'}
+          ? t(
+              'Slot-aware frequencies update with the canonical dataset. Confidence counts only paid Voyage sequences; natural boards stabilize weights without raising it. A recommendation requires the full prior-sensitivity range to stay on one side of the keep line; an overlapping range preserves the board instead of recommending spend. Slots are still modeled independently, and prior-only estimates are not observed drops. This is not Sulphur expected value.',
+            )
+          : t(
+              'A modeled comparison is unavailable, so the app preserves the board instead of using the theoretical ceiling ratio as a spending signal.',
+            )}
       </div>
     </section>
   )

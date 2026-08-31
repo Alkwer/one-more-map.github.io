@@ -1,3 +1,4 @@
+import { t, ui } from '../i18n/locale'
 import { useState } from 'react'
 import type { Board, Borders, ChartData } from '../types'
 import { START_CELL } from '../types'
@@ -85,24 +86,24 @@ export function BoardView(props: Props) {
     <section className="board-wrap" aria-labelledby="voyage-board-title">
       <div className="board-toolbar">
         <h2 id="voyage-board-title" className="board-title">
-          Voyage Board
+          {t('Voyage Board')}
         </h2>
         <span className="spacer" />
         <button
           onClick={() => void randomize()}
           disabled={randomizing}
-          title="Draw an experimental slot-aware board from the current model"
+          title={t('Draw an experimental slot-aware board from the current model')}
         >
-          {randomizing ? 'Loading roll model…' : '🎲 Experimental roll'}
+          {randomizing ? t('Loading roll model…') : t('🎲 Experimental roll')}
         </button>
-        <button onClick={clearBorders}>Clear borders</button>
-        {randomizeError && <span role="alert">{randomizeError}</span>}
+        <button onClick={clearBorders}>{t('Clear borders')}</button>
+        {randomizeError && <span role="alert">{ui(randomizeError)}</span>}
       </div>
       <div className="board-scroll">
         <div
           className="board-grid"
           role="group"
-          aria-label="Three by three Voyage board with twelve border modifier controls"
+          aria-label={t('Three by three Voyage board with twelve border modifier controls')}
           aria-describedby="board-instructions"
         >
           <div className="corner" />
@@ -137,13 +138,14 @@ export function BoardView(props: Props) {
         </div>
       </div>
       <div id="board-instructions" className="board-hint">
-        Corners get 2 border mods, edges 1, center 0. Select a library chart then activate a cell to
-        place; activate two placed cells to swap.
+        {t(
+          'Corners get 2 border mods, edges 1, center 0. Select a library chart then activate a cell to place; activate two placed cells to swap.',
+        )}
       </div>
       <div className="legend">
-        <span className="legend-item scope-self">■ this area</span>
-        <span className="legend-item scope-adjacent">■ adjacent</span>
-        <span className="legend-item scope-global">■ whole voyage</span>
+        <span className="legend-item scope-self">{t('■ this area')}</span>
+        <span className="legend-item scope-adjacent">{t('■ adjacent')}</span>
+        <span className="legend-item scope-global">{t('■ whole voyage')}</span>
       </div>
       {!props.sequenceActive && (
         <div className="voyage-finish">
@@ -151,21 +153,25 @@ export function BoardView(props: Props) {
             className="copy-into-game"
             disabled={board.every((placement) => !placement)}
             onClick={props.onCopySequence}
-            title="Step through each square in the in-game placement order (bottom-left first), copying its chart so you can Ctrl+Left-click them in the right order."
+            title={t(
+              'Step through each square in the in-game placement order (bottom-left first), copying its chart so you can Ctrl+Left-click them in the right order.',
+            )}
           >
-            📋 Copy into game
+            {t('📋 Copy into game')}
           </button>
           <button
             className="finish-voyage"
             disabled={board.every((placement) => !placement)}
             onClick={props.onFinishVoyage}
-            title="Consume the charts on the board (they're used up), keeping any you've marked Preserved (🔒). Clears the board for the next voyage."
+            title={t(
+              "Consume the charts on the board (they're used up), keeping any you've marked Preserved (🔒). Clears the board for the next voyage.",
+            )}
           >
-            🌊 Finish Voyage
+            {t('🌊 Finish Voyage')}
           </button>
           {props.voyageMsg && (
             <span className="voyage-msg" role="status" aria-live="polite">
-              {props.voyageMsg}
+              {ui(props.voyageMsg)}
             </span>
           )}
         </div>

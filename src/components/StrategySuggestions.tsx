@@ -1,3 +1,4 @@
+import { formatNumber, t, ui } from '../i18n/locale'
 import type { StrategySuggestionResult } from '../logic/strategySuggestions'
 import { BORDER_ROLL_MODEL } from '../logic/borderRollModel'
 import { hasOptimalityGuarantee } from '../logic/solver'
@@ -42,32 +43,34 @@ export function StrategySuggestions({
       <div className="suggestion-heading">
         <div>
           <h3 className="panel-title" id="strategy-suggestions-title">
-            Strategy compatibility
+            {t('Strategy compatibility')}
           </h3>
           <div className="muted small-note suggestion-intro">
-            Ranks the best layout found for each strategy by bounded heuristic search across all
-            imported charts together with the current border roll; global optimality is not proven.
-            Fallback policy compares each strategy with achievable modeled rolls on its own
-            percentile scale; combined fit is not currency EV. The manual board is only a
-            diagnostic.
+            {t(
+              'Ranks the best layout found for each strategy by bounded heuristic search across all imported charts together with the current border roll; global optimality is not proven. Fallback policy compares each strategy with achievable modeled rolls on its own percentile scale; combined fit is not currency EV. The manual board is only a diagnostic.',
+            )}
           </div>
         </div>
         {result.enteredBorders > 0 && (
-          <span className="suggestion-roll-count">{result.enteredBorders}/12 borders</span>
+          <span className="suggestion-roll-count">
+            {formatNumber(result.enteredBorders)}
+            {t('/12 borders')}
+          </span>
         )}
       </div>
 
       {loading ? (
         <div className="suggestion-empty" aria-live="polite">
-          Analyzing the chart library and border roll…
+          {t('Analyzing the chart library and border roll…')}
         </div>
       ) : error ? (
         <div className="suggestion-empty" role="alert">
-          Strategy analysis failed: {error}
+          {t('Strategy analysis failed: ')}
+          {ui(error)}
         </div>
       ) : !result.hasEvidence ? (
         <div className="suggestion-empty">
-          Import charts or enter border modifiers to get a strategy recommendation.
+          {t('Import charts or enter border modifiers to get a strategy recommendation.')}
         </div>
       ) : (
         <div className="suggestion-list">
@@ -88,107 +91,117 @@ export function StrategySuggestions({
                 <div className="suggestion-card-head">
                   <div className="suggestion-rank">
                     {suggestion.jackpot
-                      ? '🎰 JACKPOT'
+                      ? t('🎰 JACKPOT')
                       : index === 0
                         ? topIsFallback
-                          ? 'Recommended fallback'
-                          : 'Recommended strategy'
+                          ? t('Recommended fallback')
+                          : t('Recommended strategy')
                         : isSpecializedAlternative
-                          ? 'Best ready specialized alternative'
-                          : `#${index + 1} combined fit`}
+                          ? t('Best ready specialized alternative')
+                          : t('#{v0} combined fit', { v0: index + 1 })}
                   </div>
                   <span
                     className={`suggestion-confidence ${
                       requiresReroll ? 'weak' : suggestion.confidence
                     }`}
                   >
-                    {requiresReroll ? 'REQUIRES REROLL' : fitLabel[suggestion.status]}
+                    {requiresReroll ? t('REQUIRES REROLL') : ui(fitLabel[suggestion.status])}
                   </span>
                 </div>
                 <div className="suggestion-name">{suggestion.strategy.name}</div>
-                <div className="suggestion-tagline">{suggestion.strategy.tagline}</div>
+                <div className="suggestion-tagline">{ui(suggestion.strategy.tagline)}</div>
                 {isSpecializedAlternative && (
                   <div className="suggestion-alternative-note">
-                    Runnable alternative — select it to build this specialized layout.
+                    {t('Runnable alternative — select it to build this specialized layout.')}
                   </div>
                 )}
                 <div className="suggestion-metrics">
                   <span>
-                    Charts <strong>{Math.round(suggestion.libraryFit * 100)}%</strong>
+                    {t('Charts ')}
+                    <strong>{formatNumber(Math.round(suggestion.libraryFit * 100))}%</strong>
                   </span>
                   <span>
-                    Ceiling ratio{' '}
+                    {t('Ceiling ratio')}{' '}
                     <strong>
                       {suggestion.enteredBorders === 0
                         ? '—'
-                        : `${Math.round(suggestion.borderFit * 100)}%`}
+                        : t('{v0}%', { v0: Math.round(suggestion.borderFit * 100) })}
                     </strong>
                   </span>
                   <span>
-                    Expected ceiling ratio{' '}
+                    {t('Expected ceiling ratio')}{' '}
                     <strong>
                       {suggestion.modeledBorderFit === null
                         ? '—'
-                        : `${Math.round(suggestion.modeledBorderFit * 100)}%`}
+                        : t('{v0}%', { v0: Math.round(suggestion.modeledBorderFit * 100) })}
                     </strong>
                   </span>
                   {suggestion.requiredBorderChance !== null && (
                     <span>
-                      Required border
+                      {t('Required border')}
                       <strong>
                         {suggestion.requiredBorderEvidence === 'prior-only'
-                          ? 'Unknown'
+                          ? t('Unknown')
                           : suggestion.requiredBorderEvidence === 'borrowed'
-                            ? 'Natural-only'
-                            : `${Math.round(suggestion.requiredBorderChance * 100)}%`}
+                            ? t('Natural-only')
+                            : t('{v0}%', { v0: Math.round(suggestion.requiredBorderChance * 100) })}
                       </strong>
                       {suggestion.requiredBorderEvidence === 'prior-only' && (
-                        <em className="suggestion-prior-only">prior-only · 0 observed</em>
+                        <em className="suggestion-prior-only">{t('prior-only · 0 observed')}</em>
                       )}
                       {suggestion.requiredBorderEvidence === 'borrowed' && (
                         <em className="suggestion-prior-only">
-                          {suggestion.requiredBorderBorrowedObservations} natural · 0 paid
+                          {ui(suggestion.requiredBorderBorrowedObservations)}
+                          {t(' natural · 0 paid')}
                         </em>
                       )}
                     </span>
                   )}
                   <span>
-                    Combined fit <strong>{Math.round(suggestion.combinedFit * 100)}%</strong>
+                    {t('Combined fit ')}
+                    <strong>{formatNumber(Math.round(suggestion.combinedFit * 100))}%</strong>
                   </span>
                   <span>
-                    Current board{' '}
+                    {t('Current board')}{' '}
                     <strong>
                       {suggestion.currentFit === null
                         ? '—'
-                        : `${Math.round(suggestion.currentFit * 100)}%`}
+                        : t('{v0}%', { v0: Math.round(suggestion.currentFit * 100) })}
                     </strong>
                   </span>
                   <span>
-                    Requirements{' '}
+                    {t('Requirements')}{' '}
                     <strong>
                       {suggestion.readiness.need === 0
-                        ? 'n/a'
-                        : `${suggestion.readiness.have}/${suggestion.readiness.need}`}
+                        ? t('n/a')
+                        : t('{v0}/{v1}', {
+                            v0: suggestion.readiness.have,
+                            v1: suggestion.readiness.need,
+                          })}
                     </strong>
                   </span>
                   <span>
-                    Library <strong>{suggestion.eligibleCharts} eligible</strong>
+                    {t('Library ')}
+                    <strong>
+                      {formatNumber(suggestion.eligibleCharts)}
+                      {t(' eligible')}
+                    </strong>
                   </span>
                   <span>
-                    Search{' '}
+                    {t('Search')}{' '}
                     <strong>
                       {suggestion.searchMethod === null
-                        ? 'Not run'
+                        ? t('Not run')
                         : optimalityProven
-                          ? 'Exhaustive · optimal proven'
-                          : 'Heuristic · best found (no global guarantee)'}
+                          ? t('Exhaustive · optimal proven')
+                          : t('Heuristic · best found (no global guarantee)')}
                     </strong>
                   </span>
                 </div>
                 {index === 0 && (
                   <ul className="suggestion-reasons">
                     {suggestion.reasons.map((reason) => (
-                      <li key={reason}>{reason}</li>
+                      <li key={reason}>{ui(reason)}</li>
                     ))}
                   </ul>
                 )}
@@ -196,9 +209,14 @@ export function StrategySuggestions({
                   className={`suggestion-use ${isActive ? 'active' : ''}`}
                   disabled={isActive}
                   onClick={() => onSelect(suggestion.strategy.id)}
-                  aria-label={`${isActive ? 'Strategy active' : 'Set active strategy'}: ${suggestion.strategy.name} (recommendation)`}
+                  aria-label={t(
+                    isActive
+                      ? 'Strategy active: {name} (recommendation)'
+                      : 'Set active strategy: {name} (recommendation)',
+                    { name: suggestion.strategy.name },
+                  )}
                 >
-                  {isActive ? '✓ Strategy active' : 'Set active strategy'}
+                  {isActive ? t('✓ Strategy active') : t('Set active strategy')}
                 </button>
               </article>
             )
@@ -207,11 +225,12 @@ export function StrategySuggestions({
       )}
 
       <div className="suggestion-disclaimer">
-        Experimental — achievable-roll comparison uses the slot-aware v{BORDER_ROLL_MODEL.version}{' '}
-        model at {BORDER_ROLL_MODEL.confidence} confidence. Natural boards stabilize weights without
-        raising paid confidence; borrowed and prior-only estimates are not observed paid drops. A
-        decision must remain on the same side of its percentile line across the tested priors;
-        incomplete rolls never use it. Reroll guidance is not Sulphur expected value.
+        {t('Experimental — achievable-roll comparison uses the slot-aware v')}
+        {formatNumber(BORDER_ROLL_MODEL.version)} {t('model at ')}
+        {ui(BORDER_ROLL_MODEL.confidence)}
+        {t(
+          ' confidence. Natural boards stabilize weights without raising paid confidence; borrowed and prior-only estimates are not observed paid drops. A decision must remain on the same side of its percentile line across the tested priors; incomplete rolls never use it. Reroll guidance is not Sulphur expected value.',
+        )}
       </div>
     </section>
   )

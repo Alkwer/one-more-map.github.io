@@ -1,3 +1,4 @@
+import { ui } from '../i18n/locale'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 // PoE item-tooltip recreation: ornate header bar with medallion end-caps,
@@ -89,7 +90,7 @@ function togglePoeTooltip(el: HTMLElement, data: TooltipData) {
 export function TooltipDescription({ id, data }: { id: string; data: TooltipData }) {
   return (
     <span id={id} className="sr-only">
-      {data.title}. {data.lines.map((line) => line.text).join('. ')}
+      {data.title}. {ui(data.lines.map((line) => line.text).join('. '))}
     </span>
   )
 }
@@ -208,7 +209,7 @@ export function TooltipLayer() {
         <div className="poe-tt-body">
           {data.lines.map((l, i) => (
             <div key={i} className={`poe-tt-line ${l.cls ?? ''}`}>
-              {l.text}
+              {ui(l.text)}
             </div>
           ))}
         </div>

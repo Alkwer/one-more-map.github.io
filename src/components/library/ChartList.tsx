@@ -1,3 +1,4 @@
+import { formatNumber, t, ui } from '../../i18n/locale'
 import { voyageModById } from '../../data/mods'
 import { isChartShapeResolved } from '../../logic/chartShapes'
 import type { PieceType } from '../../logic/pieceKeeps'
@@ -26,7 +27,7 @@ export function ChartList(props: Props) {
     <div
       className="chart-list"
       role="list"
-      aria-label="Charts"
+      aria-label={t('Charts')}
       aria-describedby={props.pageStatusId}
     >
       {props.charts.map((chart, index) => {
@@ -79,8 +80,8 @@ export function ChartList(props: Props) {
               className="chart-card-main"
               aria-label={
                 unresolvedShape
-                  ? `Confirm shape for ${chart.name}`
-                  : `Select ${chart.name} for placement`
+                  ? t('Confirm shape for {v0}', { v0: chart.name })
+                  : t('Select {v0} for placement', { v0: chart.name })
               }
               aria-pressed={!unresolvedShape && props.selected === chart.uid}
               onClick={activate}
@@ -89,21 +90,27 @@ export function ChartList(props: Props) {
               <TooltipDescription id={descriptionId} data={tooltip} />
               <span className="chart-card-head">
                 {unresolvedShape ? (
-                  <span className="shape-alert" aria-label="Shape confirmation required">
+                  <span className="shape-alert" aria-label={t('Shape confirmation required')}>
                     !
                   </span>
                 ) : (
                   <EdgeGlyph edges={chart.edges} />
                 )}
                 <span className="chart-name">{chart.name}</span>
-                <span className="chart-level">lvl {chart.level}</span>
-                {unresolvedShape && <span className="badge bad">needs shape</span>}
+                <span className="chart-level">
+                  {t('lvl ')}
+                  {formatNumber(chart.level)}
+                </span>
+                {unresolvedShape && <span className="badge bad">{t('needs shape')}</span>}
                 {lock && (
-                  <span className="badge lock" title={`${lock} - other solves won't spend it`}>
+                  <span
+                    className="badge lock"
+                    title={t("{v0} - other solves won't spend it", { v0: lock })}
+                  >
                     🔒
                   </span>
                 )}
-                {props.onBoard.has(chart.uid) && <span className="badge">on board</span>}
+                {props.onBoard.has(chart.uid) && <span className="badge">{t('on board')}</span>}
               </span>
               {modifier && (
                 <span className={`chart-mod scope-${modifier.scope}`}>
@@ -112,7 +119,7 @@ export function ChartList(props: Props) {
                       key={candidate!.id}
                       className={`chart-mod-line scope-${candidate!.scope}`}
                     >
-                      {candidate!.text}
+                      {ui(candidate!.text)}
                     </span>
                   ))}
                 </span>
@@ -121,12 +128,15 @@ export function ChartList(props: Props) {
             <div
               className="chart-card-actions"
               role="group"
-              aria-label={`Actions for ${chart.name}`}
+              aria-label={t('Actions for {v0}', { v0: chart.name })}
             >
               <button
                 type="button"
-                aria-label={`${props.editing === chart.uid ? 'Close editor for' : 'Edit'} ${chart.name}`}
-                title="Edit"
+                aria-label={t('{v0} {v1}', {
+                  v0: props.editing === chart.uid ? 'Close editor for' : 'Edit',
+                  v1: chart.name,
+                })}
+                title={t('Edit')}
                 aria-expanded={props.editing === chart.uid}
                 onClick={() => props.onEdit(props.editing === chart.uid ? null : chart.uid)}
               >
@@ -134,8 +144,8 @@ export function ChartList(props: Props) {
               </button>
               <button
                 type="button"
-                aria-label={`Delete ${chart.name}`}
-                title="Delete"
+                aria-label={t('Delete {v0}', { v0: chart.name })}
+                title={t('Delete')}
                 onClick={() => props.onRemove(chart.uid)}
               >
                 ✕

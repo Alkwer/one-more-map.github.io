@@ -1,3 +1,4 @@
+import { formatNumber, t, ui } from '../i18n/locale'
 import { useId, useMemo, useState } from 'react'
 import {
   CUSTOM_OPTIONS,
@@ -96,13 +97,13 @@ export function SaveWizard({ pool, keeps, reservations, onApply, onClose }: Prop
       >
         <div className="panel-title">
           <h2 id={titleId} className="panel-title-heading" data-dialog-initial-focus tabIndex={-1}>
-            🔖 Keep charts for strategies
+            {t('🔖 Keep charts for strategies')}
           </h2>
           <span className="muted sw-progress">
-            {summary ? 'summary' : `step ${step + 1} of ${STEPS.length}`}
+            {summary ? t('summary') : t('step {v0} of {v1}', { v0: step + 1, v1: STEPS.length })}
           </span>
           <span className="spacer" />
-          <button onClick={onClose}>Cancel</button>
+          <button onClick={onClose}>{t('Cancel')}</button>
         </div>
 
         {current && (
@@ -111,9 +112,9 @@ export function SaveWizard({ pool, keeps, reservations, onApply, onClose }: Prop
               <span className="sw-strat-name">{current.strategyName}</span>
             </div>
             <div className="muted small-note" style={{ marginTop: 2 }}>
-              How many of each recommended chart type should stay banked for this strategy? The
-              solver keeps your best X of each - anything beyond that gets spent like a normal
-              chart. Set 0 to bank none.
+              {t(
+                'How many of each recommended chart type should stay banked for this strategy? The solver keeps your best X of each - anything beyond that gets spent like a normal chart. Set 0 to bank none.',
+              )}
             </div>
             <div className="sw-list">
               {current.pieces.map((p) => {
@@ -121,22 +122,27 @@ export function SaveWizard({ pool, keeps, reservations, onApply, onClose }: Prop
                 const owned = have.get(p.key) ?? 0
                 return (
                   <div key={p.key} className={`sw-row ${keep > 0 ? 'pinned' : ''}`}>
-                    <span className="sw-name">{p.label}</span>
+                    <span className="sw-name">{ui(p.label)}</span>
                     <span className="sw-mod muted">
-                      suggested {p.recommended} · you have {owned}
+                      {t('suggested ')}
+                      {formatNumber(p.recommended)}
+                      {t(' · you have ')}
+                      {formatNumber(owned)}
                     </span>
                     <span className="spacer" />
                     <span className="sw-stepper">
                       <button
-                        aria-label={`Keep one fewer ${p.label}`}
+                        aria-label={t('Keep one fewer {v0}', { v0: p.label })}
                         onClick={() => bumpKey(p.key, p.defaultKeep, -1)}
                         disabled={keep === 0}
                       >
                         −
                       </button>
-                      <span className={`sw-keep ${keep > owned ? 'short' : ''}`}>{keep}</span>
+                      <span className={`sw-keep ${keep > owned ? 'short' : ''}`}>
+                        {formatNumber(keep)}
+                      </span>
                       <button
-                        aria-label={`Keep one more ${p.label}`}
+                        aria-label={t('Keep one more {v0}', { v0: p.label })}
                         onClick={() => bumpKey(p.key, p.defaultKeep, 1)}
                       >
                         +
@@ -152,20 +158,25 @@ export function SaveWizard({ pool, keeps, reservations, onApply, onClose }: Prop
                 ).length
                 return (
                   <div key={c.key} className={`sw-row ${keep > 0 ? 'pinned' : ''}`}>
-                    <span className="sw-name">{customLabel(c.modIds)}</span>
-                    <span className="sw-mod muted">your addition · you have {owned}</span>
+                    <span className="sw-name">{ui(customLabel(c.modIds))}</span>
+                    <span className="sw-mod muted">
+                      {t('your addition · you have ')}
+                      {formatNumber(owned)}
+                    </span>
                     <span className="spacer" />
                     <span className="sw-stepper">
                       <button
-                        aria-label={`Keep one fewer ${customLabel(c.modIds)}`}
+                        aria-label={t('Keep one fewer {v0}', { v0: customLabel(c.modIds) })}
                         onClick={() => bumpKey(c.key, 0, -1)}
                         disabled={keep === 0}
                       >
                         −
                       </button>
-                      <span className={`sw-keep ${keep > owned ? 'short' : ''}`}>{keep}</span>
+                      <span className={`sw-keep ${keep > owned ? 'short' : ''}`}>
+                        {formatNumber(keep)}
+                      </span>
                       <button
-                        aria-label={`Keep one more ${customLabel(c.modIds)}`}
+                        aria-label={t('Keep one more {v0}', { v0: customLabel(c.modIds) })}
                         onClick={() => bumpKey(c.key, 0, 1)}
                       >
                         +
@@ -173,8 +184,8 @@ export function SaveWizard({ pool, keeps, reservations, onApply, onClose }: Prop
                     </span>
                     <button
                       className="sw-remove"
-                      title="Remove this chart type"
-                      aria-label={`Remove ${customLabel(c.modIds)}`}
+                      title={t('Remove this chart type')}
+                      aria-label={t('Remove {v0}', { v0: customLabel(c.modIds) })}
                       onClick={() =>
                         setDraft((d) => {
                           const next = { ...d }
@@ -191,11 +202,11 @@ export function SaveWizard({ pool, keeps, reservations, onApply, onClose }: Prop
             </div>
             <div className="sw-add">
               <label className="sr-only" htmlFor="sw-chart-type-search">
-                Search chart types to add
+                {t('Search chart types to add')}
               </label>
               <input
                 id="sw-chart-type-search"
-                placeholder="+ Add a chart type… search (e.g. Diviner, Lantern, Barrel)"
+                placeholder={t('+ Add a chart type… search (e.g. Diviner, Lantern, Barrel)')}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
@@ -214,7 +225,7 @@ export function SaveWizard({ pool, keeps, reservations, onApply, onClose }: Prop
                       setQuery('')
                     }}
                   >
-                    <span>{o.label}</span>
+                    <span>{ui(o.label)}</span>
                     <span
                       className={`sw-add-scope scope-${o.scope === 'voyage' ? 'global' : 'adjacent'}`}
                     >
@@ -222,7 +233,7 @@ export function SaveWizard({ pool, keeps, reservations, onApply, onClose }: Prop
                     </span>
                   </button>
                 ))}
-                {addable.length === 0 && <span className="muted pad">No matches</span>}
+                {addable.length === 0 && <span className="muted pad">{t('No matches')}</span>}
               </div>
             )}
           </>
@@ -231,8 +242,9 @@ export function SaveWizard({ pool, keeps, reservations, onApply, onClose }: Prop
         {summary && (
           <>
             <div className="muted small-note">
-              Press Save to apply. Banked charts show a 🔒 in the library naming their strategy;
-              rerun this wizard any time to adjust the counts.
+              {t(
+                'Press Save to apply. Banked charts show a 🔒 in the library naming their strategy; rerun this wizard any time to adjust the counts.',
+              )}
             </div>
             <div className="sw-list">
               {STEPS.map((s) => {
@@ -243,7 +255,10 @@ export function SaveWizard({ pool, keeps, reservations, onApply, onClose }: Prop
                     <span className="sw-pin">{total > 0 ? '🔖' : '·'}</span>
                     <span className="sw-name">{s.strategyName}</span>
                     <span className="sw-mod muted">
-                      banking {banked} now · limit {total}
+                      {t('banking ')}
+                      {formatNumber(banked)}
+                      {t(' now · limit ')}
+                      {formatNumber(total)}
                     </span>
                   </div>
                 )
@@ -254,10 +269,10 @@ export function SaveWizard({ pool, keeps, reservations, onApply, onClose }: Prop
 
         <div className="sw-actions">
           <button disabled={step === 0} onClick={() => moveToStep(step - 1)}>
-            ← Back
+            {t('← Back')}
           </button>
           <span className="spacer" />
-          {!summary && <button onClick={() => moveToStep(step + 1)}>Next →</button>}
+          {!summary && <button onClick={() => moveToStep(step + 1)}>{t('Next →')}</button>}
           {summary && (
             <button
               className="primary sw-save"
@@ -266,7 +281,7 @@ export function SaveWizard({ pool, keeps, reservations, onApply, onClose }: Prop
                 onClose()
               }}
             >
-              💾 Save keep counts
+              {t('💾 Save keep counts')}
             </button>
           )}
         </div>

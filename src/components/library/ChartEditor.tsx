@@ -1,3 +1,4 @@
+import { formatNumber, t, ui } from '../../i18n/locale'
 import { VOYAGE_MODS, voyageModById } from '../../data/mods'
 import {
   CHART_SHAPES,
@@ -43,16 +44,16 @@ export function ChartEditor({ chart, onUpdate }: Props) {
     <div className="chart-editor" onClick={(event) => event.stopPropagation()}>
       <div className="row">
         <input
-          aria-label="Chart name"
+          aria-label={t('Chart name')}
           value={chart.name}
           maxLength={MAX_CHART_NAME_LENGTH}
           onChange={(event) => onUpdate({ ...chart, name: event.target.value })}
-          placeholder="Chart name"
+          placeholder={t('Chart name')}
         />
         <input
           type="number"
           className="lvl"
-          aria-label="Chart area level"
+          aria-label={t('Chart area level')}
           value={chart.level}
           min={1}
           max={100}
@@ -63,22 +64,23 @@ export function ChartEditor({ chart, onUpdate }: Props) {
       </div>
       {chart.rewards !== undefined ? (
         <fieldset className="imported-reward-editor">
-          <legend>Imported area rewards</legend>
+          <legend>{t('Imported area rewards')}</legend>
           <p className="muted">
-            Header values used directly by ranking and the solver. Editing a value overrides the
-            imported amount.
+            {t(
+              'Header values used directly by ranking and the solver. Editing a value overrides the imported amount.',
+            )}
           </p>
           {chart.rewards.length === 0 ? (
-            <p className="muted">The imported header explicitly contains no area rewards.</p>
+            <p className="muted">{t('The imported header explicitly contains no area rewards.')}</p>
           ) : (
             <div className="imported-reward-grid">
               {chart.rewards.map((reward, index) => (
                 <label key={`${reward.stat}-${index}`}>
-                  <span>{STAT_LABELS[reward.stat]}</span>
+                  <span>{ui(STAT_LABELS[reward.stat])}</span>
                   <span className="reward-percent-input">
                     <input
                       type="number"
-                      aria-label={`Imported ${STAT_LABELS[reward.stat]} reward`}
+                      aria-label={t('Imported {v0} reward', { v0: STAT_LABELS[reward.stat] })}
                       value={reward.percent}
                       min={0}
                       max={MAX_REWARD_PERCENT}
@@ -97,13 +99,15 @@ export function ChartEditor({ chart, onUpdate }: Props) {
         </fieldset>
       ) : (
         <fieldset className="manual-mod-editor">
-          <legend>Manual area modifiers</legend>
-          <p className="muted">Inferred values used when no imported header rewards exist.</p>
+          <legend>{t('Manual area modifiers')}</legend>
+          <p className="muted">
+            {t('Inferred values used when no imported header rewards exist.')}
+          </p>
           <div className="manual-mod-grid">
             {[0, 1].map((slot) => (
               <select
                 key={slot}
-                aria-label={`Area modifier ${slot + 1}`}
+                aria-label={t('Area modifier {v0}', { v0: slot + 1 })}
                 value={selfIds[slot] ?? ''}
                 onChange={(event) => {
                   const next = [selfIds[0] ?? '', selfIds[1] ?? '']
@@ -111,10 +115,14 @@ export function ChartEditor({ chart, onUpdate }: Props) {
                   commitMods(next[0], next[1], implicitId)
                 }}
               >
-                <option value="">area mod {slot + 1}: none</option>
+                <option value="">
+                  {t('area mod ')}
+                  {formatNumber(slot + 1)}
+                  {t(': none')}
+                </option>
                 {selfPool.map((modifier) => (
                   <option key={modifier.id} value={modifier.id}>
-                    {modifier.text}
+                    {ui(modifier.text)}
                   </option>
                 ))}
               </select>
@@ -123,22 +131,22 @@ export function ChartEditor({ chart, onUpdate }: Props) {
         </fieldset>
       )}
       <select
-        aria-label="Implicit modifier"
+        aria-label={t('Implicit modifier')}
         value={implicitId}
         onChange={(event) => commitMods(selfIds[0] ?? '', selfIds[1] ?? '', event.target.value)}
       >
-        <option value="">implicit: none</option>
-        <optgroup label="Adjacent">
+        <option value="">{t('implicit: none')}</option>
+        <optgroup label={t('Adjacent')}>
           {VOYAGE_MODS.filter((modifier) => modifier.scope === 'adjacent').map((modifier) => (
             <option key={modifier.id} value={modifier.id}>
-              {modifier.text}
+              {ui(modifier.text)}
             </option>
           ))}
         </optgroup>
-        <optgroup label="Voyage-wide">
+        <optgroup label={t('Voyage-wide')}>
           {VOYAGE_MODS.filter((modifier) => modifier.scope === 'global').map((modifier) => (
             <option key={modifier.id} value={modifier.id}>
-              {modifier.text}
+              {ui(modifier.text)}
             </option>
           ))}
         </optgroup>
@@ -146,12 +154,14 @@ export function ChartEditor({ chart, onUpdate }: Props) {
       <div className={`shape-confirmation ${shapeResolved ? '' : 'unresolved'}`}>
         {!shapeResolved && (
           <div className="shape-warning">
-            Shape confirmation required
-            {chart.shapeInput ? ` · imported as "${chart.shapeInput}"` : ' · shape was missing'}
+            {t('Shape confirmation required')}
+            {chart.shapeInput
+              ? t(' · imported as "{v0}"', { v0: chart.shapeInput })
+              : t(' · shape was missing')}
           </div>
         )}
         <label>
-          Chart shape
+          {t('Chart shape')}
           <select
             value={selectedShape}
             onChange={(event) => {
@@ -167,33 +177,33 @@ export function ChartEditor({ chart, onUpdate }: Props) {
             }}
           >
             <option value="" disabled>
-              Choose shape…
+              {t('Choose shape…')}
             </option>
             {CHART_SHAPES.map((shape) => (
               <option key={shape} value={shape}>
-                {shape}
+                {ui(shape)}
               </option>
             ))}
           </select>
         </label>
       </div>
       <div className="row edges-row">
-        <span className="muted">Connectors:</span>
+        <span className="muted">{t('Connectors:')}</span>
         {EDGE_LABELS.map((label, index) => (
           <button
             type="button"
             key={label}
             className={`edge-btn ${chart.edges[index] ? 'on' : ''}`}
-            aria-label={`${label} connector`}
+            aria-label={t('{v0} connector', { v0: label })}
             aria-pressed={chart.edges[index]}
             onClick={() => toggleEdge(index)}
           >
-            {label}
+            {ui(label)}
           </button>
         ))}
       </div>
       {chart.rawText && (
-        <div className="raw-text" title="Unrecognised mod lines kept from import">
+        <div className="raw-text" title={t('Unrecognised mod lines kept from import')}>
           {chart.rawText}
         </div>
       )}

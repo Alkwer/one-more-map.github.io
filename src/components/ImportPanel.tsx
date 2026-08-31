@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
 import { FEEDBACK_URL } from '../buildInfo'
-import { ALL_GOOD_MODS_REGEX, RARE_IMPLICITS } from '../data/strategies'
+import { formatNumber, joinMessages, message, t, type UiMessage, ui } from '../i18n/locale'
+import { lazy, useCallback, useEffect, useRef, useState } from 'react'
+import { RARE_IMPLICITS } from '../data/strategies'
+import { ImportHelpDisclosure } from './ImportHelpDisclosure'
 import type { ProtectedBorderRoll } from './BorderRollResearch'
 import { DeferredBorderRollResearch } from './DeferredBorderRollResearch'
 import { generateDemoCharts } from '../logic/demo'
@@ -29,6 +31,13 @@ import {
 import type { BorderRollResearchController } from '../hooks/useBorderRollResearch'
 import type { ChartData } from '../types'
 
+const RollingChartHelp = lazy(() =>
+  import('./RollingChartHelp').then(({ RollingChartHelp }) => ({ default: RollingChartHelp })),
+)
+const WindowsImportHelp = lazy(() =>
+  import('./WindowsImportHelp').then(({ WindowsImportHelp }) => ({ default: WindowsImportHelp })),
+)
+
 interface Props {
   onImport: (charts: ChartData[]) => ChartAdditionResult
   state: AppState
@@ -45,7 +54,7 @@ export function ImportPanel({
   onLoadState,
 }: Props) {
   const [text, setText] = useState('')
-  const [msg, setMsg] = useState('')
+  const [msg, setMsg] = useState<UiMessage>('')
   const [rareAlert, setRareAlert] = useState('')
   const [parsing, setParsing] = useState(false)
   const stateRef = useRef(state)
@@ -105,7 +114,9 @@ export function ImportPanel({
           return
         }
         setMsg(
-          `Import could not be parsed: ${error instanceof Error ? error.message : 'worker failed'}`,
+          message('Import could not be parsed: {v0}', {
+            v0: error instanceof Error ? error.message : 'worker failed',
+          }),
         )
         return
       }
@@ -126,14 +137,18 @@ export function ImportPanel({
         borderOcr.blockCount > 0 ||
         borderOcr.rerollCostBlockCount > 0 ||
         borderOcr.scanMeta !== null
-      const parts: string[] = []
+      const parts: UiMessage[] = []
       if (
         charts.length === 0 &&
         rejected.length === 0 &&
         !hasOcrPayload &&
         stoppedEarly?.reason === 'chart-capacity'
       ) {
-        setMsg(`Nothing imported because the ${MAX_POOL_CHARTS}-chart library limit was reached.`)
+        setMsg(
+          message('Nothing imported because the {v0}-chart library limit was reached.', {
+            v0: MAX_POOL_CHARTS,
+          }),
+        )
         return
       }
       if (charts.length === 0 && rejected.length === 0 && !hasOcrPayload) {
@@ -154,7 +169,11 @@ export function ImportPanel({
       }
       const persistence = validateStateForPersistence(nextState)
       if (!persistence.ok) {
-        setMsg(`Import was not applied because it could not be saved: ${persistence.message}`)
+        setMsg(
+          message('Import was not applied because it could not be saved: {v0}', {
+            v0: persistence.message,
+          }),
+        )
         return
       }
 
@@ -190,28 +209,45 @@ export function ImportPanel({
       )
 
       if (addition.added > 0)
-        parts.push(`Imported ${addition.added} chart${addition.added === 1 ? '' : 's'}`)
+        parts.push(
+          message(addition.added === 1 ? 'Imported {count} chart' : 'Imported {count} charts', {
+            count: addition.added,
+          }),
+        )
       if (rescanned > 0) {
         parts.push(
-          `skipped ${rescanned} re-scanned chart${rescanned === 1 ? '' : 's'} already in your library (use "Clear all charts" first for a fresh import)`,
+          message(
+            'skipped {v0} re-scanned chart{v1} already in your library (use "Clear all charts" first for a fresh import)',
+            { v0: rescanned, v1: rescanned === 1 ? '' : 's' },
+          ),
         )
       }
       if (addition.skipped > 0) {
         parts.push(
-          `skipped ${addition.skipped} because the ${MAX_POOL_CHARTS}-chart library limit was reached`,
+          message('skipped {v0} because the {v1}-chart library limit was reached', {
+            v0: addition.skipped,
+            v1: MAX_POOL_CHARTS,
+          }),
         )
       }
       if (stoppedEarly?.reason === 'chart-capacity') {
         parts.push(
-          `stopped before ${stoppedEarly.unprocessedItems} additional item${
-            stoppedEarly.unprocessedItems === 1 ? '' : 's'
-          } because the ${MAX_POOL_CHARTS}-chart library limit was reached`,
+          message(
+            'stopped before {v0} additional item{v1} because the {v2}-chart library limit was reached',
+            {
+              v0: stoppedEarly.unprocessedItems,
+              v1: stoppedEarly.unprocessedItems === 1 ? '' : 's',
+              v2: MAX_POOL_CHARTS,
+            },
+          ),
         )
       } else if (stoppedEarly?.reason === 'rejection-budget') {
         parts.push(
-          `stopped after ${MAX_IMPORT_REJECTIONS} rejected items; ${stoppedEarly.unprocessedItems} additional item${
-            stoppedEarly.unprocessedItems === 1 ? '' : 's'
-          } were not parsed`,
+          message('stopped after {v0} rejected items; {v1} additional item{v2} were not parsed', {
+            v0: MAX_IMPORT_REJECTIONS,
+            v1: stoppedEarly.unprocessedItems,
+            v2: stoppedEarly.unprocessedItems === 1 ? '' : 's',
+          }),
         )
       }
       // Distinct physical charts have different rolls. A large byte-identical
@@ -230,7 +266,10 @@ export function ImportPanel({
         const first = key(charts[0])
         if (charts.every((chart) => key(chart) === first)) {
           parts.push(
-            `⚠ all ${charts.length} are identical - if this came from the bulk importer, recalibrate its grid with F7/F8, then reset and re-import`,
+            message(
+              '⚠ all {v0} are identical - if this came from the bulk importer, recalibrate its grid with F7/F8, then reset and re-import',
+              { v0: charts.length },
+            ),
           )
         }
       }
@@ -238,17 +277,19 @@ export function ImportPanel({
       const acceptedUnresolved = unresolved.filter(({ uid }) => acceptedUids.has(uid))
       if (acceptedUnresolved.length) {
         parts.push(
-          `needs shape confirmation: ${acceptedUnresolved
-            .map(({ name, reason }) => `"${name}" (${reason})`)
-            .join(', ')}`,
+          message('needs shape confirmation: {v0}', {
+            v0: acceptedUnresolved.map(({ name, reason }) => `"${name}" (${reason})`).join(', '),
+          }),
         )
       }
       if (borderOcr.blockCount > 0) {
         const expectedBorderCount = borderOcr.scanMeta?.expectedBlockCount ?? borderOcr.blockCount
         parts.push(
-          `matched ${borderOcr.matches.length}/${expectedBorderCount} border modifier${
-            expectedBorderCount === 1 ? '' : 's'
-          }`,
+          message('matched {v0}/{v1} border modifier{v2}', {
+            v0: borderOcr.matches.length,
+            v1: expectedBorderCount,
+            v2: expectedBorderCount === 1 ? '' : 's',
+          }),
         )
       }
       if (borderApplication.invalidated) {
@@ -257,7 +298,9 @@ export function ImportPanel({
         )
       } else if (borderApplication.status === 'incomplete') {
         parts.push(
-          `border scan incomplete (${borderOcr.uniqueBlockCount}/12 positions); kept existing borders`,
+          message('border scan incomplete ({v0}/12 positions); kept existing borders', {
+            v0: borderOcr.uniqueBlockCount,
+          }),
         )
       } else if (borderApplication.status === 'failed') {
         parts.push('no border tooltips recognised; kept existing borders')
@@ -265,33 +308,41 @@ export function ImportPanel({
         parts.push('cleared unmatched border positions from the complete scan')
       }
       if (borderOcr.ocrLanguages.length > 0) {
-        parts.push(`OCR language ${borderOcr.ocrLanguages.join(', ')}`)
+        parts.push(message('OCR language {v0}', { v0: borderOcr.ocrLanguages.join(', ') }))
       }
       if (borderOcr.rerollCost) {
         parts.push(
-          `reroll cost ${borderOcr.rerollCost.cost.toLocaleString('en-US')} (${borderOcr.rerollCost.rerollsUsed}/5 used)`,
+          message('reroll cost {v0} ({v1}/5 used)', {
+            v0: formatNumber(borderOcr.rerollCost.cost),
+            v1: borderOcr.rerollCost.rerollsUsed,
+          }),
         )
       } else if (borderOcr.rerollCostBlockCount > 0) {
         parts.push('OCR could not match the border reroll cost')
       }
       if (notCharted.length)
         parts.push(
-          `skipped ${notCharted.length} uncharted (run them first to reveal their modifier)`,
+          message('skipped {v0} uncharted (run them first to reveal their modifier)', {
+            v0: notCharted.length,
+          }),
         )
       const otherRejects = rejected.filter((r) => !r.reason.startsWith('not charted'))
       if (otherRejects.length) {
         parts.push(
-          `skipped: ${otherRejects.map(({ name, reason }) => `"${name}" (${reason})`).join(', ')}`,
+          message('skipped: {v0}', {
+            v0: otherRejects.map(({ name, reason }) => `"${name}" (${reason})`).join(', '),
+          }),
         )
       }
       if (borderOcr.misses.length > 0 && borderApplication.status !== 'failed') {
         parts.push(
-          `OCR unmatched at border${borderOcr.misses.length === 1 ? '' : 's'} ${borderOcr.misses
-            .map((miss) => miss.index + 1)
-            .join(', ')}`,
+          message('OCR unmatched at border{v0} {v1}', {
+            v0: borderOcr.misses.length === 1 ? '' : 's',
+            v1: borderOcr.misses.map((miss) => miss.index + 1).join(', '),
+          }),
         )
       }
-      setMsg(parts.join('; ') || 'Nothing imported')
+      setMsg(parts.length ? joinMessages(parts) : 'Nothing imported')
     },
     [borderResearch, onImport, onLoadState, text],
   )
@@ -325,7 +376,9 @@ export function ImportPanel({
       URL.revokeObjectURL(a.href)
     } catch (error) {
       setMsg(
-        `State could not be exported: ${error instanceof Error ? error.message : 'serialization failed'}`,
+        message('State could not be exported: {v0}', {
+          v0: error instanceof Error ? error.message : 'serialization failed',
+        }),
       )
     }
   }
@@ -336,15 +389,16 @@ export function ImportPanel({
     try {
       const decoded = await decodeStateFile(file)
       if (!decoded.ok) {
-        setMsg(`Invalid or incompatible state file: ${decoded.message}`)
+        setMsg(message('Invalid or incompatible state file: {v0}', { v0: decoded.message }))
         return
       }
       onLoadState(decoded.state)
       setMsg(
         decoded.warnings.length > 0
-          ? `State loaded from JSON with ${decoded.warnings.length} compatibility adjustment${
-              decoded.warnings.length === 1 ? '' : 's'
-            }`
+          ? message('State loaded from JSON with {v0} compatibility adjustment{v1}', {
+              v0: decoded.warnings.length,
+              v1: decoded.warnings.length === 1 ? '' : 's',
+            })
           : 'State loaded from JSON',
       )
     } catch {
@@ -353,7 +407,7 @@ export function ImportPanel({
   }
 
   const clearAll = () => {
-    if (window.confirm('Clear all charts, board and borders?')) {
+    if (window.confirm(t('Clear all charts, board and borders?'))) {
       cancelPendingImport()
       setParsing(false)
       onLoadState(defaultState())
@@ -363,17 +417,17 @@ export function ImportPanel({
   return (
     <section className="import-panel" aria-labelledby="import-title">
       <h2 id="import-title" className="panel-title">
-        Import
+        {t('Import')}
       </h2>
       <label className="sr-only" htmlFor="chart-import-text">
-        Chart or border import text
+        {t('Chart or border import text')}
       </label>
       <textarea
         id="chart-import-text"
         rows={5}
-        placeholder={
-          'Copy a chart in game (Ctrl+C), then press Ctrl+V anywhere on this page to import it. The Windows bulk importer also fills all 12 border modifiers with local OCR.'
-        }
+        placeholder={t(
+          'Copy a chart in game (Ctrl+C), then press Ctrl+V anywhere on this page to import it. The Windows bulk importer also fills all 12 border modifiers with local OCR.',
+        )}
         value={text}
         onChange={(e) => {
           cancelPendingImport()
@@ -389,32 +443,35 @@ export function ImportPanel({
       />
       <div className="import-actions">
         <button onClick={() => void doParse()} disabled={!text.trim()}>
-          {parsing ? 'Parsing…' : 'Parse & Add'}
+          {parsing ? t('Parsing…') : t('Parse & Add')}
         </button>
         <button
-          title="Generate random charts to try out the tool"
+          title={t('Generate random charts to try out the tool')}
           onClick={() => {
             cancelPendingImport()
             setParsing(false)
             const result = onImport(generateDemoCharts(25))
-            const parts = [
+            const parts: UiMessage[] = [
               `Added ${result.added} random demo chart${result.added === 1 ? '' : 's'}`,
             ]
             if (result.skipped > 0) {
               parts.push(
-                `skipped ${result.skipped} because the ${MAX_POOL_CHARTS}-chart library limit was reached`,
+                message('skipped {v0} because the {v1}-chart library limit was reached', {
+                  v0: result.skipped,
+                  v1: MAX_POOL_CHARTS,
+                }),
               )
             }
-            setMsg(parts.join('; '))
+            setMsg(joinMessages(parts))
           }}
         >
-          🎲 Demo ×25
+          {t('🎲 Demo ×25')}
         </button>
-        <button onClick={exportJson} title="Save your charts to a JSON file">
-          Export
+        <button onClick={exportJson} title={t('Save your charts to a JSON file')}>
+          {t('Export')}
         </button>
-        <label className="file-btn" title="Load charts from a JSON file">
-          Load
+        <label className="file-btn" title={t('Load charts from a JSON file')}>
+          {t('Load')}
           <input
             type="file"
             accept=".json"
@@ -425,19 +482,19 @@ export function ImportPanel({
             }}
           />
         </label>
-        <button onClick={clearAll} title="Clear all charts, board and borders">
-          Reset
+        <button onClick={clearAll} title={t('Clear all charts, board and borders')}>
+          {t('Reset')}
         </button>
       </div>
       {msg && (
         <div
           className="muted pad"
           role="status"
-          aria-label="Import result"
+          aria-label={t('Import result')}
           aria-live="polite"
           aria-atomic="true"
         >
-          {msg}
+          {ui(msg)}
         </div>
       )}
       <div className={rareAlert ? 'import-rare-alert' : undefined}>
@@ -445,17 +502,17 @@ export function ImportPanel({
           {rareAlert && <span aria-hidden="true">🎰 </span>}
           <span
             role="status"
-            aria-label="Rare-chart import alert"
+            aria-label={t('Rare-chart import alert')}
             aria-live="polite"
             aria-atomic="true"
           >
-            {rareAlert}
+            {ui(rareAlert)}
           </span>
         </span>
         {rareAlert && (
           <button
             className="announce-close"
-            aria-label="Dismiss rare-chart import alert"
+            aria-label={t('Dismiss rare-chart import alert')}
             onClick={() => setRareAlert('')}
           >
             ✕
@@ -463,139 +520,15 @@ export function ImportPanel({
         )}
       </div>
 
-      <details className="ahk-help">
-        <summary>🎲 Rolling & keeping charts (Milky's regexes)</summary>
-        <p className="muted">
-          Charts can't be rolled after running, so roll first (quantity scales strongboxes). Paste
-          these into the in-game chart search - from Milky's sheet.
-        </p>
-        <div className="roll-regex-row">
-          <span className="roll-regex-label">All good mods (keepers)</span>
-          <input
-            aria-label="All good modifiers keeper regex"
-            readOnly
-            value={ALL_GOOD_MODS_REGEX}
-            onFocus={(e) => e.target.select()}
-          />
-        </div>
-        <div className="roll-regex-row">
-          <span className="roll-regex-label">120%+ quantity roll</span>
-          <input
-            aria-label="120 percent or greater quantity regex"
-            readOnly
-            value={'"m q.*(1[2-9].|[2-9]..)%"'}
-            onFocus={(e) => e.target.select()}
-          />
-        </div>
-        <div className="roll-regex-row">
-          <span className="roll-regex-label">75%+ sulphur (save for Filthscrabble)</span>
-          <input
-            aria-label="75 percent or greater sulphur regex"
-            readOnly
-            value={'"sul.*(7[5-9]|[89].|\\d..)%"'}
-            onFocus={(e) => e.target.select()}
-          />
-        </div>
-      </details>
+      <ImportHelpDisclosure title={t("🎲 Rolling & keeping charts (Milky's regexes)")}>
+        <RollingChartHelp />
+      </ImportHelpDisclosure>
 
-      <details className="ahk-help">
-        <summary>🖱️ Bulk-import charts + board borders from PoE (Windows OCR)</summary>
-        <p className="muted">
-          A self-contained AutoHotkey script copies up to 120 charts from both chart-stash tabs,
-          reads all 12 board-border tooltips with Windows OCR, opens this trusted solver page, and
-          pastes one combined payload automatically. If the browser cannot be opened and focused,
-          the payload stays on your clipboard for a manual Ctrl+V. OCR stays on your PC and no
-          screenshots are uploaded.
-        </p>
-        <a className="ahk-dl" href={`${import.meta.env.BASE_URL}voyage-import.ahk`} download>
-          ⬇ Download voyage-import.ahk
-        </a>
-        <details className="ahk-faq">
-          <summary>Is this allowed under GGG's third-party policy?</summary>
-          <p className="muted small">
-            Our read: yes. GGG's macro rules govern inputs that affect the game, and the importer's
-            sweep is read-only - mouse hovers and Ctrl+C copies (the same primitive Awakened PoE
-            Trade sends on every price-check), plus holding Alt to reveal tooltips for the
-            screenshot. Nothing is moved, used, created or decided in-game; your character and stash
-            are identical before and after a run. The only real UI interaction is flipping the chart
-            panel's page tab, which the script flips back when done. Invocation is always your own
-            keypress - nothing ever triggers from timers or screen-watching.
-          </p>
-          <p className="muted small">
-            That said, this is our interpretation, not a GGG ruling. If GGG ever indicates
-            otherwise, the tool will change immediately. And if you'd rather not use the importer at
-            all, everything works by hand - the solver itself is just a webpage you paste item text
-            into; it never touches the game.
-          </p>
-        </details>
-        <ol className="ahk-steps">
-          <li>
-            Install{' '}
-            <a href="https://www.autohotkey.com/" target="_blank" rel="noopener noreferrer">
-              AutoHotkey v2
-            </a>{' '}
-            (Windows only).
-          </li>
-          <li>
-            In PoE (Windowed or Windowed Fullscreen), open the Voyage board so your chart panel is
-            fully visible and not scrolled.
-          </li>
-          <li>
-            Double-click the script. There is no browser or game binding: the helper opens this
-            solver URL through your default browser and authenticates the foreground PoE window
-            whenever a calibration or scan hotkey is pressed. No setup shortcut is required.
-          </li>
-          <li>
-            Keep the real Path of Exile window focused while calibrating. Positions are saved
-            relative to its client area, so moving the game between monitors no longer moves clicks
-            back to the old screen. Existing screen-based calibration is cleared once; recalibrate
-            the points below after updating the script.
-          </li>
-          <li>
-            For quick board calibration, point at the{' '}
-            <strong>top-left corner of the border-modifier square</strong> and press <kbd>F5</kbd>;
-            then point at its <strong>bottom-right corner</strong> and press <kbd>F6</kbd>.
-          </li>
-          <li>
-            If any border is missed, press <kbd>Ctrl+F5</kbd> to start exact calibration. Hover the
-            modifier named by the script and press <kbd>Ctrl+F6</kbd> to save it; repeat for all 12.
-            Press <kbd>Ctrl+F4</kbd> to preview the saved positions without running OCR.
-          </li>
-          <li>
-            Hover the <strong>compass-shaped border reroll button</strong> so its cost tooltip is
-            visible, then press <kbd>Ctrl+F7</kbd>. This lets each scan read the next reroll cost
-            and synchronize the solver's reroll counter automatically.
-          </li>
-          <li>
-            For chart import, calibrate the shared grid: hover the <strong>top-left</strong> chart
-            slot and press <kbd>F7</kbd>, then hover the <strong>bottom-right</strong> slot and
-            press <kbd>F8</kbd>. Next, hover chart-stash tab <strong>1</strong> and press{' '}
-            <kbd>Shift+F7</kbd>, then hover tab <strong>2</strong> and press <kbd>Shift+F8</kbd>.
-            (Edit GridCols/GridRows if your panel isn't 6×10.)
-          </li>
-          <li>
-            <kbd>F9</kbd> switches through both chart-stash tabs, copies their charts, and scans the
-            12 borders · <kbd>Ctrl+F9</kbd> refreshes only the 12 borders after a reroll, without
-            rescanning charts, and also reads the calibrated reroll-cost tooltip. Both commands open
-            the solver in the default browser, activate its window without a saved mouse click, and
-            paste automatically. If opening or activation fails, the payload stays on the clipboard
-            for a manual <kbd>Ctrl+V</kbd>. <kbd>F10</kbd> aborts. Border OCR can take around 15–30
-            seconds on a 4K screen. The script's tray menu lets you configure how many fully empty
-            chart rows end a tab sweep; use 0 if you keep Charts below large gaps.
-          </li>
-        </ol>
-        <p className="muted small">
-          If PoE runs as administrator, run the script as administrator too, or its keypresses won't
-          reach the game. Don't touch the mouse or keyboard while it's running.
-        </p>
-        <p className="muted small">
-          Problems or ideas?{' '}
-          <a href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer">
-            Open a GitHub issue
-          </a>{' '}
-          — actively monitored, and pull requests are welcome.
-        </p>
-      </details>
+      <ImportHelpDisclosure
+        title={t('🖱️ Bulk-import charts + board borders from PoE (Windows OCR)')}
+      >
+        <WindowsImportHelp feedbackUrl={FEEDBACK_URL} />
+      </ImportHelpDisclosure>
 
       <DeferredBorderRollResearch
         borders={state.borders}

@@ -1,3 +1,4 @@
+import { t, ui } from '../i18n/locale'
 import { useId } from 'react'
 import type { LocalStateRecovery } from '../logic/storage'
 import { useModalDialog } from './ModalDialog'
@@ -34,39 +35,44 @@ export function SavedStateRecovery({ recovery, actionError, onRetry, onMigrate, 
     <div className="onboard-backdrop saved-state-recovery-backdrop" data-modal-root>
       <div {...dialogProps} className="onboard saved-state-recovery">
         <h2 id={titleId} data-dialog-initial-focus tabIndex={-1}>
-          Saved state needs recovery
+          {t('Saved state needs recovery')}
         </h2>
         <p>
-          The app did not overwrite your saved data. {recovery.message}. Normal autosave is paused
-          until you choose how to continue.
+          {t('The app did not overwrite your saved data. ')}
+          {ui(recovery.message)}
+          {t('. Normal autosave is paused until you choose how to continue.')}
         </p>
         {recovery.warnings.length > 1 && (
           <ul className="saved-state-recovery-warnings">
             {recovery.warnings.slice(1, 6).map((warning) => (
-              <li key={warning}>{warning}</li>
+              <li key={warning}>{ui(warning)}</li>
             ))}
           </ul>
         )}
         <p className={hasBackup ? 'recovery-backup-ok' : 'recovery-backup-error'} role="status">
           {hasBackup
-            ? `Exact raw backup created as localStorage entry “${recovery.backupKey}”.`
-            : 'A browser backup could not be created. Export remains available; migration and reset stay disabled.'}
+            ? t('Exact raw backup created as localStorage entry “{v0}”.', {
+                v0: recovery.backupKey,
+              })
+            : t(
+                'A browser backup could not be created. Export remains available; migration and reset stay disabled.',
+              )}
         </p>
         {actionError && (
           <p className="recovery-backup-error" role="alert">
-            {actionError}
+            {ui(actionError)}
           </p>
         )}
         <div className="saved-state-recovery-actions">
-          <button onClick={() => exportRawState(recovery.raw)}>Export original JSON</button>
-          <button onClick={onRetry}>Retry decode</button>
+          <button onClick={() => exportRawState(recovery.raw)}>{t('Export original JSON')}</button>
+          <button onClick={onRetry}>{t('Retry decode')}</button>
           {recovery.proposedState && (
             <button disabled={!hasBackup} onClick={onMigrate}>
-              Migrate recovered state
+              {t('Migrate recovered state')}
             </button>
           )}
           <button className="danger" disabled={!hasBackup} onClick={onReset}>
-            Reset saved state…
+            {t('Reset saved state…')}
           </button>
         </div>
       </div>

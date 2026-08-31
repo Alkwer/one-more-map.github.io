@@ -1,3 +1,4 @@
+import { t, ui } from '../i18n/locale'
 import { useId } from 'react'
 import { ModalDialog } from './ModalDialogSurface'
 
@@ -17,14 +18,14 @@ export function LazyModalFallback({ title, onClose }: Props) {
       restoreFocus="immediate"
     >
       <h2 id={titleId} className="panel-title" data-dialog-initial-focus tabIndex={-1}>
-        {title}
+        {ui(title)}
       </h2>
       <p role="status" aria-live="polite">
-        Loading this screen…
+        {t('Loading this screen…')}
       </p>
       <div className="sw-actions">
         <span className="spacer" />
-        <button onClick={onClose}>Cancel</button>
+        <button onClick={onClose}>{t('Cancel')}</button>
       </div>
     </ModalDialog>
   )

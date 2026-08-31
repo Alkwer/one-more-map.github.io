@@ -1,3 +1,4 @@
+import { t, ui } from '../i18n/locale'
 import { useId, useState } from 'react'
 import { STRATEGIES, type StrategyDef } from '../data/strategies'
 import { strategyReadiness } from '../logic/strategyReadiness'
@@ -26,20 +27,25 @@ function Readiness({
   if (readiness.requirements.length === 0) return null
   if (!readiness.ready) {
     return (
-      <div className="strat-notready">Missing requirements: {readiness.missing.join(', ')}.</div>
+      <div className="strat-notready">
+        {t('Missing requirements: ')}
+        {ui(readiness.missing.join(', '))}.
+      </div>
     )
   }
   return (
     <div className="strat-ready">
-      ✓ Requirements met:{' '}
-      {readiness.requirements
-        .map(
-          (r) =>
-            `${Math.min(r.have, r.need)}/${r.need}× ${r.label}${
-              r.have > r.need ? ` (+${r.have - r.need} spare)` : ''
-            }`,
-        )
-        .join(', ')}
+      {t('✓ Requirements met:')}{' '}
+      {ui(
+        readiness.requirements
+          .map(
+            (r) =>
+              `${Math.min(r.have, r.need)}/${r.need}× ${r.label}${
+                r.have > r.need ? ` (+${r.have - r.need} spare)` : ''
+              }`,
+          )
+          .join(', '),
+      )}
     </div>
   )
 }
@@ -67,9 +73,9 @@ function RegexRow({
       <label
         htmlFor={inputId}
         className="strat-regex-label"
-        title="Paste into the in-game chart search to highlight this strategy's keeper charts"
+        title={t("Paste into the in-game chart search to highlight this strategy's keeper charts")}
       >
-        Keeper search
+        {t('Keeper search')}
       </label>
       <input
         id={inputId}
@@ -79,10 +85,12 @@ function RegexRow({
         onFocus={(e) => e.target.select()}
       />
       <span id={descriptionId} className="sr-only">
-        Read-only keeper search for {strategyName}. Copy it into the in-game chart search.
+        {t('Read-only keeper search for ')}
+        {strategyName}
+        {t('. Copy it into the in-game chart search.')}
       </span>
       <button
-        aria-label={`Copy ${strategyName} keeper search`}
+        aria-label={t('Copy {v0} keeper search', { v0: strategyName })}
         onClick={async () => {
           const result = await writeClipboardText(regex)
           if (!result.ok) {
@@ -95,10 +103,10 @@ function RegexRow({
           window.setTimeout(() => setCopied(false), 1500)
         }}
       >
-        {copied ? '✓' : 'Copy'}
+        {copied ? '✓' : t('Copy')}
       </button>
       <span className="sr-only" role="status" aria-live="polite">
-        {copyMessage}
+        {ui(copyMessage)}
       </span>
     </div>
   )
@@ -118,21 +126,22 @@ export function StrategiesPanel({
   return (
     <section className="strategies" aria-labelledby="strategies-title">
       <h3 id="strategies-title" className="panel-title">
-        Strategies
-        {activeId && <span className="strat-live-badge">ACTIVE</span>}
+        {t('Strategies')}
+        {activeId && <span className="strat-live-badge">{t('ACTIVE')}</span>}
       </h3>
       <div className="muted small-note" style={{ marginTop: 0 }}>
-        Curated community strategies. Picking one overrides your reward weights and steers the
-        solver until you switch it off.
+        {t(
+          'Curated community strategies. Picking one overrides your reward weights and steers the solver until you switch it off.',
+        )}
       </div>
 
       <button
         className={`strat-card strat-none ${activeId === null ? 'active' : ''}`}
         onClick={() => onSelect(null)}
       >
-        <span className="strat-name">None (manual)</span>
+        <span className="strat-name">{t('None (manual)')}</span>
         <span className="strat-tagline">
-          Use your own reward weights in Solver Settings, next to Solve.
+          {t('Use your own reward weights in Solver Settings, next to Solve.')}
         </span>
       </button>
 
@@ -149,13 +158,13 @@ export function StrategiesPanel({
               aria-expanded={isOpen}
               aria-controls={detailsId}
               onClick={() => setExpanded(isOpen ? null : s.id)}
-              title="Show details"
+              title={t('Show details')}
             >
               <span className="strat-name">
                 {s.name}
-                {s.badge && <span className="strat-badge-new">{s.badge}</span>}
+                {s.badge && <span className="strat-badge-new">{ui(s.badge)}</span>}
               </span>
-              <span className="strat-tagline">{s.tagline}</span>
+              <span className="strat-tagline">{ui(s.tagline)}</span>
             </button>
             <div
               className="strat-body"
@@ -166,7 +175,7 @@ export function StrategiesPanel({
             >
               <ul className="strat-guide">
                 {s.guide.map((g, i) => (
-                  <li key={i}>{g}</li>
+                  <li key={i}>{ui(g)}</li>
                 ))}
               </ul>
               {s.source.url ? (
@@ -176,10 +185,10 @@ export function StrategiesPanel({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  ▶ {s.source.label}
+                  ▶ {ui(s.source.label)}
                 </a>
               ) : (
-                <span className="strat-source">{s.source.label}</span>
+                <span className="strat-source">{ui(s.source.label)}</span>
               )}
               {s.extraLinks?.map((l) => (
                 <a
@@ -189,7 +198,7 @@ export function StrategiesPanel({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  🔗 {l.label}
+                  🔗 {ui(l.label)}
                 </a>
               ))}
             </div>
@@ -202,7 +211,7 @@ export function StrategiesPanel({
                   <div className="strat-layouts">
                     <div className="strat-layouts-row">
                       <label className="strat-layouts-label" htmlFor={`strategy-layout-${s.id}`}>
-                        Layout
+                        {t('Layout')}
                       </label>
                       <select
                         id={`strategy-layout-${s.id}`}
@@ -211,12 +220,12 @@ export function StrategiesPanel({
                       >
                         {s.layouts.map((layout) => (
                           <option key={layout.id} value={layout.id}>
-                            {layout.label}
+                            {ui(layout.label)}
                           </option>
                         ))}
                       </select>
                     </div>
-                    <div className="strat-layouts-hint muted">{chosen.hint}</div>
+                    <div className="strat-layouts-hint muted">{ui(chosen.hint)}</div>
                   </div>
                 )
               })()}
@@ -228,12 +237,12 @@ export function StrategiesPanel({
               className={`strat-use ${isActive ? 'on' : ''}`}
               aria-label={
                 isActive
-                  ? `Active - click to turn off: ${s.name}`
-                  : `Set active strategy: ${s.name}`
+                  ? t('Active - click to turn off: {name}', { name: s.name })
+                  : t('Set active strategy: {name}', { name: s.name })
               }
               onClick={() => onSelect(isActive ? null : s.id)}
             >
-              {isActive ? '✓ Active - click to turn off' : 'Set active strategy'}
+              {isActive ? t('✓ Active - click to turn off') : t('Set active strategy')}
             </button>
           </div>
         )

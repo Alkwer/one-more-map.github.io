@@ -1,3 +1,4 @@
+import { formatNumber, t, ui } from '../../i18n/locale'
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { BORDER_MODS, borderModById } from '../../data/mods'
 import { STAT_SHORT } from '../../types'
@@ -71,8 +72,11 @@ export function BorderPicker({ value, onChange, segment, vertical }: BorderPicke
         ref={triggerRef}
         type="button"
         className={`bslot ${mod ? 'filled' : ''}`}
-        title={mod?.text ?? 'Border segment: activate to search'}
-        aria-label={`Border segment ${segment + 1}: ${mod?.text ?? 'No border'}`}
+        title={ui(mod?.text) ?? t('Border segment: activate to search')}
+        aria-label={t('Border segment {v0}: {v1}', {
+          v0: segment + 1,
+          v1: mod?.text ?? 'No border',
+        })}
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-controls={open ? pickerId : undefined}
@@ -80,11 +84,11 @@ export function BorderPicker({ value, onChange, segment, vertical }: BorderPicke
       >
         {mod ? (
           <span>
-            {mod.short ??
+            {ui(mod.short) ??
               (effect
-                ? `+${effect.percent}% ${STAT_SHORT[effect.stat]}`
+                ? t('+{v0}% {v1}', { v0: effect.percent, v1: STAT_SHORT[effect.stat] })
                 : mod.magnitude
-                  ? `${mod.magnitude}% Magnitude`
+                  ? t('{v0}% Magnitude', { v0: mod.magnitude })
                   : '✦')}
           </span>
         ) : (
@@ -105,12 +109,13 @@ export function BorderPicker({ value, onChange, segment, vertical }: BorderPicke
           >
             <div className="bpop-head">
               <h3 id={pickerTitleId} className="sr-only">
-                Choose a modifier for border segment {segment + 1}
+                {t('Choose a modifier for border segment ')}
+                {formatNumber(segment + 1)}
               </h3>
               <button
                 type="button"
                 className="bpop-close"
-                aria-label={`Close border segment ${segment + 1} picker`}
+                aria-label={t('Close border segment {v0} picker', { v0: segment + 1 })}
                 onClick={closePicker}
               >
                 ×
@@ -118,8 +123,8 @@ export function BorderPicker({ value, onChange, segment, vertical }: BorderPicke
             </div>
             <input
               ref={searchRef}
-              aria-label="Search border modifiers"
-              placeholder="Search border mods…"
+              aria-label={t('Search border modifiers')}
+              placeholder={t('Search border mods…')}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={(event) => {
@@ -128,7 +133,7 @@ export function BorderPicker({ value, onChange, segment, vertical }: BorderPicke
             />
             <div className="bpop-list">
               <button type="button" className="bpop-item muted" onClick={() => pick(null)}>
-                No border
+                {t('No border')}
               </button>
               {filtered.map((candidate) => (
                 <button
@@ -138,13 +143,13 @@ export function BorderPicker({ value, onChange, segment, vertical }: BorderPicke
                   aria-pressed={candidate.id === value}
                   onClick={() => pick(candidate.id)}
                 >
-                  {candidate.short && <span className="bpop-short">{candidate.short}</span>}
-                  <span className="bpop-full">{candidate.text}</span>
+                  {candidate.short && <span className="bpop-short">{ui(candidate.short)}</span>}
+                  <span className="bpop-full">{ui(candidate.text)}</span>
                 </button>
               ))}
               {filtered.length === 0 && (
                 <span className="bpop-none" role="status">
-                  No matches
+                  {t('No matches')}
                 </span>
               )}
             </div>

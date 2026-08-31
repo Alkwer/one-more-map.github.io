@@ -1,5 +1,8 @@
 import { FEEDBACK_URL } from './buildInfo'
+import { OptionalHelpContent } from './components/ImportHelpDisclosure'
+import { t, ui } from './i18n/locale'
 import { lazy, Suspense, useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { useLocale } from './i18n/useLocale'
 import { AutosaveFailureWarning } from './components/AutosaveFailureWarning'
 import { BoardView } from './components/Board'
 import { BorderAppraiser } from './components/BorderAppraiser'
@@ -71,6 +74,12 @@ interface ChartDeletionConfirmation {
  * This supersedes the earlier two-page notice so returning visitors see both changes. */
 const AHK_ALTSCAN_KEY = 'announce-ahk-altscan'
 
+const ImporterUpdateNoticeBody = lazy(() =>
+  import('./components/ImporterUpdateNoticeBody').then(({ ImporterUpdateNoticeBody }) => ({
+    default: ImporterUpdateNoticeBody,
+  })),
+)
+
 const ModBrowser = lazy(() =>
   import('./components/ModBrowser').then(({ ModBrowser }) => ({ default: ModBrowser })),
 )
@@ -117,6 +126,7 @@ function readLocationState(): InitialStateResult {
 }
 
 export default function App() {
+  useLocale()
   const [initial] = useState(readLocationState)
   const [persistableState, dispatch] = useReducer(persistableAppStateReducer, {
     state: initial.state,
@@ -306,7 +316,9 @@ export default function App() {
 
   const resetSavedState = () => {
     if (!recovery?.backupKey) return
-    if (!window.confirm('Reset the incompatible saved state? The recovery backup will be kept.')) {
+    if (
+      !window.confirm(t('Reset the incompatible saved state? The recovery backup will be kept.'))
+    ) {
       return
     }
     const fresh = defaultState()
@@ -336,7 +348,9 @@ export default function App() {
   const clearCharts = () => {
     if (
       !window.confirm(
-        'Remove all charts from the library and clear the board? (Borders and weights are kept.)',
+        t(
+          'Remove all charts from the library and clear the board? (Borders and weights are kept.)',
+        ),
       )
     )
       return
@@ -379,8 +393,11 @@ export default function App() {
       {mutationError && (
         <div className="share-banner error" role="alert">
           <div className="share-banner-copy">
-            <strong>Your latest change was kept out of the library</strong>
-            <span>{mutationError} Your previous saved state is still intact.</span>
+            <strong>{t('Your latest change was kept out of the library')}</strong>
+            <span>
+              {ui(mutationError)}
+              {t(' Your previous saved state is still intact.')}
+            </span>
           </div>
         </div>
       )}
@@ -401,25 +418,30 @@ export default function App() {
           <div className="share-banner-copy">
             <span>
               {shareSession.kind === 'invalid'
-                ? `This shared layout could not be opened: ${shareSession.message}. Your saved state was left unchanged.`
+                ? t(
+                    'This shared layout could not be opened: {v0}. Your saved state was left unchanged.',
+                    { v0: shareSession.message },
+                  )
                 : shareSession.format === 'legacy-v3'
-                  ? 'Viewing a legacy shared state. Your saved state has not been changed.'
-                  : 'Viewing a shared layout. Your saved state has not been changed.'}
+                  ? t('Viewing a legacy shared state. Your saved state has not been changed.')
+                  : t('Viewing a shared layout. Your saved state has not been changed.')}
             </span>
             {shareSession.kind === 'valid' && shareSession.mergeError && (
               <span className="share-merge-error" role="alert">
-                {shareSession.mergeError}
+                {ui(shareSession.mergeError)}
               </span>
             )}
           </div>
           <div className="share-banner-actions">
             <button onClick={openSavedState}>
-              {shareSession.kind === 'valid' ? 'Discard shared layout' : 'Open my saved state'}
+              {shareSession.kind === 'valid'
+                ? t('Discard shared layout')
+                : t('Open my saved state')}
             </button>
             {shareSession.kind === 'valid' && (
               <>
-                <button onClick={mergeSharedState}>Merge with my library</button>
-                <button onClick={adoptSharedState}>Replace my saved state</button>
+                <button onClick={mergeSharedState}>{t('Merge with my library')}</button>
+                <button onClick={adoptSharedState}>{t('Replace my saved state')}</button>
               </>
             )}
           </div>
@@ -427,7 +449,9 @@ export default function App() {
       )}
       {!recovery && chrome.showOnboarding && (
         <Suspense
-          fallback={<LazyModalFallback title="Plan your Voyage" onClose={chrome.closeOnboarding} />}
+          fallback={
+            <LazyModalFallback title={t('Plan your Voyage')} onClose={chrome.closeOnboarding} />
+          }
         >
           <Onboarding
             onClose={chrome.closeOnboarding}
@@ -438,7 +462,7 @@ export default function App() {
       )}
       {!recovery && chrome.showMods && (
         <Suspense
-          fallback={<LazyModalFallback title="Chart Modifiers" onClose={chrome.closeMods} />}
+          fallback={<LazyModalFallback title={t('Chart Modifiers')} onClose={chrome.closeMods} />}
         >
           <ModBrowser
             disabled={analysis.disabledSet}
@@ -452,7 +476,9 @@ export default function App() {
       )}
       {!recovery && showUpdates && (
         <Suspense
-          fallback={<LazyModalFallback title="Updates" onClose={() => setShowUpdates(false)} />}
+          fallback={
+            <LazyModalFallback title={t('Updates')} onClose={() => setShowUpdates(false)} />
+          }
         >
           <UpdatesLog onClose={() => setShowUpdates(false)} />
         </Suspense>
@@ -460,7 +486,10 @@ export default function App() {
       {!recovery && showTutorial && (
         <Suspense
           fallback={
-            <LazyModalFallback title="What this site does" onClose={() => setShowTutorial(false)} />
+            <LazyModalFallback
+              title={t('What this site does')}
+              onClose={() => setShowTutorial(false)}
+            />
           }
         >
           <Tutorial onClose={() => setShowTutorial(false)} />
@@ -518,59 +547,22 @@ export default function App() {
             data-dialog-initial-focus
             tabIndex={-1}
           >
-            📥 Importer updated — borders in one scan
+            {t('📥 Importer updated — borders in one scan')}
             <span className="spacer" />
-            <button aria-label="Close importer update" onClick={dismissAhkNotice}>
+            <button aria-label={t('Close importer update')} onClick={dismissAhkNotice}>
               ✕
             </button>
           </div>
-          <p className="tut-body">
-            The game now reveals every border tooltip while <strong>Alt</strong> is held, so the
-            importer reads all 12 borders from a <strong>single screenshot</strong> — a couple of
-            seconds instead of 15–30. No new calibration is needed.
-          </p>
-          <p className="tut-body">
-            Also new: the blank-row skip is configurable (wizard → <em>Sweep speed</em>; set 0 if
-            you park charts at the bottom of a page), and the sweep covers both chart pages once the
-            wizard knows your page tabs.
-          </p>
-          <ol className="ahk-notice-steps">
-            <li>Download the script again and replace your old copy.</li>
-            <li>
-              <strong>Exit the running script</strong> (tray icon → Exit) and start the new one — it
-              does not reload itself.
-            </li>
-            <li>
-              Haven&apos;t set the page tabs yet? Rerun the wizard once (tray →{' '}
-              <em>Setup wizard…</em>). Existing calibration is kept.
-            </li>
-          </ol>
-          <div className="sw-actions">
-            <a
-              className="ahk-notice-dl"
-              href={`${import.meta.env.BASE_URL}voyage-import.ahk`}
-              download
-              onClick={dismissAhkNotice}
-            >
-              ⬇ Download the updated script
-            </a>
-            <span className="spacer" />
-            <button onClick={dismissAhkNotice}>Got it</button>
-          </div>
-          <div className="muted small-note">
-            Something misbehaving?{' '}
-            <a href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer">
-              Report it on GitHub
-            </a>{' '}
-            — actively monitored.
-          </div>
+          <OptionalHelpContent>
+            <ImporterUpdateNoticeBody onDismiss={dismissAhkNotice} feedbackUrl={FEEDBACK_URL} />
+          </OptionalHelpContent>
         </ModalDialog>
       )}
       {!recovery && showSaveWizard && (
         <Suspense
           fallback={
             <LazyModalFallback
-              title="Keep charts for strategies"
+              title={t('Keep charts for strategies')}
               onClose={() => setShowSaveWizard(false)}
             />
           }
@@ -587,7 +579,7 @@ export default function App() {
       {!recovery && showPlanner && (
         <Suspense
           fallback={
-            <LazyModalFallback title="Session Plan" onClose={() => setShowPlanner(false)} />
+            <LazyModalFallback title={t('Session Plan')} onClose={() => setShowPlanner(false)} />
           }
         >
           <SessionPlanner
@@ -706,8 +698,8 @@ export default function App() {
             appraisal={analysis.borderAppraisal}
             contextLabel={
               analysis.activeStrategy
-                ? `Fit for active strategy: ${analysis.activeStrategy.name}`
-                : 'Fit for manual reward weights'
+                ? t('Fit for active strategy: {v0}', { v0: analysis.activeStrategy.name })
+                : t('Fit for manual reward weights')
             }
           />
 
@@ -723,11 +715,12 @@ export default function App() {
         <section className="col solver-col" aria-labelledby="diagnostics-title">
           <div className="diagnostics-heading">
             <h2 id="diagnostics-title" className="panel-title">
-              Diagnostics
+              {t('Diagnostics')}
             </h2>
             <div>
-              Combined chart-library potential, border-roll fit, strategy requirements, and
-              current-board fit explain the recommendation above; they do not replace it.
+              {t(
+                'Combined chart-library potential, border-roll fit, strategy requirements, and current-board fit explain the recommendation above; they do not replace it.',
+              )}
             </div>
           </div>
           <DeferredStrategySuggestions
