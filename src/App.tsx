@@ -38,9 +38,11 @@ import {
   loadLocalState,
   MAX_POOL_CHARTS,
   saveLocal,
+  savePreparedLocal,
   type AppState,
   type LocalSaveResult,
   type LocalStateRecovery,
+  type ValidatedStatePayload,
 } from './logic/storage'
 import { persistableAppStateReducer } from './state/appStateReducer'
 import type { ChartData } from './types'
@@ -120,7 +122,8 @@ export default function App() {
     state: initial.state,
     mutationError: null,
   })
-  const { state, mutationError } = persistableState
+  const { state, mutationError, persistence } = persistableState
+  const savePayload = persistence?.payload
   const [shareSession, setShareSession] = useState<ShareSession | null>(initial.shareSession)
   const [recovery, setRecovery] = useState<LocalStateRecovery | null>(initial.recovery)
   const [recoveryActionError, setRecoveryActionError] = useState('')
@@ -183,9 +186,9 @@ export default function App() {
     borderResearch.finishVoyage,
   )
   const saveTimer = useRef<number>()
-  const pendingSave = useRef<AppState | null>(null)
-  const persistState = useCallback((nextState: AppState) => {
-    const result = saveLocal(nextState)
+  const pendingSave = useRef<{ state: AppState; payload?: ValidatedStatePayload } | null>(null)
+  const persistState = useCallback((nextState: AppState, payload?: ValidatedStatePayload) => {
+    const result = payload ? savePreparedLocal(payload) : saveLocal(nextState)
     setAutosaveFailure(result.ok ? null : result)
     return result
   }, [])
@@ -194,7 +197,7 @@ export default function App() {
     if (!nextState) return
     window.clearTimeout(saveTimer.current)
     pendingSave.current = null
-    persistState(nextState)
+    persistState(nextState.state, nextState.payload)
   }, [persistState])
   const replaceState = useCallback(
     (nextState: AppState) => {
@@ -210,15 +213,15 @@ export default function App() {
       pendingSave.current = null
       return
     }
-    pendingSave.current = state
+    pendingSave.current = { state, payload: savePayload }
     window.clearTimeout(saveTimer.current)
     saveTimer.current = window.setTimeout(() => {
       const nextState = pendingSave.current
       pendingSave.current = null
-      if (nextState) persistState(nextState)
+      if (nextState) persistState(nextState.state, nextState.payload)
     }, 300)
     return () => window.clearTimeout(saveTimer.current)
-  }, [persistState, recovery, shareSession, state])
+  }, [persistState, recovery, shareSession, state, savePayload])
 
   useEffect(() => {
     window.addEventListener('pagehide', flushPendingSave)

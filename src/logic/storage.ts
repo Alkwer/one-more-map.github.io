@@ -11,4 +11,5 @@ const browserRepository = createStateRepository({
   setItem: (key, value) => localStorage.setItem(key, value),
 })
 
-export const { saveLocal, loadLocalState, loadLocal, quarantineLocalState } = browserRepository
+export const { saveLocal, savePreparedLocal, loadLocalState, loadLocal, quarantineLocalState } =
+  browserRepository
