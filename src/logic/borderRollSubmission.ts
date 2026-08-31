@@ -394,6 +394,7 @@ export function updateBorderSubmissionSettings(
 export function enqueueBorderRollSequence(
   store: BorderSubmissionStore,
   samples: BorderRollSample[],
+  exportedAt = new Date().toISOString(),
 ): BorderSubmissionStore {
   if (!isCompleteBorderRollSequence(samples)) {
     throw new Error('Only a complete Voyage sequence can be queued for submission.')
@@ -408,6 +409,7 @@ export function enqueueBorderRollSequence(
         sequenceId,
         dataset: createBorderRollDataset(
           [...samples].sort((a, b) => a.rerollIndex - b.rerollIndex),
+          exportedAt,
         ),
         delivery: { status: 'pending', attemptCount: 0, lastAttemptAt: null, lastError: null },
       },

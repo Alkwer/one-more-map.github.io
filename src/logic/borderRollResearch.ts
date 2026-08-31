@@ -139,10 +139,11 @@ function assignedSamplingReason(
 export function startBorderRollSequence(
   store: BorderResearchStore,
   randomValue = Math.random(),
+  sequenceId = createId('voyage'),
 ): BorderResearchStore {
   return {
     ...store,
-    activeSequenceId: createId('voyage'),
+    activeSequenceId: sequenceId,
     activeSequenceSamplingReason: assignedSamplingReason(
       store.randomizedResearchEnabled,
       randomValue,
